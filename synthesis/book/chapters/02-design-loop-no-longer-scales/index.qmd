@@ -1,0 +1,704 @@
+# When Classical Architecture Design Loops Break {#chap-design-loop-no-longer-scales}
+
+```{=latex}
+\abstract*{Architecture 2.0 is motivated by pressure inside computer architecture, not by enthusiasm for AI. The classical architecture loop remains valuable, but it strains when specialization, heterogeneous integration, software velocity, memory movement, physical constraints, and verification burden grow together. The central bottleneck is not idea generation. It is trusted feedback: the ability to evaluate, reject, revise, and commit design choices at the speed and fidelity the problem now requires.}
+```
+
+::: {.callout-tip}
+## What this chapter gives you
+
+After this chapter you can:
+
+- recognize design-loop pressure, the scissors gap between choices and trusted feedback, in a real architecture setting;
+- explain why the bottleneck is trusted feedback, not idea generation;
+- point to the design and verification costs that make high-fidelity feedback scarce;
+- connect each pressure source to a loop field that can no longer remain implicit;
+- identify where generic AI assumptions break at architecture boundaries.
+:::
+
+Chapter 1 named Architecture 2.0 as a discipline for designing the design loop
+itself. It then made the claim concrete with a compact lighthouse prompt:
+design a low-power, RISC-V-based compute subsystem for real-time mobile XR
+under a 3 W, 3 nm-class low-power mobile envelope, and return a design-space
+report with evidence and rejected alternatives. The prompt is intentionally
+small. The architecture state it implies is not.
+
+This chapter explains why that state cannot be handled by merely asking a
+larger model to produce a larger answer. Computer architects already use
+models, simulators, benchmarks, profilers, spreadsheets, compilers, RTL flows,
+EDA tools, and expert reviews. The problem is not the absence of tools. The
+problem is that the design loop that coordinates those tools is under pressure.
+The space to search, the constraints to satisfy, and the evidence required to
+trust a result now grow faster than manual coordination, review, and
+verification capacity.
+
+The claim is not that the old loop is obsolete. It is that the old loop must
+itself become an object of design.
+
+> **Design-loop pressure.** Design-loop pressure is the condition in which
+> the number of plausible actions, constraints, feedback sources, and evidence
+> requirements grows faster than the loop's ability to evaluate, reject, revise,
+> and commit architecture candidates credibly.
+
+The chapter is therefore not a technology-trend survey. Specialization,
+chiplets, software velocity, memory movement, EDA, physical design, and
+verification matter here because they create a common failure mode: the
+architecture team can imagine more candidates than it can evaluate, reject,
+and justify. Architecture 2.0 begins by making that failure mode explicit.
+
+Read each section as a pressure test on one part of the loop. Cadence exposes
+gates and commitment policy. Architecture levers expand the state the loop must
+carry. Specialization and chiplets multiply actions. Software drift changes
+the workload contract. Physical constraints create early rejection conditions.
+Engineering cost makes feedback scarce. Generic AI assumptions fail because
+architecture work is not a cheap-label pipeline. Together, those pressures
+explain why the loop itself becomes the architecture object.
+
+## Classical Loops Already Use Feedback
+
+Computer architecture has always been a loop. A typical loop begins with an
+intent: improve latency, reduce energy, raise throughput, support a workload,
+or fit a system into a power and cost envelope. The architect then chooses an
+abstraction, builds or selects a model, runs an analysis or simulation, studies
+the result, revises the design, and repeats. Eventually the work crosses into
+implementation, validation, verification, and signoff. That basic pattern is
+visible in textbook architecture practice and in industrial design workflows
+[@HennessyPatterson2017QuantitativeApproach].
+
+A traditional SPEC CPU-style study makes the loop concrete. An architect might
+choose a subset of SPEC CPU workloads, propose a cache hierarchy or branch
+predictor change, run a simulator or performance model, inspect IPC, miss
+rates, branch-misprediction rates, area and power proxies, reject candidates
+that help one workload while hurting others, and repeat. SPEC CPU 2017, for
+example, was designed as an industry-standardized suite for compute-intensive
+performance, stressing processor, memory subsystem, and compiler behavior
+[@SPEC2017CPU]. The important point is not the specific suite version. It is
+the loop discipline: a bounded workload set, an explicit model, comparable
+metrics, rejection of weak candidates, and expert judgment about whether the
+evidence is strong enough.
+
+Chapter 1 made the Architecture 1.0 to Architecture 2.0 loop shift visible in
+@fig-design-loop-breaks. The point here is why that shift becomes necessary.
+Classical architecture loops already have intent, models, candidates, tool runs,
+and expert review. They strain when the state, action boundaries, evidence,
+rejection, and decision authority become too large to remain mostly implicit.
+
+Consider a familiar cache-hierarchy exploration. The architect defines a
+workload set, chooses candidate cache sizes, associativities, replacement
+policies, and prefetching options, runs a simulator, studies miss rates,
+latency, bandwidth, energy, and area proxies, rejects poor candidates, and
+keeps iterating. Human judgment enters repeatedly: selecting workloads,
+deciding which proxy is credible, noticing unexpected behavior, choosing when a
+candidate is worth deeper analysis, and deciding which risk to accept.
+
+This loop is powerful because it does not require perfect automation. It
+combines formal models, approximations, domain knowledge, and review. It also
+has an implicit contract: the number of choices, the cost of evaluation, and
+the evidence needed to make progress must remain within the capacity of the
+team and tools. When that contract holds, the loop works. When the contract
+breaks, the team may still generate ideas, but it cannot evaluate and reject
+them fast enough to make credible progress.
+
+## Cadence and Gates Manage Risk
+
+Industrial architecture practice has long treated cadence as a design object.
+Intel's tick-tock model is the cleanest familiar example. A "tick" moved a
+known microarchitecture to a new process technology; a "tock" introduced a new
+microarchitecture on a more mature process. The point was not that product
+development was literally two steps. The point was risk isolation: avoid
+changing every hard thing at once, preserve a cadence, and let evidence from
+one step inform the next. When node transitions lengthened, Intel described a
+move toward process-architecture-optimization, explicitly using longer-lived
+14 nm and 10 nm process technologies while further optimizing products and
+processes to maintain product cadence [@Intel2015Form10K].
+
+That history is useful for Architecture 2.0 because it shows that a design
+loop is not only a sequence of tools. It is also a policy for what is allowed
+to change, which evidence is strong enough to advance commitment, and how the
+organization reacts when feedback latency changes. Tick-tock separated process
+risk from microarchitecture risk. Process-architecture-optimization added an
+explicit optimization phase when process shrinks no longer arrived on the old
+schedule: instead of every generation requiring both a new process step and a
+new architecture step, the loop could spend another cycle improving products,
+libraries, physical implementation, frequency, power, and yield on a known
+process. In other words, the cadence changed because the feedback and
+commitment costs of the physical process changed.
+Architecture 2.0 generalizes the same lesson: if AI methods increase the rate
+at which candidates are proposed, the loop must become stricter about change
+scope, evidence gates, rejection authority, and what kind of optimization is
+being performed.
+
+Other fields teach compatible lessons. EDA timing closure teaches that a late
+tool can reject an early abstraction. The source-backed examples later in this
+chapter make the pattern concrete: autotuning treats measurements as samples
+from a costly space, benchmark governance depends on maintained rules and
+comparability contracts, and control, operations, and systems engineering add
+the same warning in different language. A loop without observability, a
+decision policy, and escalation gates is not a trustworthy loop. These
+analogies should not displace computer architecture. They help name the
+reusable loop properties architects already care about: cadence, state,
+feedback, gates, rejection, and commitment.
+
+This is not the first time architecture has had to redesign its loop. @tbl-historical-loop-transformations gives a few examples. The
+point is not nostalgia. The point is that many ideas that once looked
+unmanageable became tractable only after the field made some part of the loop
+explicit: the interface, the rules, the workload, the tool contract, the
+evidence gate, or the software path.
+
+| **Shift** | **What the loop made explicit** | **Architecture 2.0 lesson** |
+| --- | --- | --- |
+| System/360 compatibility | A stable ISA contract separated architecture from implementation across a product family [@AmdahlBlaauwBrooks1964System360]. | Architecture is a durable interface and commitment policy, not only a circuit or microarchitecture. |
+| Mead--Conway VLSI and MOSIS | Design rules, layout abstractions, and fabrication access turned custom-chip design into a teachable and reusable loop [@MeadConway1980VLSI; @USCISI2025MOSISFirstYear]. | Representation and access to feedback can change who can participate in architecture work. |
+| RISC | Workload, compiler, VLSI, and implementation-cost assumptions became part of the architectural argument [@PattersonDitzel1980RISC]. | Evidence can reject attractive complexity when the full loop cost is visible. |
+| SPEC-style benchmarking | Workload selection, run rules, reporting conventions, and comparability became community infrastructure [@SPEC2017CPU]. | Benchmarks are loop governance, not just input programs. |
+| Logic synthesis and timing closure | HDL, libraries, constraints, and timing reports gave downstream tools authority to reject upstream choices [@DeMicheli1994SynthesisOptimization]. | Implementation feedback belongs in the architecture loop before commitment. |
+| CUDA-style GPU programming | Kernels, thread hierarchies, memory spaces, libraries, and toolchains made specialized hardware programmable [@NickollsEtAl2008CUDA]. | Specialized hardware succeeds only when the software loop is designed with it. |
+
+: **Architecture progress often comes from redesigning the loop:** Historical shifts became durable when they exposed a representation, interface, tool path, benchmark, or evidence gate that let the community coordinate work. {#tbl-historical-loop-transformations tbl-colwidths="[22,39,28]"}
+
+These examples should make the Architecture 2.0 claim less exotic. The field
+has repeatedly advanced by turning tacit craft into explicit loop structure.
+The new challenge is that AI methods can propose, search, summarize, and
+optimize at a scale that makes the loop state itself the bottleneck.
+
+## Architecture Levers Add State
+
+Architecture advances by adding levers. For decades, technology scaling made
+the same basic design style better by providing smaller, faster, cheaper, and
+more energy-efficient transistors. Dennard scaling gave architects a favorable
+energy story as devices shrank [@DennardEtAl1974Scaling]. As that story
+weakened, the field leaned harder on microarchitecture, instruction-level
+parallelism, caches, speculation, vector units, multicore, accelerators,
+specialization, and system-level optimization. The result is not a simple
+failure narrative. It is an accumulation of levers.
+
+The accumulation matters because each lever creates both opportunity and
+obligation. Better microarchitecture adds policies and corner cases. Multicore adds
+coherence, synchronization, memory ordering, and workload partitioning.
+Specialization improves efficiency when the workload and software stack are
+understood, but it adds interfaces, data movement, programmability, and
+verification burden. Chiplets and heterogeneous integration promise modularity
+and scaling beyond a monolithic die, but they add partitioning, die-to-die
+interfaces, package-level constraints, test, yield, thermal coupling, and
+supply-chain questions.
+
+@fig-architecture-levers summarizes the first part of the point. The field
+keeps adding levers because efficiency still matters. But the same moves that
+recover efficiency also increase the burden of representing the design state
+and producing trusted feedback.
+
+![**Architecture levers add state:** Scaling, microarchitecture, optimization, specialization, and composition create new opportunities for efficiency, but each also adds constraints, interfaces, tool feedback, rejected alternatives, and evidence that the loop must carry.](images/F2-architecture-levers){#fig-architecture-levers width="100%" fig-pos="t"}
+
+The end of Dennard-style scaling and the limits of multicore scaling are not
+the only reasons for this pressure, but they explain why specialization became
+so central [@BorkarChien2011FutureMicroprocessors; @EsmaeilzadehEtAl2011DarkSilicon].
+Hennessy and Patterson's Turing Award lecture framed this moment as a new
+golden age for architecture, driven by domain-specific hardware/software
+co-design, open architectures, and agile hardware development
+[@HennessyPatterson2019GoldenAge]. Architecture 2.0 should be read in that
+lineage. The opportunity inside the new golden age is to extend the
+quantitative method from comparing candidate artifacts to designing the data,
+feedback, and evidence loops that make a larger, more coupled design space
+tractable. In that sense, the loop becomes a first-class architecture object:
+something to represent, instrument, test, reject, and improve.
+
+That is the architectural consequence for Architecture 2.0. The new golden age
+gives the field more architectural levers; Architecture 2.0 asks how to govern
+the loop that uses them. Without that layer, AI assistance can only make the
+design space larger. With it, AI methods can be assigned bounded roles in
+search, evidence, rejection, and revision.
+
+## Specialization and Chiplets Expand Search
+
+Specialization is attractive because efficiency is multidimensional, the point
+Chapter 1 made its north star. The binding constraint differs across scales,
+from a battery- and thermally-limited mobile part to a warehouse-scale system
+bounded by power delivery and total cost of ownership
+[@BarrosoHolzleRanganathan2019DatacenterAsComputer]. What this chapter adds is
+the consequence for the loop: specialization does not just change which metric
+matters, it multiplies the decisions the loop must evaluate.
+
+Specialization increases the number of architectural decisions because the
+architect must decide what to specialize, where to specialize it, and how it
+communicates with the rest of the system. A low-power XR subsystem is not just
+a choice between CPU and accelerator. It raises questions about vector length,
+memory hierarchy, local buffers, compression, dataflow, quantization, runtime
+scheduling, compiler support, sensor streams, display deadlines, thermal
+behavior, and fallback modes.
+
+Chiplets compound the effect. They make it possible to compose systems from
+multiple dies and to mix process technologies, IP blocks, and memory
+technologies. But a chiplet system is not simply a bigger board-level system
+inside a package. The package changes latency, bandwidth, energy, thermal
+coupling, test, repair, physical constraints, and business boundaries. Open
+standards such as UCIe aim to make die-to-die integration more composable by
+standardizing interface layers, protocols, software models, and compliance
+expectations [@UCIeConsortium2026Spec]. That standardization is valuable,
+but it also makes the architecture question more explicit: what should be
+partitioned, through which interface, under which evidence standard?
+
+The combinatorics are easy to understate. Suppose a team is exploring only a
+narrow slice of the lighthouse prompt: an accelerator and memory subsystem for
+one XRBench-class workload family. Even if it considers five compute
+organizations, four vector or accelerator interface choices, six memory
+hierarchy choices, four interconnect choices, three voltage/frequency
+policies, three compiler/runtime policies, and three verification or fidelity
+levels, the crude product is already:
+
+```{python}
+#| echo: false
+toy_design_loop_states = 5 * 4 * 6 * 4 * 3 * 3 * 3
+```
+
+$$
+5 \times 4 \times 6 \times 4 \times 3 \times 3 \times 3
+$$
+That is `{python} f"{toy_design_loop_states:,}"` candidate loop states before workload versions, process corners, thermal
+constraints, reliability cases, and rejected configurations are counted. This
+number is intentionally conservative. More realistic architecture-adjacent
+loops quickly become much larger, or much slower, even before final silicon
+evidence is involved.
+
+The product is also not just a counting problem. If each surviving state needs
+even a cheap analytical model, a simulator run, a synthesis check, or a human
+review, the loop is immediately limited by feedback cost and fidelity. Cheap
+models are essential, but they move the architecture problem rather than
+removing it: the loop must know when a proxy is good enough, when uncertainty is
+too wide, and when to escalate to stronger evidence. Chapter 4 turns that
+intuition into sample-cost and simulation-time representations, Chapter 5
+separates feedback regimes by latency, fidelity, and rejection authority, and
+Chapter 6 returns to this same count in an evidence-gap plot that compares
+candidate scale with affordable high-fidelity samples.
+
+:::: {.callout-tip}
+## Field note: the small count is already a schedule
+
+A count such as 12,960 looks harmless on the page because multiplication is
+cheap. It becomes an architecture problem as soon as each surviving state needs
+a sample: one proxy estimate, one simulator run, one synthesis check, one
+review meeting, or one signoff path. The loop therefore has to decide which
+states are screened analytically, which are replayed in simulation, which are
+escalated to stronger tools, and which rejected regions are worth preserving so
+the team does not rediscover the same dead end.
+::::
+
+@tbl-design-loop-scale-anchors grounds that pressure in
+concrete architecture settings. The examples are not meant to be a single
+measurement scale; they show that mapping, DSE, packaging, design cost, and
+verification each impose a different kind of loop burden.
+
+| Loop example | Scale anchor | Loop lesson |
+| --- | --- | --- |
+| DNN accelerator mapping | Timeloop's mapspace for a 7D CNN on a 4-tiling-level architecture includes loop permutations, factorization choices, and level-bypass alternatives; the unconstrained expression contains $(7!)^4 \times (2^4)^3$ multiplied by co-factor choices [@ParasharEtAl2019Timeloop]. | Mapping is itself a combinatorial problem; architecture evaluation depends on the mapper and its constraints. |
+| DNN accelerator DSE | MAESTRO reports a design-space exploration over 480M candidate designs, identifying 2.5M valid designs at an average rate of 0.17M designs per second [@KwonEtAl2019MAESTRO]. | Validity, pruning, and cost models are part of the evidence path, not implementation details. |
+| Chip floorplanning | Google TPU-block floorplanning experiments involved up to a few hundred macros and millions of standard cells; human designers iterated for months with EDA feedback taking up to 72 h, while a reported learned method generated comparable placements in under six hours, a claim later disputed on baselines and reproducibility [@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023AssessmentRL]. | High-fidelity feedback can be slow and multiobjective; generation is useful only when tied to tool feedback and rejection criteria. |
+| Tensor-program tuning | AutoTVM describes tensor-operator search spaces on the order of billions of possible implementations for a single GPU operator [@ChenEtAl2018AutoTVM]. | The software side of specialization also has a large hardware-dependent loop. |
+
+: **Design-loop pressure has source-backed scale anchors:** These examples ground the chapter's qualitative argument in benchmark scale, accelerator search, chiplet integration, design-cost, and verification-effort signals. {#tbl-design-loop-scale-anchors tbl-colwidths="[25,36,28]"}
+
+The exact size of any one space is not the point. These examples differ in
+task, fidelity, and tool chain, but they share the same pressure pattern:
+candidate count, validity, feedback cost, and evidence standards grow together.
+More candidates are useful only if the loop can evaluate, explain, and reject
+them.
+
+## Specialized Hardware Needs a Software Loop
+
+Specialization also exposes a software obligation. It is one thing to build an
+accelerator, vector unit, memory hierarchy, or chiplet partition that looks
+efficient in isolation. It is another thing to let programmers, compilers,
+runtimes, libraries, and deployment systems use it without destroying the
+efficiency claim through data movement, synchronization, code-generation
+overhead, or maintenance burden.
+
+The historical examples in @tbl-historical-loop-transformations show the same pattern.
+RISC depended on a compiler story. CUDA made GPU specialization useful by
+making the programming and toolchain loop explicit [@NickollsEtAl2008CUDA].
+The tensor-program row in @tbl-design-loop-scale-anchors pushes the point further:
+billion-scale operator search is already a software-side obligation of
+specialization. Systems such as Halide and MLIR make scheduling, lowering, and
+intermediate representations central parts of the performance loop
+[@RaganKelleyEtAl2017HalideCACM; @LattnerEtAl2020MLIR].
+
+For the lighthouse prompt, this means that a "64-bit RISC-V compute subsystem"
+cannot be judged by hardware structure alone. If the answer proposes a vector
+extension, custom accelerator, memory-local dataflow, or chiplet boundary, the
+loop must also represent how code reaches that mechanism, what compiler or
+runtime assumptions are required, which libraries or kernels use it, and which
+tests reject a design that is efficient only in a hand-written kernel. The
+software path is not downstream polish. It is part of the architectural claim.
+
+## Software Changes Faster than Silicon
+
+Specialization depends on stable enough targets. But modern software stacks
+move quickly. AI models change. Compiler passes change. Kernel libraries
+change. Runtimes, serving systems, quantization formats, batching strategies,
+fleet policies, and benchmark versions change. The hardware design cycle does
+not move at the same pace.
+
+Compiler 2.0 is a useful adjacent warning. Amarasinghe's framing is that
+compilers originally made hardware disappear for programmers, but multicore
+processors, vector instructions, accelerators, and heterogeneous systems have
+pushed more performance burden back onto programmers
+[@Amarasinghe2020Compiler20; @Amarasinghe2026Compiler20CSAIL]. The same
+pattern appears at the architecture level. Abstractions still matter, but the
+design loop must now expose more of the workload, software, hardware, and
+physical state that earlier abstractions could hide.
+
+MLPerf is a useful example because it was built to create common, reproducible
+machine-learning system benchmarks across a rapidly changing field
+[@MattsonEtAl2020MLPerf]. MLPerf Inference sharpened the deployment-facing
+version of that problem: the paper reports more than 100 organizations building
+ML inference chips, systems spanning at least three orders of magnitude in
+power and five orders of magnitude in performance, and more than 600
+reproducible measurements from 14 organizations in the first submission round
+[@ReddiEtAl2020MLPerfInference]. The lesson is not only that benchmarks
+need rules. It is that a benchmark must encode scenarios, latency constraints,
+accuracy targets, software stacks, and comparability rules before performance
+numbers mean the same thing across systems
+[@ReddiEtAl2021VisionBehindMLPerf]. That is also the challenge for
+architecture. A benchmark is not a fixed oracle. It is a maintained agreement
+about what evidence should count for a class of systems.
+
+For the lighthouse prompt, the workload is not merely "XR." It is a moving
+bundle of sensing, perception, graphics, display, interaction, latency,
+quality-of-experience, and energy constraints. XRBench provides a benchmark
+suite for extended-reality machine-learning workloads
+[@KwonEtAl2023XRBench], but a credible architecture loop must still decide
+which traces, model versions, deadlines, input distributions, and quality
+targets matter. If the software stack changes faster than the hardware loop
+can absorb, the design may optimize yesterday's workload.
+
+## Physical Constraints Move into Architecture {#sec-physical-constraints-move-into-architecture}
+
+Architecture does not sit above physical reality. It is the layer where
+software intent, hardware mechanisms, and physical constraints become one
+design problem.
+
+Data movement is the clearest example. Moving data through the memory
+hierarchy often costs far more energy than arithmetic, and Horowitz's
+widely used energy estimates made this point concrete for a generation of
+architects [@Horowitz2014Energy]. That changes what architecture work
+means. A design loop cannot only ask which compute block is fastest. It must
+ask where the data lives, how often it moves, who schedules it, what locality
+exists, what precision is acceptable, and what the software stack can express.
+
+A useful architecture-level decomposition is
+$$
+E_{\mathrm{system}} =
+E_{\mathrm{compute}} + E_{\mathrm{memory}} +
+E_{\mathrm{interconnect}} + E_{\mathrm{control}} +
+E_{\mathrm{leakage}} .
+$$
+This is not a circuit-level energy model. It is a reminder that an efficiency
+claim can be rejected by any term the loop failed to represent. A candidate
+that reduces arithmetic but increases memory movement, interconnect traffic,
+control overhead, or leakage has not necessarily improved the system.
+
+Interconnect has the same character. On-chip networks, package links, memory
+interfaces, collectives, and host-device protocols define what a design can
+actually sustain. EDA and physical-design constraints also move upward. Timing,
+placement, routing, IR drop, thermal behavior, leakage, signoff, and test are
+not late implementation details when they can overturn an architectural choice.
+For a design loop, this means that a simulator score or model prediction is
+not enough. The loop needs a path from low-fidelity estimates to stronger
+evidence, and it needs rules for when physical constraints reject an otherwise
+promising candidate.
+
+The Architecture 2.0 move is to make those physical assumptions inspectable
+before the loop delegates work. A generic generator can propose a faster block
+or a clever dataflow; an architecture loop must say which power model, memory
+traffic model, placement assumption, timing margin, and escalation rule make
+that proposal credible. Without that state, AI merely produces more candidates
+for a later physical-design step to reject. With that state, physical reality
+becomes an early design constraint, not a late surprise.
+
+The important consequence is not that every early idea needs signoff-quality
+evidence. It is that the loop must know which physical assumptions are being
+made, what evidence would overturn them, and when to escalate from a proxy to
+stronger feedback. Otherwise the apparent speedup from AI-generated candidates
+is paid back later as discarded work.
+
+The order-of-magnitude spread in @fig-data-movement-energy-scale is not
+something to memorize or treat as a current-node prediction. The architectural
+use is simpler: local arithmetic and memory movement live on very different
+energy scales, so a loop that optimizes only arithmetic can improve the wrong
+thing. Advanced-node designs do not remove this lesson; if anything, the gap
+between local logic and moving data, driving wires, and feeding memory systems
+is one reason locality remains an architectural problem rather than a solved
+device-scaling detail. For the 3 nm-class lighthouse prompt, the loop would
+need a fresh power model before making a design decision; the plot is a
+historical order-of-magnitude anchor, not the target-node model.
+
+```{python}
+#| label: fig-data-movement-energy-scale
+#| fig-cap: |
+#|   **Data movement can dominate arithmetic energy:** Rough Horowitz 45 nm energy values show why architecture loops must represent locality, buffering, precision, scheduling, and memory hierarchy rather than counting arithmetic alone. The values are order-of-magnitude teaching anchors, not current-node device estimates.
+#| out-width: "92%"
+#| fig-pos: "t"
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, add_note_box, apply_style, draw_range_rows, row_axis, top_log_axis
+
+rows = [
+    {"display_label": "32b integer add", "display_note": "baseline arithmetic", "energy_low_pj": 0.1, "energy_high_pj": 0.1, "right_label": "1x", "color": COLORS["blue"]},
+    {"display_label": "32b floating-point add", "display_note": "local arithmetic", "energy_low_pj": 0.9, "energy_high_pj": 0.9, "right_label": "9x", "color": COLORS["blue"]},
+    {"display_label": "32b integer multiply", "display_note": "local arithmetic", "energy_low_pj": 3.1, "energy_high_pj": 3.1, "right_label": "31x", "color": COLORS["blue"]},
+    {"display_label": "32b floating-point multiply", "display_note": "local arithmetic", "energy_low_pj": 3.7, "energy_high_pj": 3.7, "right_label": "37x", "color": COLORS["blue"]},
+    {"display_label": "8 KB SRAM access", "display_note": "64b cache access", "energy_low_pj": 10, "energy_high_pj": 10, "right_label": "100x", "color": COLORS["green"]},
+    {"display_label": "32 KB SRAM access", "display_note": "64b cache access", "energy_low_pj": 20, "energy_high_pj": 20, "right_label": "200x", "color": COLORS["green"]},
+    {"display_label": "1 MB SRAM access", "display_note": "on-chip memory access", "energy_low_pj": 100, "energy_high_pj": 100, "right_label": "1000x", "color": COLORS["orange"]},
+    {"display_label": "off-chip DRAM access", "display_note": "off-chip memory access", "energy_low_pj": 1300, "energy_high_pj": 1300, "right_label": "~13000x", "color": COLORS["red"]},
+]
+
+apply_style()
+fig, ax = plt.subplots(figsize=(4.9, 3.45))
+fig.subplots_adjust(left=0.40, right=0.80, top=0.82, bottom=0.17)
+
+row_axis(ax, len(rows))
+top_log_axis(
+    ax,
+    xlim=(0.06, 4000),
+    xticks=[0.1, 1, 10, 100, 1000],
+    xticklabels=["0.1 pJ", "1 pJ", "10 pJ", "100 pJ", "1 nJ"],
+    xlabel="rough energy per operation or access",
+)
+draw_range_rows(ax, rows, low_key="energy_low_pj", high_key="energy_high_pj", label_x=-0.82, right_x=1.04, label_fontsize=6.6, note_fontsize=5.4, right_fontsize=6.1, label_dy=-0.17, note_dy=0.23)
+add_note_box(fig, "Rough 45 nm, 0.9 V values from Horowitz; use for orders of magnitude.", xywh=(0.14, 0.035, 0.72, 0.075), fontsize=5.5)
+
+plt.show()
+plt.close(fig)
+```
+
+## Engineering Cost Creates the Scissors Gap
+
+The central pressure is a scissors gap. On one blade are design choices,
+workload variants, tool outputs, cross-layer assumptions, simulator hours,
+verification cases, EDA reports, physical constraints, and deployment signals.
+On the other blade are human attention, expert review time, tool budget,
+schedule, and verification capacity. The first blade rises quickly. The second
+does not.
+
+@fig-scissors-gap makes the metaphor explicit. The upper blade is not only
+candidate count; it is the coupled burden of choices, constraints, evidence,
+software paths, and physical feasibility. The lower blade is not the ability
+to think; it is the slower-growing capacity to evaluate, review, reject, and
+commit with confidence.
+
+![**The scissors gap is a feedback gap:** Architecture pressure rises when design choices, constraints, and evidence demand grow faster than unaided manual coordination and verification capacity. The widening region is the gap that Architecture 2.0 tries to make explicit and manageable.](images/F2-scissors-gap){#fig-scissors-gap width="92%" fig-pos="t"}
+
+The gap is also an engineering-cost problem. Public estimates vary, and they
+should not be treated as universal accounting rules, but their scale is useful.
+The Semiconductor Industry Association reports that the cost of designing a
+latest-node chip rose from about \$30M for a 65 nm chip in 2006 to more than
+\$540M for a 5 nm chip in 2020, a greater-than-18x increase
+[@SemiconductorIndustryAssociation2026ChipDesign]. A McKinsey analysis
+gives a similar order of magnitude, estimating roughly \$175M for a 10 nm
+design, \$300M for a 7 nm design, and \$540M for a 5 nm design when validation,
+IP qualification, and related development costs are included
+[@BauerEtAl2020SemiconductorDesignManufacturing]. These are not only mask
+or wafer costs. They are costs of architecture, design, validation,
+verification, IP, tools, and people.
+
+Verification makes the people cost visible. In a summary of the 2022 Wilson
+Research Group functional-verification study, Foster reports that demand for
+IC/ASIC verification engineers grew faster than demand for design engineers
+from 2007 to 2022.
+
+The same summary reports that mean peak staffing is roughly one verification
+engineer per design engineer across most market segments, that processor
+projects can reach a 5-to-1 verification-to-design ratio, and that
+design engineers spent 49 percent of their time in verification in 2022
+[@Foster2022WilsonVerificationStudy]. A later 2024 Wilson Research Group
+IC/ASIC report makes the commitment risk visible from another angle: it
+reports first-silicon success at 14 percent, the lowest level in two decades
+[@Foster2025WilsonVerification2024]. This is why feedback and rejection
+are central to Architecture 2.0. Each invalid candidate consumes scarce
+engineering capacity and commitment budget, not just compute cycles.
+
+@fig-leading-node-design-cost turns the public dollar estimates
+into a scale check. It should not be read as a universal cost curve. Different
+products, IP reuse strategies, node maturities, organizations, and accounting
+boundaries produce different numbers. The robust point is simpler: as the loop
+moves toward leading-edge implementation, feedback and commitment consume real
+engineering budgets, not only simulator cycles.
+
+```{python}
+#| label: fig-leading-node-design-cost
+#| fig-cap: |
+#|   **Leading-node design-cost estimates make the scissors concrete:** Public SIA and McKinsey estimates [@SemiconductorIndustryAssociation2026ChipDesign; @BauerEtAl2020SemiconductorDesignManufacturing] put latest-node chip design costs from tens of millions of dollars at 65 nm to more than $500M at 5 nm. The accounting boundaries vary, but the scale makes feedback, validation, IP, tools, and human engineering effort part of the architecture loop.
+#| out-width: "86%"
+#| fig-pos: "t"
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, add_note_box, apply_style
+
+rows = [
+    {"node_label": "65 nm", "cost_musd": 30, "source": "SIA", "right_label": "~$30M"},
+    {"node_label": "10 nm", "cost_musd": 175, "source": "McKinsey", "right_label": "~$175M"},
+    {"node_label": "7 nm", "cost_musd": 300, "source": "McKinsey", "right_label": "~$300M"},
+    {"node_label": "5 nm", "cost_musd": 540, "source": "SIA / McKinsey", "right_label": ">$540M"},
+]
+
+apply_style()
+labels = [row["node_label"] for row in rows]
+costs = [row["cost_musd"] for row in rows]
+sources = [row["source"] for row in rows]
+right_labels = [row["right_label"] for row in rows]
+x_values = list(range(len(rows)))
+
+fig, ax = plt.subplots(figsize=(4.65, 2.25))
+fig.subplots_adjust(left=0.14, right=0.95, top=0.88, bottom=0.33)
+
+ax.plot(x_values, costs, color=COLORS["blue"], linewidth=1.7, marker="s", markersize=4.5, markerfacecolor=COLORS["note_fill"], markeredgewidth=1.0)
+ax.fill_between(x_values, costs, [0] * len(costs), color=COLORS["design_cost_fill"], alpha=0.75, zorder=0)
+ax.set_xlim(-0.35, len(rows) - 0.65)
+ax.set_ylim(0, 610)
+ax.set_xticks(x_values)
+ax.set_xticklabels(labels, fontsize=6.8)
+ax.set_yticks([0, 100, 300, 500])
+ax.set_yticklabels(["$0", "$100M", "$300M", "$500M"], fontsize=6.5)
+ax.set_ylabel("public design-cost estimate", fontsize=7)
+ax.tick_params(axis="both", length=2.5, width=0.6, pad=2)
+ax.grid(axis="y", color=COLORS["grid"], linewidth=0.6)
+
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+
+for x, cost, source, right_label in zip(x_values, costs, sources, right_labels):
+    ax.text(x, cost + 24, right_label, ha="center", va="bottom", fontsize=6.6, fontweight="bold", color=COLORS["ink"])
+    ax.text(x, -83, source, ha="center", va="top", fontsize=5.7, color=COLORS["muted"], clip_on=False)
+
+add_note_box(fig, "Directional estimates: accounting boundaries vary by chip, node, IP reuse, and organization.", xywh=(0.16, 0.04, 0.72, 0.12), fontsize=5.8)
+
+plt.show()
+plt.close(fig)
+```
+
+This does not mean architects are ineffective. It means the unit of work has
+changed. An expert can reason deeply about a few candidate designs. A team can
+maintain a disciplined simulation and review process. But when a design space
+contains thousands of plausible states, when feedback arrives at multiple
+fidelities, and when negative results are not recorded in a reusable form,
+manual coordination becomes the bottleneck.
+
+The bottleneck is trusted feedback, not ideas. Generating one more accelerator
+configuration, memory policy, chiplet partition, or compiler schedule is not
+hard. Knowing which candidates were invalid, which proxy wins disappeared at
+higher fidelity, which assumptions were responsible for the result, and which
+decision a human should commit to is the hard part.
+
+This is the reason the scissors gap is a feedback gap rather than a creativity
+gap. A loop that cannot preserve failed runs, explain proxy failures, or decide
+when stronger evidence is required will degrade over time: future teams will
+rerun old mistakes, rediscover invalid regions, and mistake more output for
+more architectural progress.
+
+## Feedback and Verification Become the Bottleneck {#sec-feedback-and-verification-become-the-bottleneck}
+
+Architecture feedback has uneven cost and uneven authority. A spreadsheet
+model is cheap but weak. A simulator may be more informative but slow or
+biased. A synthesis result exposes more implementation reality but depends on
+tool settings and constraints. Physical design and signoff are stronger still,
+but expensive and late. Silicon and deployment telemetry are authoritative in
+different ways, but they arrive after major commitments.
+
+This feedback-regime structure makes naive autonomy dangerous. An agent that optimizes a
+cheap proxy may move quickly in the wrong direction. A search method that
+reports a Pareto frontier may hide invalid configurations, failed tool runs,
+or assumptions that would not survive signoff. A generated RTL fragment may
+look plausible but fail under verification or integration. Feedback only
+becomes evidence when its fidelity, provenance, uncertainty, and relevance to
+the decision are clear.
+
+This is why Architecture 2.0 does not begin with autonomy. It begins with the
+loop. The loop must say what can be changed, what can be observed, what can
+reject a candidate, what evidence is strong enough for the next commitment,
+and what remains a human decision.
+
+## Architecture Violates Generic AI Assumptions
+
+Many successful AI systems are built in domains with abundant data, cheap
+feedback, stable labels, and clear losses. Computer architecture violates that
+pattern at almost every boundary. Data are often proprietary, incomplete,
+stale, or missing the negative traces that explain why a candidate was
+rejected. Feedback ranges from a quick proxy to a simulation, synthesis run,
+physical-design report, expert review, emulation result, or silicon
+measurement, each with different latency, cost, fidelity, and authority. The
+action space is also unusual: many generated configurations are not merely low
+quality; they are illegal, unsupported by tools, unverifiable, or incompatible
+with software and physical constraints.
+
+The result is not a simple lack of data. It is a mismatch between generic AI
+assumptions and architecture-loop requirements. Architecture loops need
+representations that carry constraints, provenance, feedback cost,
+uncertainty, and rejection conditions. They also need methods that understand
+when a proxy result is only a proxy and when a decision is moving toward a
+higher commitment level.
+
+A conventional machine-learning workflow is still useful as a foil. Students
+often learn a pipeline that runs from data collection to preprocessing,
+training, validation, deployment, and monitoring. @fig-ai-workflow-mismatch
+keeps that familiar picture but shows why the architecture version cannot be a
+simple pipeline: every step must carry validity constraints, tool costs,
+provenance, drift, rejected alternatives, and a human commitment gate.
+
+![**Architecture turns the ML pipeline into a constrained loop:** A generic ML workflow can be taught as data, preprocessing, training, validation, and deployment. In architecture, the corresponding workflow must also represent constraints, legal actions, expensive tool feedback, evidence ledgers, negative traces, drift, rejection, and human commitment.](images/F2c-ai-workflow-mismatch){#fig-ai-workflow-mismatch width="100%" fig-pos="t"}
+
+The mismatch has several concrete forms. Data are not just examples; they are
+design artifacts with permissions, tool versions, and missing failures.
+Feedback is not just a label; it spans regimes such as proxies, simulation,
+synthesis, physical design, expert review, emulation, and silicon. Actions are
+not just tokens; they are edits to configuration spaces, software interfaces,
+RTL, constraints, and deployment policies, many of which can be invalid. Losses
+are not just scalar rewards; they are multiobjective efficiency claims under
+performance, power, area, cost, reliability, sustainability, and verification
+burden. @tbl-ai-assumptions-architecture-violations gives the
+checklist version of that argument.
+
+| Common AI assumption | Architecture violation | Loop implication |
+| --- | --- | --- |
+| Abundant labeled data | Many labels are proprietary, expensive, stale, or not recorded. | The loop must build source packets, provenance, and reusable negative traces. |
+| Cheap feedback | Simulation, synthesis, EDA, emulation, and review can be slow or scarce. | Methods must be sample-efficient and aware of feedback budgets. |
+| Stable distribution | Workloads, software stacks, compilers, models, and deployment policies drift. | Benchmarks and representations must be versioned and revisited. |
+| Valid actions are easy to define | Many generated configurations are invalid, unsafe, unverifiable, or unsupported by tools. | Environments need action schemas, constraint checks, and rejection authority. |
+| Reward is clear | Efficiency mixes performance, energy, area, cost, reliability, sustainability, verification burden, and risk. | Objectives must be explicit, multiobjective, and tied to human decisions. |
+| Proxy metrics are enough | Proxy wins can vanish at higher fidelity or under different workloads. | Evidence needs fidelity-regime checks and sensitivity checks. |
+| Failures are just bad samples | Failed runs, rejected candidates, and invalid states describe the design space. | Negative traces should be preserved as architecture data. |
+
+: **Generic AI assumptions break at architecture boundaries:** Architecture loops must represent proprietary or incomplete data, expensive feedback, invalid actions, drifting workloads, multiobjective efficiency, proxy mismatch, and negative traces. {#tbl-ai-assumptions-architecture-violations tbl-colwidths="[28,31,30]"}
+
+```{=latex}
+\FloatBarrier
+```
+
+This mismatch does not make AI irrelevant. It makes representation and loop
+design central. Architecture needs generation, prediction, optimization,
+critique, retrieval, and tool use. But those capabilities must operate inside
+an environment that knows what actions are legal, what feedback means, and who
+can say no.
+
+## AI Helps Only When the Loop Is Designed
+
+AI becomes important because the classical loop is under pressure. It can help
+summarize tool outputs, propose candidates, search spaces, predict costs,
+construct tests, critique assumptions, retrieve prior designs, and coordinate
+subtasks. In domains with expensive feedback and large design spaces, even
+partial improvements in search, triage, and explanation can matter.
+
+But AI is not sufficient because architecture is not only generation. The
+architectural problem is to produce a credible system artifact under
+constraints. That requires state, tools, evidence, rejection, and commitment.
+A model that proposes a design without exposing its assumptions has not solved
+the architecture problem. A workflow that finds a better proxy score without
+negative traces has not produced trusted evidence. A system that cannot say
+what rejects its own output cannot be given high-commitment authority.
+
+The right conclusion is therefore narrower and stronger than generic AI
+optimism. We should not merely search larger design spaces. We should design
+loops that learn, record, reject, and justify architecture work. That is the
+transition to the ontology in the next chapter: once the pressure is visible,
+the next task is to name the minimum loop state that makes AI assistance
+inspectable rather than merely impressive.

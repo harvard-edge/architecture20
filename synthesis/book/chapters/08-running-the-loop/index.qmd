@@ -1,0 +1,212 @@
+# Running the Loop: The Lighthouse Prompt, End to End {#chap-running-the-loop}
+
+```{=latex}
+\abstract*{The previous chapters built the parts of an Architecture 2.0 loop: representation, environment, method roles, feedback budgets, evidence chains, and rejection authority. This chapter runs one loop, end to end, on the lighthouse prompt. The point is not the specific numbers, which are illustrative; it is to watch a loop generate candidates, predict, escalate, reject, and stop at an honest commitment level.}
+```
+
+::: {.callout-tip}
+## What this chapter gives you
+
+After this chapter you can:
+
+- instantiate and run a design-loop card on a concrete prompt, not merely fill it in;
+- recognize proxy mismatch when the cheapest winner fails at higher fidelity;
+- apply the commitment rule to stop at an honest evidence level;
+- read the residue a loop leaves: evidence chain, negative traces, and the next evidence the decision needs.
+:::
+
+The lecture has described what a credible loop must contain. It has not yet
+shown one turn. This chapter does that. It takes the lighthouse prompt, bounds
+it to a task small enough to run, and walks the loop through generation,
+prediction, escalation, rejection, and commitment. Every number here is
+illustrative and generated in code, not measured; the lesson is the shape of
+the loop, not the values.
+
+Bounding the task comes first. "Design a low-power XR compute subsystem" is not
+a loop; it is a wish. The bounded task for this chapter is narrower: for one
+XRBench-class workload slice, choose among three compute organizations under a
+3 W power envelope and an 8 ms per-frame real-time deadline, and return the
+surviving candidate with its evidence and its rejected alternatives. The
+candidates are a vector CPU extension, a tightly coupled accelerator, and a
+shared-memory SoC block. That is enough to make the loop turn.
+
+## Round One: Generate and Screen on a Proxy
+
+The loop begins cheaply. A generator proposes the three organizations, and an
+analytic proxy, a pre-RTL estimator in the spirit of Aladdin or a dataflow model
+like Timeloop [@ShaoEtAl2014Aladdin; @ParasharEtAl2019Timeloop], estimates
+latency and energy per frame in milliseconds and millijoules. The proxy is fast and ignores most data movement, so it flatters
+designs that keep arithmetic local. At this fidelity the tightly coupled
+accelerator looks best: it posts the lowest energy and latency because the
+proxy never charges it for moving data in and out.
+
+A proxy result is feedback, not evidence. It is enough to keep all three
+candidates alive and to rank them for the next, more expensive stage. It is not
+enough to choose. The loop records the proxy ranking and escalates.
+
+## Round Two: Escalate to Simulation
+
+Cycle-level simulation, a gem5-class model [@BinkertEtAl2011Gem5], is the first
+stage that models memory traffic. It is
+slower and scarcer than the proxy, so the loop spends it only on the candidates
+that survived screening. The result is the central lesson of the chapter:
+
+@tbl-worked-loop runs the comparison.
+
+```{python}
+#| output: asis
+#| echo: false
+
+candidates = [
+    {"name": "Vector CPU extension",        "proxy_lat": 9.0, "proxy_e": 22, "sim_lat": 9.5, "sim_e": 24, "power": 2.1},
+    {"name": "Tightly coupled accelerator", "proxy_lat": 4.5, "proxy_e": 12, "sim_lat": 8.8, "sim_e": 28, "power": 3.6},
+    {"name": "Shared-memory SoC block",     "proxy_lat": 6.0, "proxy_e": 16, "sim_lat": 6.5, "sim_e": 18, "power": 2.8},
+]
+deadline_ms = 8.0
+power_budget_w = 3.0
+
+
+def verdict(c):
+    if c["power"] > power_budget_w:
+        return "rejected: over 3 W envelope"
+    if c["sim_lat"] > deadline_ms:
+        return "rejected: misses 8 ms deadline"
+    return "survives to RTL study"
+
+
+proxy_pick = min(candidates, key=lambda c: c["proxy_e"])["name"]
+survivors = [c for c in candidates if verdict(c).startswith("survives")]
+survivor = min(survivors, key=lambda c: c["sim_e"])["name"] if survivors else "none"
+
+lines = [
+    "| Candidate | Proxy lat / energy | Sim lat / energy | Power | Verdict |",
+    "|:--|:--|:--|:--|:--|",
+]
+for c in candidates:
+    lines.append(
+        f"| {c['name']} | {c['proxy_lat']:.1f} ms / {c['proxy_e']} mJ "
+        f"| {c['sim_lat']:.1f} ms / {c['sim_e']} mJ | {c['power']:.1f} W | {verdict(c)} |"
+    )
+lines.append("")
+lines.append(
+    ": **One loop turning on the lighthouse prompt:** the lowest-energy candidate "
+    f"at proxy fidelity is the {proxy_pick.lower()}, but cycle-level simulation and the "
+    f"{power_budget_w:.0f} W power model reject it, and the {survivor.lower()} is the only "
+    f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
+    "envelope. Values are illustrative and computed in the chunk. {#tbl-worked-loop}"
+)
+print("\n".join(lines))
+```
+
+The accelerator that won on the proxy collapses under simulation. Once data
+movement is charged, its energy rises above every alternative and its latency
+loses most of its lead. This is proxy mismatch made concrete: the loop was
+optimizing the measurement it could see, not the objective it cared about. The
+failed candidate is not deleted. It is recorded as a negative trace, with the
+fidelity level at which the proxy win disappeared, so a later loop does not
+rediscover it. @fig-proxy-mirage shows the reorder.
+
+```{python}
+#| label: fig-proxy-mirage
+#| fig-cap: |
+#|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the tightly coupled accelerator, becomes the worst once cycle-level simulation charges data movement, and the 3 W power model rejects it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
+#| out-width: "82%"
+#| fig-pos: "t"
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+line_colors = {
+    "Vector CPU extension": COLORS["blue"],
+    "Tightly coupled accelerator": COLORS["orange"],
+    "Shared-memory SoC block": COLORS["green"],
+}
+
+fig, ax = plt.subplots(figsize=(4.8, 2.7))
+fig.subplots_adjust(left=0.13, right=0.64, top=0.97, bottom=0.16)
+
+for c in candidates:
+    v = verdict(c)
+    ax.plot(
+        [0, 1], [c["proxy_e"], c["sim_e"]],
+        marker="o", color=line_colors[c["name"]], linewidth=1.9,
+        markersize=5, markerfacecolor="#F8FAFC", markeredgewidth=1.2,
+        clip_on=False, label=c["name"],
+    )
+    short = "rejected: 3.6 W" if "envelope" in v else ("rejected: 8 ms" if "deadline" in v else "survives")
+    vcolor = COLORS["purple"] if short == "survives" else COLORS["red"]
+    ax.text(1.03, c["sim_e"], short, ha="left", va="center", fontsize=6.4, fontweight="bold", color=vcolor)
+
+ax.set_xlim(0, 1)
+ax.set_ylim(8, 32)
+ax.set_xticks([0, 1])
+ax.set_xticklabels(["proxy estimate", "cycle-level simulation"], fontsize=7)
+ax.set_ylabel("energy per frame (mJ)", fontsize=7)
+ax.tick_params(axis="y", labelsize=6.3)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.legend(loc="upper left", fontsize=5.9, frameon=False, handlelength=1.4)
+
+plt.show()
+plt.close(fig)
+```
+
+## Round Three: Reject on the Envelope
+
+Simulation also exposes a harder gate. The tightly coupled accelerator does not
+merely lose on energy; its power model puts it over the 3 W envelope. That is a
+constraint, not a metric, so no amount of latency advantage rescues it. The
+rejection is the commitment rule from the trust chapter doing its work: a
+candidate advances only if it is valid, its evidence clears the threshold for
+the stage, and its residual risk is acceptable.
+
+The accelerator's failure has a familiar shape. Its attraction was a large
+local speedup, but the interface and data-movement cost to reach it dominated
+the end-to-end result. The next chapter makes this precise with an accelerator
+performance model; the loop-level lesson is simpler: price the interface before
+believing the local win.
+
+## Round Four: Commit at an Honest Level
+
+One candidate survives the deadline and the envelope. It is tempting to call
+that a result. It is not, yet. The evidence behind it is a cycle-level
+simulation and a power model, which support an experimental commitment, not an
+implementation or a tapeout. The architect's decision is therefore bounded:
+advance the surviving organization to an RTL study where synthesis, timing, and
+a stronger power estimate can confirm or reject it, and hold the other two as
+recorded negative traces.
+
+This is the difference between an answer and a defensible answer. The loop did
+not produce a chip. It produced a surviving candidate, the evidence that
+supports it, the alternatives that failed and why, and the next evidence the
+decision needs. That is what the lighthouse prompt was always asking for: a
+design-space report with evidence and rejected alternatives, not a one-shot
+generation.
+
+## What the Loop Leaves Behind
+
+The residue of one turn is the reusable artifact. The loop leaves a filled
+design-loop card, an evidence chain that records the fidelity at each stage, two
+negative traces with the reasons they failed, and an explicit open question for
+the next stage. Another architect can read that residue and reconstruct why the
+surviving candidate advanced, why the others did not, and what would overturn
+the decision.
+
+That is the test the rest of the lecture has been building toward. The reader
+should now be able to take a new project and do three things: name the loop,
+judge whether its evidence matches its commitment level, and state what remains
+a human decision. The next chapter generalizes this single worked loop into the
+patterns that recur across the stack, from fast software loops to
+high-commitment silicon-facing work.
+
+::: {.callout-important}
+## Architect's checkpoint
+
+Running your own loop, ask:
+
+- Is the task bounded enough that a candidate can actually be rejected?
+- When a cheap proxy and a stronger check disagree, which do I trust, and why?
+- At what commitment level does my evidence actually let me stop?
+:::

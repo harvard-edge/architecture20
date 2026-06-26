@@ -1,0 +1,588 @@
+# Design Loops, Design Spaces, and Architectural Claims {#chap-architecture-20-ontology}
+
+```{=latex}
+\abstract*{This chapter introduces the book's main claim grammar, ontology, and compact framework. Architecture 2.0 is the discipline of making architectural claims and their design loops explicit enough that AI systems can act inside them credibly.}
+```
+
+::: {.callout-tip}
+## What this chapter gives you
+
+After this chapter you can:
+
+- write an architectural claim as a reviewable object: workload, baseline, design space, objectives, constraints, evidence, rejection rule, and decision owner;
+- map a paper, tool, or project onto the five-part framework;
+- distinguish an ontology from a taxonomy and say why ontology comes first;
+- judge how much autonomy a loop has actually earned.
+:::
+
+Computer architecture has always depended on disciplined abstraction. An
+architect rarely reasons directly from every transistor to every application
+behavior. The field instead builds models, simulators, workload
+characterizations, cost estimates, design rules, and review practices that make
+large design spaces tractable. That quantitative tradition is central to
+modern architecture practice [@HennessyPatterson2017QuantitativeApproach].
+It also explains why Architecture 2.0 should not be framed as a sudden break
+from the past. The field has always designed through loops of abstraction,
+measurement, feedback, and judgment.
+
+What changes is the object of design. In Architecture 1.0, the architect uses
+tools to design artifacts: an ISA extension, a cache hierarchy, an accelerator,
+a memory system, a chiplet partition, a compiler policy, or a system
+configuration. But an artifact matters because it supports an architectural
+claim: that a design improves useful work, reduces energy, meets a latency
+target, preserves correctness, exposes a tradeoff, or changes what is possible
+under a workload and set of constraints. In Architecture 2.0, the architect
+must design the loop that produces, tests, rejects, and revises those claims.
+The loop itself needs a task boundary, a design space, a representation, a
+world model, an environment, method roles, feedback channels, evidence
+standards, rejection rules, and human decision points
+[@ReddiYazdanbakhsh2025Architecture20]. Without those pieces, an AI
+system may still produce plausible text, code, or configurations, but it is not
+participating in architecture work in a way the field should trust.
+
+This chapter gives the reusable language for that shift. The goal is not to
+classify every paper or tool. A taxonomy of current systems will age quickly.
+The more durable contribution is a claim grammar and ontology: a way to name
+the architectural claim being made and the entities and relationships that must
+exist before AI systems can act inside the architecture design loop credibly.
+
+The ontology has to earn its space by being useful. A researcher should be
+able to cite it when explaining the structure of an Architecture 2.0
+contribution. A reviewer should be able to use it to ask what state, action,
+feedback, evidence, and rejection authority a paper exposes. A tool builder
+should be able to use it as a checklist for a harness or environment. An
+instructor should be able to hand it to students and ask them to fill in the
+claim and loop for a concrete design problem. If the ontology cannot support
+those uses, it is only vocabulary.
+
+## The Architectural Claim Is the Unit of Review
+
+The most common question is too coarse: can a model design hardware? The more
+architecture-native question is: what claim is being made, and what would make
+that claim credible? Architects rarely accept an artifact by itself. They
+accept or reject a claim about that artifact relative to a workload, baseline,
+design space, objectives, constraints, and evidence.
+
+> **Architectural claim.** An architectural claim is a statement that a
+> proposed artifact, method, or loop improves, preserves, or explains a
+> hardware/software behavior for a specified workload or scenario relative to a
+> baseline, under explicit objectives, constraints, evidence, rejection
+> conditions, and decision authority.
+
+A compact way to write the review object is
+$$
+\mathcal{C} =
+\langle W, B, \mathcal{D}, \mathbf{J}, \mathcal{K}, E, R, H \rangle .
+$$
+Here, $W$ is the workload or scenario, $B$ is the baseline, $\mathcal{D}$
+is the legal design space, $\mathbf{J}$ is the objective vector, $\mathcal{K}$
+is the constraint set, $E$ is the evidence, $R$ is the rejection rule, and
+$H$ is the human or organizational decision authority. This is not a
+formalism for its own sake. It is a way to prevent a generated artifact from
+masquerading as an architectural result before the comparison, constraints,
+and evidence are visible.
+
+@tbl-architectural-claim-schema turns the tuple into a reader
+checklist for the lighthouse prompt. The important point is that the prompt's
+compact wording hides a large amount of architectural state. A credible answer
+must expose that state before the reader can judge whether the result deserves
+trust.
+
+| **Claim field** | **Reader question** | **Lighthouse instance** |
+| --- | --- | --- |
+| **Workload or scenario** | What behavior is the design supposed to serve? | XRBench-class real-time mobile XR workloads, with latency, sensing, graphics, and interaction requirements. |
+| **Baseline** | Compared to what architecture, software stack, or prior result? | A scalar CPU-only baseline, a vector-capable CPU, an accelerator baseline, or an existing mobile XR subsystem. |
+| **Design space** | What choices are legal, and which regions are invalid? | RISC-V ISA options, vector width, CPU/accelerator partitioning, memory hierarchy, clocking, compiler/runtime path, and tool-flow limits. |
+| **Objective vector** | What counts as improvement, and what tradeoffs matter? | Throughput, tail latency, energy, area, programmability, verification burden, and evidence cost under the 3 W target. |
+| **Constraints** | What cannot be violated even if a metric improves? | ISA compatibility, correctness, thermal limits, process assumptions, package limits, software compatibility, and 3 nm-class low-power envelope. |
+| **Evidence** | What supports the claim at the required commitment level? | Workload traces, simulations, power model, sensitivity checks, rejected candidates, tool logs, and comparison against baselines. |
+| **Rejection rule** | What observation can invalidate or weaken the result? | Missed latency target, power envelope violation, invalid RTL/configuration, compiler failure, simulator mismatch, or weak coverage. |
+| **Decision owner** | Who can accept, revise, escalate, or commit the claim? | The architect or review process that owns assumptions, evidence thresholds, risk, and final commitment. |
+
+: **An architectural claim needs more than an artifact:** The lighthouse prompt becomes reviewable only when the workload, baseline, design space, objectives, constraints, evidence, rejection rule, and decision owner are explicit. {#tbl-architectural-claim-schema tbl-colwidths="[18,33,39]"}
+
+```{=latex}
+\FloatBarrier
+```
+
+This schema also clarifies what AI systems are being asked to do. Generation
+can propose artifacts inside $\mathcal{D}$. Prediction can estimate
+components of $\mathbf{J}$ before expensive feedback. Optimization can search
+tradeoffs under $\mathcal{K}$. Critique and verification can apply $R$.
+The architectural result is not any one of those operations. It is the claim
+that survives the loop.
+
+## The Design Loop Is the Unit of Analysis
+
+Once the claim is explicit, the next question is: what design loop can test it?
+That shift matters because architecture work is not a single act of generation.
+It is a repeated process of framing a problem, choosing abstractions, exploring
+alternatives, measuring candidates, rejecting weak results, revising
+assumptions, and deciding when evidence is strong enough to commit.
+
+> **Architecture design loop.** An architecture design loop is the repeated
+> process that carries architecture state through bounded actions, feedback,
+> evidence, rejection, revision, and human commitment until it produces an
+> artifact or a revised loop.
+
+For the lighthouse prompt, the distinction is immediate. A request for a
+low-power, 64-bit RISC-V-based compute subsystem for XRBench-class mobile XR
+under a 3 W, 3 nm-class low-power mobile envelope sounds compact. But the
+prompt does not define the design loop. It does not say which workload traces
+are authoritative, which vector operations matter, which memory hierarchy is
+admissible, which software stack must run, which simulator is trusted, which
+power model applies, which process assumptions are available, which
+alternatives must be considered, or what evidence is enough to reject a
+candidate. These are not details to add after an agent responds. They are the
+architecture problem.
+
+In practice, the loop has at least the following elements. It has a
+state: what is known about the workload, design, tools, constraints, and prior
+evidence. It has actions: what can be changed, generated, queried, tuned, or
+tested. It has observations: what the loop can see after an action. It has
+objectives and constraints: what counts as progress and what is not allowed.
+It has a feedback path: the measurement, simulation, synthesis report, trace,
+review, or deployment signal returned by the environment. It has stopping and
+escalation rules. It has decisions: accept, reject, revise, or request stronger
+evidence. It has artifacts: reports, configurations, design descriptions,
+plots, RTL fragments, benchmarks, or implementation plans.
+
+A compact way to write the loop is
+$$
+s_{t+1} =
+\operatorname{Update}(s_t, a_t, o_t, e_t, d_t).
+$$
+Here, $s_t$ is the represented architecture state, $a_t$ is the bounded
+action taken by the loop, $o_t$ is the observation returned by the
+environment, $e_t$ is the evidence record that makes the observation
+auditable, and $d_t$ is the human or policy decision to accept, reject,
+revise, or escalate. The equation is not claiming that every architecture
+loop is a Markov decision process. It is a bookkeeping discipline: if a loop
+cannot say how actions, feedback, evidence, and decisions update state, then
+it is not yet represented well enough for credible AI-mediated architecture
+work.
+
+Architecture 2.0 uses that loop as the unit of analysis. A model is one
+participant in the loop. It may generate candidates, summarize evidence,
+predict outcomes, call tools, critique assumptions, or coordinate subtasks. But
+the credibility of the result comes from the whole loop, not from the model in
+isolation.
+
+## Design Spaces Make Claims Meaningful
+
+An architectural claim is meaningful only relative to a design space. A system
+that reports "the best" candidate without exposing the alternatives, invalid
+regions, baseline, and tradeoffs has not made an architecture result easy to
+review. It has hidden the comparison that gives the result meaning.
+
+In architecture, the design space is not the set of all strings a model might
+emit. It is a constrained set of legal choices:
+$$
+\mathcal{D} = \{x \in X \mid x \text{ is valid under the task, tool chain, and
+constraints}\}.
+$$
+The validity conditions may include ISA compatibility, memory semantics,
+software support, timing assumptions, power limits, package constraints,
+verification requirements, and deployment policy. A candidate outside
+$\mathcal{D}$ is not a bold design. It is an invalid action unless the loop
+explicitly revises the design space and records why.
+
+The lighthouse prompt makes this concrete. A 64-bit RISC-V-based mobile XR
+subsystem might vary vector width, cache and memory hierarchy, accelerator
+partitioning, dataflow, clocking, voltage assumptions, compiler/runtime
+support, and verification scope. Some choices are legal but unattractive. Some
+are attractive under a proxy but fail at higher fidelity. Some violate the
+power envelope, process assumptions, software contract, or workload coverage.
+An Architecture 2.0 loop must represent those distinctions. Otherwise it cannot
+know whether it is improving a design or exploiting a hole in the problem
+statement.
+
+This is also where multiobjective efficiency enters the ontology. The objective
+is rarely a scalar reward. It is a vector of performance, energy, latency,
+area, reliability, programmability, verification burden, cost, and evidence
+requirements. A design-space report is therefore an evidence object: it should
+show what was explored, what was rejected, what tradeoffs remain, and what the
+architect must still decide.
+
+## Ontology Before Taxonomy
+
+A taxonomy groups things. It can list tasks, methods, benchmarks, tools, agent
+architectures, or evaluation settings. Taxonomies are useful, and this lecture
+will use them where they help a reader make decisions. But a taxonomy is not
+enough for a field that is still moving. Model interfaces will change. Agent
+harnesses will change. Benchmarks will change. EDA flows and simulator stacks
+will change. If the book is organized only around today's artifacts, it will
+age with them.
+
+> **Architecture 2.0 ontology.** The Architecture 2.0 ontology names the
+> entities and relationships that must exist for AI-mediated architecture work to
+> be represented, acted on, evaluated, rejected, and committed by a human
+> architect.
+
+The ontology asks a deeper question: what entities must exist, and how must
+they relate, for AI-mediated architecture work to be credible? The important
+pieces are not only the nouns. They are the relationships. Intent constrains tasks.
+Tasks determine what must be represented. Representation limits what the loop
+can observe and modify. The world model encodes beliefs about how actions
+change outcomes. Tools and environments define valid actions and measurable
+feedback. Methods are selected for the task, representation, and feedback
+budget. Feedback becomes evidence only when fidelity, provenance, uncertainty,
+and relevance are understood. Human decisions accept, reject, revise, or
+escalate the result.
+
+This is why ontology should precede taxonomy. We should not first ask whether
+a paper uses an LLM, reinforcement learning, Bayesian optimization, a surrogate
+model, or a simulator wrapper. We should first ask what loop the work exposes.
+What is the task? What state is represented? What actions are legal? What
+environment returns feedback? What is the feedback budget? What evidence
+supports the claim? What can reject the result? What does the architect still
+decide? Once those questions are answered, a taxonomy of methods becomes
+useful. Before that, method labels can hide more than they reveal.
+
+Adjacent fields show why this ordering matters. BERT created a general pattern
+for pretraining and adapting representations [@DevlinEtAl2019BERT];
+biomedical and clinical variants such as BioBERT, ClinicalBERT, and Med-BERT
+showed that domain shift forces a field to build domain-specific corpora,
+tasks, and representations
+[@LeeEtAl2020BioBERT; @HuangEtAl2019ClinicalBERT; @RasmyEtAl2021MedBERT].
+The architecture lesson is not simply to build a chip-specific language model.
+It is that a field becomes AI-addressable only when its objects of work are
+represented well enough for methods to act and for experts to judge. For
+architecture, those objects are not only papers or text. They include
+workloads, design states, tool configurations, invalid actions, negative
+traces, fidelity levels, and commitment decisions. That is why this lecture
+starts with an ontology of the design loop rather than a catalog of current
+models.
+
+## The Compact Five-Part Framework
+
+The full ontology can be read as the loop in
+@fig-ontology-chain.
+
+![**The Architecture 2.0 ontology chain makes the loop explicit:** Intent, task, and design space define what work the loop is allowed to do; representation and world model define what the loop can know; tools and environments define valid action and feedback; compound methods act inside the loop; evidence and human decision determine whether an artifact is accepted, rejected, or used to revise the loop.](images/F4-ontology-chain){#fig-ontology-chain width="100%" fig-pos="t"}
+
+For practical use, this book compresses the ontology into five pieces.
+
+First, there is *task, intent, and design space*. Intent states what the
+architect or organization is trying to achieve, what constraints matter, what
+risks are acceptable, and what cost of failure is tolerable. The task is the
+bounded work unit that can be assigned, repeated, measured, or decomposed. The
+design space states which choices are legal, which regions are invalid, and
+which tradeoffs the loop is allowed to explore.
+
+Second, there is *representation and world model*. A representation is
+the encoded design state: specifications, workload traces, architecture
+descriptions, graphs, RTL, compiler IR, simulator configurations, EDA reports,
+benchmark metadata, tool logs, design documents, or review notes. A world model
+is the loop's belief about how architecture actions change outcomes. It may be
+explicit, learned, simulator-backed, symbolic, statistical, or partly implicit
+in tools.
+
+Third, there are *tools and environments*. Tools become environments when
+they define actions, observations, constraints, costs, rewards or objectives,
+latency, provenance, and invalid-action behavior. An architecture simulator is
+not merely a measurement device in such a loop. It is part of the state
+transition and feedback system.
+
+Fourth, there is the *compound agent and method system*. The credible
+unit is rarely a single model. It is a composition of roles: generator,
+predictor, optimizer, searcher, critic, verifier, planner, tool caller, and
+coordinator. Some roles may be played by language models, some by search
+algorithms, some by learned surrogates, some by scripts, some by formal tools,
+and some by humans.
+
+Fifth, there is *feedback, evidence, and decision*. Feedback is any signal
+returned by the loop. Evidence is feedback that has been tied to provenance,
+fidelity, assumptions, uncertainty, coverage, and a decision. The decision is
+where the architect accepts, rejects, revises, or escalates the result.
+
+@tbl-compact-framework-checklist gives the checklist version. It is
+the question a reader should be able to ask of a paper, benchmark, tool, or
+internal workflow before trusting an Architecture 2.0 claim.
+
+| Framework piece | Reader question | Lighthouse instance |
+| --- | --- | --- |
+| Task, intent, and design space | What architectural objective is being pursued, under what constraints, risk, and legal choices? | Improve mobile XR efficiency within a 3 W, 3 nm-class low-power mobile envelope while exploring legal RISC-V, vector, memory, accelerator, and software-stack choices. |
+| Representation and world model | What state is encoded, and what does the loop believe about how actions change outcomes? | Workload traces, parameters, compiler assumptions, power model, memory behavior, and constraints. |
+| Tools and environment | What actions are legal, what feedback is returned, and what failures are observable? | Simulator, cost model, workload harness, and invalid-configuration checks. |
+| Compound method system | Which roles generate, predict, search, critique, verify, call tools, or coordinate? | Candidate generator, surrogate or search method, verifier, evidence writer, and human reviewer. |
+| Feedback, evidence, and decision | What supports the claim, what can reject it, and what remains a human commitment? | Pareto evidence, sensitivity checks, negative traces, rejection rules, and final architectural judgment. |
+
+: **The framework becomes a checklist when each loop field is explicit:** A project is easier to review when it names the task, representation, environment, method role, feedback, evidence, rejection rule, and human decision before claiming autonomy or architectural progress. {#tbl-compact-framework-checklist tbl-colwidths="[20,36,34]"}
+
+```{=latex}
+\FloatBarrier
+```
+
+This checklist is intentionally stricter than many current demonstrations. A
+system can be interesting without answering every row, but an architectural
+claim becomes stronger when the loop state, evidence, rejection authority, and
+human decision are visible. The point is not to make every project bureaucratic.
+It is to make claims comparable, reproducible, and reviewable.
+
+The checklist also keeps the vocabulary from drifting into generic AI
+language. Words such as state, action, observation, environment, reward, and
+critic are useful only after they are translated into architecture objects.
+@tbl-architecture-translation-matrix gives the translation rule.
+If a paper says an agent acts in an environment, the reader should be able to
+name the architecture state it reads, the action it is allowed to take, the
+tool feedback it observes, and the authority that can reject the result.
+
+| Generic term | Architecture translation | Example artifacts or observations | What can reject it |
+| --- | --- | --- | --- |
+| State | Workload, design, software, tool, constraint, and evidence state. | Traces, configs, RTL, compiler IR, simulator stats, EDA reports, review notes. | Missing provenance or hidden assumptions. |
+| Action | Legal architecture, compiler, runtime, or tool-flow change. | Change cache size, vector width, mapping, schedule, constraint, partition, or test. | Invalid parameter, noncompilable code, nonsynthesizable RTL, or policy violation. |
+| Observation | Feedback returned by a tool, benchmark, review, or deployment path. | Latency, energy, area, timing, congestion, warnings, failures, telemetry. | Wrong workload, stale tool version, simulator mismatch, or weak fidelity. |
+| Environment | Tool-connected harness that defines legal actions and feedback. | Simulator wrapper, compiler pipeline, RTL flow, EDA stage, benchmark harness. | Unmodeled constraints, nondeterminism, incomplete logging, or invalid actions. |
+| Objective | Explicit architecture tradeoff, not a generic reward. | PPA, tail latency, power envelope, reliability, carbon, cost, evidence budget. | Proxy gaming, lost Pareto tradeoff, or missing human decision rule. |
+| Critic/verifier | Independent check that can challenge or reject a claim. | Tests, formal checks, baseline replay, cross-simulator comparison, signoff review. | Unsupported claim, failed check, counterexample, or insufficient evidence. |
+
+: **AI loop terms need architecture translations:** Architecture 2.0 uses generic loop vocabulary only when each term is grounded in concrete hardware/software design objects, tool outputs, and rejection mechanisms. {#tbl-architecture-translation-matrix tbl-colwidths="[16,28,28,18]"}
+
+The five pieces are not a pipeline that runs once. They form a loop. A failed
+simulation may revise the representation. A weak benchmark result may revise
+the task. A provenance problem may invalidate the evidence. A human rejection
+may change the environment, not merely reject a candidate. Architecture 2.0 is
+therefore not only about adding AI into an existing workflow. It is about
+designing the workflow so that AI participation is bounded, observable, and
+accountable.
+
+## Autonomy Is Earned, Not Declared
+
+It is tempting to ask whether Architecture 2.0 systems are autonomous. That
+question is too coarse. Autonomy is not a personality trait of a model. It is a
+property of a bounded loop, and broader autonomy must be earned by stronger
+evidence.
+
+@fig-autonomy-ladder-human-agent shows four stages of allowed loop
+authority. The point is not that the agent gradually replaces the human
+architect. The point is that each stage grants the agent a larger role only
+when the loop also defines the allowed action space, feedback budget, evidence
+standard, rollback path, and human commitment boundary. The human and agent
+are both visible because Architecture 2.0 is a shared loop with asymmetric
+responsibility: the agent may act inside the loop, but the architect owns the
+boundary conditions.
+
+![**Autonomy is earned by the loop:** Human architectural responsibility and agentic loop action meet at bounded authority. Higher autonomy is not a personality trait of a model; it is a property of a bounded loop with explicit actions, feedback, evidence, rollback paths, rejection authority, and human commitment boundaries.](images/F4c-autonomy-ladder-human-agent){#fig-autonomy-ladder-human-agent width="100%" fig-pos="t"}
+
+At the lowest level, AI systems support assisted exploration. They summarize
+prior work, draft experiment scripts, explain tool output, suggest candidate
+parameters, or help prepare design reviews. The architect still directly
+drives the loop.
+
+At the next level, AI systems provide coordinated intelligence. A model or
+agent can call tools, track state, propose alternatives, compare candidates,
+and route work among specialized components. The loop becomes more explicit,
+but human approval remains frequent.
+
+At a higher level, semiautonomous human-in-the-loop systems can perform bounded
+subtasks: search a design space, tune a configuration, generate a benchmark
+variant, build a surrogate, or identify invalid candidates. These systems need
+clear action spaces, feedback budgets, logging, and rejection rules.
+
+The strongest level is bounded autonomous ecosystems. Here, agents can adapt
+parts of the loop, choose among methods, allocate feedback budget, and revise
+representations within a constrained domain. Even then, autonomy is bounded by
+commitment cost, evidence standards, and human accountability.
+
+The stage of autonomy depends on architecture-specific risk. A compiler flag
+that can be rolled back after telemetry is not the same as an RTL change that
+affects timing closure. A simulator configuration is not the same as a
+mask-level choice. A benchmark-generation loop is not the same as a signoff
+loop. The more irreversible the action, the stronger the evidence and
+rejection authority must be.
+
+## Intent Defines the Task
+
+Architecture tasks do not appear naturally. They are carved out of messy
+intent. A product goal such as "improve mobile XR efficiency" is not yet a task.
+It must be translated into bounded work: characterize the workload, choose a
+candidate ISA extension, compare vector and accelerator organizations,
+estimate memory traffic, build a power model, explore clock and voltage
+points, evaluate compiler support, or prepare a design-space report.
+
+This translation is architectural judgment. It decides what is in scope, what
+is out of scope, what can be measured, and what cost of being wrong is
+acceptable. It also decides how ambitious an AI-assisted loop can be. A loop
+that critiques a design report needs different state and evidence than a loop
+that edits RTL. A loop that predicts energy needs different calibration than a
+loop that generates workload questions. A loop that searches an accelerator
+tiling space needs different invalid-action semantics than a loop that proposes
+chiplet partitionings.
+
+This book treats several task families as recurring: design-space exploration,
+workload characterization, generation, prediction, optimization, critique,
+verification, and benchmark construction. The list is not meant to be
+exhaustive. Its purpose is to remind the reader that "use AI" is never a task.
+The task must be bounded before the method can be chosen.
+
+## Representations and World Models
+
+Representation is the first hard problem because it determines what the loop
+can see. Architecture knowledge lives in many forms: natural-language
+specifications, ISA documents, traces, graphs, simulator configurations, RTL,
+compiler IR, EDA reports, design reviews, benchmark metadata, spreadsheets,
+scripts, and plots. Much of the most important state is implicit. It may live
+in default flags, workload selection, tuned scripts, undocumented assumptions,
+or the memory of the architect who knows why one experiment was abandoned.
+
+AI systems are brittle around hidden state. If a constraint is not represented,
+the agent may violate it. If a simulator option is undocumented, a result may
+not be replayable. If rejected candidates are missing, a method may relearn
+known failures. If benchmark provenance is unclear, a comparison may be
+misleading.
+
+A world model is different from a representation. The representation says what
+is encoded. The world model says what the loop believes will happen when an
+action is taken. A simulator embodies one kind of world model. A learned
+surrogate embodies another. A set of design rules, expert heuristics, or
+calibrated equations can also function as a world model. None is automatically
+true. Each has a scope, fidelity, uncertainty, and failure mode.
+
+QuArch illustrates the representation problem from one angle
+[@PrakashEtAl2025QuArch]. A question-answering dataset can help evaluate
+and improve the architectural knowledge of language models, but it cannot by
+itself represent all of the state needed for system synthesis. It can expose
+what models know about concepts, but architecture loops also need tool state,
+workload provenance, failed candidates, constraints, and evidence trails. That
+distinction is the bridge to Chapter 4.
+
+## Tools Become Environments
+
+Architecture tools become Architecture 2.0 environments when they define how an
+agent or method can act. A simulator, compiler, profiler, RTL tool, EDA flow,
+runtime system, or fleet telemetry pipeline does more than return a number. It
+defines which actions are legal, how long feedback takes, what observations are
+available, what costs are incurred, what provenance is recorded, and what
+failure means.
+
+This is why wrapping tools is not mere engineering plumbing. The wrapper
+defines the research question. If the action space permits invalid
+configurations, the loop needs invalid-action semantics. If the observation
+schema hides memory traffic, the loop cannot reason about data movement. If the
+reward combines performance and energy without preserving the separate
+components, the agent may optimize a proxy that the architect cannot audit. If
+the environment does not log tool versions, seeds, workload revisions, and
+failed runs, the feedback may not become evidence.
+
+ArchGym is an important example because it treats the connection between search
+algorithms and architecture simulators as a first-class interface
+[@KrishnanEtAl2023ArchGym]. Its durable lesson is not only that one can
+connect ML methods to simulators. The larger lesson is that architecture
+research needs environments in which tasks, action spaces, feedback, and
+comparisons are explicit. Chapter 5 expands this point and asks what such
+environments can and cannot prove.
+
+## Agents and Methods Have Roles in a Compound System
+
+The word "agent" can hide too much. In credible Architecture 2.0 systems, there
+may be several roles rather than one monolithic actor. A generator proposes
+candidates. A predictor estimates behavior before expensive evaluation. An
+optimizer chooses what to try next. A critic challenges assumptions. A verifier
+checks constraints. A planner decomposes work. A tool caller executes actions.
+A coordinator tracks state, provenance, and dependencies. A human architect
+sets intent and decides what evidence is enough.
+
+These roles can be implemented by different mechanisms. A language model may
+draft an architecture description or critique a result. Bayesian optimization
+may choose the next candidate. Reinforcement learning may learn a policy for a
+bounded environment. A surrogate model may estimate energy or latency. A formal
+tool may reject invalid behavior. A script may maintain the experiment ledger.
+The important question is not which method is fashionable. The important
+question is which role the method plays in the loop, what state it consumes,
+what action it takes, what feedback it receives, and what evidence can reject
+its output.
+
+This role-based view is also more faithful to architecture practice. Even
+before AI systems entered the discussion, architects already worked through
+compound systems: simulators, models, scripts, profilers, spreadsheets,
+benchmarks, reviews, and signoff processes. Architecture 2.0 makes that
+compound structure explicit and asks where AI systems can participate without
+erasing accountability.
+
+## Feedback Becomes Evidence
+
+Feedback is not evidence by default. A simulator result, benchmark score,
+synthesis report, generated explanation, or model confidence value is feedback.
+It becomes evidence only when it is tied to a claim, a decision, and a
+provenance trail.
+
+For example, suppose an agent proposes a vector-capable compute subsystem for a
+mobile XR workload and reports that it meets the 3 W target. That statement is
+not evidence unless the loop records what workload was used, what input
+distribution was assumed, what power model was used, what process assumptions
+were available, what software stack was compiled, what alternatives were
+rejected, how uncertainty was handled, and what would cause the result to be
+discarded. The same number can mean different things at different fidelity
+levels. A proxy estimate, a cycle-level simulation, a synthesis result, a
+post-layout estimate, and silicon measurement do not carry the same authority.
+
+Evidence also includes negative information. Rejected candidates, failed
+simulator runs, invalid configurations, proxy wins that disappear at higher
+fidelity, and assumptions that had to be abandoned are not waste. They are
+architecture data. They tell the loop where not to go and tell the human
+reviewer why a surviving candidate deserves attention.
+
+This distinction between feedback and evidence is one of the main safeguards
+against hype. Architecture 2.0 is not credible because an agent can produce
+outputs quickly. It is credible only when the loop can explain why an output
+should be believed, what evidence would overturn it, and who has authority to
+say no.
+
+## The Design-Loop Card
+
+The ontology becomes operational through a design-loop card. The card is the
+practical payload of the ontology: a compact way to describe a paper, project,
+tool, benchmark, or internal workflow. It asks for the loop, not only the
+result.
+
+@fig-design-loop-card-example shows a compact example for the
+lighthouse prompt. The point is not that the card completes the design. The
+point is that it exposes the state a credible loop must carry before any
+generated candidate should be trusted.
+
+![**A filled design-loop card turns a prompt into reviewable state:** The lighthouse prompt becomes explicit loop state: intent, task, design space, representation, environment, method role, feedback budget, evidence, negative traces, rejection authority, and human decision.](images/F4b-design-loop-card-example){#fig-design-loop-card-example width="100%" fig-pos="t"}
+
+The card is deliberately simple. Its purpose is not to create paperwork. Its
+purpose is to reveal whether a claimed Architecture 2.0 contribution exposes
+the loop that makes it credible. A paper that reports a better search result
+but hides its feedback budget, rejected candidates, or environment validity is
+hard to compare. A tool that produces designs but cannot say what rejects them
+is hard to trust. A benchmark that measures model accuracy but not
+architecture-relevant reasoning may be useful, but it should not be mistaken
+for a complete design-loop evaluation.
+
+Appendix B gives the full card and review rubric. The important point here is
+that every major Architecture 2.0 claim should be able to expose its loop.
+
+## How the Rest of the Book Uses the Ontology
+
+The remaining chapters unpack the ontology in order. Chapter 4 focuses on
+representations and world models: what architecture data must encode before AI
+systems can reason about it. Chapter 5 focuses on tools and environments: how
+simulators, compilers, EDA flows, benchmarks, and deployment systems become
+action settings. Chapter 6 focuses on method roles: generation, prediction,
+optimization, critique, verification, and coordination under feedback
+constraints. Chapter 7 focuses on evidence, verification, trust, rejection, and
+commitment. Chapter 8 runs one loop end to end on the lighthouse prompt.
+Chapter 9 applies the framework across loop patterns in software, architecture
+DSE, co-design, systems, and high-commitment silicon-facing work. Chapter 10
+returns to the architect: what remains nondelegable, what the community must
+build, and what it would mean for Architecture 2.0 to become a discipline
+rather than a collection of demonstrations.
+
+The ontology is not a guarantee of correctness. It is a way to expose what
+must be represented, measured, checked, rejected, and decided. That is why it
+can outlast current models and tools. The lasting question is not which agent
+wins. The lasting question is how architects design loops that can synthesize
+systems credibly.
+
+::: {.callout-important}
+## Architect's checkpoint
+
+Before trusting an Architecture 2.0 claim, ask:
+
+- Can I state it as a claim tuple: workload, baseline, design space, objectives, constraints, evidence, rejection rule, and decision owner?
+- Which loop produced it, and what could reject its result?
+- What does the architect still decide, and at what commitment level?
+:::
