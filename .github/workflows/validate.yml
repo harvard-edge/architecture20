@@ -1,0 +1,104 @@
+name: Validate synthesis
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "synthesis/**"
+      - "requirements.txt"
+      - ".github/workflows/validate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "synthesis/**"
+      - "requirements.txt"
+      - ".github/workflows/validate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-synthesis-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
+jobs:
+  check:
+    name: Fast manuscript checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run precommit manuscript checks
+        working-directory: synthesis
+        run: ./arch2 check precommit
+
+      - name: Summarize checks
+        run: |
+          echo "Fast manuscript checks completed." >> "$GITHUB_STEP_SUMMARY"
+
+  render-html:
+    name: Render HTML preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: check
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends librsvg2-bin poppler-utils
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Render HTML site
+        working-directory: synthesis
+        run: ./arch2 render --to html --no-layout
+
+      - name: Validate HTML output
+        run: |
+          test -f synthesis/book/_build/index.html
+          echo "HTML pages: $(find synthesis/book/_build -name '*.html' | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload render logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: arch2-html-render-logs
+          path: synthesis/book/_build/logs
+          if-no-files-found: ignore
