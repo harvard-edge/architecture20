@@ -1,4 +1,4 @@
-# Arch2
+# Architecture 2.0
 
 Public materials for Architecture 2.0.
 
