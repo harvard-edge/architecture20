@@ -1320,6 +1320,25 @@ def _chapter_word_count(path: Path) -> int:
     return len(re.findall(r"[A-Za-z][A-Za-z0-9'-]*", text))
 
 
+def _loop_scope_paths(scope: str, paths: list[Path]) -> list[Path]:
+    normalized = scope.strip().lower()
+    if normalized in {"", "book", "all"}:
+        return paths
+
+    matches: list[Path] = []
+    for path in paths:
+        rel = str(path.relative_to(BOOK_DIR)).lower()
+        parent = path.parent.name.lower()
+        title = _chapter_title(path).lower()
+        if normalized in {rel, parent, path.stem.lower()}:
+            matches.append(path)
+            continue
+        if normalized in rel or normalized in parent or normalized in title:
+            matches.append(path)
+
+    return matches or paths
+
+
 def _chapter_map_markdown(paths: list[Path]) -> str:
     lines = [
         "## Chapter Map",
@@ -1333,6 +1352,36 @@ def _chapter_map_markdown(paths: list[Path]) -> str:
             sections += "; ..."
         lines.append(
             f"| `{_relative(path)}` | {_markdown_cell(_chapter_title(path))} | {_chapter_word_count(path)} | {_markdown_cell(sections)} |"
+        )
+    return "\n".join(lines)
+
+
+def _scoped_manuscript_markdown(scope: str, paths: list[Path]) -> str:
+    scoped_paths = _loop_scope_paths(scope, paths)
+    if len(scoped_paths) == len(paths) and scope.strip().lower() in {"", "book", "all"}:
+        return "\n".join(
+            [
+                "## Scoped Manuscript Text",
+                "",
+                "Scope is the full book, so the packet includes the map and ledgers rather than the full manuscript text.",
+            ]
+        )
+
+    lines = [
+        "## Scoped Manuscript Text",
+        "",
+        f"Matched {len(scoped_paths)} source file(s) for scope `{scope}`.",
+    ]
+    for path in scoped_paths:
+        lines.extend(
+            [
+                "",
+                f"### `{_relative(path)}`",
+                "",
+                "```qmd",
+                path.read_text(encoding="utf-8").strip(),
+                "```",
+            ]
         )
     return "\n".join(lines)
 
@@ -1482,7 +1531,8 @@ def build_loop_packet(*, scope: str, focus: str) -> str:
         "2. Where does progressive disclosure break across chapters?",
         "3. Which repeated material should be consolidated, moved, or turned into a cross-reference?",
         "4. Which missing figure, table, or card would most improve reader understanding?",
-        "5. Which finding should become an `arch2` check, and which should become a reusable Arch2 writing or artifact rule?",
+        "5. Which statements need stronger architecture examples, technical plots, quantitative anchors, or evidence artifacts?",
+        "6. Which finding should become an `arch2` check, and which should become a reusable Arch2 writing or artifact rule?",
         "",
         _git_state_markdown(),
         "",
@@ -1490,9 +1540,16 @@ def build_loop_packet(*, scope: str, focus: str) -> str:
         "",
         _chapter_map_markdown(paths),
         "",
+        _scoped_manuscript_markdown(scope, paths),
+        "",
         _concept_ledger_markdown(paths),
     ]
     return "\n".join(lines) + "\n"
+
+
+def _packet_focus(packet: str, fallback: str) -> str:
+    match = re.search(r"^- Focus:\s+`([^`]+)`", packet, flags=re.MULTILINE)
+    return match.group(1) if match else fallback
 
 
 def build_reviewer_prompt(packet: str, *, focus: str) -> str:
@@ -1506,6 +1563,8 @@ Review requirements:
 - Prioritize progressive disclosure across chapters.
 - Separate structural fixes from local copyedits.
 - Identify repeated case studies, repeated citations, and repeated definitions.
+- Audit whether important statements are architecturally grounded with concrete examples.
+- Identify where technical plots or quantitative anchors would materially improve the argument.
 - Name missing figures/tables/cards only when they would materially improve the argument.
 - For each major issue, say whether it should become: manuscript edit, author decision, reusable rule, mechanical arch2 check, or deferred item.
 - Be skeptical about overusing the same examples and about introducing concepts before their owner chapter.
@@ -1527,7 +1586,7 @@ PACKET:
 
 def run_loop_review(packet_path: Path, *, reviewer: str, model: str, timeout: str) -> str:
     packet = packet_path.read_text(encoding="utf-8")
-    prompt = build_reviewer_prompt(packet, focus=packet_path.stem)
+    prompt = build_reviewer_prompt(packet, focus=_packet_focus(packet, packet_path.stem))
     normalized = reviewer.lower()
     if normalized == "none":
         return "\n".join(
