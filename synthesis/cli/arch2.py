@@ -189,6 +189,11 @@ QUARTO_LABEL_RE = re.compile(r"\{#(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)(?=[\s
 LATEX_LABEL_RE = re.compile(r"\\label\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}")
 QUARTO_REF_RE = re.compile(r"(?<![#\w])@(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)\b")
 LATEX_REF_RE = re.compile(r"\\(?:auto|[cC]|eq)?ref\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}")
+RAW_STRUCTURE_REF_RE = re.compile(
+    r"\b(?:(?:[Cc]hapters?|Ch\.)\s*\d+(?:\s*(?:-|and|,)\s*\d+)*|(?:[Aa]ppendix|[Aa]ppendices)\s+[A-Z])\b"
+)
+CHAP_LABEL_OR_REF_RE = re.compile(r"(?<![\w#])@chap-[A-Za-z0-9_-]+\b|#chap-[A-Za-z0-9_-]+\b")
+LATEX_SECTION_REF_RE = re.compile(r"\\ref\{sec-[A-Za-z0-9_-]+\}")
 TABLE_ENV_RE = re.compile(
     r"\\begin\{(?P<env>table\*?)\}(?P<option>\[[^\]]+\])?"
     r"(?P<body>.*?)\\end\{(?P=env)\}",
@@ -490,6 +495,46 @@ def table_findings(path: Path) -> list[Finding]:
     return findings
 
 
+def manuscript_source_lines(path: Path) -> Iterable[tuple[int, str]]:
+    in_fence = False
+    for line_number_value, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        yield line_number_value, line
+
+
+def structural_reference_findings(path: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    message = "use top-level {#sec-*} labels and @sec-* cross-references instead of hard-coded chapter/appendix names"
+
+    for line_number_value, line in manuscript_source_lines(path):
+        if CHAP_LABEL_OR_REF_RE.search(line) or LATEX_SECTION_REF_RE.search(line):
+            findings.append(
+                Finding(
+                    "error",
+                    "raw-structure-reference",
+                    f"{_relative(path)}:{line_number_value}",
+                    message,
+                )
+            )
+            continue
+        if RAW_STRUCTURE_REF_RE.search(line):
+            findings.append(
+                Finding(
+                    "error",
+                    "raw-structure-reference",
+                    f"{_relative(path)}:{line_number_value}",
+                    message,
+                )
+            )
+
+    return findings
+
+
 def figure_path_findings(path: Path) -> list[Finding]:
     text = path.read_text(encoding="utf-8")
     findings: list[Finding] = []
@@ -529,11 +574,12 @@ def manuscript_integrity_findings() -> list[Finding]:
     for path in all_paths:
         findings.extend(figure_path_findings(path))
         findings.extend(table_findings(path))
+        findings.extend(structural_reference_findings(path))
     return sorted(findings, key=lambda finding: (finding.location, finding.code, finding.message))
 
 
 def is_crossref_key(key: str) -> bool:
-    return key.startswith(("fig-", "tbl-", "eq-", "fig:", "tab:", "eq:"))
+    return key.startswith(("fig-", "tbl-", "eq-", "sec-", "fig:", "tab:", "eq:", "sec:"))
 
 
 def citation_chapter_name(path: Path) -> str:
@@ -812,7 +858,12 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
                     "HTML contains a PDF image reference; use SVG/PNG for browser figures",
                 )
             )
-        for pattern in (r"quarto-unresolved-ref", r"\?tbl-[A-Za-z0-9_-]+", r"\?\?\?"):
+        for pattern in (
+            r"quarto-unresolved-ref",
+            r"\?(?:sec|fig|tbl|eq)-[A-Za-z0-9_-]+",
+            r"@(?:sec|chap|fig|tbl|eq)-[A-Za-z0-9_-]+",
+            r"\?\?\?",
+        ):
             if re.search(pattern, page_text):
                 findings.append(
                     Finding(
@@ -905,8 +956,12 @@ def collect_svg_shapes(root: ET.Element) -> list[SvgShape]:
         tag = strip_namespace(element.tag)
         ox, oy = offset
         if tag == "rect":
-            width = parse_float(element.attrib.get("width"))
-            height = parse_float(element.attrib.get("height"))
+            raw_width = element.attrib.get("width")
+            raw_height = element.attrib.get("height")
+            if "%" in (raw_width or "") or "%" in (raw_height or ""):
+                continue
+            width = parse_float(raw_width)
+            height = parse_float(raw_height)
             if width <= 0 or height <= 0:
                 continue
             shapes.append(
