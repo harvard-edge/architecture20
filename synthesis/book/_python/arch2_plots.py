@@ -20,7 +20,7 @@ BRAND_SANS = ["Arimo", "Arial", "Liberation Sans", "Helvetica Neue", "Helvetica"
 
 
 COLORS = {
-    "blue": "#4E79A7",
+    "blue": "#4C78A8",
     "green": "#54A24B",
     "orange": "#D88A30",
     "purple": "#7E6AA8",
@@ -31,8 +31,8 @@ COLORS = {
     "grid": "#D7DEE5",
     "row": "#E4E8ED",
     "note_text": "#356C8C",
-    "note_edge": "#9AA8B5",
-    "note_fill": "#F8FAFC",
+    "note_edge": "#356C8C",
+    "note_fill": "#F5FAFD",
     "design_cost_fill": "#E9F1FA",
 }
 
