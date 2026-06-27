@@ -180,6 +180,16 @@ class SvgTextLabel:
         return self.y + self.font_size * 0.25
 
 
+@dataclass(frozen=True)
+class SvgBounds:
+    kind: str
+    left: float
+    top: float
+    right: float
+    bottom: float
+    label: str = ""
+
+
 OVERFULL_HBOX_RE = re.compile(r"Overfull \\hbox \((?P<pts>[0-9.]+)pt too wide\)(?P<context>[^\n]*)")
 OVERFULL_VBOX_RE = re.compile(r"Overfull \\vbox \((?P<pts>[0-9.]+)pt too high\)(?P<context>[^\n]*)")
 UNDERFULL_RE = re.compile(r"Underfull \\(?:h|v)box (?P<context>[^\n]*)")
@@ -1003,6 +1013,110 @@ def collect_svg_labels(root: ET.Element, class_sizes: dict[str, float]) -> list[
     return labels
 
 
+def parse_viewbox(root: ET.Element) -> tuple[float, float, float, float] | None:
+    raw = root.attrib.get("viewBox")
+    if not raw:
+        width = parse_float(root.attrib.get("width"))
+        height = parse_float(root.attrib.get("height"))
+        if width <= 0 or height <= 0:
+            return None
+        return (0.0, 0.0, width, height)
+    parts = raw.replace(",", " ").split()
+    if len(parts) != 4:
+        return None
+    try:
+        x, y, width, height = (float(part) for part in parts)
+    except ValueError:
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    return (x, y, width, height)
+
+
+def collect_svg_bounds(root: ET.Element, class_sizes: dict[str, float]) -> list[SvgBounds]:
+    bounds: list[SvgBounds] = []
+    for element, offset in walk_with_translate(root):
+        tag = strip_namespace(element.tag)
+        ox, oy = offset
+        if tag == "rect":
+            raw_width = element.attrib.get("width")
+            raw_height = element.attrib.get("height")
+            if "%" in (raw_width or "") or "%" in (raw_height or ""):
+                continue
+            width = parse_float(raw_width)
+            height = parse_float(raw_height)
+            if width <= 0 or height <= 0:
+                continue
+            x = parse_float(element.attrib.get("x")) + ox
+            y = parse_float(element.attrib.get("y")) + oy
+            bounds.append(SvgBounds("rect", x, y, x + width, y + height))
+        elif tag == "circle":
+            radius = parse_float(element.attrib.get("r"))
+            if radius <= 0:
+                continue
+            cx = parse_float(element.attrib.get("cx")) + ox
+            cy = parse_float(element.attrib.get("cy")) + oy
+            bounds.append(SvgBounds("circle", cx - radius, cy - radius, cx + radius, cy + radius))
+        elif tag == "ellipse":
+            rx = parse_float(element.attrib.get("rx"))
+            ry = parse_float(element.attrib.get("ry"))
+            if rx <= 0 or ry <= 0:
+                continue
+            cx = parse_float(element.attrib.get("cx")) + ox
+            cy = parse_float(element.attrib.get("cy")) + oy
+            bounds.append(SvgBounds("ellipse", cx - rx, cy - ry, cx + rx, cy + ry))
+        elif tag == "line":
+            x1 = parse_float(element.attrib.get("x1")) + ox
+            y1 = parse_float(element.attrib.get("y1")) + oy
+            x2 = parse_float(element.attrib.get("x2")) + ox
+            y2 = parse_float(element.attrib.get("y2")) + oy
+            bounds.append(SvgBounds("line", min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
+        elif tag == "text":
+            text = svg_text_content(element)
+            if not text:
+                continue
+            label = SvgTextLabel(
+                x=parse_float(element.attrib.get("x")) + ox,
+                y=parse_float(element.attrib.get("y")) + oy,
+                text=text,
+                font_size=font_size_for(element, class_sizes),
+                anchor=element.attrib.get("text-anchor", "start"),
+            )
+            bounds.append(SvgBounds("text", label.left, label.top, label.right, label.bottom, label.text))
+    return bounds
+
+
+def svg_viewbox_findings(path: Path, root: ET.Element, class_sizes: dict[str, float]) -> list[Finding]:
+    viewbox = parse_viewbox(root)
+    if viewbox is None:
+        return []
+    x, y, width, height = viewbox
+    left = x
+    top = y
+    right = x + width
+    bottom = y + height
+    tolerance = 1.5
+
+    findings: list[Finding] = []
+    for bounds in collect_svg_bounds(root, class_sizes):
+        if (
+            bounds.left < left - tolerance
+            or bounds.right > right + tolerance
+            or bounds.top < top - tolerance
+            or bounds.bottom > bottom + tolerance
+        ):
+            label = f" '{bounds.label}'" if bounds.label else ""
+            findings.append(
+                Finding(
+                    "error",
+                    "svg-viewbox",
+                    _relative(path),
+                    f"{bounds.kind}{label} extends outside the declared viewBox",
+                )
+            )
+    return findings
+
+
 def svg_shape_margin(label: SvgTextLabel, shape: SvgShape) -> float:
     left_margin = label.left - shape.x
     right_margin = shape.x + shape.width - label.right
@@ -1077,7 +1191,7 @@ def svg_text_findings_for_file(path: Path) -> list[Finding]:
     shapes = collect_svg_shapes(root)
     labels = collect_svg_labels(root, class_sizes)
 
-    findings: list[Finding] = []
+    findings: list[Finding] = svg_viewbox_findings(path, root, class_sizes)
     for label in labels:
         shape = containing_svg_shape(label, shapes)
         if shape is None:
