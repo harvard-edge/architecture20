@@ -4,13 +4,8 @@
 \abstract*{Architecture 2.0 requires tools to become environments: explicit places where design actions can be taken, feedback can be observed, costs and constraints can be logged, and invalid or unsupported actions can be rejected. This chapter treats ISA boundaries, compiler IRs, memory models, simulator APIs, profilers, RTL flows, EDA handoffs, runtimes, benchmarks, and telemetry systems as part of the research object, not background implementation detail.}
 ```
 
-::: {.callout-tip title="What this chapter gives you"}
-After this chapter you can:
-
-- turn a tool into an environment with an explicit action, observation, cost, and rejection contract;
-- read a result by naming the environment that produced it;
-- reason about feedback latency and fidelity as an economy of evidence;
-- detect simulator mismatch and proxy gaming before they mislead the loop.
+::: {.callout-important title="Key question"}
+What environment did the loop define: what actions are legal, what feedback returns, and what can reject an invalid candidate?
 :::
 
 @sec-data-representations-world-models argued that a loop can only act on what it represents. This chapter
@@ -23,9 +18,9 @@ are returned, how expensive feedback is, which assumptions are baked in, what
 state is logged, and what can reject a candidate before it wastes more effort.
 
 > **Architecture environment.** An architecture environment is the explicit
-> action boundary around tools: it specifies legal actions, observations,
-> feedback costs, assumptions, logged state, provenance, and rejection rules for
-> an architecture design loop.
+> loop contract around tools: it specifies legal actions, observations,
+> feedback costs, assumptions, logged state, provenance, and rejection authority
+> for an architecture design loop.
 
 That shift is easy to understate. A tool wrapper is not plumbing. It is a
 research claim about the architecture problem. It decides which parts of the
@@ -43,6 +38,15 @@ assumptions, candidate architecture representation, simulator or estimator,
 power model, compiler/runtime interface, validity checks, provenance log, and
 a way to record rejected alternatives. If any of those pieces are implicit,
 the prompt is not yet an Architecture 2.0 loop. It is only a sentence.
+
+::: {.callout-tip title="What this chapter gives you"}
+After this chapter you can:
+
+- turn a tool into an environment with an explicit action, observation, cost, and rejection contract;
+- read a result by naming the environment that produced it;
+- reason about feedback latency and fidelity as an economy of evidence;
+- detect simulator mismatch and proxy gaming before they mislead the loop.
+:::
 
 ## Tools Shape the Research Question
 
@@ -78,7 +82,7 @@ The right question is therefore not, "Which tool did the paper use?" The
 better question is, "What environment did the loop define?" That question
 forces the paper or project to name its workload distribution, action schema,
 observation schema, feedback latency, validity constraints, cost model,
-provenance record, and rejection rules. Once those are visible, method claims
+provenance record, and rejection authority. Once those are visible, method claims
 become easier to compare.
 
 ## Interfaces Are Action Boundaries
@@ -176,6 +180,12 @@ evidence. @fig-environment-tool-interface shows the basic shape.
 
 ![**A tool becomes an environment when its contract is explicit:** A credible environment does more than call a simulator or tool. It defines workload state, legal actions, observations, constraints, cost, provenance, feedback, invalid-action semantics, and rejection paths.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-pos="H"}
 
+The figure is a loop contract, not a software architecture diagram. Each
+component is useful only after the environment names the action it permits, the
+feedback it returns, and the rejection authority attached to that feedback. That
+is why two projects can use the same simulator but define different architecture
+environments.
+
 The abstraction can be described as a contract. The contract does not require
 one software framework or one programming language. It requires that the loop
 make a small set of obligations explicit. @tbl-environment-contract
@@ -189,7 +199,7 @@ lists the main fields.
 | Constraints and validity | Type checks, feasibility rules, physical limits, software compatibility, and invalid-action handling. | What makes a candidate illegal before performance is considered? |
 | Feedback budget | Cost, latency, fidelity, determinism, and sample limits for each source of feedback. | How much evidence can the loop afford? |
 | Provenance record | Tool versions, seeds, inputs, configuration files, assumptions, and artifact hashes. | Could a human replay or audit the result? |
-| Rejection rule | Conditions that stop, revise, or escalate a candidate. | What can say no? |
+| Rejection authority | Conditions that stop, revise, or escalate a candidate. | What can say no? |
 
 : **An environment contract makes tool use auditable:** The loop should state its action schema, observations, costs, failures, provenance, and human-review boundaries before methods operate inside it. {#tbl-environment-contract tbl-colwidths="[22,32,34]"}
 
@@ -320,7 +330,7 @@ high-fidelity ones to keep optimization, inference, and uncertainty
 quantification affordable [@PeherstorferWillcoxGunzburger2018Multifidelity].
 Architecture 2.0 inherits that economy and adds two architecture-specific
 requirements: each fidelity level must carry its own rejection authority, and a
-move to a higher level is a human commitment, not merely a more accurate number.
+move to a higher level crosses a commitment boundary, not merely a more accurate number.
 
 ```{python}
 #| label: fig-fidelity-cost-confidence
@@ -338,7 +348,7 @@ rows = [
     {"display_label": "cycle-level simulation", "display_note": "tens to hundreds of comparisons", "low_seconds": 60, "high_seconds": 86400, "right_label": "scoped DSE", "color": COLORS["orange"]},
     {"display_label": "compiler / runtime measurement", "display_note": "many local measurements; fewer portable claims", "low_seconds": 1, "high_seconds": 3600, "right_label": "software path", "color": COLORS["purple"]},
     {"display_label": "RTL / synthesis / physical feedback", "display_note": "handfuls to tens of scarce samples", "low_seconds": 3600, "high_seconds": 1_209_600, "right_label": "reject / gate", "color": COLORS["red"]},
-    {"display_label": "prototype / silicon / deployment", "display_note": "few high-commitment samples plus telemetry", "low_seconds": 604_800, "high_seconds": 31_536_000, "right_label": "commit / calibrate", "color": COLORS["brown"]},
+    {"display_label": "prototype / silicon / deployment", "display_note": "few high-commitment samples plus telemetry", "low_seconds": 604_800, "high_seconds": 31_536_000, "right_label": "commit / calibrate", "color": COLORS["red"]},
 ]
 
 apply_style()
@@ -434,11 +444,11 @@ that changes under a different target. A hardware generator may improve a
 cycle-level metric while creating timing, congestion, or verification problems
 that the current environment cannot see. A workload harness may reward one
 benchmark version while hiding drift in the software stack.
-No simulator crash is not the same as hardware validity; the environment has
+A run that does not crash is not the same as hardware validity; the environment has
 to define which illegal states, unsupported configurations, and silent
 out-of-model behaviors it can actually reject.
 
-::: {.callout-tip title="Field note: when the tool becomes the target"}
+::: {.callout-note title="Field note: when the tool becomes the target"}
 A common failure pattern is not that the tool is useless; it is that the loop
 learns exactly what the tool rewards. A candidate can improve a proxy by
 choosing an unsupported parameter corner, relying on a stale workload slice, or
