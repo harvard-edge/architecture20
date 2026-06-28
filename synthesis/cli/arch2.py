@@ -37,13 +37,13 @@ DEFAULT_LOOP_CONCEPTS = (
     "design-loop card",
     "feedback budget",
     "fidelity ladder",
-    "evidence chain",
+    "evidence ledger",
     "rejection authority",
     "negative traces",
     "world model",
     "environment",
     "method role",
-    "commitment",
+    "commitment boundary",
     "lighthouse prompt",
     "ArchOps",
 )
@@ -52,12 +52,12 @@ DISCLOSURE_GATED_CONCEPTS = (
     "design-loop card",
     "feedback budget",
     "fidelity ladder",
-    "evidence chain",
+    "evidence ledger",
     "rejection authority",
     "negative traces",
     "world model",
     "method role",
-    "commitment",
+    "commitment boundary",
     "lighthouse prompt",
     "ArchOps",
 )
@@ -215,10 +215,17 @@ MARKDOWN_FIGURE_RE = re.compile(
     r"!\[[^\]]*\]\((?P<target>[^)\s]+)(?:\s+\"[^\"]*\")?\)"
     r"\{#(?P<label>fig-[A-Za-z0-9_-]+)(?=[\s}])[^}]*\}"
 )
+MARKDOWN_FIGURE_ATTR_RE = re.compile(
+    r"!\[[^\]]*\]\((?P<target>[^)\s]+)(?:\s+\"[^\"]*\")?\)\{(?P<attrs>[^}]*#(?P<label>fig-[A-Za-z0-9_-]+)[^}]*)\}"
+)
 EXECUTABLE_FIGURE_RE = re.compile(
     r"^\s*#\|\s*label:\s*(?P<label>fig-[A-Za-z0-9_-]+)\s*$",
     re.MULTILINE,
 )
+CHUNK_START_RE = re.compile(r"^\s*```\{(?P<engine>[^}]*)\}\s*$")
+CHUNK_LABEL_RE = re.compile(r"^\s*#\|\s*label:\s*(?P<label>fig-[A-Za-z0-9_-]+)\s*$")
+CHUNK_FIG_ALT_RE = re.compile(r"^\s*#\|\s*fig-alt:\s*(?P<alt>.+?)\s*$")
+CHUNK_FIG_POS_RE = re.compile(r"^\s*#\|\s*fig-pos:\s*(?P<pos>.+?)\s*$")
 CITE_RE = re.compile(r"(?<![\w@])@(?P<key>[A-Za-z0-9:_-]+)")
 DEFINITION_RE = re.compile(r"^\s*>\s*\*\*(?P<term>[^*\n.][^*\n]{1,90}?)\.\*\*", re.MULTILINE)
 STYLE_RE = re.compile(r"\.(?P<class>[A-Za-z0-9_-]+)\s*\{(?P<body>[^}]*)\}", re.DOTALL)
@@ -577,12 +584,91 @@ def figure_path_findings(path: Path) -> list[Finding]:
     return findings
 
 
+def figure_source_findings(path: Path) -> list[Finding]:
+    text = path.read_text(encoding="utf-8")
+    findings: list[Finding] = []
+
+    for match in MARKDOWN_FIGURE_ATTR_RE.finditer(text):
+        line = line_number(text, match.start())
+        attrs = match.group("attrs")
+        label = match.group("label")
+        location = f"{_relative(path)}:{line}"
+        if re.search(r"\bfig-pos\s*=", attrs):
+            findings.append(
+                Finding(
+                    "error",
+                    "figure-placement-override",
+                    location,
+                    f"figure '{label}' uses fig-pos; let Quarto/LaTeX place figures unless a rendered defect requires an override",
+                )
+            )
+        alt_match = re.search(r"\bfig-alt\s*=\s*\"([^\"]+)\"", attrs)
+        if not alt_match or len(alt_match.group(1).strip()) < 12:
+            findings.append(
+                Finding(
+                    "error",
+                    "figure-alt",
+                    location,
+                    f"figure '{label}' is missing meaningful fig-alt text",
+                )
+            )
+
+    in_chunk = False
+    chunk_label: str | None = None
+    chunk_label_line = 0
+    chunk_has_alt = False
+    for index, line in enumerate(text.splitlines(), start=1):
+        if not in_chunk and CHUNK_START_RE.match(line):
+            in_chunk = True
+            chunk_label = None
+            chunk_label_line = index
+            chunk_has_alt = False
+            continue
+        if not in_chunk:
+            continue
+        if line.strip().startswith("```"):
+            if chunk_label and not chunk_has_alt:
+                findings.append(
+                    Finding(
+                        "error",
+                        "figure-alt",
+                        f"{_relative(path)}:{chunk_label_line}",
+                        f"generated figure '{chunk_label}' is missing a fig-alt chunk option",
+                    )
+                )
+            in_chunk = False
+            chunk_label = None
+            continue
+        label_match = CHUNK_LABEL_RE.match(line)
+        if label_match:
+            chunk_label = label_match.group("label")
+            chunk_label_line = index
+            continue
+        alt_match = CHUNK_FIG_ALT_RE.match(line)
+        if alt_match and alt_match.group("alt").strip().strip('"'):
+            chunk_has_alt = True
+            continue
+        pos_match = CHUNK_FIG_POS_RE.match(line)
+        if pos_match and chunk_label:
+            findings.append(
+                Finding(
+                    "error",
+                    "figure-placement-override",
+                    f"{_relative(path)}:{index}",
+                    f"generated figure '{chunk_label}' uses fig-pos; let Quarto/LaTeX place figures unless a rendered defect requires an override",
+                )
+            )
+
+    return findings
+
+
 def manuscript_integrity_findings() -> list[Finding]:
     all_paths = content_qmd_files()
     findings: list[Finding] = []
     findings.extend(unreferenced_label_findings(all_paths, all_paths))
     for path in all_paths:
         findings.extend(figure_path_findings(path))
+        findings.extend(figure_source_findings(path))
         findings.extend(table_findings(path))
         findings.extend(structural_reference_findings(path))
     return sorted(findings, key=lambda finding: (finding.location, finding.code, finding.message))
