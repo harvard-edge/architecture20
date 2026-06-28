@@ -15,15 +15,25 @@ travels. If it only describes one kind of design-space-exploration workflow,
 it is too narrow. If it describes everything in the same way, it is too vague.
 The useful middle ground is a set of loop patterns.
 
+::: {.callout-learning-objectives}
+After this chapter you can:
+
+- classify an architecture task by its loop pattern and operating regime;
+- match method posture and rejection authority to feedback cost and reversibility;
+- explain why the same ontology carries a different evidence burden across the stack.
+:::
+
 > **Loop pattern.** A loop pattern is a recurring shape of architecture
 > work with a characteristic task, representation, environment, feedback budget,
 > evidence burden, rejection authority, and commitment level.
 
 Workload characterization has one pattern. Fast compiler and runtime tuning
 has another. Accelerator, memory, interconnect, and chiplet exploration has
-another. Co-design across compute, memory, network, and power has another.
-Fleet and serving systems have another. RTL, physical design, and signoff have
-another. The ontology is the same, but the evidence burden changes.
+another. Domain-specific architecture and code generation has another because
+local hardware efficiency only matters if the software path can reach it.
+Co-design across compute, memory, network, and power has another. Fleet and
+serving systems have another. RTL, physical design, and signoff have another.
+The ontology is the same, but the evidence burden changes.
 
 This distinction protects the book from two mistakes. The first mistake is to
 pretend that every architecture task can be automated like a fast software
@@ -33,21 +43,13 @@ task, representation, environment, feedback budget, and commitment level, what
 method roles are useful, what evidence is credible, and what can reject the
 result?
 
-::: {.callout-learning-objectives}
-After this chapter you can:
-
-- classify an architecture task by its loop pattern and operating regime;
-- match method posture and rejection authority to feedback cost and reversibility;
-- explain why the same ontology carries a different evidence burden across the stack.
-:::
-
 ## A Template for Reading the Cases
 
-The cases in this chapter use one card. The card asks for the task,
-representation, environment, method role, feedback budget, evidence, rejection
-authority, human decision, failure mode, and commitment level. This keeps the
-chapter from becoming a list of examples. It also lets the reader compare
-loops that otherwise look unrelated. The lighthouse prompt remains the spine:
+The cases in this chapter are read through one card schema. The card asks for
+the task, representation, environment, method role, feedback budget, evidence,
+rejection authority, human decision, failure mode, and commitment level. This
+keeps the chapter from becoming a list of examples. It also lets the reader
+compare loops that otherwise look unrelated. The lighthouse prompt remains the spine:
 when a separate benchmark, tool, or paper appears, it is used as a controlled
 slice of the prompt: workload coverage, code generation, architecture search,
 deployment feedback, or high-commitment physical evidence--not as a competing
@@ -74,11 +76,12 @@ name its operating regime before choosing methods or making trust claims.
 | Workload and benchmark | Traces, benchmark versions, coverage, drift, and governance. | Generate, cluster, summarize, and test workload questions. | Reject through coverage gaps, leakage, or irrelevant metrics. |
 | Fast software | Unit tests, compiler/runtime results, telemetry, and quick rollback. | Higher automation for bounded search, tuning, and repair. | Reject with tests, performance regressions, or deployment guards. |
 | Architecture DSE and specialization | Simulators, proxies, surrogates, compiler/runtime paths, constraints, and Pareto evidence. | Generate candidates, predict, optimize, critique, and preserve negative traces. | Reject invalid actions, proxy mismatch, software incompatibility, or weak evidence. |
+| Domain-specific architecture and code generation | Kernels, compiler IRs, libraries, runtimes, generated code, interface costs, and maintainability evidence. | Generate mappings, tune schedules, explain portability limits, and critique software-path gaps. | Reject local hardware wins that fail correctness, portability, interface cost, or deployment maintenance. |
 | Co-design | Cross-layer models, workload traces, topology, memory, network, power, and thermal feedback. | Coordinate methods across layers and expose tradeoffs. | Reject single-layer wins that fail system objectives. |
 | Systems and fleet | Deployment telemetry, canaries, drift, isolation, and operational constraints. | Adapt, monitor, critique, and revise policy under guardrails. | Reject with SLOs, safety policies, rollback, and human review. |
 | RTL and physical | Formal checks, regressions, synthesis, timing, power, layout, signoff, and review. | Narrow search, organize evidence, critique, and repair bounded artifacts. | Reject with tool flows, signoff, and accountable architect-owned commitment. |
 
-: **Different loop patterns need different evidence postures:** Workload, software, design-space, co-design, fleet, RTL, and physical-design loops use the same fields but differ in feedback latency, rejection authority, rollback cost, and commitment boundary. {#tbl-loop-patterns tbl-colwidths="[17,26,25,22]"}
+: **Different loop patterns need different evidence postures:** Workload, software, design-space, code-generation, co-design, fleet, RTL, and physical-design loops use the same fields but differ in feedback latency, rejection authority, rollback cost, and commitment boundary. {#tbl-loop-patterns tbl-colwidths="[17,26,25,22]"}
 
 The cases that follow should be read through the same three questions. First,
 what are the physical constraints and rollback costs? A compiler flag, a
@@ -89,6 +92,22 @@ measurement it receives in return. Third, what are the rejection gates and
 human audit points? A case is not credible because it uses an advanced method.
 It is credible when the allowed actions, feedback source, evidence burden,
 and rejection authority match the commitment being made.
+
+For a new project, choose the loop pattern before choosing the method.
+@tbl-loop-pattern-decision gives the decision procedure.
+
+| If the bottleneck is... | Start with this loop pattern | First artifact to build | Do not claim yet |
+| --- | --- | --- | --- |
+| Unknown workload coverage, stale benchmarks, or unclear scenario boundaries. | Workload and benchmark. | Versioned workload packet with coverage, gaps, and drift notes. | A general architecture win. |
+| Fast code, compiler, runtime, or kernel feedback. | Fast software. | Testable code path with correctness, profiling, and rollback evidence. | Hardware/system superiority from a local speedup. |
+| Many candidate architecture knobs under scarce simulation. | Architecture DSE and specialization. | Candidate ledger, action schema, proxy calibration, and rejected regions. | Implementation readiness. |
+| Cross-layer tradeoffs across workload, compiler, memory, network, power, or deployment. | Co-design. | Interface map that names layer owners, changed assumptions, and rejection gates. | A single-layer optimum as a system result. |
+| Live or deployment-like behavior, SLOs, canaries, or drift. | Systems and fleet. | Guarded telemetry packet with rollback and policy constraints. | Clean causal evidence without controls. |
+| RTL, generators, physical design, signoff, or silicon-facing decisions. | RTL and physical. | Evidence packet with tool-stage gates, waivers, and accountable review. | Autonomous commitment. |
+
+: **Choose the loop pattern before choosing the method:** The first artifact
+should match the bottleneck and prevent the loop from overclaiming beyond its
+evidence. {#tbl-loop-pattern-decision tbl-colwidths="[26,18,30,16]"}
 
 ## Workload Characterization and Benchmark Construction
 
@@ -113,16 +132,14 @@ must serve.
 
 MLPerf provides a useful analogy because it treats benchmarks as maintained
 community infrastructure, with versions, rules, and submission practices
-[@MattsonEtAl2020MLPerf]. MLPerf Inference made the deployment-facing
-scale concrete: more than 100 organizations were building ML inference chips,
-systems spanned at least three orders of magnitude in power and five orders in
-performance, and the first submission round produced more than 600
-reproducible measurements from 14 organizations
-[@ReddiEtAl2020MLPerfInference]. The Architecture 2.0 lesson is broader:
-a benchmark is a living agreement about what evidence should count. A workload
-loop should therefore record benchmark version, workload source, coverage
-claims, known gaps, leakage risks, and the conditions under which a result
-should not generalize.
+[@MattsonEtAl2020MLPerf]; MLPerf Inference shows that deployment-facing
+evaluation also has to preserve scenarios, constraints, and comparable
+measurement conventions [@ReddiEtAl2020MLPerfInference]. The lesson here
+is not another benchmark history. It is a loop-pattern lesson: a benchmark is a
+living agreement about what evidence should count. A workload loop should
+therefore record benchmark version, workload source, coverage claims, known
+gaps, leakage risks, and the conditions under which a result should not
+generalize.
 
 @tbl-workload-characterization-20 makes the reframe explicit. The
 left column is still necessary: representative workloads, profiles, benchmark
@@ -139,7 +156,7 @@ leaky workload slice.
 | Compare architectures under a fixed benchmark. | Maintain an evidence ledger across workload variants, candidate designs, and fidelity levels. | Candidate IDs, workload IDs, simulator/tool versions, feedback cost, accepted results, and rejected results. | Design-space results cannot be audited or reused by another loop. |
 | Build or curate benchmarks for community comparison. | Define an environment contract: valid tasks, inputs, actions, metrics, leakage rules, and rejection checks. | Benchmark harness, validity checks, metric definitions, seeds, test splits, and update policy. | The loop overfits benchmark artifacts or takes actions outside the intended task. |
 | Explain why a workload matters. | Make workload intent, deployment context, and drift explicit enough for a human to accept or reject decisions. | Use-case assumptions, deployment constraints, quality-of-service targets, telemetry hooks, and review notes. | The loop produces a plausible result for the wrong product or deployment regime. |
-| Summarize results for a paper. | Preserve workload evidence as reusable architecture data. | Source packet, negative traces, failed runs, rejected alternatives, and rationale for final claims. | The next loop repeats invalid experiments or loses why prior choices were rejected. |
+| Summarize results for a paper. | Preserve workload evidence as reusable architecture data. | Evidence packet, negative traces, failed runs, rejected alternatives, and rationale for final claims. | The next loop repeats invalid experiments or loses why prior choices were rejected. |
 
 : **Workload characterization becomes represented loop state:** Classic profiling and benchmark construction remain necessary, but an Architecture 2.0 loop must also record versions, provenance, coverage, rejection conditions, and failure traces. {#tbl-workload-characterization-20 tbl-colwidths="[20,26,25,20]"}
 
@@ -148,6 +165,14 @@ cluster traces, generate candidate benchmark questions, identify missing
 coverage, compare workload versions, or critique whether a paper's workload
 supports its claim. Those roles are valuable because they improve the question
 the architecture loop is answering.
+
+Read as a loop card, the pattern is compact: the task is workload definition;
+the representation is versioned traces, metadata, and coverage notes; the
+environment is a benchmark harness with update rules; the method posture is
+clustering, summarization, generation of missing cases, and critique; the
+rejection authority is coverage, leakage, drift, or irrelevant metrics; the
+commitment boundary is whether a design claim may generalize beyond the measured
+slice.
 
 ## Fast Software Loops
 
@@ -175,6 +200,14 @@ parallelism, numerical precision, backend behavior, and target-specific
 hardware resources. Multi-platform kernel-generation work makes that bridge
 explicit by separating the core benchmark from target backends
 [@WenEtAl2025MultiKernelBench].
+
+Read as a loop card, the task is bounded code generation or tuning; the
+representation is source code, compiler IR, tests, target metadata, and
+profiling output; the environment is the compiler/runtime/profiler path; the
+method posture can be more automated because feedback is cheap; the rejection
+authority is correctness, compilation, portability, performance regression, and
+deployment maintainability; the commitment boundary arrives when a local kernel
+change becomes part of a larger software or hardware contract.
 
 The reason autonomy can be higher here is not that the task is easy. It is
 that failures are often observable, bounded, and reversible. A generated
@@ -224,6 +257,14 @@ rejected before expensive evaluation. This is where candidate generation is
 useful, but only because the loop also records evidence and rejected
 alternatives.
 
+Read as a loop card, the task is architecture search; the representation is
+candidate parameters, workload state, constraints, tool configurations, and
+prior rejected regions; the environment is a simulator, mapper, compiler path,
+or staged DSE harness; the method posture is generation, prediction,
+optimization, and critique; the rejection authority is invalid actions,
+simulator mismatch, power or software incompatibility, and weak Pareto evidence;
+the commitment boundary is escalation to stronger feedback.
+
 ## Domain-Specific Architecture and Code Generation
 
 Domain-specific architecture is often presented as an efficiency story: if the
@@ -251,14 +292,14 @@ S_{\mathrm{system}} \le
 $$
 Here, $f$ is the fraction of the end-to-end workload that the specialized
 mechanism can improve, $s$ is its local speedup, and the $\epsilon$ terms
-stand for the interface and software overheads that LogCA makes precise. The
-reading is the one LogCA emphasizes: a design pays for specialization only when
+stand for the interface and software overheads that the LogCA-style model makes
+visible. The reading is the one LogCA emphasizes: a design pays for specialization only when
 the accelerated work is large enough, and coarse enough per invocation, to
 amortize the cost of reaching the accelerator. A dramatic local speedup can
 still fail as an architecture result if the stable domain fraction is small,
 the interface is expensive, or the software path cannot keep up.
 
-@fig-logca-breakeven makes the interface cost precise with the LogCA model
+@fig-logca-breakeven uses a simplified LogCA-style calculation
 [@AltafWood2017LogCA]. End-to-end speedup is not a property of the accelerator
 alone. It rises with the work amortized per offload, and only after that
 granularity clears a break-even point set by offload latency and overhead. A
@@ -268,7 +309,7 @@ need thousands of operations per call before offload is worth doing at all.
 ```{python}
 #| label: fig-logca-breakeven
 #| fig-cap: |
-#|   **The interface sets a break-even granularity (LogCA):** Using the LogCA model [@AltafWood2017LogCA], end-to-end speedup rises with the work amortized per offload only after it clears a break-even granularity set by offload latency and overhead, then saturates at the accelerator's peak acceleration. The farther the accelerator sits from the host, the larger the granularity needed before offload even breaks even. Curves are illustrative; the lesson is the break-even cliff, not the exact values.
+#|   **The interface sets a break-even granularity:** In a simplified LogCA-style model [@AltafWood2017LogCA], end-to-end speedup rises with the work amortized per offload only after it clears a break-even granularity set by offload latency and overhead, then saturates at the accelerator's peak acceleration. The farther the accelerator sits from the host, the larger the granularity needed before offload even breaks even. Curves are illustrative; the lesson is the break-even cliff, not the exact values.
 #| out-width: "100%"
 #| fig-alt: "Line plot showing offload speedup curves that rise only after enough work is amortized to overcome interface latency and overhead."
 
@@ -343,7 +384,7 @@ for text in legend.get_texts():
 
 add_note_box(
     fig,
-    "LogCA (Altaf & Wood, ISCA 2017): the farther the accelerator sits from the host, the larger the granularity needed before offload breaks even.",
+    "Simplified LogCA-style view: the farther the accelerator sits from the host, the larger the granularity needed before offload breaks even.",
     xywh=(0.10, 0.03, 0.80, 0.11),
     fontsize=5.5,
 )
@@ -391,13 +432,19 @@ architectural question is not only whether a specialized block is efficient.
 It is whether the hardware/software interface can keep that efficiency usable
 as workloads, models, compilers, and products change.
 
+Read as a loop card, the task is not "generate code" in isolation. It is to keep
+a domain-specific hardware claim executable. The representation includes domain
+shape, kernel family, compiler IR, runtime interface, data layout, and
+maintenance evidence. The rejection authority is correctness, portability,
+interface cost, workload drift, and end-to-end system measurement.
+
 ::: {.callout-field-note title="the accelerator that won in isolation"}
 A specialized block posts a large kernel-level speedup and looks like a clear
 win. In the full system the gain mostly disappears: the compiler cannot
 generate code that keeps the unit busy, data movement to and from the block
 dominates, and only a hand-written kernel ever reached the headline number. The
 hardware was not wrong; the loop measured the wrong thing. This is the lesson
-LogCA makes precise: price the interface and the software path before believing
+the LogCA-style model makes visible: price the interface and the software path before believing
 a local speedup, and reject the candidate until a compiler-generated,
 end-to-end measurement survives.
 :::
@@ -431,6 +478,12 @@ policy. The useful method roles are coordination and critique as much as
 search. The loop should ask which layer changed, which objective improved,
 which objective worsened, and which evidence would reject a single-layer win.
 
+Read as a loop card, the warehouse-scale example is a cross-layer co-design
+pattern: the task is useful work per constrained resource; the representation is
+workload, software, hardware, network, power, cooling, and operations state; the
+environment combines models, traces, deployment measurements, and operational
+rules; the rejection authority is a system objective that a local win violates.
+
 ## Systems Loops: Runtime, Serving, and Datacenter Policy
 
 Systems loops evaluate architecture choices in deployed or deployment-like
@@ -439,6 +492,11 @@ allocation, power management, placement, rollout policy, fleet telemetry, and
 performance isolation. Their feedback can be richer than simulation because it
 comes from real systems. It can also be noisier, more confounded, more
 privacy-sensitive, and harder to reproduce.
+The deployment-facing benchmark lesson from the workload-pattern discussion
+still applies here: evaluation has scenarios, latency constraints, power
+envelopes, and system rules, not only a single accuracy or throughput number.
+Fleet loops add another layer: live telemetry, canary policy, rollback, and
+operational review.
 
 The design-loop card changes accordingly. The representation must include
 operational state, workload drift, service-level objectives, resource
@@ -460,6 +518,14 @@ under a static benchmark may face different workload mixes, model versions,
 traffic patterns, or fleet policies. The loop must therefore connect
 architecture evidence to system evidence without pretending that production
 telemetry is a clean oracle.
+
+Read as a loop card, the task is guarded adaptation or policy revision; the
+representation is operational state, workload drift, SLOs, resource contention,
+and rollout state; the environment is a replay harness, staging system, or
+production system with guardrails; the method posture is monitoring, critique,
+controlled experimentation, and conservative adaptation; the rejection authority
+is SLO violation, safety or privacy policy, rollback, and human operations
+review.
 
 ## High-Commitment Loops: RTL, Physical Design, and Verification
 
@@ -485,32 +551,41 @@ that claims to make final autonomous decisions.
 
 Learning-assisted chip placement is a prominent, and disputed, example of a
 design subflow being formulated as a learning problem
-[@MirhoseiniEtAl2021GraphPlacement]; its baselines and reproducibility were
-later challenged (@sec-feedback-verification-trust) [@ChengEtAl2023AssessmentRL]. The Architecture 2.0
-lesson is not that all physical design should be handed to an agent. It is that even when learning methods help, the loop still needs
-tool constraints, baselines, provenance, rejection authority, and human
-commitment.
+[@MirhoseiniEtAl2021GraphPlacement]. @sec-feedback-verification-trust discusses
+the later baseline and reproducibility challenge. The Architecture 2.0 lesson is
+not that all physical design should be handed to an agent. It is that even when
+learning methods help, the loop still needs tool constraints, baselines,
+provenance, rejection authority, and human commitment.
 
-The regime also has documented production successes, and they sharpen the same
-lesson rather than contradict it. Reinforcement-learning systems that search the
-physical-implementation flow have reached commercial tapeouts at scale
-[@Synopsys2023DSOai], and reinforcement learning over a bounded circuit space
-produced arithmetic units that shipped in GPU silicon [@RoyEtAl2021PrefixRL].
-What makes these loops credible is not the method; it is that every candidate
-had to pass the strongest available instrument, synthesis, timing, and signoff,
-before it could advance. They also surface the architect's economic question. A
-search that costs many machine-hours per block is justified only when the result
-is amortized: a generated circuit instantiated across every shipped unit of a
-high-volume part repays its search cost in a way that a one-off block never
-could. The high-commitment regime therefore rewards methods whose cost amortizes
-over many uses and whose every output survives an independent gate, not methods
-that merely automate a single decision.
+The regime also has public success reports, and they sharpen the same lesson
+rather than contradict it. Vendor-reported reinforcement-learning systems have
+searched the physical-implementation flow for commercial tapeouts at scale
+[@Synopsys2023DSOai], and peer-reviewed work on reinforcement learning over a
+bounded circuit space produced arithmetic units that shipped in GPU silicon
+[@RoyEtAl2021PrefixRL].
+What makes these loops credible is not the method alone; it is that outputs are
+routed through independent tool checks and signoff gates before commitment, with
+the exact gate depending on the flow and source. They also surface the
+architect's economic question. A search that costs many machine-hours per block
+is justified only when the result is amortized: a generated circuit instantiated
+across every shipped unit of a high-volume part repays its search cost in a way
+that a one-off block never could. The high-commitment regime therefore rewards
+methods whose cost amortizes over many uses and whose outputs survive
+independent gates, not methods that merely automate a single decision.
 
 The rejection authorities in this regime are strong: parsers, type checks,
 regression suites, formal tools, synthesis, timing, power analysis, layout
 rules, signoff flows, integration review, and expert judgment. A candidate
 that fails here is not a near miss to be explained away. It is evidence that
 the loop must revise its representation, action space, method, or claim.
+
+Read as a loop card, the task is bounded RTL, generator, or physical-design
+improvement; the representation is implementation state, constraints, tests,
+tool reports, waivers, and review decisions; the environment is a staged tool
+flow with scarce high-fidelity samples; the method posture is narrowing,
+critique, bounded repair, evidence organization, and test generation; the
+rejection authority is independent tool and expert review; the commitment
+boundary remains architect-owned.
 
 ## What Transfers across Loops
 
@@ -531,7 +606,7 @@ changes. The acceptable level of autonomy changes.
 > from autonomous action toward critique, evidence organization, rejection, and
 > human approval.
 
-This is the practical reason to keep this chapter in the lecture. It prevents
+This is the practical reason to keep this chapter in the book. It prevents
 Architecture 2.0 from becoming either an abstract ontology or a paper survey.
 The reader should be able to take a new project and ask: Which loop pattern
 is this? What feedback can it afford? What representation does it need? What
@@ -556,6 +631,6 @@ Facing a new project, ask:
   the operating regime.
 - **Reader test:** Which loop pattern are you in, and what kind of feedback can
   actually reject the result?
-- **Next loop field:** Once loop patterns can be compared, the final question is
+- **Next loop state:** Once loop patterns can be compared, the final question is
   what the architect still owns across all of them.
 :::

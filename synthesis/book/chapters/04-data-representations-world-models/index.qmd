@@ -79,6 +79,26 @@ what is known, what is assumed, and what must still be checked.
 > evidence, uncertainty, negative traces, and decisions that a loop can read,
 > compare, change, replay, and audit.
 
+> **Architecture world model.** An architecture world model is the loop's
+> belief about what will happen when an architecture action is taken: what a
+> simulator, surrogate, rule system, constraint model, or human review policy
+> predicts, permits, rejects, or leaves uncertain.
+
+The boundary test in @tbl-representation-world-model-boundary is simple. A
+representation records the state a loop can read and replay. A world model
+predicts or constrains the consequences of acting on that state. The same
+artifact can contribute to both, but the loop must know which role it is
+playing.
+
+| Example | Representation role | World-model role |
+| --- | --- | --- |
+| Simulator configuration | Records flags, model version, workload slice, seed, and command. | Defines what behavior the simulator can predict and where its calibration fails. |
+| Candidate parameter table | Records legal choices and candidate values. | Feeds a surrogate or rule system that predicts latency, energy, area, or invalidity. |
+| Constraint file | Records declared limits and assumptions. | Rejects actions that violate timing, power, interface, or policy boundaries. |
+| Failed run log | Records what happened, with provenance. | Updates the loop's belief about invalid regions and escalation rules. |
+
+: **Representation records state; world models predict consequences:** The loop needs both, and it must not confuse replayable artifacts with evidence that an action will remain valid under new workloads, tools, or fidelity levels. {#tbl-representation-world-model-boundary tbl-colwidths="[20,35,35]"}
+
 The token scale makes the contrast sharper. A broad corpus built from roughly
 fifty years of public computer-architecture, systems, and EDA literature might
 only be on the order of $10^9$ tokens. A rough receipt is simple:
@@ -98,6 +118,20 @@ arguments, and rejected alternatives. Architecture 2.0 therefore cannot treat
 "all architecture text" as the dataset. The dataset must include the loop
 state that made the text credible, and it must expose enough tacit judgment to
 make assumptions, exclusions, and rejection decisions inspectable.
+
+This is an intuition-scale receipt, not a measured corpus inventory.
+@tbl-architecture-data-scarcity shows why the exact token count is not the main
+claim. The important scarcity is that the most useful architecture data are
+often not public, not textual, or not preserved as reusable loop state.
+
+| Data layer | Rough public visibility | What is missing for Architecture 2.0 |
+| --- | --- | --- |
+| Published papers, manuals, and tutorials | Public and mostly textual. | Failed runs, rejected alternatives, exact workload slices, scripts, seeds, and review rationale. |
+| Open-source RTL, simulators, compilers, and benchmarks | Public but heterogeneous and version-sensitive. | Tool settings, run provenance, invalid configurations, and cross-tool disagreement. |
+| Commercial EDA reports, PDK assumptions, and signoff context | Often private or redacted. | Timing, power, physical, waiver, and closure evidence tied to the claim. |
+| Design reviews and engineer memory | Usually tacit. | Why an experiment was abandoned, which proxy was distrusted, and who accepted risk. |
+
+: **Architecture data scarcity is about missing loop state, not only token count:** Public text is useful, but the decisive records are often provenance, negative traces, tool settings, and commitment decisions. {#tbl-architecture-data-scarcity tbl-colwidths="[26,28,36]"}
 
 @fig-token-scale-contrast puts that estimate on the same log-scale
 axis as three public AI-data anchors: Chinchilla's 1.4-trillion-token training
@@ -163,6 +197,8 @@ counts from the hard missing records. The multiplication that gives $10^9$
 tokens is deliberately simple; the point is that even a generous public-text
 corpus is small, and the public surfaces we can count most easily are not the
 same thing as architecture loop state.
+The proxy-count receipt is kept with the project data source receipts; the
+counts should be treated as a release-time snapshot, not a durable benchmark.
 
 | Receipt | Current value | What it supports | Caveat |
 | --- | --- | --- | --- |
@@ -233,22 +269,25 @@ fidelity, provenance, and commitment level.
 
 ```{=latex}
 \begin{samepage}
-A useful representation should therefore record the cost structure of feedback,
-not only the feedback value. A sample cost is best written as a vector of
-incommensurable dimensions, not a single number, since they do not share units:
+A useful representation should therefore record the burden and evidence context
+of feedback, not only the feedback value. A sample is best written as a vector
+of incommensurable dimensions, not a single number, since they do not share
+units:
 \[
-C_{\mathrm{sample}} = \langle C_{\mathrm{setup}}, C_{\mathrm{tool}},
+M_{\mathrm{sample}} = \langle C_{\mathrm{setup}}, C_{\mathrm{tool}},
 C_{\mathrm{license}}, C_{\mathrm{compute}}, C_{\mathrm{human}},
-C_{\mathrm{fidelity}}, C_{\mathrm{opportunity}}, C_{\mathrm{risk}} \rangle .
+F_{\mathrm{fidelity}}, P_{\mathrm{provenance}}, K_{\mathrm{coverage}},
+C_{\mathrm{opportunity}}, C_{\mathrm{risk}} \rangle .
 \]
 \end{samepage}
 ```
 
 The vector does not collapse into one currency; its dimensions carry different
-units. It is a reminder that an architecture sample carries hidden state. A simulator point may require setup
-time, tool availability, license access, calibration work, human triage, and
-the opportunity cost of not evaluating another candidate. A post-layout result
-may carry higher fidelity but also higher latency and risk. A field deployment
+units. It is a reminder that an architecture sample carries hidden state. A
+simulator point may require setup time, tool availability, license access,
+calibration work, human triage, provenance, coverage context, and the
+opportunity cost of not evaluating another candidate. A post-layout result may
+carry higher fidelity but also higher latency and risk. A field deployment
 measurement may be authoritative for one population and irrelevant for another.
 
 Concrete architecture tools span this range. Analytical mapping and dataflow
@@ -339,9 +378,11 @@ print("\n".join(rows))
 ```
 
 This cost structure changes how we should think about design spaces. A small
-co-design exercise with $5 \times 4 \times 6 = 120$ candidates can sometimes
-be enumerated. A physical-design, compiler, mapping, or chiplet-integration
-space may be combinatorial, sequential, tool-bound, and partially invalid.
+co-design exercise with five workload slices, four architecture configurations,
+and six compiler or mapping settings has $5 \times 4 \times 6 = 120$
+candidates and can sometimes be enumerated. A physical-design, compiler,
+mapping, or chiplet-integration space may be combinatorial, sequential,
+tool-bound, and partially invalid.
 Learning-assisted chip placement makes the point concrete: the design problem
 can be formulated as a learning problem, but the value of each sample depends
 on the representation of macros, nets, constraints, tool feedback, and
@@ -482,7 +523,23 @@ state, action spaces, dynamics, costs, constraints, invalid-action rules,
 uncertainty, and decision policies. Tools return feedback; evidence updates
 both the representation and the world model.
 
-![**A world model connects artifacts to valid architectural action:** A representation record captures what the loop can read, compare, and replay; a world model captures what the loop believes actions will change. Feedback becomes reusable only when provenance, coverage, labels, and negative traces are recorded.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Loop diagram showing representation records, world models, tool feedback, evidence, provenance, coverage, labels, and negative traces connected to valid architectural action."}
+For the lighthouse prompt, a small world model might be as simple as
+@tbl-xr-world-model-sketch. It is not a full simulator. It is the part of the
+loop's belief that says which actions are meaningful, what they are expected to
+change, and what evidence can overturn the prediction.
+
+| World-model field | XRBench/RISC-V sketch |
+| --- | --- |
+| State | Workload slice, frame deadline, software path, candidate compute organization, memory traffic, and power envelope. |
+| Legal action | Change vector width, local memory size, CPU/accelerator partition, or data layout inside the declared software contract. |
+| Predicted transition | Estimate latency, memory traffic, energy, area pressure, and compiler/runtime feasibility. |
+| Uncertainty and calibration | State whether the estimate comes from an analytic proxy, calibrated simulator, prior measurements, or expert rule. |
+| Invalid-action rule | Reject candidates that break software compatibility, exceed the action bounds, fail correctness, or lack provenance. |
+| Escalation trigger | Move to stronger evidence when a candidate nears the 3 W target, misses the frame deadline, or wins only under a weak proxy. |
+
+: **An architecture world model is a scoped belief about action and consequence:** Even a small sketch should name state, legal actions, predicted outcomes, uncertainty, invalid actions, and escalation triggers. {#tbl-xr-world-model-sketch tbl-colwidths="[24,66]"}
+
+![**A world model connects artifacts to valid architectural action:** A representation record captures what the loop can read, compare, and replay; a world model captures what the loop believes actions will change. Feedback becomes reusable only when provenance, coverage, and negative traces are recorded.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Loop diagram showing representation records, world models, tool feedback, evidence, provenance, coverage, and negative traces connected to valid architectural action."}
 
 There are several kinds of architecture world models. A simulator-backed world
 model uses a tool as the transition and feedback mechanism. A learned surrogate
@@ -499,7 +556,7 @@ goal is not to pretend the world model is truth. The goal is to make its
 assumptions explicit enough that the loop can decide when to trust it, when to
 escalate fidelity, and when to reject its advice.
 
-## Provenance, Coverage, Labels, and Negative Traces
+## Provenance, Coverage, and Negative Traces
 
 The most distinctive architecture data may be the data the field usually
 throws away. Published work tends to preserve accepted artifacts. Design loops
@@ -507,6 +564,12 @@ also need rejected alternatives. A failed simulator run, invalid configuration,
 proxy win that fails at higher fidelity, abandoned floorplan, or
 unsupported-software path is not merely noise. It teaches the loop where the
 boundary lies.
+
+> **Negative traces.** Negative traces are recorded failed, rejected, invalid,
+> or abandoned candidates together with the reason they did not support the
+> claim. They matter because a loop that records only winners cannot teach the
+> next method, reviewer, or architect which assumptions, tools, workloads, or
+> regions of the design space were already ruled out.
 
 Negative traces matter because architecture action spaces are full of invalid
 or misleading moves. A generated RTL fragment may be syntactically plausible
@@ -531,11 +594,12 @@ evidence should change the next action in the loop.
 : **Negative traces are architecture data:** Failed builds, invalid candidates, missed constraints, and rejected alternatives define the boundary of the design space and should be preserved rather than discarded. {#tbl-negative-traces tbl-colwidths="[26,32,32]"}
 
 Negative traces require provenance. A failed result without context is not very
-useful. The loop needs to know which workload, tool version, seed, parameters,
-constraints, and fidelity level produced the failure. It also needs coverage:
-what part of the design space, workload space, or evidence regime does this
-trace represent? Without provenance and coverage, negative traces become a
-pile of anecdotes. With them, they become architecture data.
+useful. The minimum reusable record includes the candidate identifier, workload
+slice, software stack, tool version, seed, parameters, constraints, fidelity
+level, failure reason, coverage boundary, and decision owner. The loop also
+needs coverage: what part of the design space, workload space, or evidence
+regime does this trace represent? Without provenance and coverage, negative
+traces become a pile of anecdotes. With them, they become architecture data.
 
 ## When a Representation Becomes Actionable
 
@@ -570,6 +634,6 @@ how expensive evaluation is, and what evidence a loop can produce.
   boundaries.
 - **Reader test:** Could another team replay both the winning candidate and the
   rejected candidates six months later?
-- **Next loop field:** Once state exists, tools can become environments that act
+- **Next loop state:** Once state exists, tools can become environments that act
   on that state and return feedback the loop can interpret.
 :::

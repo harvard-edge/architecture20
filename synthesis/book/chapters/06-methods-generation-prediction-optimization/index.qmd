@@ -28,11 +28,12 @@ evidence, not proposing more candidates.
 Architecture 2.0 therefore treats methods as roles in a compound design
 system. A credible loop might include a generator that proposes candidates, a
 predictor that estimates behavior, an optimizer that selects the next
-experiment, a critic that challenges assumptions, a verifier that checks
-constraints, and a human architect who decides whether the evidence is strong
-enough to proceed. The method question is not "Which AI system is best?" It
-is "Which role is needed, what feedback can support it, and what evidence
-would make its output credible?"
+experiment, a critic that challenges assumptions, a repair method that revises
+invalid artifacts, a verifier that checks constraints, an explanation role that
+makes evidence legible, and a human architect who decides whether the evidence
+is strong enough to proceed. The method question is not "Which AI system is
+best?" It is "Which role is needed, what feedback can support it, and what
+evidence would make its output credible?"
 
 ::: {.callout-learning-objectives}
 After this chapter you can:
@@ -52,8 +53,8 @@ architecture parameters. Generation now appears in natural-language-to-code,
 RTL, test, configuration, and design-report workflows. The shorthand is useful
 because it gives proper credit to earlier work. It is also incomplete. The
 Architecture 2.0 question is how these roles compose with critique, repair,
-verification, provenance, negative traces, and human rejection authority inside
-one explicit loop.
+verification, explanation, provenance, negative traces, and human rejection
+authority inside one explicit loop.
 
 ## Match the Method to the Architecture Task
 
@@ -74,17 +75,18 @@ the loop is trying to accomplish.
 architecture loop can contain several method roles, but each role has a
 different claim and a different evidence requirement.
 
-![**Method roles are useful only inside a represented loop:** Generation, prediction, optimization, critique, repair, and verification each need explicit state, feedback, and rejection.](images/F7-method-role-map){#fig-method-role-map width="100%" fig-alt="Role map showing generation, prediction, optimization, critique, repair, verification, and explanation as bounded method roles inside a represented architecture loop."}
+![**Method roles are useful only inside a represented loop:** Generation, prediction, optimization, critique, repair, verification, and explanation each need explicit state, feedback, and rejection.](images/F7-method-role-map){#fig-method-role-map width="100%" fig-alt="Role map showing generation, prediction, optimization, critique, repair, verification, and explanation as bounded method roles inside a represented architecture loop."}
 
 Read the figure as a role map, not as a claim that every loop needs every role.
 A loop can use generation for breadth, prediction for cheap ranking,
 optimization for sample allocation, critique for missing assumptions, repair for
-invalid artifacts, and verification for independent rejection. The method
-selection question is which role the current loop can support with feedback.
+invalid artifacts, verification for independent rejection, and explanation for
+reviewable evidence. The method selection question is which role the current
+loop can support with feedback.
 
-@tbl-method-role-discipline gives the checklist form. The table is
-deliberately phrased as questions because method choice should be defended in
-architecture terms, not only in machine-learning terms.
+@tbl-method-role-discipline gives the checklist form. Read each row as a
+review prompt: what is the role doing, what evidence supports it, and what
+failure mode should the loop be prepared to reject?
 
 | Role | Architecture use | Evidence needed | Failure mode |
 | --- | --- | --- | --- |
@@ -93,6 +95,7 @@ architecture terms, not only in machine-learning terms.
 | Optimize | Choose the next candidate or region of the space to evaluate. | Objective, constraints, feedback budget, and stopping rule. | Gaming the proxy or missing the real tradeoff. |
 | Critique/repair | Find weak assumptions, missing evidence, invalid actions, or broken artifacts. | Access to artifacts, claims, evidence, and rejection authority. | Polished explanations without authority to reject. |
 | Verify | Check constraints, invariants, tests, tool outputs, and evidence ledgers. | Independent checks, provenance, and escalation rules. | Treating one tool pass as final truth. |
+| Explain | Make tradeoffs, failures, uncertainty, and rejected alternatives legible to a reviewer. | Traceable evidence, assumptions, contrast cases, and stated limits. | Convincing story without provenance or support. |
 
 : **Each method role needs different evidence:** Generation, prediction, optimization, critique, repair, verification, and explanation make different claims and therefore require different rejection checks. {#tbl-method-role-discipline tbl-colwidths="[18,28,25,19]"}
 
@@ -118,8 +121,9 @@ physical-design change.
 | Generate | Workload variant, simulator config, tensor schedule, kernel, RTL fragment, EDA constraint, or design-loop card. | Parser, compiler, simulator, test harness, constraint checker, or human review. | Invalid syntax, unsupported action, wrong output, violated constraint, or missing provenance. |
 | Predict | Latency, energy, area, memory traffic, timing risk, thermal behavior, queueing delay, or deployment impact. | Calibration data, uncertainty, coverage region, held-out checks, and fidelity label. | Out-of-support query, counterexample, proxy mismatch, or uncalibrated extrapolation. |
 | Optimize | Next design point, parameter region, schedule, dataflow, mapping, placement move, or experiment allocation. | Objective, constraints, feedback budget, cost model, and stopping rule. | Proxy gaming, infeasible candidate, lost Pareto tradeoff, or exhausted evidence budget. |
-| Critique/repair | Benchmark claim, simulator log, configuration file, test bench, source packet, evidence table, or rejected alternative. | Access to artifact provenance, claims, assumptions, and comparison baseline. | Missing workload coverage, stale tool version, unsupported conclusion, or unresolved failure. |
-| Verify/explain | Invariant, interface contract, numerical tolerance, synthesis constraint, regression result, or evidence ledger. | Independent checks, replayable commands, tool logs, and escalation record. | Failed check, inconsistent evidence, weak fidelity, or architect refusal to commit. |
+| Critique/repair | Benchmark claim, simulator log, configuration file, test bench, evidence record, evidence table, or rejected alternative. | Access to artifact provenance, claims, assumptions, and comparison baseline. | Missing workload coverage, stale tool version, unsupported conclusion, or unresolved failure. |
+| Verify | Invariant, interface contract, numerical tolerance, synthesis constraint, regression result, or evidence ledger. | Independent checks, replayable commands, tool logs, and escalation record. | Failed check, inconsistent evidence, weak fidelity, or architect refusal to commit. |
+| Explain | Tradeoff, failure, rejected candidate, model uncertainty, or tool warning that a reader must understand. | Traceable evidence, assumptions, contrast with alternatives, and limits of the explanation. | Explanation without provenance, unsupported causal story, or hidden uncertainty. |
 
 : **Method claims need object discipline:** A result is more credible when it states whether the method acted on prompts, code, traces, configs, RTL, reports, or decisions and what evidence can reject that action. {#tbl-method-object-discipline tbl-colwidths="[16,25,25,24]"}
 
@@ -129,7 +133,7 @@ Hardware awareness is not the same as using hardware vocabulary. A generated
 proposal can mention caches, vector units, power targets, or a process node and
 still be unaware of the architectural consequences of those terms.
 
-> **Hardware awareness.** In this lecture, hardware awareness means that a
+> **Hardware awareness.** In this chapter, hardware awareness means that a
 > method or agent can represent hardware-relevant constraints, act within a valid
 > hardware/software design space, obtain feedback from appropriate tools or
 > measurements, and expose evidence that can reject its own output.
@@ -161,8 +165,9 @@ locality, bandwidth, occupancy, parallelism, pipelines, and communication.
 Tool and environment awareness connects those mechanisms to compilers,
 profilers, simulators, synthesis reports, and failed runs. Evidence awareness
 adds calibration, uncertainty, proxy mismatch, fidelity, and negative traces.
-Commitment-boundary awareness is the highest level because the method can
-state what it is allowed to decide, what must be escalated, and why.
+Commitment-boundary awareness is the highest level because the loop can state
+what the method may recommend, what must be escalated, and why the architect
+still owns the commitment.
 
 Functional correctness is cross-cutting, not optional. Once a loop changes an
 executable or synthesizable artifact, tests, reference outputs, formal checks,
@@ -172,9 +177,9 @@ expert review must be able to reject it before performance claims matter.
 ![**Hardware awareness is a staged capability:** The assessment is not whether a method can mention hardware terms, but what it can safely change, what feedback supports the change, and what independent mechanism can reject it.](images/F7b-hardware-awareness-ladder){#fig-hardware-awareness-ladder width="100%" fig-alt="Stepped ladder of hardware awareness levels from vocabulary awareness to commitment-boundary awareness, with stronger evidence required at higher levels."}
 
 The ladder is deliberately behavioral. A method that only uses hardware words is
-at the vocabulary level. It climbs only when it can obey constraints, act in a
-tool environment, preserve calibration evidence, and know where a human
-commitment boundary stops delegation.
+at the vocabulary level. The assessment rises only when the loop can show valid
+actions, constraint handling, tool feedback, calibration evidence, and a clear
+architect-owned commitment boundary.
 
 @tbl-hardware-awareness-assessment makes the assessment explicit.
 Each level should be judged by what the method may change, what feedback
@@ -187,17 +192,34 @@ supports that change, and what can reject it.
 | Performance model | Rankings, estimates, or parameter choices inside model support. | Calibration, sensitivity, residuals, and held-out checks. | Model miss, counterexample, or out-of-support query. |
 | Tool/environment | Code, configs, kernels, traces, or tool-invoked candidates. | Compile, run, profile, simulate, synthesize, and log tool outcomes. | Failed test, tool error, profile regression, or invalid artifact. |
 | Evidence and calibration | Confidence, evidence strength, and escalation recommendations. | Multi-fidelity comparison, uncertainty, provenance, and negative traces. | Proxy mismatch, weak provenance, or fidelity failure. |
-| Commitment boundary | Accept, revise, reject, or escalate recommendation. | Evidence ledger, rollback cost, risk, and review context. | Human architect or independent verification refuses commitment. |
+| Commitment boundary | Recommend, explain, or escalate within stated limits. | Evidence ledger, rollback cost, risk, and review context. | Human architect or independent verification refuses commitment. |
 
 : **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and reject its own output. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
+
+The table is still too abstract unless each level has a falsifiable test.
+@tbl-hardware-awareness-tests gives the reviewer version. A method should not
+claim a higher level unless it can pass the observable test for that level in
+the current loop.
+
+| Claimed level | Reviewer test | Evidence to attach |
+| --- | --- | --- |
+| Vocabulary | Can the method use architecture terms without changing their meaning? | Human review notes or corrected definitions. |
+| Constraint | Does it reject illegal parameter combinations before scoring them? | Constraint logs, invalid-action traces, and rejected examples. |
+| Performance model | Does it state the calibrated range and fail or escalate outside it? | Calibration plot, held-out error, sensitivity result, or uncertainty record. |
+| Tool/environment | Can it run the tool path and preserve both successes and failures? | Commands, versions, seeds, logs, failed runs, and replay instructions. |
+| Evidence and calibration | Can it explain why one feedback source is strong enough for one claim and too weak for another? | Fidelity labels, proxy-mismatch examples, and escalation thresholds. |
+| Commitment boundary | Can it recommend or escalate without pretending to own the decision? | Evidence packet, review note, residual risk, and named decision owner. |
+
+: **A hardware-awareness claim should be falsifiable:** Reviewers should ask for
+observable tests, not only fluent hardware language. {#tbl-hardware-awareness-tests tbl-colwidths="[20,38,32]"}
 
 A kernel-generation loop that can compile, test, and profile generated kernels
 has tool awareness. It does not automatically have evidence awareness unless
 the loop records numerical correctness, speedup distributions, portability,
 rejected candidates, and proxy mismatch. A design-space agent that can propose
 accelerator parameters has constraint awareness only if invalid actions are
-blocked or rejected. It has commitment-boundary awareness only if it can
-connect workload intent, hardware resource limits, compiler/runtime
+blocked or rejected. It reaches commitment-boundary awareness only if the loop
+can connect workload intent, hardware resource limits, compiler/runtime
 assumptions, fidelity gates, and human decision points into one accountable
 loop.
 Here, "performance model" means a cheap analytical, learned, or surrogate
@@ -225,11 +247,10 @@ accelerate tedious translation. They are not credible merely because they are
 well formed. The loop still needs validity checks, tool execution, evidence,
 rejected alternatives, and human decision.
 
-This distinction keeps Architecture 2.0 from becoming prompt-to-chip
-rhetoric. A generated RTL fragment is not an architecture result. A generated
-parameter set is not a design-space conclusion. A generated benchmark question
-is not a validated workload. Generation earns its place when it feeds a loop
-that can test, reject, compare, and revise.
+That distinction keeps Architecture 2.0 from becoming prompt-to-chip rhetoric.
+A generated RTL fragment, parameter set, or benchmark question is a proposal.
+Generation earns its place only when it feeds a loop that can test, reject,
+compare, and revise.
 
 ::: {.callout-failure-mode title="Treating generation as design"}
 It is tempting to treat a fluent generated artifact, an RTL fragment, a config,
@@ -297,18 +318,22 @@ technology assumption? Does it report confidence? Is it calibrated against a
 higher-fidelity source? Does it preserve enough provenance to explain why a
 candidate was trusted?
 
-There is a rigorous way to make this concrete. Conformal prediction turns any
-surrogate, regardless of its internals, into one that emits calibrated
-prediction sets: intervals that contain the true value with a user-chosen
-probability under only an exchangeability assumption
-[@AngelopoulosBates2021Conformal]. For an architecture loop this converts
-"report confidence" from a slogan into an operation. The predictor returns not
+There is a rigorous way to make this concrete when the assumptions are
+appropriate. Conformal prediction can wrap a surrogate, regardless of its
+internals, so that it emits calibrated prediction sets: intervals that contain
+the true value with a user-chosen probability under an exchangeability
+assumption [@AngelopoulosBates2021Conformal]. Architecture loops must audit
+that assumption because workloads, tools, and process corners are often not
+exchangeable. Still, the pattern is useful: it converts "report confidence"
+from a slogan into an operation. The predictor returns not
 a point latency or energy but an interval, and the loop escalates to higher
 fidelity whenever that interval straddles a constraint, such as the 3 W
-envelope, or grows wider than the decision can tolerate. The guarantee is
-distribution-free, so it survives the non-Gaussian residuals architecture
-surrogates actually produce, and it degrades visibly under distribution shift,
-which is exactly when a proxy should not be trusted.
+envelope, or grows wider than the decision can tolerate. The guarantee does not
+require a parametric residual model, which is useful for architecture
+surrogates with awkward error shapes. But it still depends on the calibration
+assumption being meaningful; under distribution shift, the interval is a
+diagnostic that should trigger scrutiny rather than a promise that the proxy is
+safe.
 
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
@@ -338,18 +363,19 @@ Reinforcement learning is attractive when the problem is sequential: placement
 decisions, scheduling policies, adaptive control, or multi-stage design flows.
 The chip-floorplanning literature gives a prominent, and contested, example of
 posing a chip design subproblem as a learning problem
-[@MirhoseiniEtAl2021GraphPlacement]; independent baselines later challenged the
-result (@sec-feedback-verification-trust) [@ChengEtAl2023AssessmentRL]. The important lesson for this
-lecture is not that every architecture task should become RL. It is that method choice depends on state, action,
-transition, feedback, and commitment structure.
+[@MirhoseiniEtAl2021GraphPlacement]. @sec-feedback-verification-trust discusses
+the later baseline and reproducibility challenge. The important lesson for this
+chapter is not that every architecture task should become RL. It is that method
+choice depends on state, action, transition, feedback, and commitment structure.
 
-A less contested example narrows the design space until the environment can
+A narrower example bounds the design space until the environment can
 supply real rejection authority. PrefixRL casts the design of parallel-prefix
 arithmetic circuits, such as adders, as a reinforcement-learning problem with
 logic synthesis in the loop, so every proposed circuit is scored by an actual
 synthesis run rather than a hand-built proxy [@RoyEtAl2021PrefixRL]. The
-reported circuits reached the area-delay Pareto frontier of a production design
-flow, and the resulting arithmetic units were adopted in shipping GPU silicon.
+paper reports circuits that reached the area-delay Pareto frontier of a
+production design flow and arithmetic units that were adopted in shipping GPU
+silicon.
 The contrast with the placement dispute is the lesson, not the leaderboard: the
 same method family is contested when its reward is a fast proxy and defensible
 when a bounded action space lets a high-fidelity instrument reject every
@@ -469,9 +495,9 @@ optimization goes one step further and treats the fidelity level itself as a
 decision variable: it chooses not only which candidate to evaluate but whether
 to spend a cheap proxy or an expensive simulation on it, exactly the choice the
 fidelity ladder poses [@KandasamyEtAl2017MultiFidelityBO]. The architecture
-loop rarely needs the full apparatus, but naming it matters: sample efficiency
-is a solved problem in form, and a loop that ignores it is leaving evidence on
-the table.
+loop rarely needs the full apparatus, but naming it matters: there is a
+rigorous language for spending scarce samples, and a loop that ignores it is
+leaving evidence on the table.
 
 > **Fidelity ladder.** A fidelity ladder is the ordered set of feedback levels
 > a loop can climb, from cheap proxies through simulation, synthesis, physical
@@ -576,7 +602,7 @@ the architecture problem.
 
 Architecture 2.0 should not age around one algorithm family. The field will
 continue to change: models will improve, agent frameworks will change, tools
-will expose new interfaces, and benchmarks will evolve. A durable lecture
+will expose new interfaces, and benchmarks will evolve. A durable book
 should therefore teach method discipline rather than method fashion.
 
 The stable idea is that methods earn trust by their role in the loop. They
@@ -592,11 +618,11 @@ that question by making fidelity, verification, rejection, and trust explicit.
 
 ::: {.callout-carry-forward}
 - **Principle:** Method choice is a loop decision: generation, prediction,
-  optimization, critique, repair, and verification earn trust only when they
-  match the task, representation, environment, feedback budget, fidelity
-  ladder, evidence burden, and commitment level.
+  optimization, critique, repair, verification, and explanation earn trust only
+  when they match the task, representation, environment, feedback budget,
+  fidelity ladder, evidence burden, and commitment level.
 - **Reader test:** Can you write one sentence explaining why this method belongs
   in this role for this loop?
-- **Next loop field:** Once methods can act, the next question is whether their
+- **Next loop state:** Once methods can act, the next question is whether their
   feedback becomes evidence strong enough to support trust.
 :::

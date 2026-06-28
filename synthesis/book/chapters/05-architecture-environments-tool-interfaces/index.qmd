@@ -22,6 +22,12 @@ state is logged, and what can reject a candidate before it wastes more effort.
 > feedback costs, assumptions, logged state, provenance, and rejection authority
 > for an architecture design loop.
 
+Use the tool vocabulary carefully. A *tool* performs an operation. A *wrapper*
+calls that tool. An *environment contract* states what actions are legal, what
+observations return, what costs and failures mean, and what evidence is logged.
+A *harness* is the maintained runnable object around that contract: workloads,
+versions, scripts, provenance, invalid-action records, and review state.
+
 That shift is easy to understate. A tool wrapper is not plumbing. It is a
 research claim about the architecture problem. It decides which parts of the
 design space are visible, which constraints are enforceable, which metrics are
@@ -156,15 +162,31 @@ that looked acceptable at synthesis. The lesson is not that every loop must
 begin with the strongest tool. It is that the loop must know which feedback is
 a proxy and which later check has authority to overturn it.
 
-This arrangement is not hypothetical. Production electronic-design-automation
-systems already treat the synthesis and place-and-route flow as a search
-environment: the action space is a set of tool directives and floorplan
-parameters, the transition is a full tool run, and the reward is the resulting
-power, performance, and area. Synopsys reported that one such reinforcement-
-learning system reached its first hundred commercial tapeouts by 2023
+Physical-design environments make this staged contract visible. A loop should
+not report "EDA feedback" as if all tool stages had the same authority.
+@tbl-eda-stage-contract separates common stages by what they can and cannot
+reject.
+
+| EDA stage | Feedback returned | What it can reject | What it cannot prove alone |
+| --- | --- | --- | --- |
+| Logic synthesis | Mapped gates, area proxy, timing estimates, constraint warnings, and early power estimates. | Nonsynthesizable RTL, impossible constraints, obvious area/timing problems. | Routability, final timing, IR drop, clocking, and post-layout power. |
+| Floorplanning and placement | Cell locations, utilization, congestion hints, timing pressure, and macro or memory placement effects. | Floorplans that create severe congestion, timing pressure, or integration problems. | Final routed timing, signoff power, manufacturability, and workload-level benefit. |
+| Clock, routing, and power closure | Routed timing, clock behavior, congestion, design-rule checks, power integrity, and closure failures. | Candidates whose physical effects invalidate earlier architecture estimates. | Product commitment without verification, workload coverage, and architecture review. |
+| Signoff and review | Tool signoff reports, waivers, residual risks, review decisions, and ownership records. | Unsupported claims, unacceptable waived warnings, and evidence gaps before commitment. | Generality beyond the stated workload, process, tool version, and design context. |
+
+: **EDA feedback has stage-specific authority:** Synthesis, placement, routing,
+power closure, and signoff return different evidence and should be allowed to
+reject different claims. {#tbl-eda-stage-contract tbl-colwidths="[18,26,25,21]"}
+
+This arrangement is not hypothetical. Some commercial physical-implementation
+flows already treat synthesis and place-and-route as a search environment: the
+action space is a set of tool directives and floorplan parameters, the
+transition is a full tool run, and the reward is the resulting power,
+performance, and area. Synopsys reported that one such reinforcement-learning
+system reached its first hundred commercial tapeouts by 2023
 [@Synopsys2023DSOai], and Cadence describes a comparable loop driving the flow
 from RTL to layout [@Cadence2021Cerebrus]. The durable point is not which vendor
-leads, since the products will be renamed and replaced. It is that the EDA flow
+leads, since the products will be renamed and replaced. It is that an EDA flow
 becomes an environment in exactly the sense this chapter requires once its
 directives are an action schema, its reports are observations, and its
 high-latency, high-cost runs set the feedback budget. The architect's work then
@@ -173,10 +195,12 @@ searches and the rejection gates that bound it.
 
 ## The Architecture Environment Abstraction
 
-The environment is executable, not merely descriptive. It receives a proposed
-action, checks whether that action is meaningful, calls one or more tools,
-collects observations, logs provenance, and returns feedback that can become
-evidence. @fig-environment-tool-interface shows the basic shape.
+The environment has an executable core, but it is not only software. It receives
+a proposed action, checks whether that action is meaningful, calls one or more
+tools, collects observations, logs provenance, and returns feedback that can
+become evidence. It can also enforce or record declarative interface contracts:
+ISA rules, memory models, telemetry schemas, benchmark rules, and EDA
+constraints. @fig-environment-tool-interface shows the basic shape.
 
 ![**A tool becomes an environment when its contract is explicit:** A credible environment defines workload state, legal actions, observations, constraints, cost, provenance, feedback, invalid-action semantics, and rejection paths.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of a tool wrapper becoming an architecture environment by exposing workload state, legal actions, observations, costs, provenance, feedback, and rejection paths."}
 
@@ -238,6 +262,21 @@ feedback was available, what workloads were used, and which agents or methods
 were compared under the same conditions. That makes method claims less
 anecdotal.
 
+@tbl-archgym-mini-contract reads an ArchGym-style environment as a
+mini-contract.
+
+| Contract field | ArchGym-style instance |
+| --- | --- |
+| Task | Search or tune a bounded architecture design space under a declared workload and metric. |
+| Action space | Architecture parameters, simulator knobs, or mapping choices the agent is allowed to change. |
+| Observation and reward | Metrics returned by the simulator or tool path, with the reward derived from those observations. |
+| Workload and tool path | Benchmark inputs, simulator configuration, and versioned evaluation scripts. |
+| Invalid-action behavior | Rules for rejected parameters, failed runs, timeouts, or unsupported configurations. |
+| Feedback cost | Approximate turnaround and sample budget for each evaluation regime. |
+| Limits | Simplified simulators, cleaner action spaces, and missing industrial constraints can bound what the result proves. |
+
+: **A worked environment example is a contract, not only a benchmark:** ArchGym is useful for Architecture 2.0 because it makes the task, action space, feedback, comparison setting, and limits discussable. {#tbl-archgym-mini-contract tbl-colwidths="[24,66]"}
+
 ArchGym also shows why the environment chapter cannot be collapsed into the
 methods chapter. Once an environment is defined, many methods can interact
 with it: Bayesian optimization, reinforcement learning, evolutionary search,
@@ -264,14 +303,16 @@ rules are explicit, then generators, predictors, optimizers, critics,
 verifiers, and human reviewers can be swapped or combined without rewriting
 the whole loop.
 
-This is how architecture environments can become community infrastructure.
-Benchmarks such as MLPerf did not become useful only because they named
-workloads. They also created rules, versions, metrics, submissions, and
-comparison conventions that helped a community interpret results
-[@MattsonEtAl2020MLPerf]. Architecture 2.0 needs a similar instinct at
-the loop level. A useful environment should not merely publish a script; it
-should publish the contract under which actions are legal, observations are
-valid, and evidence can be compared.
+This is how architecture environments can become community infrastructure. As
+@sec-design-loop-no-longer-scales argued for benchmark governance, useful
+infrastructure does more than name workloads: it creates rules, versions,
+metrics, submissions, and comparison conventions that help a community
+interpret results. Architecture 2.0 needs the same instinct at the loop level. A
+useful environment should not merely publish a script; it should publish the
+contract under which actions are legal, observations are valid, and evidence can
+be compared.
+Keeping those contracts valid after the first paper is the operating discipline
+@sec-archops-operating-discipline later names ArchOps.
 
 It is useful to reserve the word *harness* for this larger object. A
 wrapper calls a tool. A harness preserves the contract around the tool: task,
@@ -282,7 +323,7 @@ which may verify, and which human decision is required before escalation. The
 distinction matters because a wrapper can automate one experiment, but a
 harness can accumulate reusable knowledge about a design space.
 
-A minimal environment record might include:
+A minimal implementation receipt for such a harness might include:
 
 > task identifier; workload version; input distribution; action fields;
 > read-only constraints; tool commands; observation fields; fidelity level;
@@ -320,9 +361,10 @@ shows the basic pressure: as feedback moves toward implementation and
 deployment, the loop usually spends more time per sample, gains less freedom to
 explore, and needs clearer justification for every action it takes. The ranges
 are representative rather than universal. A real project should replace them
-with its own source receipts. In the early regimes, the horizontal axis mostly
-means tool or measurement turnaround; near prototype, silicon, and deployment,
-it also includes setup, queueing, fabrication, rollout, and commitment delay.
+with its own source receipts; they are illustrative bands, not universal
+empirical claims. In the early regimes, the horizontal axis mostly means tool or
+measurement turnaround; near prototype, silicon, and deployment, it also
+includes setup, queueing, fabrication, rollout, and commitment delay.
 
 This economy is the multi-fidelity setting studied across computational
 science, where cheap, lower-fidelity models are combined with scarce,
@@ -520,7 +562,7 @@ evidence would be needed to move from proxy exploration to simulator or
 synthesis-backed claims. That is a real Architecture 2.0 environment even if
 it is far from a complete chip-design system.
 
-## Environment Validity and Operating Discipline
+## Environment Validity and Operating Discipline {#sec-archops-operating-discipline}
 
 An environment is useful only if it preserves the semantics of the
 architectural question. If the workload is wrong, the action space omits the
@@ -558,6 +600,22 @@ one look identical on the first run and diverge completely by the tenth.
 ArchOps is the name this book uses for that maintenance burden once architecture
 loops become shared infrastructure rather than one-off scripts.
 
+@tbl-archops-operating-discipline states the maintenance work in operational
+terms. The table is intentionally prosaic because ArchOps succeeds only when
+ordinary drift becomes visible before it invalidates evidence.
+
+| Drift source | What ArchOps records | Failure if ignored | Operating response |
+| --- | --- | --- | --- |
+| Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
+| Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, seed, and configuration versions. | Results become incomparable across runs without a clear cause. | Treat version changes as evidence events and preserve old receipts. |
+| Action-space changes | New knobs, deprecated knobs, invalid combinations, and permission boundaries. | A method proposes actions the environment no longer supports. | Update validity checks and record invalid-action traces. |
+| Evidence and rejection rules | Fidelity labels, escalation thresholds, signoff gates, waivers, and reviewer decisions. | A proxy keeps authority after the commitment level has risen. | Recalibrate evidence levels and require higher-fidelity review. |
+| Human ownership | Decision owner, review date, redaction boundary, and escalation path. | Accountability disappears into scripts, tools, or agents. | Keep commitment decisions explicit and auditable. |
+
+: **ArchOps maintains loop validity over time:** The operating discipline is to
+version workloads, tools, actions, evidence rules, and ownership so that drift
+does not silently change what a loop result means. {#tbl-archops-operating-discipline tbl-colwidths="[18,25,25,22]"}
+
 This chapter's main claim is simple: tools become architecture environments
 when they expose actions, observations, costs, constraints, provenance,
 feedback, and rejection. Once that happens, @sec-methods-generation-prediction-optimization can ask which methods
@@ -573,6 +631,6 @@ ArchOps is what keeps that design system trustworthy after the first run.
   and assumptions change.
 - **Reader test:** Could another method act in the same harness without private
   knowledge from the original author?
-- **Next loop field:** Once the environment defines what action and feedback
+- **Next loop state:** Once the environment defines what action and feedback
   mean, method selection can be judged by loop conditions rather than fashion.
 :::

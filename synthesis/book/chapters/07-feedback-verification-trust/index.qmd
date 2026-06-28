@@ -15,7 +15,7 @@ supporting it has been turned into evidence, the evidence can be audited, an
 independent authority can reject the result, and the commitment boundary matches
 the cost of being wrong.
 
-This distinction is central to the lecture. A model can generate a plausible
+This distinction is central to the book. A model can generate a plausible
 architecture description. A search method can find a strong proxy score. A
 surrogate can rank candidates. A tool-using agent can call simulators and
 summarize results. None of those actions creates trust by itself. Trust
@@ -41,7 +41,37 @@ After this chapter you can:
 - review a claim with the trust checklist instead of by its tone.
 :::
 
+> **Verification.** Verification is used broadly in this chapter. It includes
+> formal methods when formal properties are available, but it also includes type
+> checks, interface checks, regression tests, baseline replay, simulator
+> cross-checks, synthesis constraints, physical-design warnings, security
+> review, workload coverage, and expert design review. The common requirement is
+> independence: the check should be able to reject the claim, not merely restate
+> the method's output.
+
+Verification is therefore a family of rejection authorities, not a single tool
+category. @tbl-verification-authorities gives a compact taxonomy for reading a
+claim.
+
+| Verification authority | Typical evidence | What it can reject |
+| --- | --- | --- |
+| Syntax and interface checks | Parsers, type checks, API checks, ISA or ABI conformance, and schema validation. | Artifacts that cannot legally enter the loop. |
+| Functional checks | Unit tests, reference outputs, assertions, simulation traces, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
+| Model and workload checks | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
+| Implementation checks | Synthesis, timing, area, power, congestion, design-rule checks, and physical warnings. | Architecture candidates that fail implementation-adjacent reality. |
+| Operational checks | SLOs, canaries, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
+| Expert review | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
+
+: **Verification names who or what can say no:** A credible claim should state
+which independent authority can reject syntax, function, model support,
+implementation feasibility, deployment behavior, or final commitment. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
+
 ## Feedback Budget Ledger and Feedback Economics
+
+@sec-architecture-environments-tool-interfaces used feedback regimes to design
+environments, and @sec-methods-generation-prediction-optimization used them to
+choose method roles. This chapter uses the same economics for trust:
+escalation, rejection, and commitment.
 
 The first trust problem is economic. Feedback is not free, uniform, or
 automatically useful. An architecture loop may have thousands of cheap proxy
@@ -85,8 +115,8 @@ the connection to sample efficiency from @sec-methods-generation-prediction-opti
 only about using fewer evaluations. It is about making each evaluation carry
 more architectural information.
 
-One way to make that discipline concrete is to write the feedback budget and
-sample value explicitly:
+A compact notation can make that discipline concrete by writing the feedback
+budget and sample value explicitly:
 
 $$
 B = \sum_i n_i c_i,
@@ -94,7 +124,8 @@ B = \sum_i n_i c_i,
 V_i \approx \frac{\Delta \mathrm{Conf}(d \mid e_i)}{c_i}.
 $$
 
-Here, $n_i$ is the number of evaluations of feedback type $i$, $c_i$ is
+This notation is a review prompt, not a universal evidence metric. Here, $n_i$
+is the number of evaluations of feedback type $i$, $c_i$ is
 the cost of one such evaluation, $B$ is the total feedback budget, $e_i$
 is the evidence produced by that evaluation, and $\Delta \mathrm{Conf}(d
 \mid e_i)$ is the change in confidence for the decision $d$. The equation is
@@ -137,12 +168,10 @@ with a rejection gate and evidence record at each stage.
 
 ![**Evidence ledgers turn feedback into trust:** A claim becomes more credible only as it moves through staged feedback sources, records provenance and uncertainty, and gives each stage authority to reject, revise, or escalate the result before the commitment boundary rises.](images/F9-evidence-chain-rejection-gates){#fig-evidence-chain-rejection-gates width="100%" fig-alt="Staged evidence ledger diagram showing feedback sources, provenance, uncertainty, rejection gates, revision, escalation, and rising commitment boundaries."}
 
-Verification is used broadly in this chapter. It includes formal methods when
-formal properties are available, but it also includes type checks, interface
-checks, regression tests, baseline replay, simulator cross-checks, synthesis
-constraints, physical-design warnings, security review, workload coverage, and
-expert design review. The common requirement is independence: the check should
-be able to reject the claim, not merely restate the method's output.
+The figure changes the meaning of trust. Trust is not a model property or a
+single score. It is a staged loop property: a claim becomes more credible only
+when each feedback regime records what it saw, what it cannot support, what
+would reject it, and what commitment boundary it is allowed to cross.
 
 The regime view is not a simple ranking from false to true. Higher fidelity is not
 automatically truth if the wrong workload, objective, constraints, or baseline
@@ -199,7 +228,7 @@ or a decision that would affect another team or product.
 | Experimental | Run simulator sweeps, tune compiler flags, select candidates for deeper study. | Workload versions, seeds, baseline, rejected candidates, and uncertainty. | Automation with review. |
 | Implementation | Change RTL, generators, tool constraints, tests, or runtime interfaces. | Tool checks, regression tests, synthesis or integration evidence. | Bounded automation plus rejection gates. |
 | Integration | Change subsystem interfaces, chiplet boundaries, memory contracts, or product-facing policies. | Cross-tool checks, compatibility, security, and explicit escalation. | Advisory or human-approved. |
-| Irreversible | Mask-level choices, committed signoff decisions, fleet-wide rollouts, or customer-visible deployments. | Independent evidence ledger, rejection authority, audit trail, and accountable human decision. | Human commitment dominates. |
+| Irreversible | Mask-level choices, committed signoff decisions, fleet-wide rollouts, or customer-visible deployments. | Independent evidence ledger, rejection authority, audit trail, and accountable human decision. | Commitment boundary dominates. |
 
 : **Commitment level should govern autonomy:** Reversible exploration can tolerate lighter evidence, while interface changes, product policies, signoff decisions, and deployments require stronger evidence, independent rejection, and explicit human ownership. {#tbl-commitment-ladder tbl-colwidths="[20,28,24,18]"}
 
@@ -230,7 +259,7 @@ build, invalid constraint, timing miss, benchmark violation, or expert
 objection is not merely an inconvenience. It is information about the boundary
 of the design space.
 
-A compact way to write the commitment rule is
+A compact way to write the commitment review is
 $$
 \mathrm{Commit}_k(x) =
 \begin{cases}
@@ -239,16 +268,25 @@ $$
 0, & \text{otherwise}.
 \end{cases}
 $$
-Here, $x$ is the candidate, $k$ is the commitment level, $E_k(x)$ is the
+This is not an algorithm that makes the decision for the architect. It is a
+discipline for refusing unsupported commitment. Here, $x$ is the candidate,
+$k$ is the commitment level, $E_k(x)$ is the
 evidence available at that level, $\tau_k$ is the evidence threshold,
 $\rho_k(x)$ is the residual risk, and $\rho_{\max,k}$ is the risk the
 architect or organization is willing to tolerate. The thresholds are policy
 and judgment choices, not magic constants learned by the method. If validity,
 evidence, or residual risk fails, the loop should reject, revise, or escalate
 instead of silently turning output into commitment. @sec-running-the-loop runs this rule on
-the lighthouse prompt: the accelerator fails validity at the 3 W envelope, the
-vector CPU fails it at the latency deadline, and only the SoC block clears every
-term at the experimental commitment level.
+the lighthouse prompt and shows how a candidate can fail on validity, evidence,
+or residual risk even when another metric looks promising.
+
+For the lighthouse prompt, $\mathrm{valid}(x)$ might mean that a candidate
+compute organization stays within the declared ISA/software contract and does
+not violate the 3 W envelope or real-time deadline. $E_k(x)$ is the evidence at
+the current stage: proxy estimate, simulation-stage estimate, RTL evidence, or
+physical feedback. $\tau_k$ rises as the loop moves from exploration to
+implementation, and residual risk covers what the evidence still cannot rule
+out, such as thermal behavior, compiler/runtime viability, or workload drift.
 
 The response to rejection should be explicit. A candidate may be discarded. A
 representation may need a new field. An environment may need a validity check.
@@ -264,9 +302,9 @@ them. In architecture, a beautiful explanation cannot overrule a failed
 timing check, an invalid workload, a missing baseline, or a security boundary.
 
 The independence requirement grows sharper as verification itself becomes
-AI-assisted. Production verification platforms now use machine learning to
-triage failures, rank likely root causes, and direct coverage
-[@Cadence2022Verisium]. Such tools are valuable, but they move part of the
+AI-assisted. Cadence markets Verisium as a machine-learning-assisted verification
+platform for triaging failures, ranking likely root causes, and directing
+coverage [@Cadence2022Verisium]. Such tools can be valuable, but they move part of the
 rejection authority into a learned system, which forces a recursive version of
 this chapter's question: is the authority that can reject a design independent
 of the system that produced it, or has the loop quietly made the generator and
@@ -312,12 +350,13 @@ principle applies to agentic loops. If a loop claims a candidate satisfies the
 calibrated, what workload region it covers, what uncertainty remains, and what
 higher-fidelity result could overturn the claim.
 
-Benchmark governance also matters. MLPerf is useful not just because it names
-benchmarks, but because it defines rules, versions, and submission practices
-that make results more interpretable across a changing field
-[@MattsonEtAl2020MLPerf]. Architecture 2.0 needs a similar instinct for
-design loops: define the evaluation contract, preserve provenance, track
-versions, and treat benchmark changes as part of the evidence story.
+Benchmark governance also matters. As @sec-design-loop-no-longer-scales and
+@sec-loop-patterns-across-stack show, a benchmark becomes community
+infrastructure only when it defines rules, versions, and submission practices
+that make results interpretable across a changing field. Architecture 2.0 needs
+a similar instinct for design loops: define the evaluation contract, preserve
+provenance, track versions, and treat benchmark changes as part of the evidence
+story.
 
 ## Security, IP, and Confidentiality Boundaries
 
@@ -404,26 +443,17 @@ ambitious without becoming credulous.
 
 The next chapter puts this discipline to work. It runs one loop end to end on
 the lighthouse prompt: generating candidates, escalating from proxy to
-simulation, rejecting on the power envelope, and stopping at an honest
-commitment level. The chapter after that generalizes the single loop into the
-patterns that recur across the stack, where the same ontology applies but the
-task, representation, environment, method role, feedback budget, evidence
+simulation-stage evidence, rejecting on the power envelope, and stopping at an
+honest commitment level. The chapter after that generalizes the single loop into
+the patterns that recur across the stack, where the same ontology applies but
+the task, representation, environment, method role, feedback budget, evidence
 burden, and commitment level all change.
-
-::: {.callout-architect-checkpoint}
-Before believing a result, ask:
-
-- What fidelity produced this, and does the evidence match the commitment level?
-- What independent authority can reject it, and what would force escalation?
-- Who is accountable for the commitment if the result turns out wrong?
-:::
 
 ::: {.callout-carry-forward}
 - **Principle:** Trust is engineered by feedback budgets, fidelity regimes,
-  provenance, independent rejection authority, and accountable human
-  commitment.
+  provenance, independent rejection authority, and accountable human decision.
 - **Reader test:** What evidence would overturn the result, and who or what has
   authority to reject it?
-- **Next loop field:** Once trust can be evaluated for one claim, the next step
+- **Next loop state:** Once trust can be evaluated for one claim, the next step
   is to run a complete loop and inspect the residue it leaves behind.
 :::
