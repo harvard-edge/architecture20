@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -26,6 +27,7 @@ BOOK_DIR = ROOT / "book"
 BUILD_DIR = BOOK_DIR / "_build"
 PDF_PATH = BUILD_DIR / "Architecture-2.0.pdf"
 HTML_PATH = BUILD_DIR / "index.html"
+EPUB_PATH = BUILD_DIR / "Architecture-2.0.epub"
 LOG_DIR = BUILD_DIR / "logs"
 DEFAULT_REVIEW_WORKBENCH = ROOT.parent.parent / "PaperReviewWorkbench"
 LOOP_DIR = ROOT / ".arch2" / "reviews" / "loop"
@@ -955,7 +957,7 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
                 )
             )
         for pattern in (
-            r"quarto-unresolved-ref",
+            r"class=[\"'][^\"']*quarto-unresolved-ref",
             r"\?(?:sec|fig|tbl|eq)-[A-Za-z0-9_-]+",
             r"@(?:sec|chap|fig|tbl|eq)-[A-Za-z0-9_-]+",
             r"\?\?\?",
@@ -970,6 +972,59 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
                     )
                 )
                 break
+    return findings
+
+
+def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
+    if not epub_path.exists():
+        return [Finding("error", "missing-epub", _relative(epub_path), "rendered EPUB does not exist")]
+
+    findings: list[Finding] = []
+    try:
+        with zipfile.ZipFile(epub_path) as epub:
+            names = epub.namelist()
+            html_names = [name for name in names if name.endswith((".html", ".xhtml"))]
+            if not html_names:
+                findings.append(
+                    Finding("error", "epub-content", _relative(epub_path), "EPUB contains no HTML/XHTML content files")
+                )
+                return findings
+
+            combined = "\n".join(
+                epub.read(name).decode("utf-8", errors="replace")
+                for name in html_names
+                if not name.endswith("nav.xhtml")
+            )
+    except zipfile.BadZipFile:
+        return [Finding("error", "invalid-epub", _relative(epub_path), "EPUB is not a readable zip package")]
+
+    if "callout-learning-objectives" not in combined or "callout-carry-forward" not in combined:
+        findings.append(
+            Finding(
+                "error",
+                "epub-custom-callouts",
+                _relative(epub_path),
+                "EPUB is missing Arch2 custom callout markup",
+            )
+        )
+
+    for pattern in (
+        r"class=[\"'][^\"']*quarto-unresolved-ref",
+        r"\?(?:sec|fig|tbl|eq)-[A-Za-z0-9_-]+",
+        r"@(?:sec|chap|fig|tbl|eq)-[A-Za-z0-9_-]+",
+        r"\?\?\?",
+    ):
+        if re.search(pattern, combined):
+            findings.append(
+                Finding(
+                    "error",
+                    "epub-unresolved-reference",
+                    _relative(epub_path),
+                    "EPUB contains an unresolved reference marker; use Quarto-native labels and @refs",
+                )
+            )
+            break
+
     return findings
 
 
@@ -2095,11 +2150,11 @@ def render(
     keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
     refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
     bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
-    to: str = typer.Option("all", "--to", help="Render target: all, pdf, or html."),
+    to: str = typer.Option("all", "--to", help="Render target: all, pdf, html, or epub."),
 ) -> None:
     """Render the book and run post-build audits."""
-    if to not in {"all", "pdf", "html"}:
-        console.print("[red]invalid render target[/red] use one of: all, pdf, html")
+    if to not in {"all", "pdf", "html", "epub"}:
+        console.print("[red]invalid render target[/red] use one of: all, pdf, html, epub")
         raise typer.Exit(2)
 
     env = {"ARCH2_RENDER_TARGET": to}
@@ -2126,6 +2181,8 @@ def render(
         console.print(f"[green]rendered[/green] {_relative(PDF_PATH)}")
     if to in {"all", "html"}:
         console.print(f"[green]rendered[/green] {_relative(HTML_PATH)}")
+    if to in {"all", "epub"}:
+        console.print(f"[green]rendered[/green] {_relative(EPUB_PATH)}")
     console.print(f"[dim]transcript: {_relative(log_path)}[/dim]")
     tex_path = generated_tex()
     if keep_tex and tex_path:
@@ -2133,6 +2190,8 @@ def render(
 
     if to in {"all", "html"}:
         run_html_check(HTML_PATH)
+    if to in {"all", "epub"}:
+        _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
 
     if layout and to in {"all", "pdf"}:
         findings = layout_findings(PDF_PATH, bottom_clearance=bottom_clearance)
@@ -2161,6 +2220,14 @@ def verify_html(
 ) -> None:
     """Check that the local HTML site was rendered with the preview banner."""
     run_html_check(html)
+
+
+@verify_app.command("epub")
+def verify_epub(
+    epub: Path = typer.Option(EPUB_PATH, "--epub", help="Rendered EPUB package to inspect."),
+) -> None:
+    """Check that the local EPUB package contains custom callouts and resolved references."""
+    _exit_on_findings(epub_findings(epub), title="EPUB package")
 
 
 @validate_app.command("svg")
@@ -2215,6 +2282,7 @@ def check_standard(
     run_refs_check()
     run_figures_check()
     run_citation_check(show_context=False)
+    _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     run_layout_check(fail_on_warning=fail_on_layout_warning)
 
 
@@ -2226,6 +2294,7 @@ def check_strict(
     run_refs_check()
     run_figures_check()
     run_citation_check(show_context=False)
+    _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     run_svg_check()
     run_layout_check(fail_on_warning=fail_on_layout_warning)
 
@@ -2248,6 +2317,7 @@ def check_all(
     run_refs_check()
     run_figures_check()
     run_citation_check(show_context=False)
+    _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     if include_svg:
         run_svg_check()
     run_layout_check(fail_on_warning=fail_on_layout_warning)

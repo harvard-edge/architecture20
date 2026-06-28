@@ -14,6 +14,7 @@ REPO_ROOT = BOOK_DIR.parent
 BUILD_DIR = BOOK_DIR / "_build"
 PDF_TARGET = BUILD_DIR / "Architecture-2.0.pdf"
 HTML_TARGET = BUILD_DIR / "index.html"
+EPUB_TARGET = BUILD_DIR / "Architecture-2.0.epub"
 SCRATCH_PATTERNS = [
     "*.aux",
     "*.bbl",
@@ -37,9 +38,30 @@ def rendered_pdf() -> Path:
     raise SystemExit(1)
 
 
+def rendered_html() -> Path:
+    if HTML_TARGET.exists():
+        return HTML_TARGET
+    print(f"error: Quarto did not produce {HTML_TARGET}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def rendered_epub() -> Path:
+    if EPUB_TARGET.exists():
+        return EPUB_TARGET
+    print(f"error: Quarto did not produce {EPUB_TARGET}", file=sys.stderr)
+    raise SystemExit(1)
+
+
 def run_checks(pdf_path: Path) -> None:
     subprocess.run(
         [str(REPO_ROOT / "arch2"), "verify", "figures", "--pdf", str(pdf_path)],
+        check=True,
+    )
+
+
+def run_epub_checks(epub_path: Path) -> None:
+    subprocess.run(
+        [str(REPO_ROOT / "arch2"), "verify", "epub", "--epub", str(epub_path)],
         check=True,
     )
 
@@ -55,15 +77,18 @@ def remove_scratch_files() -> None:
 
 def main() -> None:
     target = os.environ.get("ARCH2_RENDER_TARGET", "all")
-    if target == "html":
-        if not HTML_TARGET.exists():
-            print(f"error: Quarto did not produce {HTML_TARGET}", file=sys.stderr)
-            raise SystemExit(1)
-        return
 
-    pdf_path = rendered_pdf()
-    run_checks(pdf_path)
-    remove_scratch_files()
+    if target in {"all", "html"}:
+        rendered_html()
+
+    if target in {"all", "pdf"}:
+        pdf_path = rendered_pdf()
+        run_checks(pdf_path)
+        remove_scratch_files()
+
+    if target in {"all", "epub"}:
+        epub_path = rendered_epub()
+        run_epub_checks(epub_path)
 
 
 if __name__ == "__main__":
