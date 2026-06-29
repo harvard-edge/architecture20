@@ -295,7 +295,9 @@ visible. The reading is the one LogCA emphasizes: a design pays for specializati
 the accelerated work is large enough, and coarse enough per invocation, to
 amortize the cost of reaching the accelerator. A dramatic local speedup can
 still fail as an architecture result if the stable domain fraction is small,
-the interface is expensive, or the software path cannot keep up.
+the interface is expensive, or the software path cannot keep up. This same form
+returns at the end of the chapter, lifted from one accelerator's speedup to the
+throughput of the entire design loop (@sec-the-rejection-bound).
 
 @fig-logca-breakeven uses a simplified LogCA-style calculation
 [@AltafWood2017LogCA]. End-to-end speedup is not a property of the accelerator
@@ -639,19 +641,98 @@ critique, bounded repair, evidence organization, and test generation; the
 rejection authority is independent tool and expert review; the commitment
 boundary remains architect-owned.
 
+## The Rejection Bound {#sec-the-rejection-bound}
+
+These loop families look different on the surface, yet they succeed and fail for
+the same reason, and that reason can be written down. The interface speedup form
+used earlier for accelerators lifts cleanly from one block to the whole loop.
+There it priced the cost of reaching an accelerator. Lifted one level, it prices
+the cost of reaching a decision, which is how much useful design progress the
+loop makes per cycle once the cost of trusted feedback is paid.
+
+Keep Amdahl's $f$, but raise what it counts. It is no longer the fraction of
+computation that an accelerator speeds. It is the fraction of design commitments
+that a cheap, independent, trusted rejector can discharge without escalating to
+expensive feedback or human judgment. Take the slow loop that checks every
+commitment at full fidelity as the baseline. Introduce a cheap rejector that
+clears a fraction $f$ of commitments at a small fraction of that cost, and the
+loop's throughput obeys
+$$
+S_{\mathrm{loop}} \le
+\frac{1}{(1-f) + f \cdot (c_{\mathrm{cheap}}/c_{\mathrm{hi}}) +
+\epsilon_{\mathrm{escalate}}}.
+$$
+Here $f$ is the fraction of commitments the cheap rejector can discharge,
+$(1-f)$ is the irreducible part that still needs high-fidelity evidence or human
+judgment, $c_{\mathrm{cheap}}/c_{\mathrm{hi}}$ is the cost of a cheap check
+relative to a high-fidelity one, and $\epsilon_{\mathrm{escalate}}$ is the
+overhead paid each time the cheap rejector defers and the loop must climb the
+fidelity ladder. The form is Amdahl's law as LogCA prices it
+[@Amdahl1967ValiditySingleProcessor; @AltafWood2017LogCA]. The cheap rejector's
+local speedup is just $c_{\mathrm{hi}}/c_{\mathrm{cheap}}$, so the middle term is
+exactly Amdahl's $f/s$, and escalation overhead plays the role the interface cost
+played for the accelerator. The form is borrowed and credited. What is new is
+what the variables name and what they rule out.
+
+What they rule out is the thing most easily mistaken for progress. Candidate
+count does not appear in the bound. A loop can double, or multiply by a thousand,
+the number of designs it proposes and move $S_{\mathrm{loop}}$ not at all. The
+bound exposes only three levers: raise $f$, lower the cost ratio, or lower
+escalation overhead.
+
+::: {.callout-design-principle title="The Rejection Bound"}
+A design loop's throughput is bounded by its rejection capacity, not its
+generation capacity. Candidate count is absent from the bound. The loop speeds up
+only when a cheap, independent, trusted rejector discharges a larger fraction of
+commitments, when trusted feedback gets cheaper relative to high-fidelity
+evidence, or when escalation gets cheaper. **The loop scales as far as its
+cheapest independent rejector, and no further.**
+:::
+
+Three readings follow, and each was argued qualitatively in an earlier chapter.
+First, generation is not the constraint. Cheap generation raises the candidate
+count, which the bound ignores, and it does not raise $f$. This is
+@sec-methods-generation-prediction-optimization restated as algebra, where a
+generated artifact is a proposal and the loop speeds up only when something can
+cheaply and independently reject it. Second, independence is load-bearing, not
+decorative. Only a rejector that does not share the generator's blind spots
+counts toward $f$. A cheap check coupled to the generator inflates the apparent
+$f$ while real escapes survive, which is the failure
+@sec-feedback-verification-trust warns against when a learned judge and a learned
+generator quietly become the same witness. The honest $f$ counts cheap,
+independent, trusted rejections, and nothing else. Third, $(1-f)$ is a floor. The
+commitments that only silicon, deployment, or a human can settle set a ceiling on
+loop throughput that no amount of cheap, abundant generation removes. It is
+Amdahl's serial fraction, written for the design loop.
+
+The bound also makes the scissors gap of @sec-design-loop-no-longer-scales
+computable. The gap widens precisely when one blade, the rate of proposals and
+evidence demands, races ahead while the other blade, the rate at which trusted
+feedback can reject, stays fixed. In these terms the gap is the regime where
+candidate count climbs while $f$ does not, and the bound says throughput is flat
+in exactly that direction. The loop families walked through this chapter are
+operating points on the same curve. Fast software loops sit near high $f$, cheap
+feedback, and low escalation, so they run quickly. High-commitment RTL and
+physical-design loops sit near low $f$, expensive feedback, and high escalation,
+which is why the method posture there shifts away from autonomous action toward
+critique, evidence organization, and rejection. The bound derives that advice
+rather than asserting it.
+
 ## What Transfers across Loops
 
-Across all of these loops, the ontology transfers. Each loop has a task, a
-representation, an environment, method roles, feedback, evidence, rejection,
-and human decision. Each loop can preserve negative traces. Each loop can be
-reviewed with the design-loop card. Each loop can fail by hiding assumptions,
-optimizing a proxy, omitting provenance, or letting an output become a
-decision too early.
+Across all of these loops, the same ontology and the same bound transfer. Each
+loop has a task, a representation, an environment, method roles, feedback,
+evidence, rejection, and human decision. Each loop can preserve negative traces.
+Each loop can be reviewed with the design-loop card. Each loop can fail by hiding
+assumptions, optimizing a proxy, omitting provenance, or letting an output become
+a decision too early.
 
-What changes is the operating regime. Feedback latency changes. Reversibility
-changes. Action validity changes. Data availability changes. Security and IP
-constraints change. The cost of being wrong changes. Rejection authority
-changes. The acceptable level of autonomy changes.
+What changes is the operating regime, which the Rejection Bound names exactly as
+the value of $f$, the cost ratio between cheap and high-fidelity feedback, and
+the escalation overhead. Feedback latency changes. Reversibility changes. Action
+validity changes. Data availability changes. Security and IP constraints change.
+The cost of being wrong changes. Rejection authority changes. The acceptable
+level of autonomy changes.
 
 > **Same ontology, different evidence burden.** The more expensive,
 > irreversible, or system-wide the commitment, the more the loop should shift
@@ -678,11 +759,12 @@ Facing a new project, ask:
 :::
 
 ::: {.callout-carry-forward}
-- **Principle:** The ontology transfers across loop patterns, but the evidence
-  burden, feedback latency, reversibility, and acceptable autonomy change with
-  the operating regime.
-- **Reader test:** Which loop pattern are you in, and what kind of feedback can
-  actually reject the result?
+- **Principle:** Every loop obeys the same Rejection Bound, where throughput is
+  set by rejection capacity, not generation. What changes across patterns is the
+  operating point: the cheap-rejector coverage $f$, the cost ratio between cheap
+  and high-fidelity feedback, and the escalation overhead.
+- **Reader test:** Which loop pattern are you in, and what cheap, independent
+  check can actually reject the result?
 - **Next loop state:** Once loop patterns can be compared, the final question is
   what the architect still owns across all of them.
 :::
