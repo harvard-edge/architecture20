@@ -99,10 +99,10 @@ def glyph(name, c):
                 '<path d="M26.5 49 H37.5" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
                 '<path d="M29 53.5 H35" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
                 '<path d="M32 22 l3 4 l-3 4 l-3 -4 Z" fill="none" stroke="%s" stroke-width="%.2f" stroke-linejoin="round"/>' % (c, s, c, s, c, s, c, s, c, s - 0.6))
-    if name == "question":                  # ? in a circle = guiding question
+    if name == "question":                  # compass needle in a circle = orienting question ("the crux")
         return ('<circle cx="32" cy="32" r="22" fill="none" stroke="%s" stroke-width="%.2f"/>'
-                '<path d="M25.5 26 a6.7 6.7 0 1 1 10.6 5.4 c-2 1.6 -4.1 2.8 -4.1 5.8" fill="none" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
-                '<circle cx="31.9" cy="44" r="2.6" fill="%s"/>' % (c, s, c, s, c))
+                '<path d="M42 22 L35.5 35.5 L22 42 L28.5 28.5 Z" fill="none" stroke="%s" stroke-width="%.2f" stroke-linejoin="round"/>'
+                '<path d="M42 22 L35.5 35.5 L28.5 28.5 Z" fill="%s"/>' % (c, s, c, s, c))
     if name == "research_question":         # magnifier + ? = research question
         return ('<circle cx="28" cy="28" r="15" fill="none" stroke="%s" stroke-width="%.2f"/>'
                 '<path d="M39 39 L51 51" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
