@@ -86,7 +86,11 @@ insertPreamble = function(doc, classDefs, fmt)
     local config = filterMetadata["arch2-ext/custom-numbered-blocks"]
     if config["icon-path"] then
       local iconPath = str(config["icon-path"])
-      local iconFormat = str(config["icon-format"] or "png")
+      -- Per-target icon format: HTML/EPUB use vector SVG; the LaTeX/PDF build
+      -- uses PDF (pdflatex cannot embed SVG). icon-format is the PDF format;
+      -- icon-format-html overrides the web format (defaults to svg).
+      local iconFormat = str(config["icon-format"] or "pdf")
+      local iconFormatHtml = str(config["icon-format-html"] or "svg")
 
       if fmt == "html" then
         -- Generate dynamic CSS for icon paths - generic version using classDefs
@@ -96,7 +100,7 @@ insertPreamble = function(doc, classDefs, fmt)
             -- Convert hyphens to underscores for icon filename.
             local iconFileName = calloutType:gsub("-", "_")
             iconCSS = iconCSS .. "details." .. calloutType .. " > summary::before {\n"
-            iconCSS = iconCSS .. "  background-image: url(\"" .. iconPath .. "/icon_" .. iconFileName .. "." .. iconFormat .. "\");\n"
+            iconCSS = iconCSS .. "  background-image: url(\"" .. iconPath .. "/icon_" .. iconFileName .. "." .. iconFormatHtml .. "\");\n"
             iconCSS = iconCSS .. "}\n"
           end
         end
