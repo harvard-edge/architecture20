@@ -17,29 +17,20 @@ the cost of being wrong.
 
 This distinction is central to the book. A model can generate a plausible
 architecture description. A search method can find a strong proxy score. A
-surrogate can rank candidates. A tool-using agent can call simulators and
+surrogate can rank candidates. A tool-using agent^[A tool-using agent is an AI system that can programmatically invoke external software tools or APIs to solve tasks.] can call simulators and
 summarize results. None of those actions creates trust by itself. Trust
 begins when the loop records what was measured, why it was relevant, how much
 it cost, what assumptions it used, where the feedback is weak, which
 alternatives failed, and what can say no.
 
 The lighthouse prompt exposes the issue. A proposed low-power 64-bit RISC-V
-compute subsystem for XRBench under a 3 W, 3 nm-class low-power mobile
+compute subsystem for XRBench under a 3\ W, 3\ nm-class low-power mobile
 envelope might look reasonable under an analytic proxy, promising under
 simulation, and broken under synthesis or timing. It might meet performance
 while missing an energy or thermal target. It might pass a benchmark but fail
 a real deployment scenario. Architecture 2.0 therefore needs an evidence
 discipline that is as explicit as its representations, environments, and
 methods.
-
-::: {.callout-learning-objectives}
-After this chapter you can:
-
-- turn feedback into evidence through fidelity, provenance, and an evidence ledger;
-- set escalation thresholds and commitment boundaries by reversibility and blast radius;
-- name what can reject a result, and why rejection authority must be independent;
-- review a claim with the trust checklist instead of by its tone.
-:::
 
 > **Verification.** Verification is used broadly in this chapter. It includes
 > formal methods when formal properties are available, but it also includes type
@@ -66,6 +57,15 @@ claim.
 which independent authority can reject syntax, function, model support,
 implementation feasibility, deployment behavior, or final commitment. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
 
+::: {.callout-learning-objectives}
+After this chapter you can:
+
+- turn feedback into evidence through fidelity, provenance, and an evidence ledger;
+- set escalation thresholds and commitment boundaries by reversibility and blast radius;
+- name what can reject a result, and why rejection authority must be independent;
+- review a claim with the trust checklist instead of by its tone.
+:::
+
 ## Feedback Budget Ledger and Feedback Economics
 
 @sec-architecture-environments-tool-interfaces used feedback regimes to design
@@ -84,8 +84,8 @@ how much autonomy is acceptable.
 
 This is why a loop needs a feedback budget ledger. The ledger is not
 accounting bureaucracy. It is the object that tells the method what kind of
-learning is possible. A Bayesian optimizer, reinforcement-learning policy,
-surrogate model, critic, or tool-using agent should behave differently when a
+learning is possible. A Bayesian optimizer, reinforcement-learning policy^[In reinforcement learning, a policy is a function that maps an agent's state to a chosen action.],
+surrogate model, critic^[A critic is an algorithmic component in reinforcement learning that evaluates a policy's actions by estimating expected future returns.], or tool-using agent should behave differently when a
 feedback source takes milliseconds versus days, when a failed action is
 reversible versus costly, and when the signal is a rough proxy versus a
 signoff report. @tbl-feedback-budget-ledger gives the working
@@ -119,7 +119,7 @@ A compact notation can make that discipline concrete by writing the feedback
 budget and sample value explicitly:
 
 $$
-B = \sum_i n_i c_i,
+B = \sum_i n_i \cdot c_i,
 \qquad
 V_i \approx \frac{\Delta \mathrm{Conf}(d \mid e_i)}{c_i}.
 $$
@@ -154,7 +154,7 @@ baseline are explicit.
 This idea is not new to engineering. Safety-critical fields formalize it as an
 *assurance case*: a structured argument that links a top-level claim to
 sub-claims, assumptions, and supporting evidence, often written in Goal
-Structuring Notation so that each inference and the evidence under it are
+Structuring Notation^[Goal Structuring Notation (GSN) is a graphical argumentation notation used in safety-critical engineering to formally document the elements of an assurance case.] so that each inference and the evidence under it are
 explicit and reviewable [@Kelly2004GSN]. An Architecture 2.0 evidence ledger is
 an assurance case for a design decision: it states what is claimed, at what
 fidelity, on what evidence, and what could reject it. Naming the lineage helps,
@@ -197,7 +197,9 @@ so that a compound method system and a human reviewer can inspect it.
 
 ## Commitment Levels and Reversibility
 
-Trust requirements should rise with commitment. A loop that generates a
+An evidence ledger shows how strong the support for a claim is; how strong that
+support needs to be is a separate question, and trust requirements should rise
+with commitment. A loop that generates a
 candidate simulator configuration can tolerate more automation than a loop
 that changes RTL, partitions a chiplet boundary, selects a package interface,
 or recommends a deployment policy. The difference is not whether AI is
@@ -242,7 +244,9 @@ architect to make a better decision.
 
 ## Rejection Authority
 
-A credible loop needs something with authority to say no. The rejecting
+If commitment levels determine the cost of being wrong, rejection authority is
+how the loop prevents those errors from propagating. A credible loop needs
+something with authority to say no. The rejecting
 authority might be a type checker, parser, simulator, formal tool, regression
 test, synthesis flow, cross-tool comparison, signoff rule, deployment signal,
 security policy, benchmark governance rule, or expert reviewer. What matters
@@ -282,7 +286,7 @@ or residual risk even when another metric looks promising.
 
 For the lighthouse prompt, $\mathrm{valid}(x)$ might mean that a candidate
 compute organization stays within the declared ISA/software contract and does
-not violate the 3 W envelope or real-time deadline. $E_k(x)$ is the evidence at
+not violate the 3\ W envelope or real-time deadline. $E_k(x)$ is the evidence at
 the current stage: proxy estimate, simulation-stage estimate, RTL evidence, or
 physical feedback. $\tau_k$ rises as the loop moves from exploration to
 implementation, and residual risk covers what the evidence still cannot rule
@@ -300,6 +304,10 @@ Tool-using agents can generate convincing summaries, plots, design reports,
 and review notes. Those artifacts are useful only if the loop can still reject
 them. In architecture, a beautiful explanation cannot overrule a failed
 timing check, an invalid workload, a missing baseline, or a security boundary.
+A deployed version of this independence appears at fleet scale in
+@sec-loop-patterns-across-stack: during an instruction-set migration, build,
+test, sanitizers, and a production monitor evict regressions automatically,
+regardless of how confident the repair agent was.
 
 The independence requirement grows sharper as verification itself becomes
 AI-assisted. Cadence markets Verisium as a machine-learning-assisted verification
@@ -314,7 +322,7 @@ witness.
 
 ## Proxy Mismatch, Metric Gaming, and Calibration
 
-The central failure mode is proxy mismatch. A loop optimizes the measurement
+The failure an independent rejection authority most often has to catch is proxy mismatch^[Proxy mismatch, called specification gaming or reward hacking in the machine-learning literature [@AmodeiEtAl2016ConcreteProblems], occurs when a method optimizes an imperfect proxy metric in ways that degrade the true, unmeasured objective; it is an instance of Goodhart's Law.]. A loop optimizes the measurement
 it can see, while the architect cares about a broader objective. IPC may
 improve while energy, area, or tail latency worsens. A simulator metric may
 improve while synthesis exposes timing or power problems. A benchmark result
@@ -342,11 +350,11 @@ reason to commit.
 :::
 
 Calibration is therefore a trust requirement. Prediction models used in
-architecture have long needed validation against held-out data, higher-fidelity
+architecture have long needed validation against held-out data^[Held-out data is a subset of a dataset reserved during model training, used exclusively to test the model's ability to generalize to unseen inputs.], higher-fidelity
 measurements, or carefully designed experiments
 [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. The same
 principle applies to agentic loops. If a loop claims a candidate satisfies the
-3 W lighthouse envelope, the evidence must show how the power estimate was
+3\ W lighthouse envelope, the evidence must show how the power estimate was
 calibrated, what workload region it covers, what uncertainty remains, and what
 higher-fidelity result could overturn the claim.
 
@@ -360,8 +368,10 @@ story.
 
 ## Security, IP, and Confidentiality Boundaries
 
-Industry readers will not trust an Architecture 2.0 workflow that ignores
-security, intellectual property, and confidentiality. Architecture state is
+Calibration, provenance, and benchmark governance make a claim accurate, but
+accuracy is not the only thing trust depends on. Industry readers will not
+trust an Architecture 2.0 workflow that ignores security, intellectual
+property, and confidentiality. Architecture state is
 often sensitive: RTL, design specifications, process assumptions, timing
 constraints, floorplans, tool logs, customer workloads, proprietary traces,
 compiler settings, design reviews, and deployment telemetry can all reveal
@@ -391,7 +401,8 @@ be reproduced from public web data.
 
 ## Evidence Disputes and the Trust Checklist
 
-Evidence disputes are inevitable. One group may claim that a learning-based
+Once accuracy and confidentiality are both handled, trust still has to survive
+disagreement, and evidence disputes are inevitable. One group may claim that a learning-based
 method improves a design flow. Another may argue that the baseline, workload,
 constraint set, tool version, or evaluation protocol was incomplete. A company
 may have private evidence that cannot be released. A paper may report a strong

@@ -15,14 +15,6 @@ travels. If it only describes one kind of design-space-exploration workflow,
 it is too narrow. If it describes everything in the same way, it is too vague.
 The useful middle ground is a set of loop patterns.
 
-::: {.callout-learning-objectives}
-After this chapter you can:
-
-- classify an architecture task by its loop pattern and operating regime;
-- match method posture and rejection authority to feedback cost and reversibility;
-- explain why the same ontology carries a different evidence burden across the stack.
-:::
-
 > **Loop pattern.** A loop pattern is a recurring shape of architecture
 > work with a characteristic task, representation, environment, feedback budget,
 > evidence burden, rejection authority, and commitment level.
@@ -42,6 +34,14 @@ new name for old design review. The right question is more precise: given this
 task, representation, environment, feedback budget, and commitment level, what
 method roles are useful, what evidence is credible, and what can reject the
 result?
+
+::: {.callout-learning-objectives}
+After this chapter you can:
+
+- classify an architecture task by its loop pattern and operating regime;
+- match method posture and rejection authority to feedback cost and reversibility;
+- explain why the same ontology carries a different evidence burden across the stack.
+:::
 
 ## A Template for Reading the Cases
 
@@ -75,7 +75,7 @@ name its operating regime before choosing methods or making trust claims.
 | --- | --- | --- | --- |
 | Workload and benchmark | Traces, benchmark versions, coverage, drift, and governance. | Generate, cluster, summarize, and test workload questions. | Reject through coverage gaps, leakage, or irrelevant metrics. |
 | Fast software | Unit tests, compiler/runtime results, telemetry, and quick rollback. | Higher automation for bounded search, tuning, and repair. | Reject with tests, performance regressions, or deployment guards. |
-| Architecture DSE and specialization | Simulators, proxies, surrogates, compiler/runtime paths, constraints, and Pareto evidence. | Generate candidates, predict, optimize, critique, and preserve negative traces. | Reject invalid actions, proxy mismatch, software incompatibility, or weak evidence. |
+| Architecture DSE and specialization | Simulators, proxies, surrogates^[Surrogate models are computationally cheaper machine learning models trained to approximate the outputs of expensive simulators.], compiler/runtime paths, constraints, and Pareto evidence. | Generate candidates, predict, optimize, critique, and preserve negative traces. | Reject invalid actions, proxy mismatch, software incompatibility, or weak evidence. |
 | Domain-specific architecture and code generation | Kernels, compiler IRs, libraries, runtimes, generated code, interface costs, and maintainability evidence. | Generate mappings, tune schedules, explain portability limits, and critique software-path gaps. | Reject local hardware wins that fail correctness, portability, interface cost, or deployment maintenance. |
 | Co-design | Cross-layer models, workload traces, topology, memory, network, power, and thermal feedback. | Coordinate methods across layers and expose tradeoffs. | Reject single-layer wins that fail system objectives. |
 | Systems and fleet | Deployment telemetry, canaries, drift, isolation, and operational constraints. | Adapt, monitor, critique, and revise policy under guardrails. | Reject with SLOs, safety policies, rollback, and human review. |
@@ -130,16 +130,14 @@ memory behaviors, and software paths are represented. A loop that optimizes
 one benchmark point may miss the distribution that a real mobile XR subsystem
 must serve.
 
-MLPerf provides a useful analogy because it treats benchmarks as maintained
-community infrastructure, with versions, rules, and submission practices
-[@MattsonEtAl2020MLPerf]; MLPerf Inference shows that deployment-facing
-evaluation also has to preserve scenarios, constraints, and comparable
-measurement conventions [@ReddiEtAl2020MLPerfInference]. The lesson here
-is not another benchmark history. It is a loop-pattern lesson: a benchmark is a
-living agreement about what evidence should count. A workload loop should
-therefore record benchmark version, workload source, coverage claims, known
-gaps, leakage risks, and the conditions under which a result should not
-generalize.
+MLPerf is the standing example, established where this book treats benchmarks as
+maintained community infrastructure with versions, rules, and submission
+practices [@MattsonEtAl2020MLPerf] (see @sec-design-loop-no-longer-scales). The
+point to carry into a loop pattern is not another benchmark history. It is a
+loop-pattern lesson: a benchmark is a living agreement about what evidence should
+count. A workload loop should therefore record benchmark version, workload
+source, coverage claims, known gaps, leakage risks, and the conditions under
+which a result should not generalize.
 
 @tbl-workload-characterization-20 makes the reframe explicit. The
 left column is still necessary: representative workloads, profiles, benchmark
@@ -180,10 +178,10 @@ Fast software loops sit near the low-commitment end of the spectrum. Compiler
 flags, kernels, library implementations, runtime policies, configuration
 settings, and small code repairs can often be evaluated quickly and rolled
 back. Feedback may come from unit tests, microbenchmarks, integration tests,
-profilers, telemetry, or canary deployment.
+profilers, telemetry, or canary deployment^[A canary deployment is a controlled, partial rollout used to detect regressions before a system-wide release.].
 
 This is the regime where stronger automation is often plausible. Autotuning
-systems and learned tensor-program optimizers show how search spaces, cost
+systems and learned tensor-program optimizers^[Tensor-program optimizers automate the search for efficient execution schedules of tensor operations on target hardware.] show how search spaces, cost
 models, measurements, and scheduling can be combined to improve software
 performance across targets
 [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. An Architecture 2.0 loop can
@@ -236,14 +234,14 @@ This is where the Architecture 2.0 framework feels most natural. The task is
 bounded but rich. The representation must expose architectural state. The
 environment must define legal actions and observations. Methods can generate
 candidates, predict behavior, optimize evaluations, critique assumptions, and
-preserve negative traces. ArchGym is one example of making such loops more
+preserve negative traces. ArchGym, an OpenAI Gym-based framework, is one example of making such loops more
 explicit for machine-learning-assisted architecture design
 [@KrishnanEtAl2023ArchGym]; predictive design-space-exploration work
 shows that data-driven modeling has a longer architecture lineage
 [@IpekEtAl2006PredictiveDSE].
 
 Chiplets raise the stakes because they turn partitioning and interfaces into
-architectural decisions. Standards such as UCIe make chiplet integration more
+architectural decisions. Standards such as UCIe (Universal Chiplet Interconnect Express) make chiplet integration more
 concrete [@UCIeConsortium2026Spec], but they do not remove the
 architecture problem. The loop still has to reason about bandwidth, latency,
 power, thermal behavior, packaging, yield, verification, software contracts,
@@ -281,7 +279,7 @@ Every architect knows Amdahl's law [@Amdahl1967ValiditySingleProcessor], so
 restating it adds little. The version that matters here is the one that prices
 the interface. Hill and Marty re-derived the law for the multicore era to show
 how its lesson shifts when the substrate changes
-[@HillMarty2008AmdahlMulticore], and LogCA models the accelerator case
+[@HillMarty2008AmdahlMulticore], and LogCA, an analytical model for hardware accelerators, models the accelerator case
 directly: it makes offload latency, per-invocation overhead, and operation
 granularity first-class terms alongside the raw acceleration
 [@AltafWood2017LogCA]. The compact form used here keeps those costs visible:
@@ -404,11 +402,11 @@ behavior, precision contracts, software interfaces, or deployment drift.
 
 The Achilles heel is the software path. Specialized hardware becomes useful
 only when computations can be expressed, mapped, compiled, tested, profiled,
-maintained, and revised for the target. Halide made one version of this lesson
+maintained, and revised for the target. Halide, a domain-specific language and compiler for image processing, made one version of this lesson
 visible by separating algorithms from schedules
 [@RaganKelleyEtAl2017HalideCACM]. AutoTVM and Ansor show the same pressure
 in tensor-program optimization, where schedules and measurements are part of
-the performance story [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. MLIR
+the performance story [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. MLIR (Multi-Level Intermediate Representation)
 pushes on the infrastructure problem by making multi-level compiler
 representations extensible across domains and targets [@LattnerEtAl2020MLIR].
 
@@ -511,6 +509,33 @@ whether one generated path happened to work.
 
 ![**Hardware and software co-evolve through shared evidence:** Early architecture work often changes the hardware target and the software path at the same time. The loop becomes credible when the hardware snapshot, software artifact, tests, metrics, rejected variants, and decision owner are recorded together.](images/F10c-hardware-software-coevolution){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware target state and software path state evolving together through a shared evidence ledger, rejection gate, and architect decision path."}
 
+Google's warehouse-scale migration from x86 to Arm is a deployed instance of
+this discipline [@ChristopherEtAl2025ISAMigration]. Moving a production fleet
+that runs services such as Gmail and BigQuery onto a new instruction set is
+co-evolution at scale: the hardware target changes and tens of thousands of
+applications must follow. The reported effort analyzed more than 38,000
+migration commits and wrapped part of the software change in an agentic
+build-and-test repair loop, accepting a candidate fix only when the build and
+the test suite pass, and letting a fleet monitor automatically evict jobs that
+crash-loop or run slow on the new target. Authority sits with the instruments,
+not the generator: build, test, sanitizers that expose memory-model differences
+between the two ISAs, and the production monitor that rejects regressions and
+preserves the evicted cases as negative traces for offline debugging. The repair
+tool resolves only a minority of failures on its own, roughly a third of broken
+tests without tuning, and the hardest changes stay with the application owners
+who know the code. The model behind the loop will age; the structure, a
+represented migration loop with instrument-held rejection authority and
+human-owned exceptions, is the part worth keeping.
+
+The most instructive result is what the evidence overturned. Going in, the team
+and the application owners expected the work to be dominated by low-level
+architectural differences: floating-point drift, concurrency, and
+platform-specific intrinsics. The recorded evidence showed otherwise. Most of
+the effort was tests that encoded x86-specific assumptions, build and release
+systems, and configuration rollout. Unaided architectural intuition mispredicted
+where the work actually was. That is the case for a represented, evidence-bearing
+loop in a single sentence: the loop found the work the experts did not expect.
+
 ## Systems Loops: Runtime, Serving, and Datacenter Policy
 
 Systems loops evaluate architecture choices in deployed or deployment-like
@@ -526,7 +551,7 @@ Fleet loops add another layer: live telemetry, canary policy, rollback, and
 operational review.
 
 The design-loop card changes accordingly. The representation must include
-operational state, workload drift, service-level objectives, resource
+operational state, workload drift, service-level objectives^[Service-level objectives (SLOs) are target values for system reliability and performance, commonly used to manage operational tradeoffs.], resource
 contention, customer or user constraints, and rollback mechanisms. The
 environment may be a simulator, test cluster, replay harness, staging system,
 or production system with guardrails. The method may adapt policy, detect

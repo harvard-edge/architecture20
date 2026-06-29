@@ -34,6 +34,20 @@ standards, rejection authority, and human decision points
 system may still produce plausible text, code, or configurations, but it is not
 participating in architecture work in a way the field should trust.
 
+Making a design process explicit is what mature engineering fields do once the
+cost of an undetected error grows. Aviation did not become safe by trusting more
+skilled pilots; it formalized the process with checklists, assurance cases, and
+certification standards that make the evidence for a safety claim auditable.
+Software operations did not become reliable by hiring more careful engineers;
+DevOps and site-reliability practice made deployment, monitoring, and rollback
+explicit, with error budgets and runbooks that state what evidence justifies a
+change [@BeyerEtAl2016SRE]. The common pattern is a move from individual judgment
+to a represented process with explicit evidence and rejection rules. Architecture
+2.0 makes the same move for system design. The alternative is not creative
+freedom; it is an ad hoc loop whose assumptions, rejected alternatives, and
+evidence live only in people's heads, which is exactly the state that stops
+scaling when the design space and the verification burden grow together.
+
 This chapter gives the reusable language for that shift. The goal is not to
 classify every paper or tool. A taxonomy of current systems will age quickly.
 The more durable contribution is a claim grammar and ontology: a way to name
@@ -115,8 +129,8 @@ trust.
 | **Workload or scenario** | What behavior is the design supposed to serve? | XRBench-class real-time mobile XR workloads, with latency, sensing, graphics, and interaction requirements. |
 | **Baseline** | Compared to what architecture, software stack, or prior result? | A scalar CPU-only baseline, a vector-capable CPU, an accelerator baseline, or an existing mobile XR subsystem. |
 | **Design space** | What choices are legal, and which regions are invalid? | RISC-V ISA options, vector width, CPU/accelerator partitioning, memory hierarchy, clocking, compiler/runtime path, and tool-flow limits. |
-| **Objective vector** | What counts as improvement, and what tradeoffs matter? | Throughput, tail latency, energy, area, programmability, verification burden, and evidence cost under the 3 W target. |
-| **Constraints** | What cannot be violated even if a metric improves? | ISA compatibility, correctness, thermal limits, process assumptions, package limits, software compatibility, and 3 nm-class low-power envelope. |
+| **Objective vector** | What counts as improvement, and what tradeoffs matter? | Throughput, tail latency, energy, area, programmability, verification burden, and evidence cost under the 3\ W target. |
+| **Constraints** | What cannot be violated even if a metric improves? | ISA compatibility, correctness, thermal limits, process assumptions, package limits, software compatibility, and 3\ nm-class low-power envelope. |
 | **Evidence** | What supports the claim at the required commitment level? | Workload traces, simulations, power model, sensitivity checks, rejected candidates, tool logs, and comparison against baselines. |
 | **Rejection authority** | What observation, tool, review, or rule can invalidate or weaken the result? | Missed latency target, power envelope violation, invalid RTL/configuration, compiler failure, simulator mismatch, or weak coverage. |
 | **Human decision** | Who can accept, revise, escalate, or commit the claim? | The architect or review process that owns assumptions, evidence thresholds, risk, and final commitment. |
@@ -149,7 +163,7 @@ assumptions, and deciding when evidence is strong enough to commit.
 
 For the lighthouse prompt, the distinction is immediate. A request for a
 low-power, 64-bit RISC-V-based compute subsystem for XRBench-class mobile XR
-under a 3 W, 3 nm-class low-power mobile envelope sounds compact. But the
+under a 3\ W, 3\ nm-class low-power mobile envelope sounds compact. But the
 prompt does not define the design loop. It does not say which workload traces
 are authoritative, which vector operations matter, which memory hierarchy is
 admissible, which software stack must run, which simulator is trusted, which
@@ -179,7 +193,7 @@ action taken by the loop, $o_t$ is the observation returned by the
 environment, $e_t$ is the evidence record that makes the observation
 auditable, and $d_t$ is the human or policy decision to accept, reject,
 revise, or escalate. The equation is not claiming that every architecture
-loop is a Markov decision process. It is a bookkeeping discipline: if a loop
+loop is a Markov decision process.^[A Markov decision process (MDP) is a mathematical framework for modeling decision-making where outcomes are partly random and partly under the control of a decision maker; it forms the foundation of reinforcement learning.] It is a bookkeeping discipline: if a loop
 cannot say how actions, feedback, evidence, and decisions update state, then
 it is not yet represented well enough for credible AI-mediated architecture
 work.
@@ -229,8 +243,8 @@ architect must still decide.
 ## Minimum Review State Before Method Labels
 
 A method label is not enough to review an architecture claim. A paper can say
-it uses an LLM, reinforcement learning, Bayesian optimization, or a surrogate
-model and still leave the important state invisible: what task was bounded, what
+it uses an LLM, reinforcement learning^[An area of machine learning where an agent learns to make decisions by performing actions in an environment to maximize a cumulative reward.], Bayesian optimization^[A statistical strategy for the global optimization of black-box functions, often used when evaluating candidates (like running a cycle-accurate simulator) is computationally expensive.], or a surrogate
+model^[An approximate, computationally cheap predictive model trained to mimic the behavior of a more complex and expensive simulator.] and still leave the important state invisible: what task was bounded, what
 actions were legal, what feedback was used, what failed, and who accepted the
 commitment. A taxonomy groups things. It can list tasks, methods, benchmarks,
 tools, agent architectures, or evaluation settings. Taxonomies are useful, and
@@ -246,9 +260,10 @@ artifacts, it will age with them.
 > architect.
 
 > **World model.** A world model is the loop's belief about how architecture
-> actions change outcomes. It may live in a simulator, a learned surrogate, a
-> cost model, constraints, design rules, or a hybrid of these sources, and it is
-> credible only inside its stated scope.
+> actions change outcomes, whether that belief lives in a simulator, a learned
+> surrogate, a cost model, or design rules. This chapter uses the term only at
+> that working level; @sec-data-representations-world-models gives the canonical
+> definition and shows what such a model must encode, scope, and keep credible.
 
 > **Evidence ledger.** An evidence ledger is the durable record that ties
 > feedback to claims: workload and tool provenance, assumptions, fidelity,
@@ -285,12 +300,12 @@ supports the claim? What can reject the result? What does the architect still
 decide? Once those questions are answered, a taxonomy of methods becomes
 useful. Before that, method labels can hide more than they reveal.
 
-An analogy from language models helps, but only as an analogy. BERT created a
-general pattern for pretraining and adapting representations
-[@DevlinEtAl2019BERT]; biomedical and clinical variants such as BioBERT,
-ClinicalBERT, and Med-BERT showed that domain shift forces a field to build
-domain-specific corpora, tasks, and representations
-[@LeeEtAl2020BioBERT; @HuangEtAl2019ClinicalBERT; @RasmyEtAl2021MedBERT].
+An analogy from language models helps, but only as an analogy: the
+pretrain-then-adapt pattern that BERT^[Bidirectional Encoder Representations from Transformers, a foundational language model architecture that popularized the pretrain-then-fine-tune paradigm in natural language processing.] established [@DevlinEtAl2019BERT] became
+useful in a new domain only after that domain rebuilt its corpora and
+representations around its own data, the lineage
+@sec-data-representations-world-models develops in full through its biomedical
+and clinical variants.
 The architecture lesson is not simply to build a chip-specific language model.
 It is that a field becomes AI-addressable only when its objects of work are
 represented well enough for methods to act and for experts to judge. For
@@ -354,7 +369,7 @@ internal workflow before trusting an Architecture 2.0 claim.
 
 | Framework piece | Reader question | Lighthouse instance |
 | --- | --- | --- |
-| Task, intent, and design space | What architectural objective is being pursued, under what constraints, risk, and legal choices? | Improve mobile XR efficiency within a 3 W, 3 nm-class low-power mobile envelope while exploring legal RISC-V, vector, memory, accelerator, and software-stack choices. |
+| Task, intent, and design space | What architectural objective is being pursued, under what constraints, risk, and legal choices? | Improve mobile XR efficiency within a 3\ W, 3\ nm-class low-power mobile envelope while exploring legal RISC-V, vector, memory, accelerator, and software-stack choices. |
 | Representation and world model | What state is encoded, and what does the loop believe about how actions change outcomes? | Workload traces, parameters, compiler assumptions, power model, memory behavior, and constraints. |
 | Architecture environment | What actions are legal, what feedback is returned, and what failures are observable? | Simulator, cost model, workload harness, and invalid-configuration checks. |
 | Method roles | Which roles generate, predict, search, critique, verify, call tools, or coordinate? | Candidate generator, surrogate or search method, verifier, evidence writer, and human reviewer. |
@@ -499,7 +514,7 @@ surrogate embodies another. A set of design rules, expert heuristics, or
 calibrated equations can also function as a world model. None is automatically
 true. Each has a scope, fidelity, uncertainty, and failure mode.
 
-QuArch illustrates the representation problem from one angle
+QuArch, an architecture-centric benchmark dataset, illustrates the representation problem from one angle
 [@PrakashEtAl2025QuArch]. A question-answering dataset can help evaluate
 and improve the architectural knowledge of language models, but it cannot by
 itself represent all of the state needed for system synthesis. It can expose
@@ -525,7 +540,7 @@ components, the agent may optimize a proxy that the architect cannot audit. If
 the environment does not log tool versions, seeds, workload revisions, and
 failed runs, the feedback may not become evidence.
 
-ArchGym is an important example because it treats the connection between search
+ArchGym, an open-source evaluation environment, is an important example because it treats the connection between search
 algorithms and architecture simulators as a first-class interface
 [@KrishnanEtAl2023ArchGym]. Its durable lesson is not only that one can
 connect ML methods to simulators. The larger lesson is that architecture
@@ -568,7 +583,7 @@ It becomes evidence only when it is tied to a claim, a decision, and a
 provenance trail.
 
 For example, suppose an agent proposes a vector-capable compute subsystem for a
-mobile XR workload and reports that it meets the 3 W target. That statement is
+mobile XR workload and reports that it meets the 3\ W target. That statement is
 not evidence unless the loop records what workload was used, what input
 distribution was assumed, what power model was used, what process assumptions
 were available, what software stack was compiled, what alternatives were

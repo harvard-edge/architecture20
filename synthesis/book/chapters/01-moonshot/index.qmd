@@ -83,7 +83,7 @@ around loops. Architects frame a problem, choose abstractions, construct models
 or simulators, select workloads, explore alternatives, evaluate results,
 reject weak candidates, and revise assumptions. For example, an architect
 weighing a larger L2 cache frames the question (does it help this workload mix
-without hurting energy?), picks a cycle-level simulator and a benchmark suite,
+without hurting energy?), sets up a cycle-level simulator (like gem5) or a full-system RTL emulator (like FireSim), selects a benchmark suite,
 sweeps cache sizes, associativities, and replacement policies, reads the
 resulting miss rates and energy estimates, rejects the configurations that help
 one workload while hurting another, and revises the design before committing it
@@ -139,7 +139,8 @@ cards, ledgers, and review checks.
 
 ## From Architecture 1.0 to Architecture 2.0
 
-Architecture 1.0 is the familiar practice of human-orchestrated artifact
+To see what changes, it helps to name the practice this framework is moving
+beyond. Architecture 1.0 is the familiar practice of human-orchestrated artifact
 design. The architect defines the problem, chooses models, uses tools,
 interprets feedback, and decides what to build. This practice is not obsolete.
 It is the foundation on which the field stands.
@@ -155,7 +156,7 @@ The difference can be seen in a familiar design-space exploration. In
 Architecture 1.0, an architect might manually script a simulator sweep over
 cache sizes, associativities, and replacement policies, then inspect the
 results. In Architecture 2.0, the architect may design a loop in which a
-method proposes candidates, a surrogate estimates outcomes, a simulator
+method proposes candidates, a surrogate^[A surrogate model is a data-driven approximation used to quickly estimate the results of a computationally expensive simulator.] estimates outcomes, a simulator
 evaluates selected points, a critic flags invalid assumptions, and a human
 decides whether the evidence is strong enough. The artifact may still be a
 cache hierarchy. The new contribution is the explicit, inspectable, and
@@ -208,9 +209,15 @@ expose what a credible loop would need to know.
 ![**Prompt-to-loop design:** The lighthouse prompt is useful because it exposes the loop state, evidence, rejection, and decision authority a credible architecture answer would need.](images/F1-moonshot-stack){#fig-moonshot-prompt width="92%" fig-alt="Stacked diagram decomposing the lighthouse prompt into architecture obligations and the design-loop requirements needed before a result can be trusted."}
 
 > **Lighthouse prompt.** The lighthouse prompt is the compact Architecture 2.0
-> design request used throughout this book: a low-power, RISC-V-based mobile XR
-> compute subsystem that must return a design-space report with evidence and
-> rejected alternatives.
+> design request used throughout this book: a low-power, RISC-V-based mobile
+> extended reality (XR) compute subsystem that must return a design-space report
+> with evidence and rejected alternatives.
+
+The prompt is deliberately extreme. No architect, and no model, can turn that
+sentence into a verified subsystem today, and that is the point. Pushing the
+request past what is currently feasible is a forcing function: it exposes the
+hidden architectural state, evidence, and decisions a credible design loop would
+have to handle, rather than letting a plausible-sounding answer conceal them.
 
 With that concrete prompt in view, the word *moonshot* can be used precisely.
 The term should not mean a prediction that the field can already automate
@@ -286,20 +293,20 @@ ISA, microarchitecture, compiler, RTL, physical-design, and deployment
 boundaries. The enabling shift is the arrival of AI methods, architecture
 datasets, executable environments, and tool interfaces that make pieces of those
 loops plausible enough to study. Publicly reported examples already include reinforcement
-learning systems for physical-design exploration and learned circuit-generation
+learning^[Reinforcement learning is a machine learning training method based on rewarding desired behaviors and punishing undesired ones, often used to navigate complex design spaces [@SuttonBarto2018ReinforcementLearning].] systems for physical-design exploration and learned circuit-generation
 workflows with silicon evidence
 [@Synopsys2023DSOai; @RoyEtAl2021PrefixRL]. @sec-loop-patterns-across-stack returns to those examples
 as loop-pattern cases. The
 moonshot is not that these pieces exist; it is assembling them into a family of
 represented, evidence-bearing loops that a human can still govern.
 
-XRBench gives the prompt a workload anchor rather than a vague application
+XRBench, a benchmark suite for mobile XR workloads, gives the prompt a workload anchor rather than a vague application
 label [@KwonEtAl2023XRBench]. Real-time mobile XR stresses latency,
 energy, memory movement, model concurrency, sensing, graphics, and deployment
-constraints. A 64-bit RISC-V contract gives the design an ISA boundary. Vector
+constraints. A 64-bit RISC-V contract (an open standard instruction set architecture) gives the design an ISA boundary. Vector
 capability makes the compute organization concrete but does not decide whether
-the realization should be a CPU extension, accelerator, or SoC block. A 3 W
-thermal-design-power target and 3 nm-class low-power mobile process assumption
+the realization should be a CPU extension, accelerator, or SoC block. A 3\ W
+thermal-design-power target and 3\ nm-class low-power mobile process assumption
 force the prompt into a contemporary technology envelope. The node is
 intentionally stated as a class rather than as a named foundry PDK; current
 mobile SoCs are publicly
@@ -309,7 +316,7 @@ path it actually uses [@Apple2024A18Pro; @Apple2024M4]. The requested
 deliverable is not merely a design. It is a design-space report with evidence
 and rejected alternatives.
 
-One way to read the prompt is through the familiar foundation-model stack. In
+One way to read the prompt is through the familiar foundation-model^[A foundation model is a large-scale AI model trained on a vast quantity of data that can be adapted to a wide range of downstream tasks.] stack. In
 the generic version, many kinds of inputs feed a central foundation model, and
 many downstream applications fan out on the other side. The architecture
 analogy is different. The left side includes workload traces, specifications,
@@ -333,7 +340,7 @@ Read Panel B as a loop substrate, not as a single model call. For the
 lighthouse prompt, one loop turn might ingest an XRBench trace slice and a
 software pipeline description, generate vector-width, local-memory, and
 CPU/accelerator partition candidates, run a cheap performance and power proxy,
-reject candidates that miss the latency or 3 W envelope, and preserve the
+reject candidates that miss the latency or 3\ W envelope, and preserve the
 rejected alternatives as evidence for the next turn. A higher-commitment turn
 would replace some of that proxy evidence with simulator runs, compiler output,
 RTL fragments, or physical-design feedback. The foundation-model analogy is
@@ -378,7 +385,7 @@ a way for the loop to be wrong.
 | XRBench mobile XR | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace provenance, benchmark version, workload coverage, and rejection when results miss real-time behavior. |
 | 64-bit RISC-V with vector or accelerator option | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
 | Compute subsystem | CPU, accelerator, tightly coupled unit, SoC block, memory hierarchy, interconnect, chiplet boundary if any, and integration point. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere. |
-| 3 W, 3 nm-class low-power envelope | Power, voltage/frequency, thermal, area, process/library assumptions, RTL feasibility, EDA constraints, and physical signoff path. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and rejection when stronger physical evidence violates the envelope. |
+| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, process/library assumptions, RTL feasibility, EDA constraints, and physical signoff path. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and rejection when stronger physical evidence violates the envelope. |
 | Design-space report with evidence and rejected alternatives | Alternatives, Pareto fronts, assumptions, uncertainty, verification plan, rejected or failed candidates, and human decision points. | Evidence ledger: connected measurements, assumptions, checks, rejections, coverage, reproducible artifacts, and explicit rejection authority before higher commitment. |
 
 : **Prompt fragments create architecture obligations:** The lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
@@ -438,7 +445,7 @@ seven obligations explicit:
 
 No single model can make these obligations disappear. The table is deliberately
 compressed; each row expands into many implementation and evidence questions.
-The "3 W, 3 nm-class" row, for example, reaches down into RTL, synthesis,
+The "3\ W, 3\ nm-class" row, for example, reaches down into RTL, synthesis,
 floorplanning, timing, IR drop, leakage, thermal behavior, and signoff. The
 "RISC-V with vector or accelerator option" row reaches sideways into compilers,
 runtimes, libraries, generated code, and portability. Architecture development
@@ -479,7 +486,7 @@ rejected, and revised under explicit evidence standards.
 Its purpose is not to introduce three disconnected topics. It shows why an
 architecture loop needs all three roles at once: generation without prediction
 produces unsupported artifacts, prediction without optimization does not search
-the space, and optimization without generation and evidence can overfit a
+the space, and optimization without generation and evidence can overfit^[Overfitting occurs when an optimization process learns the noise of a proxy metric rather than the true objective, causing poor real-world performance.] a
 proxy. @sec-methods-generation-prediction-optimization returns to the methods in detail; here they establish that
 Architecture 2.0 is about the loop among these roles, not only about producing
 candidate designs.
@@ -496,7 +503,9 @@ and by evidence strong enough for the next commitment boundary.
 
 ## Efficiency as the North Star
 
-Efficiency is the practical north star because architecture is the discipline
+Naming the roles inside the loop does not yet say what the loop is optimizing
+for, and that target is efficiency. Efficiency is the practical north star
+because architecture is the discipline
 of turning scarce resources into useful work through durable hardware/software
 interfaces. A design that is faster but consumes too much power, is impossible
 to verify, or depends on fragile software assumptions has not really solved
@@ -532,20 +541,18 @@ scripts, simulation, and expert review, and which parts need more explicit
 state, tool feedback, evidence records, rejected alternatives, or AI-assisted
 search.
 
-A credible loop records what failed as well as what worked. A loop that records
-only winners cannot teach the next method, reviewer, or architect which
-assumptions, tools, workloads, or regions of the design space were already ruled
-out. Later chapters give that record a sharper name and make it part of the
-evidence packet.
+A credible loop records what failed as well as what worked, not only the
+winners. That record keeps later methods, reviewers, and architects from
+re-exploring ground the loop already ruled out. Later chapters give it a
+sharper name and make it part of the evidence packet.
 
-Benchmarks show the same pressure. MLPerf was designed to make machine
-learning performance claims reproducible across systems
-[@MattsonEtAl2020MLPerf]. MLPerf Inference then made deployment scenarios,
-latency, throughput, accuracy, and power part of the comparison problem rather
-than treating "fast inference" as one scalar claim
-[@ReddiEtAl2020MLPerfInference; @ReddiEtAl2021VisionBehindMLPerf]. This is
-the architectural lesson: efficiency is not one number. It is a structured
-claim about useful work under constraints.
+Benchmarks show the same pressure. MLPerf, the community benchmark effort for
+making machine-learning performance claims reproducible across systems, treats
+deployment scenario, latency, throughput, accuracy, and power as part of the
+comparison rather than as one scalar claim [@MattsonEtAl2020MLPerf].
+@sec-design-loop-no-longer-scales develops that case with the numbers; the
+architectural lesson here is that efficiency is not one number. It is a
+structured claim about useful work under constraints.
 
 > **Multidimensional efficiency.** Multidimensional efficiency is the claim
 > that useful work must be evaluated against the relevant scarce resource:
@@ -599,7 +606,9 @@ inside the loop, but it cannot be the whole architectural judgment.
 
 ## Boundaries of the Argument
 
-The goal is not to produce a paper catalog. The field is moving too quickly
+Having set efficiency as the loop-level target, it is worth being equally clear
+about what this book is not trying to do. The goal is not to produce a paper
+catalog. The field is moving too quickly
 for a catalog to remain useful for long. The goal is to give readers a
 framework that can organize current work and still be useful as models, tools,
 and benchmarks change.
@@ -636,7 +645,7 @@ chiplets, software velocity, data movement, EDA constraints, reliability
 expectations, sustainability pressure, and verification burden grow together.
 @sec-architecture-20-ontology names the ontology of the new loop.
 @sec-data-representations-world-models asks what architecture data must
-represent, including the world models introduced by the ontology.
+represent, including the world models^[A world model is an agent's internal predictive model of its environment that enables it to simulate the consequences of actions [@HaSchmidhuber2018WorldModels].] introduced by the ontology.
 @sec-architecture-environments-tool-interfaces
 turns tools into environments with actions, observations, feedback, and
 constraints. @sec-methods-generation-prediction-optimization separates
