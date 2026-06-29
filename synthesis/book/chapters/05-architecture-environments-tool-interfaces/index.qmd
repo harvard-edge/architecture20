@@ -120,7 +120,7 @@ and it defines what evidence those actions can produce. If either side is
 hidden, an agent can appear capable while acting outside the architecture
 problem the human intended to solve.
 
-| Interface | What it makes actionable | Evidence it makes interpretable | Failure if hidden |
+| **Interface** | **What it makes actionable** | **Evidence it makes interpretable** | **Failure if hidden** |
 | --- | --- | --- | --- |
 | ISA and vector contract | Instructions, registers, vector length, exceptions, privilege, and binary compatibility. | Correct execution, portability, software-visible behavior, and compatibility tests. | The loop proposes a microarchitecture that software cannot legally target. |
 | Compiler IR and schedule representation | Lowering choices, tiling, fusion, layout, vectorization, and target-specific code generation. | Compiler success, generated code, performance counters, and optimization provenance. | Performance is attributed to hardware while the software contract changed. |
@@ -148,7 +148,7 @@ flow. The point is that a loop must say which environment it is acting in, what
 that environment can observe, and what authority its feedback has.
 @tbl-environment-instances gives a compact set of examples.
 
-| Environment instance | Action boundary | Feedback and evidence | Loop lesson |
+| **Environment instance** | **Action boundary** | **Feedback and evidence** | **Loop lesson** |
 | --- | --- | --- | --- |
 | gem5-style cycle or full-system simulation [@BinkertEtAl2011Gem5] | Core, cache, memory-system, ISA, and workload configuration. | Statistics, traces, timing-model behavior, simulator warnings, and scoped performance comparisons. | Strong for controlled DSE; bounded by model fidelity and configuration state. |
 | Verilator-style compiled RTL simulation [@Veripool2026Verilator] | RTL modules, test benches, assertions, generated C++/SystemC models, and debug hooks. | Functional behavior, waveform/debug evidence, assertion failures, and implementation-adjacent traces. | Moves closer to implementation but narrows throughput and increases debug cost. |
@@ -169,7 +169,7 @@ not report "EDA feedback" as if all tool stages had the same authority.
 @tbl-eda-stage-contract separates common stages by what they can and cannot
 reject.
 
-| EDA stage | Feedback returned | What it can reject | What it cannot prove alone |
+| **EDA stage** | **Feedback returned** | **What it can reject** | **What it cannot prove alone** |
 | --- | --- | --- | --- |
 | Logic synthesis | Mapped gates, area proxy, timing estimates, constraint warnings, and early power estimates. | Nonsynthesizable RTL, impossible constraints, obvious area/timing problems. | Routability, final timing, IR drop, clocking, and post-layout power. |
 | Floorplanning and placement | Cell locations, utilization, congestion hints, timing pressure, and macro or memory placement effects. | Floorplans that create severe congestion, timing pressure, or integration problems. | Final routed timing, signoff power, manufacturability, and workload-level benefit. |
@@ -184,7 +184,7 @@ This arrangement is not hypothetical. Some commercial physical-implementation
 flows already treat synthesis and place-and-route as a search environment: the
 action space is a set of tool directives and floorplan parameters, the
 transition is a full tool run, and the reward is the resulting power,
-performance, and area. Synopsys, a major EDA vendor, reported that one such reinforcement-learning^[Reinforcement learning is a machine learning paradigm where an agent learns to make decisions by performing actions in an environment to maximize a reward signal.]
+performance, and area. Synopsys, a major EDA vendor, reported that one such reinforcement-learning
 system reached its first hundred commercial tapeouts by 2023
 [@Synopsys2023DSOai], and Cadence, another leading EDA vendor, describes a comparable loop driving the flow
 from RTL to layout [@Cadence2021Cerebrus]. The durable point is not which vendor
@@ -217,7 +217,7 @@ one software framework or one programming language. It requires that the loop
 make a small set of obligations explicit. @tbl-environment-contract
 lists the main fields.
 
-| Field | What it defines | Question it answers |
+| **Field** | **What it defines** | **Question it answers** |
 | --- | --- | --- |
 | Workload distribution | Inputs, traces, benchmark versions, software stack, and operating scenarios. | What behavior is the design supposed to serve? |
 | Action schema | Parameters, edits, configurations, generated artifacts, or commands the loop may propose. | What can the method actually change? |
@@ -267,7 +267,7 @@ anecdotal.
 @tbl-archgym-mini-contract reads an ArchGym-style environment as a
 mini-contract.
 
-| Contract field | ArchGym-style instance |
+| **Contract field** | **ArchGym-style instance** |
 | --- | --- |
 | Task | Search or tune a bounded architecture design space under a declared workload and metric. |
 | Action space | Architecture parameters, simulator knobs, or mapping choices the agent is allowed to change. |
@@ -281,8 +281,8 @@ mini-contract.
 
 ArchGym also shows why the environment chapter cannot be collapsed into the
 methods chapter. Once an environment is defined, many methods can interact
-with it: Bayesian optimization^[Bayesian optimization is a strategy for the global optimization of black-box functions, using a probabilistic model to balance exploration of the design space with exploitation of known good configurations [@SnoekLarochelleAdams2012BayesianOptimization].], reinforcement learning, evolutionary search^[Evolutionary search is a family of optimization algorithms inspired by biological evolution, iteratively improving candidate designs using mechanisms like mutation, crossover, and selection.],
-surrogate-guided exploration^[Surrogate-guided exploration uses a fast, approximate machine learning model (the surrogate) to predict design performance, allowing the search algorithm to evaluate many more candidates than a slow simulator would permit.], random search, heuristic search, or a human
+with it: Bayesian optimization, reinforcement learning, evolutionary search[^fn-evolutionary-search-c05],
+surrogate-guided exploration[^fn-surrogate-guided-exploration-c05], random search, heuristic search, or a human
 designer using the environment as an instrumented assistant. The environment
 is the common ground on which method comparisons become meaningful.
 
@@ -380,7 +380,7 @@ includes setup, queueing, fabrication, rollout, and commitment delay.
 This economy is the multi-fidelity setting studied across computational
 science, where cheap, lower-fidelity models are combined with scarce,
 high-fidelity ones to keep optimization, inference, and uncertainty
-quantification^[Uncertainty quantification is the science of characterizing and reducing uncertainties in computational models, critical in multi-fidelity search for deciding whether a fast model's prediction is confident enough to trust.] affordable [@PeherstorferWillcoxGunzburger2018Multifidelity].
+quantification[^fn-uncertainty-quantification-c05] affordable [@PeherstorferWillcoxGunzburger2018Multifidelity].
 Architecture 2.0 inherits that economy and adds two architecture-specific
 requirements: each fidelity level must carry its own rejection authority, and a
 move to a higher level crosses a commitment boundary, not merely a more accurate number.
@@ -432,7 +432,7 @@ still learn the wrong lesson.
 \FloatBarrier
 ```
 
-| Feedback regime | Cost / latency intuition | Sample budget | What can reject | Method implication |
+| **Feedback regime** | **Cost / latency intuition** | **Sample budget** | **What can reject** | **Method implication** |
 | --- | --- | --- | --- | --- |
 | Analytic proxy or learned surrogate | Milliseconds to seconds; low direct cost but high model-risk exposure. | Thousands to millions of candidate checks. | Obvious invalidity, dominated regions, sensitivity failures, or proxy-calibration failures. | Use for pruning, active learning, and broad search, not final commitment. |
 | Trace, profile, or replay | Seconds to hours depending on capture, replay, and privacy filtering. | Tens to thousands of slices or scenarios. | Coverage gaps, stale workload versions, leakage, or mismatch to intended deployment. | Use for workload state, clustering, and targeted tests. |
@@ -459,7 +459,7 @@ generate a credible path to use it.
 
 This regime structure drives method choice. If feedback is cheap, broad search
 or online adaptation may be reasonable. If feedback is expensive, the loop
-needs sample efficiency, priors, surrogates, active learning^[Active learning is a machine learning framework where the algorithm can query an oracle (e.g., a human or a simulator) to label new data points, deliberately selecting the most informative samples to improve its model with minimal data. This is similar to how data-selection strategies in ML training curate only the most informative examples to reduce training cost, but applied here to minimize expensive simulator runs.], staged gates, or
+needs sample efficiency, priors, surrogates, active learning[^fn-active-learning-c05], staged gates, or
 stronger human filtering. If feedback is high commitment, the loop should
 become more conservative: use AI to organize evidence, critique assumptions,
 and narrow the search, not to make unsupported final decisions.
@@ -612,7 +612,7 @@ support a paper; a maintained environment can support a field. That is why the
 environment should record versions, assumptions, invalid actions, rejected
 candidates, and changes in the workload distribution.
 
-> **ArchOps.** This book proposes *ArchOps*, by deliberate analogy to MLOps^[MLOps (Machine Learning Operations) is a set of practices that aims to deploy and maintain machine learning models in production reliably and efficiently.], for
+> **ArchOps.** This book proposes *ArchOps*, by deliberate analogy to MLOps[^fn-mlops-c05], for
 > the operational discipline of keeping an architecture design loop valid over
 > time: versioning workloads and tools, recording
 > provenance and negative traces, monitoring drift, and maintaining the
@@ -629,7 +629,7 @@ loops become shared infrastructure rather than one-off scripts.
 terms. The table is intentionally prosaic because ArchOps succeeds only when
 ordinary drift becomes visible before it invalidates evidence.
 
-| Drift source | What ArchOps records | Failure if ignored | Operating response |
+| **Drift source** | **What ArchOps records** | **Failure if ignored** | **Operating response** |
 | --- | --- | --- | --- |
 | Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
 | Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, seed, and configuration versions. | Results become incomparable across runs without a clear cause. | Treat version changes as evidence events and preserve old receipts. |
@@ -659,3 +659,9 @@ ArchOps is what keeps that design system trustworthy after the first run.
 - **Next loop state:** Once the environment defines what action and feedback
   mean, method selection can be judged by loop conditions rather than fashion.
 :::
+
+[^fn-evolutionary-search-c05]: **Evolutionary search**: Optimization inspired by biological evolution, improving candidate designs through mutation, crossover, and selection.
+[^fn-surrogate-guided-exploration-c05]: **Surrogate-guided exploration**: Uses a fast surrogate model to predict design performance, so the search can screen far more candidates than a slow simulator allows.
+[^fn-uncertainty-quantification-c05]: **Uncertainty quantification**: The science of characterizing and reducing uncertainties in computational models, critical in multi-fidelity search for deciding whether a fast model's prediction is confident enough to trust.
+[^fn-active-learning-c05]: **Active learning**: A machine learning framework where the algorithm can query an oracle (e.g., a human or a simulator) to label new data points, deliberately selecting the most informative samples to improve its model with minimal data. This is similar to how data-selection strategies in ML training curate only the most informative examples to reduce training cost, but applied here to minimize expensive simulator runs.
+[^fn-mlops-c05]: **MLOps**: Machine Learning Operations, a set of practices that aims to deploy and maintain machine learning models in production reliably and efficiently.

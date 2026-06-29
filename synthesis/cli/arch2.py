@@ -1530,9 +1530,85 @@ def scan_pdf_geometry(
     return findings
 
 
+def footnote_overflow_findings(
+    pdf_path: Path,
+    *,
+    bottom_band: float = 42.0,
+    max_findings: int = 80,
+) -> list[Finding]:
+    """Flag margin footnotes/sidenotes that run off (or into) the page bottom.
+
+    With ``reference-location: margin`` the Springer build stacks footnotes as
+    sidenotes in the outer margin. When a page carries several long notes the
+    stack runs past the bottom of the text block and the last note clips off the
+    page (see the Bayesian-optimization note on page 52). The generic
+    ``physical-bleed`` check catches the clipped glyph but cannot say it is a
+    footnote; this check isolates small-font text in the *outer margin* (so the
+    running footer and body prose are excluded) and reports the offending note's
+    text, which is the actionable signal for shortening or rebalancing it.
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        return [Finding("error", "missing-pdfplumber", "python", "pdfplumber is required for PDF geometry scanning")]
+    if not pdf_path.exists():
+        return [Finding("error", "missing-pdf", _relative(pdf_path), "rendered PDF does not exist")]
+
+    from collections import Counter
+
+    findings: list[Finding] = []
+    with pdfplumber.open(str(pdf_path)) as pdf:
+        for page_index, page in enumerate(pdf.pages, start=1):
+            height = float(page.height)
+            chars = [c for c in page.chars if str(c.get("text", "")).strip()]
+            if not chars:
+                continue
+            # Modal glyph size is the body text; notes/sidenotes set smaller.
+            sizes = Counter(round(float(c.get("size", 0.0)), 1) for c in chars)
+            body_size = sizes.most_common(1)[0][0]
+            if body_size <= 0:
+                continue
+            body_chars = [c for c in chars if round(float(c.get("size", 0.0)), 1) == body_size]
+            if not body_chars:
+                continue
+            block_x0 = min(float(c.get("x0", 0.0)) for c in body_chars)
+            block_x1 = max(float(c.get("x1", 0.0)) for c in body_chars)
+
+            # Margin text: noticeably smaller than body AND outside the text block.
+            margin_chars = [
+                c
+                for c in chars
+                if round(float(c.get("size", 0.0)), 1) <= body_size * 0.9
+                and (float(c.get("x1", 0.0)) < block_x0 - 2.0 or float(c.get("x0", 0.0)) > block_x1 + 2.0)
+            ]
+            overflow = [c for c in margin_chars if float(c.get("bottom", 0.0)) > height - bottom_band]
+            if not overflow:
+                continue
+
+            lowest = max(float(c.get("bottom", 0.0)) for c in overflow)
+            line = [c for c in overflow if abs(float(c.get("bottom", 0.0)) - lowest) < 6.0]
+            snippet = "".join(c.get("text", "") for c in sorted(line, key=lambda c: float(c.get("x0", 0.0))))[:70].strip()
+            off_page = lowest > height + 1.0
+            findings.append(
+                Finding(
+                    "error" if off_page else "warning",
+                    "footnote-overflow",
+                    f"{_relative(pdf_path)}:page {page_index}",
+                    (
+                        f"margin footnote/sidenote {'clips off the page bottom' if off_page else 'reaches the page bottom'}; "
+                        f"shorten or rebalance the note: {snippet!r}"
+                    ),
+                )
+            )
+            if len(findings) >= max_findings:
+                break
+    return findings
+
+
 def layout_findings(pdf_path: Path, *, bottom_clearance: float = 72.0) -> list[Finding]:
     findings = scan_latex_logs()
     findings.extend(scan_pdf_geometry(pdf_path, bottom_clearance=bottom_clearance))
+    findings.extend(footnote_overflow_findings(pdf_path))
     return findings
 
 
@@ -1547,6 +1623,45 @@ def run_refs_check() -> None:
 
 def run_figures_check(pdf: Path = PDF_PATH) -> None:
     _exit_on_findings(pdf_figure_findings(pdf), title="PDF figures")
+
+
+def footnote_in_table_findings(paths: list[Path] | None = None) -> list[Finding]:
+    """Flag footnote markers inside Markdown table cells.
+
+    A footnote whose marker sits in a table cell breaks the Springer PDF build:
+    with ``reference-location: margin`` Quarto turns the footnote into a margin
+    sidenote, and inside a longtable cell the sidenote text leaks inline with an
+    unbalanced brace (LaTeX "Extra }, or forgotten \\endgroup"). Footnotes must
+    live in body prose, never in a table cell. Catches both inline ``^[...]`` and
+    reference ``[^id]`` markers; a ``[^id]:`` definition at column 0 is not a
+    table row and is correctly ignored.
+    """
+    targets = paths if paths is not None else content_qmd_files()
+    marker = re.compile(r"\^\[|\[\^[A-Za-z0-9_-]+\]")
+    findings: list[Finding] = []
+    for path in targets:
+        in_fence = False
+        for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+            stripped = line.lstrip()
+            if stripped.startswith("```") or stripped.startswith("~~~"):
+                in_fence = not in_fence
+                continue
+            if in_fence or not stripped.startswith("|"):
+                continue
+            if marker.search(line):
+                findings.append(
+                    Finding(
+                        "error",
+                        "footnote-in-table",
+                        f"{_relative(path)}:{lineno}",
+                        "footnote marker inside a table cell breaks the margin PDF build; move the note to body prose",
+                    )
+                )
+    return findings
+
+
+def run_footnote_table_check() -> None:
+    _exit_on_findings(footnote_in_table_findings(), title="footnotes in tables")
 
 
 def run_html_check(html: Path = HTML_PATH) -> None:
@@ -2206,6 +2321,12 @@ def validate_refs() -> None:
     run_refs_check()
 
 
+@validate_app.command("footnotes")
+def validate_footnotes() -> None:
+    """Check that no footnote marker sits inside a table cell (breaks the PDF margin build)."""
+    run_footnote_table_check()
+
+
 @verify_app.command("figures")
 def verify_figures(
     pdf: Path = typer.Option(PDF_PATH, "--pdf", help="Rendered PDF to inspect."),
@@ -2269,6 +2390,7 @@ def check_precommit() -> None:
     """Run fast, no-render checks suitable for pre-commit."""
     run_python_check()
     run_refs_check()
+    run_footnote_table_check()
     run_concept_check()
     run_disclosure_check()
     run_citation_check(show_context=False)
@@ -2280,6 +2402,7 @@ def check_standard(
 ) -> None:
     """Run the standard rendered-manuscript gate."""
     run_refs_check()
+    run_footnote_table_check()
     run_figures_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
@@ -2292,6 +2415,7 @@ def check_strict(
 ) -> None:
     """Run the standard gate plus strict SVG text-fit checks."""
     run_refs_check()
+    run_footnote_table_check()
     run_figures_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
@@ -2315,6 +2439,7 @@ def check_all(
 ) -> None:
     """Compatibility alias for check standard/strict."""
     run_refs_check()
+    run_footnote_table_check()
     run_figures_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")

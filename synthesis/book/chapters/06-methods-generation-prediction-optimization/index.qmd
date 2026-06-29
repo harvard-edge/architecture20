@@ -16,10 +16,10 @@ It is a discipline for matching method roles to architecture work.
 The distinction matters. A model that can generate plausible schedules,
 configuration files, code fragments, RTL snippets, or design prose may be
 useful for drafting alternatives, but weak for choosing among them. A
-surrogate^[Surrogate model: A cheap-to-evaluate approximation model built to mimic the behavior and predict the outputs of a complex, expensive-to-evaluate system like a hardware simulator.] may predict latency or energy well inside a calibrated accelerator
+surrogate may predict latency or energy well inside a calibrated accelerator
 design region, but fail outside the sampled space. Bayesian optimization may
 spend scarce simulator or synthesis evaluations carefully, but only if the
-action space and objective are well formed. Reinforcement learning^[Reinforcement learning (RL): A machine learning paradigm where an agent learns to make decisions by performing actions in an environment to maximize a cumulative reward. This is similar to training an agent to play games like Go or navigate a maze through trial and error, but here the "moves" are placement decisions or scheduling policies.] may be
+action space and objective are well formed. Reinforcement learning may be
 attractive for placement, scheduling, or adaptive control, but dangerous when
 invalid actions are common and feedback is delayed. A critic may be more
 valuable than a generator when the urgent problem is exposing missing workload
@@ -65,7 +65,7 @@ physical-design assistance, and evidence critique are not the same problem.
 They expose different state, allow different actions, tolerate different
 errors, and require different feedback.
 
-This is why environment work such as ArchGym, an open-source OpenAI Gym^[OpenAI Gym is a widely used toolkit for developing and comparing reinforcement learning algorithms, providing a standard interface for agents to interact with various environments.]-based architecture environment, is important: it makes method
+This is why environment work such as ArchGym, an open-source OpenAI Gym[^fn-openai-gym-c06]-based architecture environment, is important: it makes method
 comparisons meaningful by defining tasks, actions, observations, workloads,
 and feedback [@KrishnanEtAl2023ArchGym]. But even a shared environment
 does not decide which method role is appropriate. The role depends on what
@@ -88,7 +88,7 @@ loop can support with feedback.
 review prompt: what is the role doing, what evidence supports it, and what
 failure mode should the loop be prepared to reject?
 
-| Role | Architecture use | Evidence needed | Failure mode |
+| **Role** | **Architecture use** | **Evidence needed** | **Failure mode** |
 | --- | --- | --- | --- |
 | Generate | Propose configs, specs, code, RTL fragments, test benches, design reviews, or hypotheses. | Validity checks, constraints, provenance, and human review. | Plausible but invalid candidates. |
 | Predict | Estimate performance, energy, area, latency, reliability, or cost before full evaluation. | Calibration, uncertainty, coverage, and held-out checks. | Confident extrapolation outside support. |
@@ -116,7 +116,7 @@ configurations is different from one that claims final power. An optimizer
 that chooses the next cheap proxy run is different from one that commits a
 physical-design change.
 
-| Role | Object to name | Feedback to require | Rejection condition |
+| **Role** | **Object to name** | **Feedback to require** | **Rejection condition** |
 | --- | --- | --- | --- |
 | Generate | Workload variant, simulator config, tensor schedule, kernel, RTL fragment, EDA constraint, or design-loop card. | Parser, compiler, simulator, test harness, constraint checker, or human review. | Invalid syntax, unsupported action, wrong output, violated constraint, or missing provenance. |
 | Predict | Latency, energy, area, memory traffic, timing risk, thermal behavior, queueing delay, or deployment impact. | Calibration data, uncertainty, coverage region, held-out checks, and fidelity label. | Out-of-support query, counterexample, proxy mismatch, or uncalibrated extrapolation. |
@@ -145,7 +145,7 @@ This definition matters because Architecture 2.0 methods will often generate
 or revise artifacts near the hardware/software boundary: kernels, compiler
 settings, accelerator configurations, RTL fragments, memory-system choices,
 placement constraints, or design reports. Hardware-aware neural architecture
-search^[Neural architecture search (NAS): A technique for automating the design of artificial neural networks, finding optimal model architectures for a specific task instead of relying on human design.] already shows the value of putting latency, energy, memory footprint,
+search[^fn-neural-architecture-search-c06] already shows the value of putting latency, energy, memory footprint,
 and target-device cost into the search problem
 [@BenmezianeEtAl2021HardwareAwareNAS]. Architecture 2.0 uses a broader
 version of the same discipline: the question is not whether an artifact sounds
@@ -167,7 +167,7 @@ awareness reasons about the mechanisms that drive cost: data movement,
 locality, bandwidth, occupancy, parallelism, pipelines, and communication.
 Tool and environment awareness connects those mechanisms to compilers,
 profilers, simulators, synthesis reports, and failed runs. Evidence awareness
-adds calibration, uncertainty, proxy mismatch^[*Proxy mismatch* is when a cheap stand-in metric diverges from the true objective it estimates, so optimizing the proxy stops improving the real goal; it is an instance of Goodhart's Law, treated in full in @sec-feedback-verification-trust.], fidelity, and negative traces.
+adds calibration, uncertainty, proxy mismatch[^fn-proxy-mismatch-c06], fidelity, and negative traces.
 Commitment-boundary awareness is the highest level because the loop can state
 what the method may recommend, what must be escalated, and why the architect
 still owns the commitment.
@@ -188,7 +188,7 @@ architect-owned commitment boundary.
 Each level should be judged by what the method may change, what feedback
 supports that change, and what can reject it.
 
-| Capability | What it may change | Feedback needed | Rejection authority |
+| **Capability** | **What it may change** | **Feedback needed** | **Rejection authority** |
 | --- | --- | --- | --- |
 | Vocabulary | Terms in prompts, reports, or design notes. | Human review of meaning and misuse. | Architect rejects fluent but empty claims. |
 | Constraint | Candidate fields within declared budgets or limits. | Bounds, static checks, invalid-action filters, and feasibility rules. | Constraint violation or illegal action. |
@@ -204,7 +204,7 @@ The table is still too abstract unless each level has a falsifiable test.
 claim a higher level unless it can pass the observable test for that level in
 the current loop.
 
-| Claimed level | Reviewer test | Evidence to attach |
+| **Claimed level** | **Reviewer test** | **Evidence to attach** |
 | --- | --- | --- |
 | Vocabulary | Can the method use architecture terms without changing their meaning? | Human review notes or corrected definitions. |
 | Constraint | Does it reject illegal parameter combinations before scoring them? | Constraint logs, invalid-action traces, and rejected examples. |
@@ -326,7 +326,7 @@ candidate was trusted?
 There is a rigorous way to make this concrete when the assumptions are
 appropriate. Conformal prediction can wrap a surrogate, regardless of its
 internals, so that it emits calibrated prediction sets: intervals that contain
-the true value with a user-chosen probability under an exchangeability^[Exchangeability: A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).]
+the true value with a user-chosen probability under an exchangeability[^fn-exchangeability-c06]
 assumption [@AngelopoulosBates2021Conformal]. Architecture loops must audit
 that assumption because workloads, tools, and process corners are often not
 exchangeable. Still, the pattern is useful: it converts "report confidence"
@@ -352,11 +352,11 @@ stronger the calibration and fidelity requirement.
 Optimization is often framed as search: find the best point under an
 objective. Architecture needs a richer formulation. The useful goal is to
 learn the design space well enough to make a defensible decision under
-limited feedback. That may mean finding a Pareto region^[Pareto region: The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.], identifying a
+limited feedback. That may mean finding a Pareto region[^fn-pareto-region-c06], identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
 candidates, or deciding which expensive experiment is worth running next.
 
-Bayesian optimization^[Bayesian optimization: A strategy for the global optimization of black-box functions. It builds a probabilistic surrogate model of the objective and uses it to decide where to evaluate next, minimizing expensive evaluations. This is similar to hyperparameter tuning in machine learning, where expensive training runs are minimized by modeling the loss surface, but here the "training run" is a multi-hour hardware simulation.] is attractive for Architecture 2.0 because it was built
+Bayesian optimization is attractive for Architecture 2.0 because it was built
 for expensive black-box functions and sequential experimentation
 [@JonesSchonlauWelch1998EGO; @SnoekLarochelleAdams2012BayesianOptimization].
 It encourages the loop to trade off exploration and exploitation, to reason
@@ -392,7 +392,7 @@ tensor-program optimizers such as AutoTVM and Ansor, share a loop structure
 worth naming: a learned cost model proposes promising candidates, the loop
 compiles and measures the strongest of them on real hardware, and those
 measurements correct the cost model for the next round
-[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. That is an active-learning^[Active learning: A machine learning approach where the algorithm interactively queries an oracle (like a simulator or hardware measurement) to obtain the true labels for new data points, typically selecting those it is most uncertain about in order to improve its model with minimal expensive feedback.] loop
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. That is an active-learning loop
 running in production: the cheap proxy is never trusted alone, because
 high-fidelity feedback continually re-grounds it. These systems are not
 identical to microarchitecture design, but they are lighthouse facets rather
@@ -412,7 +412,7 @@ number without improving architectural understanding.
 ## Sample Efficiency under Expensive Feedback
 
 Whether an optimizer spends its scarce high-fidelity evaluations carefully is
-itself the problem of sample efficiency^[Sample efficiency: A measure of how much data or how many environmental interactions an algorithm requires to reach a target level of performance. High sample efficiency means fewer expensive simulations are needed.], which is one of the reasons architecture is a hard AI domain.
+itself the problem of sample efficiency[^fn-sample-efficiency-c06], which is one of the reasons architecture is a hard AI domain.
 Many AI settings assume abundant feedback. Architecture often has the
 opposite shape: a small number of high-fidelity runs, a larger number of
 medium-fidelity simulations, many cheap proxies, and a long tail of hidden
@@ -496,7 +496,7 @@ what they would resolve, not a quantity the loop should try to maximize.
 This heuristic has a rigorous counterpart. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
 each candidate next-sample) over a surrogate's posterior, and GP-UCB (Gaussian
-Process Upper Confidence Bound) gives that choice a no-regret guarantee^[A *no-regret* guarantee means the loop's cumulative sampling loss grows sublinearly, so over time its choices provably approach those of the best fixed strategy under the stated assumptions.] under stated
+Process Upper Confidence Bound) gives that choice a no-regret guarantee[^fn-no-regret-guarantee-c06] under stated
 assumptions, so the loop can defend why it sampled where it did rather than
 appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian
 optimization goes one step further and treats the fidelity level itself as a
@@ -519,7 +519,7 @@ minutes, hours, weeks, or silicon cycles.
 The fidelity ladder is therefore a budget discipline: cheap levels buy breadth,
 and expensive levels buy rejection authority.
 
-| Regime | Typical setting | Method implication | Evidence discipline |
+| **Regime** | **Typical setting** | **Method implication** | **Evidence discipline** |
 | --- | --- | --- | --- |
 | Many cheap proxy runs | Analytic models, rough estimators, compiler hints. | Broad search, candidate generation, surrogate pretraining. | Track proxy validity and avoid overfitting the cheap metric. |
 | Hundreds of simulations | Simulator-backed DSE or workload sweeps. | Bayesian optimization, active learning, transfer, sensitivity analysis. | Record seeds, configs, workloads, and failed runs. |
@@ -581,7 +581,7 @@ it is wrong?
 not meant to produce an automatic answer. It is meant to prevent method
 selection from being driven by fashion.
 
-| Question | If the answer is favorable | If the answer is unfavorable |
+| **Question** | **If the answer is favorable** | **If the answer is unfavorable** |
 | --- | --- | --- |
 | Is the task bounded? | Use stronger automation inside the boundary. | First decompose the task or keep the method advisory. |
 | Are actions validatable? | Let the environment reject illegal candidates. | Use generation only with strict human/tool review. |
@@ -634,3 +634,11 @@ that question by making fidelity, verification, rejection, and trust explicit.
 - **Next loop state:** Once methods can act, the next question is whether their
   feedback becomes evidence strong enough to support trust.
 :::
+
+[^fn-openai-gym-c06]: **OpenAI Gym**: A widely used toolkit for developing and comparing reinforcement learning algorithms, providing a standard interface for agents to interact with various environments.
+[^fn-neural-architecture-search-c06]: **Neural architecture search (NAS)**: A technique for automating the design of artificial neural networks, finding optimal model architectures for a specific task instead of relying on human design.
+[^fn-proxy-mismatch-c06]: **Proxy mismatch**: When a cheap stand-in metric diverges from the true objective it estimates, so optimizing the proxy stops improving the real goal; it is an instance of Goodhart's Law, treated in full in @sec-feedback-verification-trust.
+[^fn-exchangeability-c06]: **Exchangeability**: A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).
+[^fn-pareto-region-c06]: **Pareto region**: The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.
+[^fn-sample-efficiency-c06]: **Sample efficiency**: A measure of how much data or how many environmental interactions an algorithm requires to reach a target level of performance. High sample efficiency means fewer expensive simulations are needed.
+[^fn-no-regret-guarantee-c06]: **No-regret guarantee**: A guarantee that the loop's cumulative sampling loss grows sublinearly, so over time its choices provably approach those of the best fixed strategy under the stated assumptions.
