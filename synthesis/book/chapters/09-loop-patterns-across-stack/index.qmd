@@ -509,6 +509,33 @@ whether one generated path happened to work.
 
 ![**Hardware and software co-evolve through shared evidence:** Early architecture work often changes the hardware target and the software path at the same time. The loop becomes credible when the hardware snapshot, software artifact, tests, metrics, rejected variants, and decision owner are recorded together.](images/F10c-hardware-software-coevolution){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware target state and software path state evolving together through a shared evidence ledger, rejection gate, and architect decision path."}
 
+Google's warehouse-scale migration from x86 to Arm is a deployed instance of
+this discipline [@ChristopherEtAl2025ISAMigration]. Moving a production fleet
+that runs services such as Gmail and BigQuery onto a new instruction set is
+co-evolution at scale: the hardware target changes and tens of thousands of
+applications must follow. The reported effort analyzed more than 38,000
+migration commits and wrapped part of the software change in an agentic
+build-and-test repair loop, accepting a candidate fix only when the build and
+the test suite pass, and letting a fleet monitor automatically evict jobs that
+crash-loop or run slow on the new target. Authority sits with the instruments,
+not the generator: build, test, sanitizers that expose memory-model differences
+between the two ISAs, and the production monitor that rejects regressions and
+preserves the evicted cases as negative traces for offline debugging. The repair
+tool resolves only a minority of failures on its own, roughly a third of broken
+tests without tuning, and the hardest changes stay with the application owners
+who know the code. The model behind the loop will age; the structure, a
+represented migration loop with instrument-held rejection authority and
+human-owned exceptions, is the part worth keeping.
+
+The most instructive result is what the evidence overturned. Going in, the team
+and the application owners expected the work to be dominated by low-level
+architectural differences: floating-point drift, concurrency, and
+platform-specific intrinsics. The recorded evidence showed otherwise. Most of
+the effort was tests that encoded x86-specific assumptions, build and release
+systems, and configuration rollout. Unaided architectural intuition mispredicted
+where the work actually was. That is the case for a represented, evidence-bearing
+loop in a single sentence: the loop found the work the experts did not expect.
+
 ## Systems Loops: Runtime, Serving, and Datacenter Policy
 
 Systems loops evaluate architecture choices in deployed or deployment-like
