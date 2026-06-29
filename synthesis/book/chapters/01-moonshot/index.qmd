@@ -83,7 +83,7 @@ around loops. Architects frame a problem, choose abstractions, construct models
 or simulators, select workloads, explore alternatives, evaluate results,
 reject weak candidates, and revise assumptions. For example, an architect
 weighing a larger L2 cache frames the question (does it help this workload mix
-without hurting energy?), picks a cycle-level simulator and a benchmark suite,
+without hurting energy?), sets up a cycle-level simulator (like gem5) or a full-system RTL emulator (like FireSim), selects a benchmark suite,
 sweeps cache sizes, associativities, and replacement policies, reads the
 resulting miss rates and energy estimates, rejects the configurations that help
 one workload while hurting another, and revises the design before committing it
@@ -288,18 +288,20 @@ datasets, executable environments, and tool interfaces that make pieces of those
 loops plausible enough to study. Publicly reported examples already include reinforcement
 learning systems for physical-design exploration and learned circuit-generation
 workflows with silicon evidence
-[@Synopsys2023DSOai; @RoyEtAl2021PrefixRL]. @sec-loop-patterns-across-stack returns to those examples
+[@Synopsys2023DSOai; @RoyEtAl2021PrefixRL]. Reinforcement learning is a machine
+learning training method based on rewarding desired behaviors and punishing
+undesired ones, often used to navigate complex design spaces. @sec-loop-patterns-across-stack returns to those examples
 as loop-pattern cases. The
 moonshot is not that these pieces exist; it is assembling them into a family of
 represented, evidence-bearing loops that a human can still govern.
 
-XRBench gives the prompt a workload anchor rather than a vague application
+XRBench, a benchmark suite for mobile extended reality (XR) workloads, gives the prompt a workload anchor rather than a vague application
 label [@KwonEtAl2023XRBench]. Real-time mobile XR stresses latency,
 energy, memory movement, model concurrency, sensing, graphics, and deployment
-constraints. A 64-bit RISC-V contract gives the design an ISA boundary. Vector
+constraints. A 64-bit RISC-V contract (an open standard instruction set architecture) gives the design an ISA boundary. Vector
 capability makes the compute organization concrete but does not decide whether
-the realization should be a CPU extension, accelerator, or SoC block. A 3 W
-thermal-design-power target and 3 nm-class low-power mobile process assumption
+the realization should be a CPU extension, accelerator, or SoC block. A 3\ W
+thermal-design-power target and 3\ nm-class low-power mobile process assumption
 force the prompt into a contemporary technology envelope. The node is
 intentionally stated as a class rather than as a named foundry PDK; current
 mobile SoCs are publicly
@@ -309,7 +311,9 @@ path it actually uses [@Apple2024A18Pro; @Apple2024M4]. The requested
 deliverable is not merely a design. It is a design-space report with evidence
 and rejected alternatives.
 
-One way to read the prompt is through the familiar foundation-model stack. In
+One way to read the prompt is through the familiar foundation-model stack. A
+foundation model is a large-scale AI model trained on a vast quantity of data
+that can be adapted to a wide range of downstream tasks. In
 the generic version, many kinds of inputs feed a central foundation model, and
 many downstream applications fan out on the other side. The architecture
 analogy is different. The left side includes workload traces, specifications,
@@ -333,7 +337,7 @@ Read Panel B as a loop substrate, not as a single model call. For the
 lighthouse prompt, one loop turn might ingest an XRBench trace slice and a
 software pipeline description, generate vector-width, local-memory, and
 CPU/accelerator partition candidates, run a cheap performance and power proxy,
-reject candidates that miss the latency or 3 W envelope, and preserve the
+reject candidates that miss the latency or 3\ W envelope, and preserve the
 rejected alternatives as evidence for the next turn. A higher-commitment turn
 would replace some of that proxy evidence with simulator runs, compiler output,
 RTL fragments, or physical-design feedback. The foundation-model analogy is
@@ -378,7 +382,7 @@ a way for the loop to be wrong.
 | XRBench mobile XR | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace provenance, benchmark version, workload coverage, and rejection when results miss real-time behavior. |
 | 64-bit RISC-V with vector or accelerator option | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
 | Compute subsystem | CPU, accelerator, tightly coupled unit, SoC block, memory hierarchy, interconnect, chiplet boundary if any, and integration point. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere. |
-| 3 W, 3 nm-class low-power envelope | Power, voltage/frequency, thermal, area, process/library assumptions, RTL feasibility, EDA constraints, and physical signoff path. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and rejection when stronger physical evidence violates the envelope. |
+| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, process/library assumptions, RTL feasibility, EDA constraints, and physical signoff path. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and rejection when stronger physical evidence violates the envelope. |
 | Design-space report with evidence and rejected alternatives | Alternatives, Pareto fronts, assumptions, uncertainty, verification plan, rejected or failed candidates, and human decision points. | Evidence ledger: connected measurements, assumptions, checks, rejections, coverage, reproducible artifacts, and explicit rejection authority before higher commitment. |
 
 : **Prompt fragments create architecture obligations:** The lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
@@ -438,7 +442,7 @@ seven obligations explicit:
 
 No single model can make these obligations disappear. The table is deliberately
 compressed; each row expands into many implementation and evidence questions.
-The "3 W, 3 nm-class" row, for example, reaches down into RTL, synthesis,
+The "3\ W, 3\ nm-class" row, for example, reaches down into RTL, synthesis,
 floorplanning, timing, IR drop, leakage, thermal behavior, and signoff. The
 "RISC-V with vector or accelerator option" row reaches sideways into compilers,
 runtimes, libraries, generated code, and portability. Architecture development
