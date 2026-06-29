@@ -392,36 +392,73 @@ only shifting but growing far faster than any hardware cadence can follow.
 ```{python}
 #| label: fig-ai-compute-growth
 #| fig-cap: |
-#|   **AI compute demand is a fast-moving target:** Training compute for notable AI systems has grown by roughly twenty orders of magnitude since the Perceptron, with a sharp acceleration in the deep-learning era after 2012 [@SevillaEtAl2022ComputeTrends]. The architecture that serves these systems is designed against a workload whose scale and shape change far faster than a silicon program can.
+#|   **AI compute demand is a fast-moving target:** Training compute for notable AI systems has grown by roughly twenty orders of magnitude since the Perceptron, with a sharp acceleration in the deep-learning era after 2012 and continued frontier growth well past GPT-4 [@SevillaEtAl2022ComputeTrends]. Points are notable-model training-compute estimates from Epoch AI's database; the dashed line is the deep-learning-era trend and the 2025 frontier point is an order-of-magnitude estimate. The architecture that serves these systems is designed against a workload whose scale and shape change far faster than a silicon program can.
 #| out-width: "78%"
-#| fig-alt: "Log-scale plot of AI training compute by year, rising about twenty orders of magnitude from the 1958 Perceptron to GPT-4 in 2023, with a steeper slope after 2012."
+#| fig-alt: "Log-scale scatter of AI training compute by year for a dozen notable models, rising about twenty orders of magnitude from the 1958 Perceptron to frontier 2024-2025 systems, with a steep deep-learning-era trend line after 2012."
 
+import math
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, apply_style
 
 apply_style()
-points = [
-    (1958, 7e5, "Perceptron"),
-    (2012, 4.7e17, "AlexNet"),
-    (2018, 2.9e20, "BERT-Large"),
-    (2020, 3.1e23, "GPT-3"),
-    (2023, 2.1e25, "GPT-4"),
-]
-years = [p[0] for p in points]
-flops = [p[1] for p in points]
 
-fig, ax = plt.subplots(figsize=(4.65, 2.4))
+# (year, training-compute FLOP, label, show_label). Notable-model estimates
+# from Epoch AI's database; the three-eras trend is from Sevilla et al. 2022.
+# Mantissas are estimates; the 2025 frontier point is order-of-magnitude only.
+points = [
+    (1958, 7e5,    "Perceptron", True),
+    (2012, 4.7e17, "AlexNet", True),
+    (2014, 1.6e19, "VGG-16", False),
+    (2017, 7.4e18, "Transformer", False),
+    (2016, 1.9e23, "AlphaGo", False),
+    (2018, 2.9e20, "BERT-Large", True),
+    (2019, 1.5e21, "GPT-2", False),
+    (2020, 3.1e23, "GPT-3", True),
+    (2021, 6.3e23, "Gopher", False),
+    (2022, 2.5e24, "PaLM", False),
+    (2023, 2.1e25, "GPT-4", True),
+    (2024, 3.8e25, "Llama 3.1 405B", False),
+    (2025, 1e26,   "frontier (est.)", True),
+]
+
+pre = [p for p in points if p[0] < 2012]
+dl = [p for p in points if p[0] >= 2012]
+fit = [p for p in dl if p[2] != "AlphaGo"]  # outlier RL run skews the slope
+
+# plain log-linear least squares for the deep-learning-era trend line
+fx = [p[0] for p in fit]
+fy = [math.log10(p[1]) for p in fit]
+n = len(fx)
+mx = sum(fx) / n
+my = sum(fy) / n
+slope = sum((x - mx) * (y - my) for x, y in zip(fx, fy)) / sum((x - mx) ** 2 for x in fx)
+intercept = my - slope * mx
+tx = [2012, 2026]
+
+fig, ax = plt.subplots(figsize=(4.65, 2.45))
 fig.subplots_adjust(left=0.16, right=0.96, top=0.95, bottom=0.18)
-ax.plot(years, flops, color=COLORS["blue"], linewidth=1.6, zorder=1)
-ax.scatter(years, flops, s=22, color=COLORS["blue"], zorder=2)
+ax.plot(tx, [10 ** (intercept + slope * x) for x in tx], color=COLORS["muted"],
+        linewidth=1.0, linestyle=(0, (4, 3)), zorder=1)
+ax.scatter([p[0] for p in pre], [p[1] for p in pre], s=20, color=COLORS["muted"], zorder=3)
+ax.scatter([p[0] for p in dl], [p[1] for p in dl], s=24, color=COLORS["blue"], zorder=3)
 ax.set_yscale("log")
-ax.set_ylim(1e4, 1e27)
-ax.set_xlim(1953, 2030)
+ax.set_ylim(1e4, 1e28)
+ax.set_xlim(1953, 2028)
 ax.set_ylabel("training compute (FLOP)", fontsize=7)
 ax.set_xticks([1960, 1980, 2000, 2020])
 ax.tick_params(axis="both", labelsize=6.5, length=2.5, width=0.6, pad=2)
-for x, y, lab in points:
-    ax.annotate(lab, (x, y), textcoords="offset points", xytext=(5, -1), fontsize=6.0, color=COLORS["ink"])
+offsets = {
+    "Perceptron": (8, -3),
+    "AlexNet": (7, -8),
+    "BERT-Large": (7, -3),
+    "GPT-3": (7, -2),
+    "GPT-4": (5, -10),
+    "frontier (est.)": (4, 4),
+}
+for x, y, lab, show in points:
+    if show:
+        dx, dy = offsets.get(lab, (5, -2))
+        ax.annotate(lab, (x, y), textcoords="offset points", xytext=(dx, dy), fontsize=5.7, color=COLORS["ink"])
 ax.grid(axis="y", color=COLORS["grid"], linewidth=0.6)
 for spine in ["top", "right"]:
     ax.spines[spine].set_visible(False)
