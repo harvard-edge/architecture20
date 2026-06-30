@@ -22,7 +22,7 @@ a loop; it is a wish. This chapter narrows the task to one XRBench-class[^fn-xrb
 workload slice. The loop chooses among three compute organizations under a 3\ W
 power envelope and an 8\ ms per-frame real-time deadline, then returns the
 surviving candidate with its evidence and its rejected alternatives. The
-candidates are a vector CPU extension, a tightly coupled accelerator, and a
+candidates are a vector CPU extension, a loosely coupled accelerator, and a
 shared-memory SoC block. That is enough to make the loop turn.
 
 @tbl-active-lighthouse-slice states the active slice of the lighthouse prompt.
@@ -34,7 +34,7 @@ next evidence stage.
 | Workload | One XRBench-class mobile-XR slice with a real-time frame deadline. |
 | Baseline | A bounded comparison among three compute organizations, not a full product baseline. |
 | ISA/software assumption | All candidates remain within a 64-bit RISC-V-compatible software path; compiler/runtime feasibility is deferred. |
-| Design space / control surface | Vector CPU extension, tightly coupled accelerator, or shared-memory SoC block; no cache, chiplet, voltage, or compiler-policy search yet. |
+| Design space / control surface | Vector CPU extension, loosely coupled accelerator, or shared-memory SoC block; no cache, chiplet, voltage, or compiler-policy search yet. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, or silicon evidence. |
 
@@ -55,7 +55,7 @@ The loop begins cheaply. A generator proposes the three organizations, and an
 analytic proxy, a pre-RTL estimator in the spirit of Aladdin or a dataflow model
 like Timeloop [@ShaoEtAl2014Aladdin; @ParasharEtAl2019Timeloop], estimates
 latency and energy per frame in milliseconds and millijoules. The proxy is fast and ignores most data movement, so it flatters
-designs that keep arithmetic local. At this fidelity the tightly coupled
+designs that keep arithmetic local. At this fidelity the loosely coupled
 accelerator looks best: it posts the lowest energy and latency because the
 proxy never charges it for moving data in and out.
 
@@ -82,7 +82,7 @@ that survived screening. The result is the central lesson of the chapter:
 
 candidates = [
     {"name": "Vector CPU extension",        "proxy_lat": 7.6, "proxy_e": 22, "sim_lat": 9.5, "sim_e": 24, "power": 2.1},
-    {"name": "Tightly coupled accelerator", "proxy_lat": 4.5, "proxy_e": 12, "sim_lat": 8.8, "sim_e": 28, "power": 3.6},
+    {"name": "Loosely coupled accelerator", "proxy_lat": 4.5, "proxy_e": 12, "sim_lat": 8.8, "sim_e": 28, "power": 3.6},
     {"name": "Shared-memory SoC block",     "proxy_lat": 6.0, "proxy_e": 16, "sim_lat": 6.5, "sim_e": 18, "power": 2.8},
 ]
 deadline_ms = 8.0
@@ -150,7 +150,7 @@ rediscover it. @fig-proxy-mirage shows the reorder.
 ```{python}
 #| label: fig-proxy-mirage
 #| fig-cap: |
-#|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the tightly coupled accelerator, becomes the worst once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
+#|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the loosely coupled accelerator, becomes the worst once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
 #| out-width: "82%"
 #| fig-alt: "Grouped comparison plot showing that proxy energy ranking reverses when cycle-level simulation and power constraints are applied."
 
@@ -161,7 +161,7 @@ apply_style()
 
 line_colors = {
     "Vector CPU extension": COLORS["blue"],
-    "Tightly coupled accelerator": COLORS["orange"],
+    "Loosely coupled accelerator": COLORS["orange"],
     "Shared-memory SoC block": COLORS["green"],
 }
 
@@ -202,7 +202,7 @@ plt.close(fig)
 
 ## Round Three: Reject on the Envelope
 
-The simulation-stage estimate also exposes harder gates. The tightly coupled accelerator does not
+The simulation-stage estimate also exposes harder gates. The loosely coupled accelerator does not
 merely lose on energy; its simulated latency misses the 8\ ms deadline and its
 power model puts it over the 3\ W envelope. Those are constraints, not just
 metrics, so no local proxy advantage rescues it. The
@@ -248,13 +248,13 @@ loop can state what it did and what would reject it.
 | --- | --- |
 | Intent | Explore a low-power mobile-XR compute organization that can meet a real-time deadline under a 3\ W envelope. |
 | Task | Compare three bounded compute organizations for one XRBench-class workload slice. |
-| Design space / control surface | Choose among vector CPU extension, tightly coupled accelerator, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, and RTL edits outside this turn. |
+| Design space / control surface | Choose among vector CPU extension, loosely coupled accelerator, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, and RTL edits outside this turn. |
 | Representation | Candidate ID, proxy latency and energy, simulated latency and energy, power estimate, deadline, power envelope, and verdict. |
 | Environment | Analytic proxy followed by a gem5-class cycle-level simulation and a simple power-envelope check. |
 | Method role | Generate candidates, predict cheap proxy scores, escalate promising candidates, and critique proxy wins against stronger feedback. |
 | Feedback budget | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
 | Evidence | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. |
-| Negative traces | The vector CPU extension misses the latency deadline; the tightly coupled accelerator misses the latency deadline and exceeds the power envelope after simulation exposes data movement. |
+| Negative traces | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after simulation exposes data movement. |
 | Rejection authority | Deadline check, power-envelope check, and the stronger simulation result that can overturn the proxy ranking. |
 | Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, and stronger power evidence. |
 | Human decision | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
