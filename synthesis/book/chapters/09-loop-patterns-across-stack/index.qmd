@@ -664,12 +664,20 @@ S_{\mathrm{loop}} \le
 \frac{1}{(1-f) + f \cdot (c_{\mathrm{cheap}}/c_{\mathrm{hi}}) +
 \epsilon_{\mathrm{escalate}}}.
 $$
-Here $f$ is the fraction of commitments the cheap rejector can discharge,
-$(1-f)$ is the irreducible part that still needs high-fidelity evidence or human
-judgment, $c_{\mathrm{cheap}}/c_{\mathrm{hi}}$ is the cost of a cheap check
-relative to a high-fidelity one, and $\epsilon_{\mathrm{escalate}}$ is the
-overhead paid each time the cheap rejector defers and the loop must climb the
-fidelity ladder. The form is Amdahl's law as LogCA prices it
+Here $f$ is the fraction of commitments the cheap rejector can settle by
+*rejection*: a cheap, independent check can reliably catch a violation but cannot
+certify correctness, so anything that must be *accepted* still needs
+high-fidelity evidence and falls in $(1-f)$, the irreducible part that only
+stronger feedback or human judgment can clear. The ratio
+$c_{\mathrm{cheap}}/c_{\mathrm{hi}}$ is the cost of a cheap check relative to a
+high-fidelity one, and $\epsilon_{\mathrm{escalate}}$ is the escalation overhead:
+the rate at which the cheap rejector defers times the cost of each climb up the
+fidelity ladder, expressed relative to $c_{\mathrm{hi}}$. The form charges the
+cheap check only on the commitments it settles; a rejector that must screen every
+candidate pays $c_{\mathrm{cheap}}$ on all of them, which only lowers
+$S_{\mathrm{loop}}$ further, so the relation is written as an upper bound, with
+equality in the idealized case where triage and escalation overheads vanish. The
+form is Amdahl's law as LogCA prices it
 [@Amdahl1967ValiditySingleProcessor; @AltafWood2017LogCA]. The cheap rejector's
 local speedup is just $c_{\mathrm{hi}}/c_{\mathrm{cheap}}$, so the middle term is
 exactly Amdahl's $f/s$, and escalation overhead plays the role the interface cost
@@ -677,8 +685,14 @@ played for the accelerator. The form is borrowed and credited. What is new is
 what the variables name and what they rule out.
 
 What they rule out is the thing most easily mistaken for progress. Candidate
-count does not appear in the bound. A loop can double, or multiply by a thousand,
-the number of designs it proposes and move $S_{\mathrm{loop}}$ not at all. The
+count does not appear in the bound. That much is nearly a tautology, since
+$S_{\mathrm{loop}}$ is a per-commitment ratio and the candidate count divides
+out. The substantive claim is that generation and rejection are ordinarily
+independent levers: proposing more designs raises the candidate count but not
+$f$, so a loop can multiply its proposals by a thousand and move
+$S_{\mathrm{loop}}$ not at all. The one way out is a generator good enough to
+propose only obviously-good or obviously-rejectable candidates, which would raise
+$f$ itself, a better rejector wearing a generator's clothes. Short of that, the
 bound exposes only three levers: raise $f$, lower the cost ratio, or lower
 escalation overhead.
 
@@ -706,6 +720,18 @@ independent, trusted rejections, and nothing else. Third, $(1-f)$ is a floor. Th
 commitments that only silicon, deployment, or a human can settle set a ceiling on
 loop throughput that no amount of cheap, abundant generation removes. It is
 Amdahl's serial fraction, written for the design loop.
+
+The bound is not only a way to talk; its variables are estimable on a real loop.
+The fleet ISA migration earlier in this chapter gives one reading. Turned on the
+broken tests the migration left behind, the cheap, independent instruments,
+build, test, sanitizers that expose memory-model differences, and the production
+monitor, together with the automated repair tool, discharged roughly a third of
+those commitments without a human, and the rest escalated to the engineers who
+owned the code. That is an $f$ of about $0.3$, with a $(1-f)$ floor of
+human-owned commitments, exactly the shape the bound predicts: progress tracked
+the fraction the cheap, independent instruments could clear, not the number of
+fixes proposed. One measured point is not a validated law, but it shows the
+variables can be read off a deployed loop rather than only defined on paper.
 
 The bound also makes the scissors gap of @sec-design-loop-no-longer-scales
 computable. The gap widens precisely when one blade, the rate of proposals and
