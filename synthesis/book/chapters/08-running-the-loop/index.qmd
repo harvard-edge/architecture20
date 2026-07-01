@@ -26,8 +26,11 @@ a loop; it is a wish. This chapter narrows the task to one XRBench-class[^fn-xrb
 workload slice. The loop chooses among three compute organizations under a 3\ W
 power envelope and an 8\ ms per-frame real-time deadline, then returns the
 surviving candidate with its evidence and its rejected alternatives. The
-candidates are a vector CPU extension, a loosely coupled accelerator, and a
-shared-memory SoC block. That is enough to make the loop turn.
+candidates are a vector CPU extension, a deliberately loose accelerator stress
+case, and a shared-memory SoC block. The loose accelerator is not the only
+accelerator realization allowed by the prompt; it is included so interface and
+data-movement costs have somewhere to show up. That is enough to make the loop
+turn.
 
 @tbl-active-lighthouse-slice states the active slice of the lighthouse prompt.
 Everything outside the slice is not ignored; it is explicitly deferred to the
@@ -38,7 +41,7 @@ next evidence stage.
 | Workload | One XRBench-class mobile-XR slice with a real-time frame deadline. |
 | Baseline | A bounded comparison among three compute organizations, not a full product baseline. |
 | ISA/software assumption | All candidates remain within a 64-bit RISC-V-compatible software path; compiler/runtime feasibility is deferred. |
-| Design space | Vector CPU extension, loosely coupled accelerator, or shared-memory SoC block; no cache, chiplet, voltage, or compiler-policy search yet. |
+| Design space | Vector CPU extension, deliberately loose accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator search yet. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, or silicon evidence. |
 
@@ -220,22 +223,19 @@ doing its work: a candidate advances only if it is valid, its evidence clears th
 threshold for the stage, and its residual risk is acceptable.
 
 ::: {.callout-lighthouse title="Price the interface before believing the accelerator"}
-**Context.** The accelerator loses here for an architectural reason, not because
-acceleration is inherently bad: the loop finally charged the path that feeds the
-local speedup.
+**Context.** This worked loop deliberately includes a loosely coupled
+accelerator as a stressed integration variant, even though the full prompt also
+allows a tighter accelerator path.
 
-**In the Lighthouse prompt.** The "vector or accelerator option" and "compute
-subsystem" fragments force a comparison among a CPU extension, a loosely coupled
-accelerator, and a shared-memory SoC block as integration choices. The loose
-accelerator's local arithmetic win is rejected once data movement across its
-interface misses the 8\ ms deadline and pushes average power over the 3\ W
-envelope. The SoC block survives this stage because its integration point keeps
-enough work near shared memory to clear the current evidence gates.
+**Fixed, varied, deferred.** The RISC-V-compatible software path, XRBench slice,
+8\ ms deadline, and 3\ W envelope are fixed. The loop varies compute
+organization and interface cost. Compiler/runtime, RTL, thermal, and
+physical-design evidence are deferred to the next stage.
 
-**Reader takeaway.** For the lighthouse prompt, an accelerator is not a faster
-box attached to the side. It is an interface, memory-system, software-path, and
-power claim that must be priced end to end before it can beat a CPU or SoC
-alternative.
+**Reader takeaway.** In the Lighthouse loop, an accelerator is not a faster box
+attached to the side. It is an interface, memory-system, software-path, and
+power claim; once data movement across that interface misses the deadline and
+crosses the envelope, the local arithmetic win no longer matters.
 :::
 
 ## Round Four: Commit at an Honest Level
@@ -270,7 +270,7 @@ loop can state what it did and what would reject it.
 | --- | --- |
 | Intent | Explore a low-power mobile-XR compute organization that can meet a real-time deadline under a 3\ W envelope. |
 | Task | Compare three bounded compute organizations for one XRBench-class workload slice. |
-| Design space | Choose among vector CPU extension, loosely coupled accelerator, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, and RTL edits outside this turn. |
+| Design space | Choose among vector CPU extension, deliberately loose accelerator stress case, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, full tightly coupled accelerator search, and RTL edits outside this turn. |
 | Representation | Candidate ID, proxy latency and energy, simulated latency and energy, power estimate, deadline, power envelope, and verdict. |
 | Environment | Analytic proxy followed by a gem5-class cycle-level simulation and a simple power-envelope check. |
 | Method role | Generate candidates, predict cheap proxy scores, escalate promising candidates, and critique proxy wins against stronger feedback. |
