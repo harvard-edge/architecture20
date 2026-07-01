@@ -129,6 +129,9 @@ which XR workloads, models, devices, frame-rate targets, latency constraints,
 memory behaviors, and software paths are represented. A loop that optimizes
 one benchmark point may miss the distribution that a real mobile XR subsystem
 must serve.
+For an agentic loop, the workload arrives as a packet, not a name: scenario
+labels, device class, trace provenance, input distributions, excluded cases,
+coverage gaps, and rejection conditions.
 
 MLPerf is the standing example, established where this book treats benchmarks as
 maintained community infrastructure with versions, rules, and submission
@@ -198,6 +201,9 @@ parallelism, numerical precision, backend behavior, and target-specific
 hardware resources. Multi-platform kernel-generation work makes that bridge
 explicit by separating the core benchmark from target backends
 [@WenEtAl2025MultiKernelBench].
+For agents, the benchmark object needs more than a prompt and a score: kernel
+IDs, input-shape distributions, correctness oracles, target metadata,
+compile/profile failure traces, and rejected variants.
 
 Read as a loop card, the task is bounded code generation or tuning; the
 representation is source code, compiler IR, tests, target metadata, and
@@ -241,6 +247,10 @@ shows that data-driven modeling has a longer architecture lineage
 [@IpekEtAl2006PredictiveDSE]. Transferable frameworks such as Apollo go a step
 further, training a surrogate on an architecture dataset and carrying the same
 search across different design spaces [@yazdanbakhsh2021apollo].
+That dataset has to be treated as a loop artifact, not a generic training set:
+design-space schema, sampled-region coverage, tool versions, invalid-action
+labels, rejected regions, and proxy-fidelity calibration determine what an
+agent may infer from it.
 
 Chiplets raise the stakes because they turn partitioning and interfaces into
 architectural decisions. Standards such as UCIe (Universal Chiplet Interconnect Express) make chiplet integration more
@@ -258,12 +268,14 @@ work lives relative to the 64-bit RISC-V core, memory hierarchy, interconnect,
 compiler/runtime path, and product boundary. A vector extension changes the CPU
 contract; a tightly coupled accelerator changes the invocation, sharing, and
 memory-attachment contract; a shared-memory SoC block changes integration and
-coherence assumptions. A loop may still test a looser accelerator variant, but
-then the coupling assumption must be explicit.
+coherence assumptions.
 
-**Reader takeaway.** The DSE loop should reject candidates that only win by
-moving cost into memory traffic, compiler support, verification, or SoC
-integration work that the candidate did not price.
+**Integration boundary.** A loop may still test a looser accelerator variant,
+but the coupling assumption must be explicit.
+
+**Takeaway.** The DSE loop should reject candidates that only win by moving cost
+into memory traffic, compiler support, verification, or SoC integration work
+that the candidate did not price.
 :::
 
 Read as a loop card, the task is architecture search; the representation is
@@ -410,6 +422,9 @@ should say what shape of domain it is using and what that choice implies for
 representation, action space, evidence, and maintenance. A benchmark name is
 not enough. Two workloads in the same named domain may have different memory
 behavior, precision contracts, software interfaces, or deployment drift.
+Those workload features determine which agent actions are legal and which
+claims a loop must reject: kernel family, precision contract, data-movement
+pattern, software interface, drift risk, and test coverage.
 
 ![**Domain specificity has many shapes:** A domain-specific architecture is not specialized for a label; it is specialized for a bundle of kernel, precision, data-movement, interface, deployment, drift, and verification constraints. The loop must represent the shape it is claiming to exploit.](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing that domain specificity can arise from kernels, precision, data movement, interfaces, deployment constraints, drift, and verification needs."}
 
@@ -556,15 +571,14 @@ RISC-V" is not only a hardware target.
 **In the Lighthouse prompt.** Choosing a 64-bit RISC-V-compatible path means the
 loop owes evidence for generated code, ABI assumptions, compiler/runtime
 behavior, library support, tests, and deployment rollout, not just an instruction
-encoding. The migration case is not the same target, but it reveals the shape of
-the obligation: build, test, sanitizers, production monitors, and application
-owners become rejection authorities for the ISA choice.
+encoding.
 
-**Boundary.** This does not turn the lighthouse subsystem into a fleet migration
-story. It uses the migration case to explain the kind of software-contract
-evidence a RISC-V subsystem claim would eventually need.
+**Boundary.** The migration case is not the same target, but it reveals the kind
+of software-contract evidence a RISC-V subsystem claim would eventually need:
+build, test, sanitizers, production monitors, and application owners become
+rejection authorities for the ISA choice.
 
-**Reader takeaway.** ISA decisions are credible only when the loop can show what
+**Takeaway.** ISA decisions are credible only when the loop can show what
 software actually survives the contract and what remains a human-owned
 exception.
 :::
@@ -582,6 +596,9 @@ still applies here: evaluation has scenarios, latency constraints, power
 envelopes, and system rules, not only a single accuracy or throughput number.
 Fleet loops add another layer: live telemetry, canary policy, rollback, and
 operational review.
+For agents acting inside these loops, telemetry is governed data: schema, cohort
+provenance, canary labels, privacy filters, drift detectors, rollback triggers,
+and preserved failure traces define what the loop may trust.
 
 The design-loop card changes accordingly. The representation must include
 operational state, workload drift, service-level objectives[^fn-service-level-objectives-c09], resource
@@ -811,22 +828,29 @@ method roles are safe and useful? What can reject the result? What decision
 must remain with the architect?
 
 ::: {.callout-research-question}
-For a loop pattern you work in, what is the cheapest independent rejector that
-could discharge a larger fraction of commitments, and what currently stops you
-from trusting it enough to let it reject without escalation?
+Research questions for loop patterns:
+
+1. How can Architecture 2.0 loop state carry workload state, candidate history,
+   negative traces, evidence, and human decisions across simulation, compiler,
+   deployment, and signoff stages?
+2. In low-data architecture settings, which cheap independent rejectors can
+   reliably reject design commitments before expensive simulation, deployment,
+   or signoff?
+3. What method roles should agents play at different commitment levels:
+   generator, optimizer, critic, evidence organizer, test author, or bounded
+   repair tool?
+4. How can workload and data characterization detect when a loop is optimizing a
+   stale, narrow, leaky, or product-irrelevant workload slice?
 :::
 
 The final chapter turns that question back toward professional judgment. Once
 the loop can be described, instrumented, acted on, and checked, what does the
 architect still own?
 
-::: {.callout-architect-checkpoint}
-Facing a new project, ask:
-
-- Which loop pattern is this, and what feedback can it afford?
-- Does the method posture match the reversibility and blast radius of the decision?
-- What can reject the result, and what decision must stay with the architect?
-:::
+Facing a new project, those questions become a short loop review: identify the
+loop pattern, price the feedback it can afford, check whether the method posture
+matches the reversibility and blast radius of the decision, and state what can
+reject the result before naming what must stay with the architect.
 
 ::: {.callout-carry-forward}
 - **Reader test:** Which loop pattern are you in, and what cheap, independent

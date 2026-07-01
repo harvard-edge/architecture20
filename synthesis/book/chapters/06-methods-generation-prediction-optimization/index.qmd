@@ -308,6 +308,9 @@ models to reduce the cost of exploring large design spaces. Regression models
 for microarchitectural performance and power, and predictive modeling for
 large architectural design spaces, are part of this lineage
 [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
+Architecture 2.0 uses that lineage only when the predictor exposes what an
+agentic loop needs: the support region, uncertainty, calibration source,
+escalation trigger, and decision owner.
 
 The prediction role is not limited to performance. A predictor might estimate
 energy, area, latency, reliability, queueing behavior, memory traffic,
@@ -361,8 +364,9 @@ limited feedback. That may mean finding a Pareto region[^fn-pareto-region-c06], 
 constraint boundary, understanding a sensitivity, ruling out a class of
 candidates, or deciding which expensive experiment is worth running next.
 
-Bayesian optimization is attractive for Architecture 2.0 because it was built
-for expensive black-box functions and sequential experimentation
+Optimization methods are useful here when they make the loop's sampling policy
+representable and rejectable. Bayesian optimization is attractive for
+Architecture 2.0 because it was built for expensive black-box functions and sequential experimentation
 [@JonesSchonlauWelch1998EGO; @SnoekLarochelleAdams2012BayesianOptimization].
 It encourages the loop to trade off exploration and exploitation, to reason
 about uncertainty, and to spend evaluations where they are likely to matter.
@@ -510,7 +514,9 @@ to spend a cheap proxy or an expensive simulation on it, exactly the choice the
 fidelity ladder poses [@KandasamyEtAl2017MultiFidelityBO]. The architecture
 loop rarely needs the full apparatus, but naming it matters: there is a
 rigorous language for spending scarce samples, and a loop that ignores it is
-leaving evidence on the table.
+leaving evidence on the table. The loop still has to record the acquisition
+rule, fidelity choice, assumptions, rejected alternatives, and escalation
+threshold, or the optimizer becomes another opaque source of candidates.
 
 > **Fidelity ladder.** A fidelity ladder is the ordered set of feedback levels
 > a loop can climb, from cheap proxies through simulation, synthesis, physical
@@ -606,7 +612,7 @@ runtime-control loop but not in a high-commitment design decision without
 strong rejection authority.
 
 ::: {.callout-lighthouse title="Screen under the power envelope"}
-**Context.** In the methods chapter, the lighthouse prompt is a method-selection
+**Context.** For the lighthouse design loop, the prompt is a method-selection
 problem, not a request for more candidates.
 
 **In the Lighthouse prompt.** The loop must choose among vector widths,
@@ -614,19 +620,14 @@ local-memory sizes, data layouts, and CPU/accelerator/SoC partitions for the
 XRBench slice while respecting the 3\ W envelope and preserving a path to
 evidence and rejected alternatives.
 
-**Method role.** Use generation to propose bounded candidates only if needed.
-Use prediction to screen candidates with calibrated intervals, and use
-optimization to spend scarce simulator or synthesis runs where they resolve the
-decision.
+**Method role.** Use generation to propose bounded candidates only if needed,
+prediction to screen candidates with calibrated intervals, and optimization to
+spend scarce simulator or synthesis runs where they resolve the decision.
 
-**Boundary.** A surrogate may reject obviously bad points, but it cannot by
+**Takeaway.** A surrogate may reject obviously bad points, but it cannot by
 itself claim that a design meets a 3\ W target in a 3\ nm-class low-power mobile
 process. Escalate whenever the interval straddles the power or latency bound, or
 when the win depends on a weak proxy.
-
-**Reader takeaway.** The method is credible when it says what it is allowed to
-change, what feedback priced the change, which candidates were rejected at which
-fidelity, and which final carry-forward decision remains with the architect.
 :::
 
 A useful Architecture 2.0 paper should be able to write the method choice as a
@@ -660,18 +661,25 @@ methods, how do we know whether its feedback is evidence? @sec-feedback-verifica
 that question by making fidelity, verification, rejection, and trust explicit.
 
 ::: {.callout-research-question}
-What decides whether a learning-based architecture result is contested or
-trusted into shipping silicon? Can you tell, before running, whether an
-environment's rejection authority is strong enough to make a method's claims
-credible, rather than discovering it only in the reproducibility post-mortem?
+Research questions for method roles:
+
+1. What loop state must an Architecture 2.0 system represent so generation,
+   prediction, optimization, critique, repair, and verification can share
+   evidence rather than operate as disconnected tools?
+2. How can architecture agents learn from low-resource feedback, including
+   failed runs, invalid candidates, tool warnings, and expert rejections,
+   without overfitting cheap proxies?
+3. What tests can determine whether an architecture environment has enough
+   rejection authority to support a method's claim before deployment or
+   publication?
+4. When should a loop use a generator, predictor, optimizer, critic, repair
+   method, verifier, or explanation role, and how should those roles compose
+   under a fixed evidence budget?
 :::
 
-::: {.callout-carry-forward}
-- **Reader test:** Can you write one sentence explaining why this method belongs
-  in this role for this loop?
-- **Next loop state:** Once methods can act, the next question is whether their
-  feedback becomes evidence strong enough to support trust.
-:::
+The reader test is whether you can write one sentence explaining why this method
+belongs in this role for this loop. Once methods can act, the next question is
+whether their feedback becomes evidence strong enough to support trust.
 
 [^fn-openai-gym-c06]: **OpenAI Gym**: A widely used toolkit for developing and comparing reinforcement learning algorithms, providing a standard interface for agents to interact with various environments.
 [^fn-neural-architecture-search-c06]: **Neural architecture search (NAS)**: A technique for automating the design of artificial neural networks, finding optimal model architectures for a specific task instead of relying on human design.
