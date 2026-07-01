@@ -58,6 +58,11 @@ claim.
 which independent authority can reject syntax, function, model support,
 implementation feasibility, deployment behavior, or final commitment. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
 
+Inside an Architecture 2.0 loop, each check is bound to a represented state
+field, a legal action, and a commitment boundary: it says which action may
+continue, which state update is invalid, and when the loop must revise or
+escalate.
+
 ::: {.callout-learning-objectives}
 After this chapter you can:
 
@@ -136,6 +141,9 @@ or deployment experiment change a decision enough to justify its cost? @sec-runn
 makes the question concrete, spending the proxy budget freely, the cycle-level
 budget carefully, and a high-fidelity power check only on the surviving
 candidate.
+The unit being priced is not just another evaluation; it is a rejectable loop
+transition: state before, legal action, feedback source, rejection gate, and next
+state if the gate fails.
 
 ## Fidelity Ladders and Evidence Ledgers
 
@@ -261,12 +269,12 @@ test, synthesis flow, cross-tool comparison, signoff rule, deployment signal,
 security policy, benchmark governance rule, or expert reviewer. What matters
 is that rejection is part of the loop interface, not an afterthought.
 
-Rejection authority is also the lever in the rejection-bound result of
-@sec-loop-patterns-across-stack. A loop speeds up only as its cheap, independent
-rejectors discharge a larger fraction of commitments, and generation does not
-enter the bound at all. Rejection authority is therefore not a safeguard bolted
-onto a loop that already works. It is the resource that sets how fast the loop
-can run.
+Rejection authority is also the lever that controls loop speed. A loop speeds
+up only as cheap, independent rejectors discharge a larger fraction of
+commitments before expensive escalation. Generation does not help if it only
+adds candidates that no trusted check can reject. Rejection authority is
+therefore not a safeguard bolted onto a loop that already works. It is the
+resource that sets how fast the loop can run.
 
 For this chapter, the important test is whether the loop names at least one
 independent authority that can reject a candidate before the loop treats it as
@@ -300,13 +308,22 @@ instead of silently turning output into commitment. @sec-running-the-loop runs t
 the lighthouse prompt and shows how a candidate can fail on validity, evidence,
 or residual risk even when another metric looks promising.
 
-For the lighthouse prompt, $\mathrm{valid}(x)$ might mean that a candidate
-compute organization stays within the declared ISA/software contract and does
-not violate the 3\ W envelope or real-time deadline. $E_k(x)$ is the evidence at
-the current stage: proxy estimate, simulation-stage estimate, RTL evidence, or
-physical feedback. $\tau_k$ rises as the loop moves from exploration to
-implementation, and residual risk covers what the evidence still cannot rule
-out, such as thermal behavior, compiler/runtime viability, or workload drift.
+::: {.callout-lighthouse title="Validity is a contract, not a score"}
+**Context.** The commitment rule above does not ask whether a candidate sounds
+promising. It asks whether the candidate is legal for the commitment level the
+loop is about to claim.
+
+**In the Lighthouse prompt.** A candidate for the low-power XR subsystem is
+valid only if it stays inside the declared 64-bit RISC-V ISA/software contract,
+can plausibly meet the real-time workload constraint, and has not crossed the
+3\ W envelope at the evidence level being used.
+
+**Rejection gate.** ISA compatibility, power, deadline, and evidence fidelity
+are gates, not advisory metrics.
+
+**Takeaway.** If any gate is unsupported, the loop should reject, revise, or
+escalate rather than turn a plausible subsystem into a commitment.
+:::
 
 The response to rejection should be explicit. A candidate may be discarded. A
 representation may need a new field. An environment may need a validity check.
@@ -337,9 +354,22 @@ blind spots is not an independent gate. It is a second opinion from the same
 witness.
 
 ::: {.callout-research-question}
-As verification becomes AI-assisted, what would actually guarantee that a learned
-rejection authority is independent of the generator it judges, rather than a
-second opinion from the same witness with the same blind spots?
+For trust and verification:
+
+1. What evidence-ledger fields and invariants are necessary for an agentic
+   architecture loop to support an auditable commitment decision under sparse,
+   proprietary, multi-fidelity feedback?
+2. How can a loop estimate the calibrated support region of its workloads,
+   simulators, and benchmarks, and trigger escalation when a proxy improvement
+   falls outside that support or exploits evaluation gaps?
+3. How can an architecture loop measure adequate independence between an
+   AI-assisted rejection authority and the generator, optimizer, or agent it
+   judges, including shared data, objectives, tools, and correlated failure
+   modes?
+4. How should trust mechanisms themselves be evaluated, using adversarial proxy
+   tasks, hidden workload shifts, flawed baselines, and evidence disputes to
+   measure false commitments, justified rejections, escalation cost, waiver
+   quality, and human veto authority?
 :::
 
 ## Proxy Mismatch, Metric Gaming, and Calibration
@@ -371,7 +401,9 @@ before the search starts: a cycle-level win is a reason to escalate, never a
 reason to commit.
 :::
 
-Calibration is therefore a trust requirement. Prediction models used in
+Calibration is therefore an escalation contract: it defines where an agent may
+use a proxy to rank candidates, where it must escalate, and what stronger
+evidence can reject a proxy win. Prediction models used in
 architecture have long needed validation against held-out data[^fn-held-out-data-c07], higher-fidelity
 measurements, or carefully designed experiments
 [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. The same
@@ -380,7 +412,10 @@ principle applies to agentic loops. If a loop claims a candidate satisfies the
 calibrated, what workload region it covers, what uncertainty remains, and what
 higher-fidelity result could overturn the claim.
 
-Benchmark governance also matters. As @sec-design-loop-no-longer-scales and
+Benchmark governance also matters because benchmark rules are part of the
+loop's evidence contract. If those rules are hidden or stale, agents can
+optimize version quirks, protocol gaps, or unowned metrics while appearing to
+make progress. As @sec-design-loop-no-longer-scales and
 @sec-loop-patterns-across-stack show, a benchmark becomes community
 infrastructure only when it defines rules, versions, and submission practices
 that make results interpretable across a changing field. Architecture 2.0 needs
@@ -392,7 +427,7 @@ story.
 
 Calibration, provenance, and benchmark governance make a claim accurate, but
 accuracy is not the only thing trust depends on. Industry readers will not
-trust an Architecture 2.0 workflow that ignores security, intellectual
+trust an Architecture 2.0 loop that ignores security, intellectual
 property, and confidentiality. Architecture state is
 often sensitive: RTL, design specifications, process assumptions, timing
 constraints, floorplans, tool logs, customer workloads, proprietary traces,
@@ -404,7 +439,7 @@ environment and evidence design. A loop must define what data can leave an
 organization, what must remain local, what can be summarized, which artifacts
 can be shared publicly, which logs should be redacted, and which agents or
 tools can access each class of information. The trust question is not only
-whether the method is accurate. It is whether the workflow preserves the
+whether the method is accurate. It is whether the loop preserves the
 constraints under which architecture work actually happens.
 
 For community infrastructure, this means the field should distinguish between
@@ -414,6 +449,9 @@ proprietary RTL, product traces, and process-specific assumptions often cannot
 be released. Architecture 2.0 should support both. The design-loop card,
 environment contract, and evidence checklist should let a project describe
 what kind of evidence exists without forcing disclosure of sensitive material.
+That record should include a data-access and evidence-scope field: what private
+state was used, what public proxy cannot support, which agents or tools may
+access each artifact, and who owns disclosure exceptions.
 
 The practical rule is simple: do not make confidentiality invisible. If a
 claim depends on private data, say what class of data supports it, what
@@ -451,10 +489,14 @@ final power, performance, and area rather than an intermediate proxy
 [@WangEtAl2025ChiPBench]. That is the anatomy doing its work: a contested claim
 becomes tractable once the loop's evidence, baselines, and rejection authority are
 made explicit.
+For Architecture 2.0, the reusable lesson is not the controversy itself; it is
+that a loop claiming placement quality must expose represented floorplan state,
+legal move/action space, workload and PPA records, baseline receipts, rejected
+alternatives, and the independent authority that can block commitment.
 
 @tbl-trust-checklist turns that anatomy into a checklist. It is
 intended for reading papers, reviewing internal tools, evaluating student
-projects, and deciding whether an agentic workflow is ready for a more
+projects, and deciding whether an agentic loop is ready for a more
 expensive commitment.
 
 | **Question** | **What a credible answer contains** | **Warning sign** |

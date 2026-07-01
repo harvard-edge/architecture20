@@ -99,6 +99,17 @@ def glyph(name, c):
                 '<path d="M26.5 49 H37.5" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
                 '<path d="M29 53.5 H35" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
                 '<path d="M32 22 l3 4 l-3 4 l-3 -4 Z" fill="none" stroke="%s" stroke-width="%.2f" stroke-linejoin="round"/>' % (c, s, c, s, c, s, c, s, c, s - 0.6))
+    if name == "lighthouse":                # lighthouse = recurring worked prompt anchor
+        return ('<path d="M25 56 H39 L36 21 H28 Z" fill="none" stroke="%s" stroke-width="%.2f" stroke-linejoin="round"/>'
+                '<path d="M24 21 H40 L36 12 H28 Z" fill="none" stroke="%s" stroke-width="%.2f" stroke-linejoin="round"/>'
+                '<path d="M21 56 H43" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<path d="M29 31 H35" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<path d="M28 43 H36" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<path d="M19 16 H8" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<path d="M45 16 H56" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<path d="M23 11 L15 6" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<path d="M41 11 L49 6" stroke="%s" stroke-width="%.2f" stroke-linecap="round"/>'
+                '<circle cx="32" cy="16" r="3.4" fill="none" stroke="%s" stroke-width="%.2f"/>' % (c, s, c, s, c, s, c, s, c, s, c, s, c, s, c, s, c, s, c, s - 0.4))
     if name == "question":                  # compass needle in a circle = orienting question ("the crux")
         return ('<circle cx="32" cy="32" r="22" fill="none" stroke="%s" stroke-width="%.2f"/>'
                 '<path d="M42 22 L35.5 35.5 L22 42 L28.5 28.5 Z" fill="none" stroke="%s" stroke-width="%.2f" stroke-linejoin="round"/>'

@@ -11,7 +11,7 @@ How should the loop contract change as architecture work moves from workload, so
 The previous chapters built the components of an Architecture 2.0 loop:
 representations, environments, method roles, feedback budgets, evidence
 ledgers, and human decision points. This chapter asks whether the framework
-travels. If it only describes one kind of design-space-exploration workflow,
+travels. If it only describes one kind of design-space-exploration loop,
 it is too narrow. If it describes everything in the same way, it is too vague.
 The useful middle ground is a set of loop patterns.
 
@@ -129,6 +129,9 @@ which XR workloads, models, devices, frame-rate targets, latency constraints,
 memory behaviors, and software paths are represented. A loop that optimizes
 one benchmark point may miss the distribution that a real mobile XR subsystem
 must serve.
+For an agentic loop, the workload arrives as a packet, not a name: scenario
+labels, device class, trace provenance, input distributions, excluded cases,
+coverage gaps, and rejection conditions.
 
 MLPerf is the standing example, established where this book treats benchmarks as
 maintained community infrastructure with versions, rules, and submission
@@ -198,6 +201,9 @@ parallelism, numerical precision, backend behavior, and target-specific
 hardware resources. Multi-platform kernel-generation work makes that bridge
 explicit by separating the core benchmark from target backends
 [@WenEtAl2025MultiKernelBench].
+For agents, the benchmark object needs more than a prompt and a score: kernel
+IDs, input-shape distributions, correctness oracles, target metadata,
+compile/profile failure traces, and rejected variants.
 
 Read as a loop card, the task is bounded code generation or tuning; the
 representation is source code, compiler IR, tests, target metadata, and
@@ -241,21 +247,36 @@ shows that data-driven modeling has a longer architecture lineage
 [@IpekEtAl2006PredictiveDSE]. Transferable frameworks such as Apollo go a step
 further, training a surrogate on an architecture dataset and carrying the same
 search across different design spaces [@yazdanbakhsh2021apollo].
+That dataset has to be treated as a loop artifact, not a generic training set:
+design-space schema, sampled-region coverage, tool versions, invalid-action
+labels, rejected regions, and proxy-fidelity calibration determine what an
+agent may infer from it.
 
 Chiplets raise the stakes because they turn partitioning and interfaces into
-architectural decisions. Standards such as UCIe (Universal Chiplet Interconnect Express) make chiplet integration more
-concrete [@UCIeConsortium2026Spec], but they do not remove the
-architecture problem. The loop still has to reason about bandwidth, latency,
-power, thermal behavior, packaging, yield, verification, software contracts,
-and business constraints.
+legal actions inside the loop. A UCIe-class interface should be represented as
+an environment contract: what may be split across dies, what
+bandwidth/latency/power/thermal feedback tools return, which package and
+software assumptions are fixed, and which candidates must escalate or be
+rejected when interface evidence is missing [@UCIeConsortium2026Spec].
 
-For the lighthouse prompt, this loop asks whether the XRBench subsystem should
-be a CPU extension, an accelerator, a shared-memory SoC block, or a more
-specialized partition. It asks which design regions are obviously infeasible,
-which are worth simulation, which survive power modeling, and which should be
-rejected before expensive evaluation. This is where candidate generation is
-useful, but only because the loop also records evidence and rejected
-alternatives.
+::: {.callout-lighthouse title="The subsystem choice is an integration choice"}
+**Context.** In an architecture DSE loop, "CPU extension," "accelerator," and
+"SoC block" are not interchangeable labels for compute.
+
+**In the Lighthouse prompt.** The compute-subsystem fragment asks where the XR
+work lives relative to the 64-bit RISC-V core, memory hierarchy, interconnect,
+compiler/runtime path, and product boundary. A vector extension changes the CPU
+contract; a tightly coupled accelerator changes the invocation, sharing, and
+memory-attachment contract; a shared-memory SoC block changes integration and
+coherence assumptions.
+
+**Integration boundary.** A loop may still test a looser accelerator variant,
+but the coupling assumption must be explicit.
+
+**Takeaway.** The DSE loop should reject candidates that only win by moving cost
+into memory traffic, compiler support, verification, or SoC integration work
+that the candidate did not price.
+:::
 
 Read as a loop card, the task is architecture search; the representation is
 candidate parameters, workload state, constraints, tool configurations, and
@@ -277,6 +298,11 @@ libraries and tools. The golden-age argument for specialization
 question: which part of the domain is stable enough to specialize, and which
 part must remain programmable?
 
+Use Amdahl here as a loop-contract check, not as an architecture refresher: the
+represented state is end-to-end workload fraction and offload granularity, the
+legal action is a specialization/interface choice, and the rejection rule is
+that a local speedup fails unless measured interface and software overheads
+still leave an end-to-end win.
 Every architect knows Amdahl's law [@Amdahl1967ValiditySingleProcessor], so
 restating it adds little. What follows is not a restatement but a relabeling of
 its variables: the version that matters here is the one that prices the interface. Hill and Marty re-derived the law for the multicore era to show
@@ -401,18 +427,18 @@ should say what shape of domain it is using and what that choice implies for
 representation, action space, evidence, and maintenance. A benchmark name is
 not enough. Two workloads in the same named domain may have different memory
 behavior, precision contracts, software interfaces, or deployment drift.
+Those workload features determine which agent actions are legal and which
+claims a loop must reject: kernel family, precision contract, data-movement
+pattern, software interface, drift risk, and test coverage.
 
 ![**Domain specificity has many shapes:** A domain-specific architecture is not specialized for a label; it is specialized for a bundle of kernel, precision, data-movement, interface, deployment, drift, and verification constraints. The loop must represent the shape it is claiming to exploit.](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing that domain specificity can arise from kernels, precision, data movement, interfaces, deployment constraints, drift, and verification needs."}
 
-The Achilles heel is the software path. Specialized hardware becomes useful
-only when computations can be expressed, mapped, compiled, tested, profiled,
-maintained, and revised for the target. Halide, a domain-specific language and compiler for image processing, made one version of this lesson
-visible by separating algorithms from schedules
-[@RaganKelleyEtAl2017HalideCACM]. AutoTVM and Ansor show the same pressure
-in tensor-program optimization, where schedules and measurements are part of
-the performance story [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. MLIR (Multi-Level Intermediate Representation)
-pushes on the infrastructure problem by making multi-level compiler
-representations extensible across domains and targets [@LattnerEtAl2020MLIR].
+The software path is the loop's narrow waist: Halide-style algorithm/schedule
+separation, AutoTVM/Ansor-style measured schedules, and MLIR-style multi-level
+compiler representations matter here because they turn software reachability
+into represented state, legal mapping actions, compiler feedback, and rejection
+evidence for specialized hardware claims
+[@RaganKelleyEtAl2017HalideCACM; @ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor; @LattnerEtAl2020MLIR].
 
 @fig-codegen-narrow-waist makes the implication architectural:
 code generation is the narrow waist of specialization. Above the waist are
@@ -466,12 +492,11 @@ latency, or a rack-level policy that saves power while violating service
 quality. The loop must represent more than one layer because the objective
 lives across layers.
 
-Energy is a useful reminder. Moving data, accessing memory, and operating
-large systems can dominate the cost of useful work; Horowitz's energy
-analysis is often cited because it makes that imbalance concrete
-[@Horowitz2014Energy]. At datacenter scale, the system is explicitly a
-warehouse-scale computer, with hardware, software, power, cooling, networking,
-and operations coupled together [@BarrosoHolzleRanganathan2019DatacenterAsComputer].
+Energy and warehouse-scale coupling matter here because they give the loop cheap
+rejectors for cross-layer claims: data movement, memory locality, network
+contention, power and thermal headroom, and deployment policy can all invalidate
+a local compute win before expensive implementation evidence is gathered
+[@Horowitz2014Energy; @BarrosoHolzleRanganathan2019DatacenterAsComputer].
 
 An Architecture 2.0 co-design loop therefore needs richer representations:
 workload phase behavior, data movement, memory locality, network behavior,
@@ -540,6 +565,25 @@ systems, and configuration rollout. Unaided architectural intuition mispredicted
 where the work actually was. That is the case for a represented, evidence-bearing
 loop in a single sentence: the loop found the work the experts did not expect.
 
+::: {.callout-lighthouse title="Migration evidence shows what ISA claims owe"}
+**Context.** The ISA migration case shows why the lighthouse phrase "64-bit
+RISC-V" is not only a hardware target.
+
+**In the Lighthouse prompt.** Choosing a 64-bit RISC-V-compatible path means the
+loop owes evidence for generated code, ABI assumptions, compiler/runtime
+behavior, library support, tests, and deployment rollout, not just an instruction
+encoding.
+
+**Boundary.** The migration case is not the same target, but it reveals the kind
+of software-contract evidence a RISC-V subsystem claim would eventually need:
+build, test, sanitizers, production monitors, and application owners become
+rejection authorities for the ISA choice.
+
+**Takeaway.** ISA decisions are credible only when the loop can show what
+software actually survives the contract and what remains a human-owned
+exception.
+:::
+
 ## Systems Loops: Runtime, Serving, and Datacenter Policy
 
 Systems loops evaluate architecture choices in deployed or deployment-like
@@ -553,6 +597,9 @@ still applies here: evaluation has scenarios, latency constraints, power
 envelopes, and system rules, not only a single accuracy or throughput number.
 Fleet loops add another layer: live telemetry, canary policy, rollback, and
 operational review.
+For agents acting inside these loops, telemetry is governed data: schema, cohort
+provenance, canary labels, privacy filters, drift detectors, rollback triggers,
+and preserved failure traces define what the loop may trust.
 
 The design-loop card changes accordingly. The representation must include
 operational state, workload drift, service-level objectives[^fn-service-level-objectives-c09], resource
@@ -560,6 +607,10 @@ contention, customer or user constraints, and rollback mechanisms. The
 environment may be a simulator, test cluster, replay harness, staging system,
 or production system with guardrails. The method may adapt policy, detect
 drift, summarize telemetry, or propose a controlled experiment.
+For an agent, the legal actions should be enumerated narrowly, such as adjusting
+a scheduler weight, proposing a canary, changing an admission threshold, or
+selecting a replay cohort, and every action should name the telemetry feedback,
+rollback trigger, and human owner that can stop it.
 
 The rejection authority is often operational. A service-level objective, a
 canary guard, an alert, a safety policy, a privacy constraint, or a human
@@ -627,6 +678,11 @@ is justified only when the result is amortized: a generated circuit instantiated
 across every shipped unit of a high-volume part repays its search cost in a way
 that a one-off block never could. The high-commitment regime therefore rewards
 methods whose cost amortizes over many uses and whose outputs survive
+independent checks.
+The inspectable loop record matters more than the success label: initial design
+state, allowed flow knobs, tool versions, failed candidates, signoff checks,
+waivers, escalation points, and the accountable commitment owner must travel
+with the result.
 independent gates, not methods that merely automate a single decision.
 
 The rejection authorities in this regime are strong: parsers, type checks,
@@ -785,22 +841,31 @@ method roles are safe and useful? What can reject the result? What decision
 must remain with the architect?
 
 ::: {.callout-research-question}
-For a loop pattern you work in, what is the cheapest independent rejector that
-could discharge a larger fraction of commitments, and what currently stops you
-from trusting it enough to let it reject without escalation?
+For loop patterns across the stack:
+
+1. How should Architecture 2.0 loop state preserve workload state, candidate
+   history, compiler/code-generation artifacts, deployment telemetry, negative
+   traces, tool evidence, waivers, and human decisions as a design moves from
+   simulation to software paths, fleet evidence, and signoff?
+2. In low-data architecture settings, which cheap, independent rejectors can
+   safely reject commitments before escalation to expensive simulation,
+   compiler/runtime validation, deployment canaries, or signoff tool flows?
+3. How should agent roles change with feedback cost, rollback cost, blast
+   radius, and commitment level: generator, optimizer, critic, evidence
+   organizer, test author, telemetry analyst, or bounded repair tool?
+4. When can evidence from one loop pattern be reused by another, and when must it
+   be invalidated because the simulator, compiler path, deployment regime,
+   workload distribution, or signoff constraints have changed?
 :::
 
 The final chapter turns that question back toward professional judgment. Once
 the loop can be described, instrumented, acted on, and checked, what does the
 architect still own?
 
-::: {.callout-architect-checkpoint}
-Facing a new project, ask:
-
-- Which loop pattern is this, and what feedback can it afford?
-- Does the method posture match the reversibility and blast radius of the decision?
-- What can reject the result, and what decision must stay with the architect?
-:::
+Facing a new project, those questions become a short loop review: identify the
+loop pattern, price the feedback it can afford, check whether the method posture
+matches the reversibility and blast radius of the decision, and state what can
+reject the result before naming what must stay with the architect.
 
 ::: {.callout-carry-forward}
 - **Reader test:** Which loop pattern are you in, and what cheap, independent

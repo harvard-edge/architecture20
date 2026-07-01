@@ -133,14 +133,26 @@ problem the human intended to solve.
 
 : **Architecture interfaces define action and evidence boundaries:** Each interface tells the loop what can be changed, what can be observed, what feedback is meaningful, and what can reject an invalid action. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
 
-The lighthouse prompt crosses nearly every row of the table. The phrase
-"64-bit RISC-V-based" invokes an ISA contract. "Vector-capable" invokes
-compiler and runtime obligations. "XRBench real-time mobile XR" invokes a
-benchmark harness, workload distribution, and quality-of-service target.
-"Low power" invokes power modeling, physical constraints, and eventually EDA
-or silicon evidence. The environment for this prompt is therefore not one API.
-It is a bundle of interfaces that must remain coherent as the loop proposes,
-checks, rejects, and revises candidates.
+::: {.callout-lighthouse title="One prompt, many interfaces"}
+**Context.** The lighthouse request crosses multiple interfaces at once, so no
+single simulator API or wrapper is the environment.
+
+**In the Lighthouse prompt.** "64-bit RISC-V-based" is an ISA and ABI/software
+contract. "Vector-capable CPU, accelerator, or SoC block" is an action boundary
+over compute organization and integration. "XRBench real-time mobile XR" fixes
+the workload harness and quality-of-service target. The 3\ W, 3\ nm-class
+low-power mobile envelope invokes power and physical-design constraints.
+
+**Boundary.** A SoC block is not just an accelerator renamed. It changes memory
+attachment, coherence, interrupts, DMA, runtime ownership, verification scope,
+and the evidence needed to show that the subsystem works in the larger system.
+
+**Takeaway.** The environment for this prompt is a bundle of coherent
+interfaces. A loop can change vector width, local memory, data layout, or
+accelerator interface only inside contracts that can reject
+software-incompatible, physically implausible, or integration-breaking
+candidates.
+:::
 
 Concrete tools instantiate that bundle at different fidelity levels. The point
 is not that Architecture 2.0 requires one canonical simulator or one vendor
@@ -157,12 +169,20 @@ that environment can observe, and what authority its feedback has.
 
 : **Concrete tools instantiate the environment contract:** A credible loop should name the simulator, RTL flow, emulation path, EDA stage, or deployment harness it is acting through, because each one exposes different actions, feedback, cost, and rejection authority. {#tbl-environment-instances tbl-colwidths="[22,24,26,18]"}
 
+For each row, the Architecture 2.0 object is not the tool name but the
+maintained action/observation record: workload version, legal edits, failed
+runs, waivers, escalation gate, and human owner.
+
 In practice these environments are rarely used in isolation. Open frameworks
 integrate them. Chipyard, for example, wraps a configuration system, RTL
 generators, and a compiler path together with the simulation, synthesis, and
 FPGA-emulation backends the table lists, so one configuration can be carried
 reproducibly from a generated design to each evaluation path [@chipyard].
 @fig-chipyard-framework shows that integration.
+For an agentic loop, the useful property is not the framework name; it is the
+loop contract: configuration state, legal actions, backend receipts,
+invalid-action logs, escalation thresholds, and the human decision points that
+prevent a generated configuration from becoming an unowned commitment.
 
 ![**An integrated environment ties the backends together:** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="100%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
 
@@ -190,19 +210,14 @@ signoff, each physical-design stage returns different evidence and should be
 allowed to reject different claims. {#tbl-eda-stage-contract tbl-colwidths="[18,26,25,21]"}
 
 This arrangement is not hypothetical. Some commercial physical-implementation
-flows already treat synthesis and place-and-route as a search environment: the
-action space is a set of tool directives and floorplan parameters, the
-transition is a full tool run, and the reward is the resulting power,
-performance, and area. Synopsys, a major EDA vendor, reported that one such reinforcement-learning
-system reached its first hundred commercial tapeouts by 2023
-[@Synopsys2023DSOai], and Cadence, another leading EDA vendor, describes a comparable loop driving the flow
-from RTL to layout [@Cadence2021Cerebrus]. The durable point is not which vendor
-leads, since the products will be renamed and replaced. It is that an EDA flow
-becomes an environment in exactly the sense this chapter requires once its
-directives are an action schema, its reports are observations, and its
-high-latency, high-cost runs set the feedback budget. The architect's work then
-moves from running the flow by hand to specifying the environment the loop
-searches and the rejection gates that bound it.
+flows already treat synthesis and place-and-route as a search environment: tool
+directives and floorplan parameters become actions, full tool runs become
+transitions, and reports become observations about power, performance, area, and
+closure [@Synopsys2023DSOai; @Cadence2021Cerebrus]. The durable point is not
+which vendor leads, since the products will be renamed and replaced. It is that
+an EDA flow becomes an environment only when those directives are an action
+schema, reports are observations with provenance, closure and signoff are
+rejection authorities, and the architect owns the gates the loop may not cross.
 
 ## The Architecture Environment Abstraction
 
@@ -278,6 +293,9 @@ community can ask which task was defined, which action space was exposed, what
 feedback was available, what workloads were used, and which agents or methods
 were compared under the same conditions. That makes method claims less
 anecdotal.
+The comparison is credible only when every agent acts against the same
+represented state, receives the same feedback records, and accepts the same
+invalid-action, escalation, and human-review rules.
 
 @tbl-archgym-mini-contract reads an ArchGym-style environment as a
 mini-contract.
@@ -325,10 +343,12 @@ This is how architecture environments can become community infrastructure. As
 @sec-design-loop-no-longer-scales argued for benchmark governance, useful
 infrastructure such as MLPerf does more than name workloads: it creates rules,
 versions, metrics, submissions, and comparison conventions that help a community
-interpret results [@MattsonEtAl2020MLPerf]. Architecture 2.0 needs the same instinct at the loop level. A
-useful environment should not merely publish a script; it should publish the
-contract under which actions are legal, observations are valid, and evidence can
-be compared.
+interpret results [@MattsonEtAl2020MLPerf]. Benchmark governance governs
+comparisons; environment governance must also govern what agents may try, which
+actions are invalid, what feedback means, and what can stop the loop. A useful
+environment should not merely publish a script; it should publish the contract
+under which actions are legal, observations are valid, and evidence can be
+compared.
 Keeping those contracts valid after the first paper is the operating discipline
 @sec-archops-operating-discipline develops.
 
@@ -602,6 +622,9 @@ cycle-level simulator, and the rejection rule is any configuration that breaches
 a bandwidth or correctness bound. The environment idea is not tied to the size
 of the artifact; it is tied to having legal actions, observable feedback, and
 something that can say no.
+It is complete only after it names the workload trace, simulator version, failed
+configurations, proxy limits, and the point at which a human escalates from
+hit-rate evidence to correctness or traffic review.
 
 ::: {#pri-tools-environments .callout-design-principle title="Turn tools into environments"}
 A tool wrapper is credible only when it defines legal actions, observations,
@@ -646,13 +669,10 @@ candidates, and changes in the workload distribution.
 
 ::: {#pri-maintain-environment .callout-design-principle title="Maintain the environment, don't just build it"}
 A design-loop environment is not built once; it is maintained. Workloads drift,
-tools change, benchmarks gain rules, and models learn stale assumptions, so an
-environment that is valid on the first run can silently mislead by the tenth.
-Keeping it valid, versioning workloads and tools, recording provenance and
-negative traces, monitoring drift, and maintaining the rejection gates, is the
-architecture counterpart of the operational discipline MLOps
-brought to machine-learning pipelines, applied to simulators, RTL, constraints,
-and evidence ledgers rather than models and datasets.
+tools change, benchmarks gain rules, and models learn stale assumptions. Keep
+the loop valid by versioning workloads and tools, preserving provenance and
+negative traces, monitoring drift, and maintaining architect-owned rejection
+gates.
 :::
 
 The distinction matters because a one-time environment and a maintained
@@ -686,20 +706,33 @@ and verification become roles inside a credible design system.
 Maintaining the environment is what keeps that design system trustworthy after the first run.
 
 ::: {.callout-research-question}
-How would you decide whether an architecture environment is valid, that gains
-found inside it survive at the next fidelity level, without already paying for
-the expensive high-fidelity evidence the environment exists to avoid?
+For architecture environments:
+
+1. What minimal machine-checkable environment contract exposes legal actions,
+   required state, validity constraints, provenance, and rejection reasons so an
+   agent can act, explain, and have invalid candidates stopped before high-cost
+   evaluation?
+2. How can negative traces in low-resource architecture studies -- failed runs,
+   invalid actions, waivers, timeouts, and rejected candidates -- become reusable
+   evidence while preserving simulator, workload, tool-version, and fidelity
+   context?
+3. What calibrated escalation policy should govern multi-fidelity feedback: when
+   may a cheap proxy prune a candidate, when must proxy uncertainty trigger
+   simulation, RTL, physical-design checks, or deployment evidence, and when is
+   human review the only valid rejection authority?
+4. How can heterogeneous architecture, compiler, simulator, RTL, EDA, and
+   telemetry tools expose portable action, observation, provenance, and rejection
+   contracts that trigger revalidation as workloads, PDKs, libraries, or
+   deployment contexts drift?
 :::
 
-::: {.callout-carry-forward}
-- **Reader test:** Could another method act in the same harness without private
-  knowledge from the original author?
-- **Next loop state:** Once the environment defines what action and feedback
-  mean, method selection can be judged by loop conditions rather than fashion.
-:::
+The reader test is whether another method could act in the same harness without
+private knowledge from the original author. Once the environment defines what
+action and feedback mean, method selection can be judged by loop conditions
+rather than fashion.
 
-[^fn-evolutionary-search-c05]: **Evolutionary search**: Optimization inspired by biological evolution, improving candidate designs through mutation, crossover, and selection.
-[^fn-surrogate-guided-exploration-c05]: **Surrogate-guided exploration**: Uses a fast surrogate model to predict design performance, so the search can screen far more candidates than a slow simulator allows.
-[^fn-uncertainty-quantification-c05]: **Uncertainty quantification**: The science of characterizing and reducing uncertainties in computational models, critical in multi-fidelity search for deciding whether a fast model's prediction is confident enough to trust.
-[^fn-active-learning-c05]: **Active learning**: A machine learning framework where the algorithm can query an oracle (e.g., a human or a simulator) to label new data points, deliberately selecting the most informative samples to improve its model with minimal data [@Settles2009ActiveLearning]. This is similar to how data-selection strategies in ML training curate only the most informative examples to reduce training cost, but applied here to minimize expensive simulator runs.
-[^fn-mlops-c05]: **MLOps**: Machine Learning Operations, a set of practices that aims to deploy and maintain machine learning models in production reliably and efficiently.
+[^fn-evolutionary-search-c05]: **Evolutionary search**: In this chapter, a way to propose candidate actions by mutation, crossover, and selection, useful only when the environment can reject invalid or weak candidates.
+[^fn-surrogate-guided-exploration-c05]: **Surrogate-guided exploration**: In this chapter, using a fast predictor to screen candidate actions while preserving the stronger feedback needed to reject proxy wins.
+[^fn-uncertainty-quantification-c05]: **Uncertainty quantification**: In this chapter, recording where an environment's feedback is uncertain enough to force escalation rather than commitment.
+[^fn-active-learning-c05]: **Active learning**: In this chapter, a policy for choosing which scarce simulator, synthesis, human, or deployment feedback event to spend next, with the choice logged as part of the evidence record [@Settles2009ActiveLearning].
+[^fn-mlops-c05]: **MLOps**: In this chapter, the operating discipline for deployed learning systems that motivates similar versioning, monitoring, drift, rollback, and ownership records in Architecture 2.0 loops.
