@@ -15,7 +15,11 @@ prediction, escalation, rejection, and commitment. Every number here is
 illustrative and generated in code, not measured; the lesson is the shape of
 the loop, not the values. The numbers are constructed to be inspectable, not
 XRBench measurements, gem5 results, or synthesis estimates; replace them with
-local source receipts before using this pattern for an empirical claim.
+local source receipts before using this pattern for an empirical claim. The
+demonstration that this shape holds on real, deployed hardware comes in
+@sec-loop-patterns-across-stack, where the same generate, screen, escalate,
+reject, and commit sequence runs on a production fleet migration with measured
+results. Here the goal is to make the shape itself legible.
 
 Bounding the task comes first. "Design a low-power XR compute subsystem" is not
 a loop; it is a wish. This chapter narrows the task to one XRBench-class[^fn-xrbench-class-c08]
@@ -52,8 +56,8 @@ After this chapter you can:
 ## Round One: Generate and Screen on a Proxy
 
 The loop begins cheaply. A generator proposes the three organizations, and an
-analytic proxy, a pre-RTL estimator in the spirit of Aladdin or a dataflow model
-like Timeloop [@ShaoEtAl2014Aladdin; @ParasharEtAl2019Timeloop], estimates
+analytic proxy, an operation-count or datapath-only estimate that counts
+arithmetic but not the traffic needed to feed it, estimates
 latency and energy per frame in milliseconds and millijoules. The proxy is fast and ignores most data movement, so it flatters
 designs that keep arithmetic local. At this fidelity the loosely coupled
 accelerator looks best: it posts the lowest energy and latency because the
@@ -66,11 +70,12 @@ The loop records the proxy ranking and escalates.
 
 ## Round Two: Escalate to a Simulation-Stage Estimate
 
-An illustrative simulation-stage estimate, standing in for a gem5-class model
-[@BinkertEtAl2011Gem5], a cycle-accurate architectural simulator, or for
-FPGA-accelerated evaluation via FireSim, an open-source cycle-exact hardware
-simulation platform [@KarandikarEtAl2018FireSim], is the first stage that
-charges memory traffic. It is
+An illustrative simulation-stage estimate is the first stage that charges memory
+traffic. It stands in for a memory-aware model: a dataflow analysis like Timeloop
+[@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin
+[@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5
+[@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
+It is
 slower and scarcer than the proxy, so the loop spends it only on the candidates
 that survived screening. The result is the central lesson of the chapter:
 
@@ -132,7 +137,7 @@ The ledger is what makes the toy loop auditable rather than merely ranked.
 
 | **Stage** | **Feedback source** | **Fidelity and budget** | **Support** | **Rejection gate** | **Provenance / limit** | **Next evidence** |
 | --- | --- | --- | --- | --- | --- | --- |
-| Proxy screen | Analytic estimator inspired by pre-RTL/dataflow models. | Three cheap evaluations; ignores most data movement. | Ranks the accelerator first on proxy energy. | No final rejection; only warnings. | Illustrative constants in this chapter. | Escalate all candidates to stronger feedback. |
+| Proxy screen | Operation-count or datapath-only estimate. | Three cheap evaluations; ignores most data movement. | Ranks the accelerator first on proxy energy. | No final rejection; only warnings. | Illustrative constants in this chapter. | Escalate all candidates to stronger feedback. |
 | Simulation-stage estimate | Gem5-class memory-aware estimate plus simple power check. | Three scarce illustrative checks; still no RTL or physical feedback. | Shared-memory SoC block clears both gates. | 8\ ms deadline and 3\ W envelope. | Hard-coded values; not XRBench, gem5, synthesis, or silicon data. | RTL, timing, area, thermal, and compiler/runtime checks. |
 | Negative traces | Recorded failed alternatives. | Two rejected candidates. | Failure reasons are preserved. | Latency miss, power-envelope violation, and proxy mismatch. | Candidate IDs and reasons only; no logs attached. | Prevent rediscovery and guide the next search. |
 
@@ -202,13 +207,17 @@ plt.close(fig)
 
 ## Round Three: Reject on the Envelope
 
-The simulation-stage estimate also exposes harder gates. The loosely coupled accelerator does not
-merely lose on energy; its simulated latency misses the 8\ ms deadline and its
-power model puts it over the 3\ W envelope. Those are constraints, not just
-metrics, so no local proxy advantage rescues it. The
-rejection is the commitment rule from the trust chapter doing its work: a
-candidate advances only if it is valid, its evidence clears the threshold for
-the stage, and its residual risk is acceptable.
+The simulation-stage estimate also exposes harder gates. The loosely coupled
+accelerator does not merely lose on energy; all three of its symptoms trace to a
+single cause. Reaching the accelerator means moving data across an interface to
+off-chip or distant memory, and that traffic is expensive on every axis at once.
+It stalls the datapath, so simulated latency misses the 8\ ms deadline. It pays
+off-chip access energy, so per-frame energy climbs above every alternative. And
+it keeps the memory subsystem busy rather than idle, so average power crosses the
+3\ W envelope. These are constraints, not just metrics, so no local proxy
+advantage rescues it. The rejection is the commitment rule from the trust chapter
+doing its work: a candidate advances only if it is valid, its evidence clears the
+threshold for the stage, and its residual risk is acceptable.
 
 The accelerator's failure has a familiar shape. Its attraction was a large
 local speedup, but the interface and data-movement cost to reach it dominated
