@@ -17,14 +17,13 @@ represent. If the relevant workload, constraint, tool option, rejected
 candidate, or uncertainty is invisible, a more capable model may simply move
 faster in the wrong direction.
 
-Fundamentally, this is a low-resource data problem, but the scarce resource is
-not only the number of examples. Architecture does not need data in the same way
-a web language model needs text. It needs structured records of architecture
-work: what was intended, what was tried, which tool configuration was used,
-which workload and software stack were assumed, what failed, what evidence was
-accepted, and what the architect decided. The durable question is therefore not
-only how to collect more architecture data. It is how to represent scarce
-architecture data so that a loop can act on it and a human can audit it.
+Fundamentally, this is a low-resource loop-state problem: the scarce resource is
+not examples in the abstract, but records that bind intent, workload, tool
+state, actions tried, failures, accepted evidence, and architect decisions.
+Architecture does not need data in the same way a web language model needs text.
+The durable question is therefore not only how to collect more architecture
+data. It is how to represent scarce architecture data so that a loop can act on
+it and a human can audit it.
 The architectural risk is not just small data; it is that an agent may infer
 authority from public text where the actionable state was never recorded.
 
@@ -33,7 +32,7 @@ After this chapter you can:
 
 - explain why architecture data is not web data: sparse, tool-bound, and full of state the final paper omits;
 - treat a feedback event as a sample that carries cost, fidelity, and provenance;
-- spot undocumented design state and the missing negative traces in a workflow;
+- spot undocumented design state and the missing negative traces in a loop;
 - identify who may accept evidence, reject candidates, escalate fidelity, and own residual risk;
 - tell a representation apart from a world model.
 :::
@@ -134,6 +133,10 @@ arguments, and rejected alternatives. Architecture 2.0 therefore cannot treat
 "all architecture text" as the dataset. The dataset must include the loop
 state that made the text credible, and it must expose enough tacit judgment to
 make assumptions, exclusions, and rejection decisions inspectable.
+The token count matters only because it limits what an agent can infer about
+action authority: text may retrieve concepts, but it cannot recover which
+candidate was legal, what feedback was observed, why alternatives were rejected,
+or who accepted the risk.
 
 This is an intuition-scale receipt, not a measured corpus inventory.
 @tbl-architecture-data-scarcity shows why the exact token count is not the main
@@ -234,14 +237,14 @@ or review arguments. A Verilog repository count can show that public RTL-like
 material exists, but it does not say whether the repository contains a
 well-specified architecture decision, a reusable testbench, a valid workload,
 or evidence that rejected alternatives were considered. Architecture 2.0
-therefore needs corpus building and representation design at the same time:
-more artifacts, but also better records of why those artifacts are credible.
+therefore needs corpus building only when artifacts are converted into loop
+records: candidate, workload, tool version, legal and invalid actions, feedback,
+provenance, rejected alternatives, and decision owner.
 
-Domain adaptation is useful only when it is pulled back to the loop contract.
-It can improve domain language and retrieval, but agentic architecture work
-also needs action records, tool state, rejected alternatives, fidelity labels,
-and decision authority. The medical AI lineage is a useful comparison because
-it shows both the power and the limit of domain adaptation[^fn-domain-adaptation-c04]. BioBERT adapted a general language model
+Domain adaptation matters here only if it helps construct or retrieve loop
+records; vocabulary and retrieval gains do not grant an agent action authority.
+The medical AI lineage is a useful comparison because it shows both the power
+and the limit of domain adaptation[^fn-domain-adaptation-c04]. BioBERT adapted a general language model
 to biomedical text; ClinicalBERT adapted representations to clinical notes;
 Med-BERT adapted BERT-style pretraining to structured electronic health
 records rather than ordinary prose
@@ -261,11 +264,10 @@ multi-fidelity feedback, rejected alternatives, and decision authority. A
 paper corpus can bootstrap knowledge; it cannot by itself represent the
 design loop.
 
-Benchmark lineages such as SQuAD and GLUE[^fn-squad-and-glue-c04] teach a related lesson.
-They helped turn language
-understanding into repeatable evaluation objects: common inputs, common
-metrics, and comparable results. Architecture needs shared evaluation objects
-too, but an architecture "example" is rarely just a cheap labeled row. It may
+Benchmark lineages such as SQuAD and GLUE[^fn-squad-and-glue-c04] teach a
+related lesson. The Architecture 2.0 lesson is not to seek a cheap labeled row,
+but to ask what a shared evaluation object must record before an agent can act.
+Architecture needs shared evaluation objects too, but an architecture "example" is rarely just a cheap labeled row. It may
 be a simulator run, a synthesis run, a physical-design report, a workload
 trace, a failed configuration, or an expert review tied to a specific fidelity
 level. The cost of a sample is therefore part of the representation problem,
@@ -411,9 +413,9 @@ on the representation of macros, nets, constraints, tool feedback, and
 placement validity [@MirhoseiniEtAl2021GraphPlacement]; that result was later
 contested on its baselines and reproducibility (@sec-feedback-verification-trust)
 [@ChengEtAl2023AssessmentRL], which only sharpens the point. The architecture
-lesson is broader than placement. When samples are expensive, the dataset must
-record what each sample cost, what region of the space it informs, and what it
-rules out.
+lesson is broader than placement. When samples are expensive, the loop record
+must capture what each sample cost, what region of the space it informs, what it
+rules out, and how it should constrain the next agent action.
 
 @sec-methods-generation-prediction-optimization returns to sample efficiency from the method side. The representation
 lesson comes first: if cost, fidelity, and rejected-space coverage are not
@@ -437,6 +439,10 @@ policy, prefetching, coherence assumptions, bandwidth, latency, and workload
 mix. For an accelerator or compute subsystem, it may include supported
 operations, data layout, local storage, vector width, dataflow, quantization,
 compiler/runtime assumptions, and fallback behavior.
+For an agent-facing architecture description, the minimum is not only fields but
+permissions: which fields are mutable, which are read-only constraints, which
+tool observations can update them, and which violations trigger rejection or
+escalation.
 
 The important point is not that every representation must be one universal
 schema. Different loops need different representations. A paper-reading loop,
@@ -572,13 +578,16 @@ change, and what evidence can overturn the prediction.
 
 ![**A world model connects artifacts to valid architectural action:** A representation record captures what the loop can read, compare, and replay; a world model captures what the loop believes actions will change. Feedback becomes reusable only when provenance, coverage, and negative traces are recorded.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Loop diagram showing representation records, world models, tool feedback, evidence, provenance, coverage, and negative traces connected to valid architectural action."}
 
-There are several kinds of architecture world models. A simulator-backed world
-model uses a tool as the transition and feedback mechanism. A learned surrogate
-world model predicts outcomes from prior evaluations. A symbolic or
-constraint-based world model encodes invalid configurations, design rules, or
-physical limits. A hybrid world model combines these pieces: a simulator for
-selected candidates, a learned predictor for cheap screening, a rule system
-for invalid actions, and a human review policy for high-commitment decisions.
+The type of world model matters only through the loop contract it supports: what
+actions it can evaluate, what uncertainty it reports, what invalid moves it
+rejects, when it escalates fidelity, and which decisions remain human-owned. A
+simulator-backed world model uses a tool as the transition and feedback
+mechanism. A learned surrogate world model predicts outcomes from prior
+evaluations. A symbolic or constraint-based world model encodes invalid
+configurations, design rules, or physical limits. A hybrid world model combines
+these pieces: a simulator for selected candidates, a learned predictor for cheap
+screening, a rule system for invalid actions, and a human review policy for
+high-commitment decisions.
 
 No world model is automatically credible. Each has a scope. Each has
 uncertainty. Each can be wrong under distribution shift[^fn-distribution-shift-c04], new workloads,
@@ -674,20 +683,23 @@ environments. They define what actions are legal, what feedback is returned,
 how expensive evaluation is, and what evidence a loop can produce.
 
 ::: {.callout-research-question}
-Research questions for low-resource architecture data:
+For low-resource architecture data:
 
-1. What is the smallest architecture-loop state record that lets an agent choose
-   a next action, an independent rejector replay or reject that action, and a
-   human architect inspect the assumptions behind it?
-2. How can each scarce architecture sample carry its full evidentiary value:
-   cost, fidelity, provenance, coverage, uncertainty, and the regions it rules
-   out?
-3. What workload and data-characterization records are sufficient to tell
-   whether a candidate improved the target distribution rather than fitting a
-   benchmark slice, proxy metric, or tool configuration?
-4. How should loops preserve rejected candidates, invalid actions, tool
-   failures, and human review decisions without turning proprietary or tacit
-   knowledge into unusable anecdotes or unsafe disclosure?
+1. What task- and fidelity-conditioned state record lets an agent choose the
+   next evaluation, lets an independent rejector replay or reject that action,
+   and lets a human architect inspect the assumptions, constraints, provenance,
+   and decision authority behind it?
+2. How should a scarce feedback event record its decision value: measurement
+   cost, fidelity, calibration status, workload coverage, uncertainty, proxy
+   validity, and the candidate or design-space regions it supports or rules out?
+3. What workload-characterization record is sufficient to detect benchmark
+   overfitting: target population, scenario mix, input distribution, phase
+   behavior, software stack, sampling policy, proxy metrics, coverage gaps, and
+   distribution shifts?
+4. Under a fixed budget of scarce high-fidelity samples, how should a loop choose
+   which workloads, candidates, and fidelity levels to evaluate next while
+   preserving rejected candidates, invalid actions, tool failures, and human
+   review decisions safely?
 :::
 
 The reader test is whether another team could replay both the winning candidate

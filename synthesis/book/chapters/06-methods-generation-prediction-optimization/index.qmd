@@ -1,4 +1,4 @@
-# Methods for Generation, Prediction, and Optimization {#sec-methods-generation-prediction-optimization}
+# Method Roles Inside Rejectable Loops {#sec-methods-generation-prediction-optimization}
 
 ```{=latex}
 \abstract*{Architecture 2.0 needs a method-selection discipline, not a catalog of algorithms. Generation, prediction, optimization, critique, repair, verification, and explanation are roles inside a design loop. Which role matters depends on the task, representation, environment, feedback budget, evidence burden, and cost of being wrong.}
@@ -41,7 +41,7 @@ appears in regression models, learned surrogates, and calibrated performance
 or power estimators. Optimization appears in Bayesian optimization, autotuning,
 reinforcement learning, and search over compiler, mapping, placement, or
 architecture parameters. Generation now appears in natural-language-to-code,
-RTL, test, configuration, and design-report workflows. The shorthand is useful
+RTL, test, configuration, and design-report artifacts. The shorthand is useful
 because it gives proper credit to earlier work. It is also incomplete. The
 Architecture 2.0 question is how these roles compose with critique, repair,
 verification, explanation, provenance, negative traces, and human rejection
@@ -288,6 +288,9 @@ a role in a loop, not the loop itself. @sec-loop-patterns-across-stack makes the
 point quantitative: the loop is rejection-bound, and candidate count does not
 enter its throughput bound at all, so generating more proposals cannot speed a
 loop whose cheap, independent rejection coverage stays fixed.
+The transferable object is the harness contract: target platform, correctness
+oracle, numerical tolerance, baseline, failed kernels, portability boundary, and
+the rejection rule that stops a fast but wrong artifact.
 
 The same discipline appears closer to hardware. Chip-Chat reports a
 conversational loop in which a language model drafts Verilog, open-source
@@ -338,15 +341,14 @@ the true value with a user-chosen probability under an exchangeability[^fn-excha
 assumption [@AngelopoulosBates2021Conformal]. Architecture loops must audit
 that assumption because workloads, tools, and process corners are often not
 exchangeable. Still, the pattern is useful: it converts "report confidence"
-from a slogan into an operation. The predictor returns not
-a point latency or energy but an interval, and the loop escalates to higher
-fidelity whenever that interval straddles a constraint, such as the 3 W
-envelope, or grows wider than the decision can tolerate. The guarantee does not
-require a parametric residual model, which is useful for architecture
-surrogates with awkward error shapes. But it still depends on the calibration
-assumption being meaningful; under distribution shift, the interval is a
-diagnostic that should trigger scrutiny rather than a promise that the proxy is
-safe.
+from a slogan into an operation. The predictor writes an interval, calibration
+receipt, and support-region label into the loop state; the environment may use
+that record only to prune, escalate, or defer, not to make an unowned
+commitment. The guarantee does not require a parametric residual model, which is
+useful for architecture surrogates with awkward error shapes. But it still
+depends on the calibration assumption being meaningful; under distribution
+shift, the interval is a diagnostic that should trigger scrutiny rather than a
+promise that the proxy is safe.
 
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
@@ -372,6 +374,9 @@ It encourages the loop to trade off exploration and exploitation, to reason
 about uncertainty, and to spend evaluations where they are likely to matter.
 Those properties align naturally with architecture settings where simulator,
 synthesis, or measurement runs are costly.
+In Architecture 2.0, the acquisition policy is itself a logged action proposal:
+it must name the candidate, the fidelity level, the expected decision value, and
+the condition under which the sample will be rejected or escalated.
 
 Reinforcement learning is attractive when the problem is sequential: placement
 decisions, scheduling policies, adaptive control, or multi-stage design flows.
@@ -387,9 +392,9 @@ supply real rejection authority. PrefixRL casts the design of parallel-prefix
 arithmetic circuits, such as adders, as a reinforcement-learning problem with
 logic synthesis in the loop, so every proposed circuit is scored by an actual
 synthesis run rather than a hand-built proxy [@RoyEtAl2021PrefixRL]. The
-paper reports circuits that reached the area-delay Pareto frontier of a
-production design flow and arithmetic units that were adopted in shipping GPU
-silicon.
+important receipt is that each candidate was a bounded circuit object,
+evaluated by a synthesis-backed environment, and rejected or advanced by
+evidence stronger than a hand-built proxy.
 The contrast with the placement dispute is the lesson, not the leaderboard: the
 same method family is contested when its reward is a fast proxy and defensible
 when a bounded action space lets a high-fidelity instrument reject every
@@ -410,6 +415,10 @@ stresses the compiler/runtime path that makes specialization usable. Both
 illustrate a durable pattern: a method is
 powerful when it is embedded in an environment that exposes legal actions,
 measures feedback, updates a cost model, and records results.
+For Architecture 2.0, the transferable pattern is the record: candidate
+schedule, compiler/runtime version, measurement context, failed variants,
+cost-model update, and the human-owned boundary on what the measurement can
+prove.
 
 The optimizer should therefore be evaluated by what it learns and what it can
 explain, not only by its best score. Did it discover a robust region? Did it
@@ -512,9 +521,9 @@ optimization goes one step further and treats the fidelity level itself as a
 decision variable: it chooses not only which candidate to evaluate but whether
 to spend a cheap proxy or an expensive simulation on it, exactly the choice the
 fidelity ladder poses [@KandasamyEtAl2017MultiFidelityBO]. The architecture
-loop rarely needs the full apparatus, but naming it matters: there is a
-rigorous language for spending scarce samples, and a loop that ignores it is
-leaving evidence on the table. The loop still has to record the acquisition
+loop usually needs the contract more than the proof apparatus: what rule chose
+the sample, what assumptions made that rule legal, what evidence came back, and
+what threshold forced escalation. The loop still has to record the acquisition
 rule, fidelity choice, assumptions, rejected alternatives, and escalation
 threshold, or the optimizer becomes another opaque source of candidates.
 
@@ -661,30 +670,33 @@ methods, how do we know whether its feedback is evidence? @sec-feedback-verifica
 that question by making fidelity, verification, rejection, and trust explicit.
 
 ::: {.callout-research-question}
-Research questions for method roles:
+For method roles:
 
-1. What loop state must an Architecture 2.0 system represent so generation,
-   prediction, optimization, critique, repair, and verification can share
-   evidence rather than operate as disconnected tools?
-2. How can architecture agents learn from low-resource feedback, including
-   failed runs, invalid candidates, tool warnings, and expert rejections,
-   without overfitting cheap proxies?
-3. What tests can determine whether an architecture environment has enough
-   rejection authority to support a method's claim before deployment or
-   publication?
-4. When should a loop use a generator, predictor, optimizer, critic, repair
-   method, verifier, or explanation role, and how should those roles compose
-   under a fixed evidence budget?
+1. What loop state, provenance, and evidence ledger must an Architecture 2.0
+   system represent so a generator's candidates, a predictor's uncertainty, an
+   optimizer's sampling choices, a critic's objections, a repair method's edits,
+   and a verifier's failures remain distinguishable but shareable?
+2. How can architecture agents update from scarce feedback -- failed runs,
+   invalid candidates, tool warnings, expert rejections, and a few high-fidelity
+   checks -- while separating cheap-proxy screening from evidence strong enough
+   to support a design claim?
+3. What tests show that a feedback environment has enough rejection authority for
+   a specific method claim, such as candidate validity, predicted performance,
+   chosen next sample, repaired artifact, or final recommendation?
+4. Given a fixed evidence budget across proxy, simulation, synthesis, and
+   deployment checks, how should a loop allocate work among generation,
+   prediction, optimization, critique/repair, verification, and explanation, and
+   what stopping or escalation rule should govern each role?
 :::
 
 The reader test is whether you can write one sentence explaining why this method
 belongs in this role for this loop. Once methods can act, the next question is
 whether their feedback becomes evidence strong enough to support trust.
 
-[^fn-openai-gym-c06]: **OpenAI Gym**: A widely used toolkit for developing and comparing reinforcement learning algorithms, providing a standard interface for agents to interact with various environments.
-[^fn-neural-architecture-search-c06]: **Neural architecture search (NAS)**: A technique for automating the design of artificial neural networks, finding optimal model architectures for a specific task instead of relying on human design.
+[^fn-openai-gym-c06]: **OpenAI Gym**: In this chapter, a precedent for making action, observation, reward, and reset semantics explicit enough that method behavior can be compared.
+[^fn-neural-architecture-search-c06]: **Neural architecture search (NAS)**: In this chapter, a cautionary adjacent field where search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are recorded.
 [^fn-proxy-mismatch-c06]: **Proxy mismatch**: When a cheap stand-in metric diverges from the true objective it estimates, so optimizing the proxy stops improving the real goal; it is an instance of Goodhart's Law (when a measure becomes a target, it ceases to be a good measure), treated in full in @sec-feedback-verification-trust.
 [^fn-exchangeability-c06]: **Exchangeability**: A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).
 [^fn-pareto-region-c06]: **Pareto region**: The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.
-[^fn-sample-efficiency-c06]: **Sample efficiency**: A measure of how much data or how many environmental interactions an algorithm requires to reach a target level of performance. High sample efficiency means fewer expensive simulations are needed.
-[^fn-no-regret-guarantee-c06]: **No-regret guarantee**: A guarantee that the loop's cumulative sampling loss grows sublinearly, so over time its choices provably approach those of the best fixed strategy under the stated assumptions.
+[^fn-sample-efficiency-c06]: **Sample efficiency**: In this chapter, the amount of decision-relevant evidence a loop gains per scarce feedback event, including failed runs and expert rejections, not just successful simulations.
+[^fn-no-regret-guarantee-c06]: **No-regret guarantee**: In this chapter, a formal promise about a sampling rule under stated assumptions; useful only when the loop records whether those assumptions apply.

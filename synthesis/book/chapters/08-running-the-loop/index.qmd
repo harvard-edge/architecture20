@@ -42,6 +42,7 @@ next evidence stage.
 | Baseline | A bounded comparison among three compute organizations, not a full product baseline. |
 | ISA/software assumption | All candidates remain within a 64-bit RISC-V-compatible software path; compiler/runtime feasibility is deferred. |
 | Design space | Vector CPU extension, deliberately loose accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator search yet. |
+| Legal actions | Instantiate one of the three candidate organization records, run the proxy screen, escalate survivors to the simulation-stage estimate, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, or silicon evidence. |
 
@@ -68,17 +69,21 @@ so it flatters designs that keep arithmetic local. At this fidelity the loosely
 coupled accelerator looks best: it posts the lowest energy and latency because
 the proxy never charges it for moving data in and out.
 
-A proxy result is feedback, not evidence. It is enough to keep all three
-candidates alive and to rank them for the next, more expensive stage. Proxy
+A proxy result is low-fidelity feedback that becomes evidence only for the
+narrow action of deciding what to escalate. It is not evidence for an
+implementation commitment until stronger feedback confirms the gate. Proxy
 deadline or power concerns are warnings until stronger feedback confirms them.
 The loop records the proxy ranking and escalates.
 
 ## Round Two: Escalate to a Simulation-Stage Estimate
 
 An illustrative simulation-stage estimate is the first stage that charges memory
-traffic. It stands in for a memory-aware model: a dataflow analysis like Timeloop
-[@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin
-[@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5
+traffic. The exact tool is not the lesson. This stage is a stronger environment
+contract: it charges memory traffic, returns latency/energy/power observations
+with provenance and cost, and has authority to overturn proxy rankings before
+commitment. It stands in for a memory-aware model: a dataflow analysis like
+Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like
+Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5
 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
 It is
 slower and scarcer than the proxy, so the loop spends it only on the candidates
@@ -252,12 +257,10 @@ advance the surviving organization to an RTL study where synthesis, timing, and
 a stronger power estimate can confirm or reject it, and hold the other two as
 recorded negative traces.
 
-This is the difference between an answer and a defensible answer. The loop did
-not produce a chip. It produced a surviving candidate, the evidence that
-supports it, the alternatives that failed and why, and the next evidence the
-decision needs. That is what the lighthouse prompt was always asking for: a
-design-space report with evidence and rejected alternatives, not a one-shot
-generation.
+This is the difference between an answer and a defensible loop turn. The result
+is a loop receipt: the surviving state, the evidence that supports it, the
+actions and alternatives rejected, the commitment boundary, and the next
+evidence a human owner requires.
 
 ::: {#pri-honest-evidence .callout-design-principle title="Stop at an honest evidence level"}
 A loop should report what its evidence supports, what it rejected, and what would
@@ -275,7 +278,7 @@ loop can state what it did and what would reject it.
 | Intent | Explore a low-power mobile-XR compute organization that can meet a real-time deadline under a 3\ W envelope. |
 | Task | Compare three bounded compute organizations for one XRBench-class workload slice. |
 | Design space | Choose among vector CPU extension, deliberately loose accelerator stress case, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, full tightly coupled accelerator search, and RTL edits outside this turn. |
-| Representation | Candidate ID, proxy latency and energy, simulated latency and energy, power estimate, deadline, power envelope, and verdict. |
+| Representation | Candidate ID, candidate record, legal action taken, workload slice ID/coverage label, proxy and simulation observations, uncertainty/provenance limits, deadline, power envelope, and verdict. |
 | Environment | Analytic proxy followed by a gem5-class cycle-level simulation and a simple power-envelope check. |
 | Method role | Generate candidates, predict cheap proxy scores, escalate promising candidates, and critique proxy wins against stronger feedback. |
 | Feedback budget | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
@@ -334,20 +337,22 @@ a stronger check disagree, which one has authority; and at what commitment level
 does the evidence actually let the loop stop?
 
 ::: {.callout-research-question}
-Research questions for running one loop:
+For running one loop:
 
-1. How can represented state, including task slice, provenance, uncertainty,
-   workload coverage, and negative traces, tell a loop when to advance, reject,
-   or escalate?
-2. What is the smallest reusable loop receipt that lets low-resource
-   architecture research accumulate evidence across workloads, candidates,
-   failures, and tool fidelities without exposing proprietary state?
-3. How should workload records distinguish "this candidate failed this slice"
-   from "this candidate is generally bad," and detect when distribution shift
-   invalidates a survivor or rejection?
-4. How can negative traces be reused so future searches avoid rediscovering
-   failed designs while still recognizing when new workloads, interfaces, or
-   evidence levels make an old rejection obsolete?
+1. What state must a design loop preserve so an escalation policy can decide,
+   under a fixed feedback budget, whether a candidate should advance, be
+   rejected, or receive a stronger interface- and memory-aware check?
+2. How can agentic design loops using multi-fidelity feedback detect when a
+   cheap proxy is likely to reverse the true ranking, especially for candidates
+   whose viability depends on data movement, software path, and interface cost?
+3. What is the smallest privacy-preserving loop receipt that lets other
+   researchers reconstruct the task slice, workload coverage, candidate records,
+   tool fidelity, uncertainty, rejection reasons, and commitment boundary without
+   exposing proprietary inputs?
+4. How should workload records and negative traces distinguish "failed this
+   slice under this interface model" from "generally bad," and reopen an old
+   rejection when workloads, interfaces, software stacks, or evidence levels
+   change?
 :::
 
 The reader test is whether another architect could reconstruct why the
