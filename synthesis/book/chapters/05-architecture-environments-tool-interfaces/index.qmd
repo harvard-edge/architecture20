@@ -51,7 +51,7 @@ After this chapter you can:
 - turn a tool into an environment with an explicit action, observation, cost, and rejection contract;
 - read a result by naming the environment that produced it;
 - reason about feedback latency and fidelity as an economy of evidence;
-- detect simulator mismatch and proxy gaming before they mislead the loop.
+- detect proxy mismatch and proxy gaming, simulators included, before they mislead the loop.
 :::
 
 ## Tools Shape the Research Question
@@ -330,7 +330,7 @@ useful environment should not merely publish a script; it should publish the
 contract under which actions are legal, observations are valid, and evidence can
 be compared.
 Keeping those contracts valid after the first paper is the operating discipline
-@sec-archops-operating-discipline later names ArchOps.
+@sec-archops-operating-discipline develops.
 
 It is useful to reserve the word harness for this larger object. A
 wrapper calls a tool. A harness preserves the contract around the tool: task,
@@ -490,7 +490,7 @@ decision that requires, is the bridge from this chapter to
 \FloatBarrier
 ```
 
-## Simulator Mismatch and Proxy Gaming
+## Proxy Gaming and the Simulator Case
 
 An architecture environment must also defend itself against its own
 abstractions. Simulators, analytical models, profilers, and compiler cost
@@ -500,8 +500,9 @@ state, cache initialization, interconnect models, and sampling choices. A
 method that searches aggressively can discover weaknesses in those assumptions
 just as easily as it can discover a good architecture candidate.
 
-> **Simulator mismatch.** Simulator mismatch is the gap between the behavior
-> an environment reports and the behavior that would matter at the next stronger
+> **The simulator case of proxy mismatch.** When the proxy is a simulator,
+> proxy mismatch takes a specific form: a gap between the behavior an
+> environment reports and the behavior that would matter at the next stronger
 > fidelity level, such as a more detailed simulator, synthesis, physical design,
 > emulation, silicon, or deployment.
 
@@ -516,7 +517,7 @@ A run that does not crash is not the same as hardware validity; the environment 
 to define which illegal states, unsupported configurations, and silent
 out-of-model behaviors it can actually reject.
 
-::: {.callout-failure-mode title="when the tool becomes the target"}
+::: {.callout-failure-mode title="When the tool becomes the target"}
 A common failure pattern is not that the tool is useless; it is that the loop
 learns exactly what the tool rewards. This is a local instance of *proxy
 mismatch*, the architecture version of what machine-learning safety calls
@@ -636,31 +637,35 @@ Before trusting an environment's verdict, confirm:
 - another team could act in this harness without private knowledge.
 :::
 
-Operating discipline is the practice of maintaining those layers over time.
+Operating discipline, the architecture counterpart of MLOps[^fn-mlops-c05], is the practice of maintaining those layers over time.
 Workloads drift. Tool versions change. Compiler behavior changes. Benchmarks
 gain new rules. Models learn stale assumptions. A one-time environment can
 support a paper; a maintained environment can support a field. That is why the
 environment should record versions, assumptions, invalid actions, rejected
 candidates, and changes in the workload distribution.
 
-> **ArchOps.** This book proposes *ArchOps*, by deliberate analogy to MLOps[^fn-mlops-c05], for
-> the operational discipline of keeping an architecture design loop valid over
-> time: versioning workloads and tools, recording
-> provenance and negative traces, monitoring drift, and maintaining the
-> rejection gates that let the loop stay trustworthy across many runs. It is the
-> architecture counterpart of MLOps, but its artifacts are simulators, RTL,
-> constraints, and evidence ledgers rather than models and datasets.
+::: {#pri-maintain-environment .callout-design-principle title="Maintain the environment, don't just build it"}
+A design-loop environment is not built once; it is maintained. Workloads drift,
+tools change, benchmarks gain rules, and models learn stale assumptions, so an
+environment that is valid on the first run can silently mislead by the tenth.
+Keeping it valid, versioning workloads and tools, recording provenance and
+negative traces, monitoring drift, and maintaining the rejection gates, is the
+architecture counterpart of the operational discipline MLOps
+brought to machine-learning pipelines, applied to simulators, RTL, constraints,
+and evidence ledgers rather than models and datasets.
+:::
 
-Naming the discipline matters because a one-time environment and a maintained
-one look identical on the first run and diverge completely by the tenth.
-ArchOps is the name this book uses for that maintenance burden once architecture
+The distinction matters because a one-time environment and a maintained
+one look identical on the first run and diverge completely by the tenth. That
+maintenance burden is what separates a script that supports a single paper from
+a harness that can support a field, once architecture
 loops become shared infrastructure rather than one-off scripts.
 
 @tbl-archops-operating-discipline states the maintenance work in operational
-terms. The table is intentionally prosaic because ArchOps succeeds only when
+terms. The table is intentionally prosaic because the discipline succeeds only when
 ordinary drift becomes visible before it invalidates evidence.
 
-| **Drift source** | **What ArchOps records** | **Failure if ignored** | **Operating response** |
+| **Drift source** | **What to record** | **Failure if ignored** | **Operating response** |
 | --- | --- | --- | --- |
 | Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
 | Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, seed, and configuration versions. | Results become incomparable across runs without a clear cause. | Treat version changes as evidence events and preserve old receipts. |
@@ -668,7 +673,7 @@ ordinary drift becomes visible before it invalidates evidence.
 | Evidence and rejection rules | Fidelity labels, escalation thresholds, signoff gates, waivers, and reviewer decisions. | A proxy keeps authority after the commitment level has risen. | Recalibrate evidence levels and require higher-fidelity review. |
 | Human ownership | Decision owner, review date, redaction boundary, and escalation path. | Accountability disappears into scripts, tools, or agents. | Keep commitment decisions explicit and auditable. |
 
-: **ArchOps maintains loop validity over time:** The operating discipline is to
+: **Maintaining the environment preserves loop validity over time:** The operating discipline is to
 version workloads, tools, actions, evidence rules, and ownership so that drift
 does not silently change what a loop result means. {#tbl-archops-operating-discipline tbl-colwidths="[18,25,25,22]"}
 
@@ -678,7 +683,7 @@ feedback, and rejection. Once that happens, @sec-methods-generation-prediction-o
 belong inside the loop. Without it, method choice floats free of the
 architecture problem. With it, generation, prediction, optimization, critique,
 and verification become roles inside a credible design system.
-ArchOps is what keeps that design system trustworthy after the first run.
+Maintaining the environment is what keeps that design system trustworthy after the first run.
 
 ::: {.callout-research-question}
 How would you decide whether an architecture environment is valid, that gains
