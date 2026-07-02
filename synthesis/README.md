@@ -1,7 +1,7 @@
 # Architecture 2.0 Synthesis Lecture
 
 This directory contains the Quarto source for **Architecture 2.0: Agentic
-Design Loops for Computing System Synthesis**.
+Design Loops for Computing-System Synthesis**.
 
 Architecture 2.0 treats the architecture design loop itself as the object of
 design. The lecture focuses on represented intent, constraints, world models,
