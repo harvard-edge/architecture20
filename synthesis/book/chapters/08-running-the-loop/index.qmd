@@ -1,7 +1,7 @@
 # Running the Loop: The Lighthouse Prompt, End to End {#sec-running-the-loop}
 
 ```{=latex}
-\abstract*{The previous chapters built the parts of an Architecture 2.0 loop: representation, environment, method roles, feedback budgets, evidence ledgers, and rejection authority. This chapter runs one loop, end to end, on the lighthouse prompt. The point is not the specific numbers, which are illustrative; it is to watch a loop generate candidates, predict, escalate, reject, and stop at an honest commitment boundary.}
+\abstract*{The previous chapters built the parts of an Architecture 2.0 loop: representation, environment, method roles, feedback budgets, evidence ledgers, and rejection authority. This chapter runs one loop, end to end, on the lighthouse prompt. The point is not the specific numbers, which are illustrative; it is to watch a loop instantiate candidates, predict, escalate, reject, and stop at an honest commitment boundary.}
 ```
 
 ::: {.callout-question}
@@ -10,12 +10,13 @@ How does the lighthouse prompt become one rejectable loop turn rather than a one
 
 The previous chapters have described what a credible loop must contain. They
 have not yet shown one turn. This chapter does that. It takes the lighthouse
-prompt, bounds it to a task small enough to run, and walks the loop through generation,
-prediction, escalation, rejection, and commitment. Every number here is
-illustrative and generated in code, not measured; the lesson is the shape of
-the loop, not the values. The numbers are constructed to be inspectable, not
-XRBench measurements, gem5 results, or synthesis estimates; replace them with
-local source receipts before using this pattern for an empirical claim. The
+prompt, bounds it to a task small enough to run, and walks the loop through
+candidate instantiation, prediction, escalation, rejection, and commitment.
+Every number here is illustrative and generated in code, not measured; the
+lesson is the shape of the loop, not the values. The numbers are constructed to
+be inspectable, not XRBench measurements, gem5 results, or synthesis estimates;
+replace them with local source receipts before using this pattern for an
+empirical claim. The
 demonstration that this shape holds on real, deployed hardware comes in
 @sec-loop-patterns-across-stack, where the same generate, screen, escalate,
 reject, and commit sequence runs on a production fleet migration with measured
@@ -42,14 +43,15 @@ next evidence stage.
 | Baseline | A bounded comparison among three compute organizations, not a full product baseline. |
 | ISA/software assumption | All candidates remain within a 64-bit RISC-V-compatible software path; compiler/runtime feasibility is deferred. |
 | Design space | Vector CPU extension, deliberately loose accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator search yet. |
-| Legal actions | Instantiate one of the three candidate organization records, run the proxy screen, escalate survivors to the simulation-stage estimate, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
+| Legal actions | Instantiate the three candidate organization records, run the proxy screen, escalate all candidates to the simulation-stage estimate because the proxy has no final rejection authority, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, or silicon evidence. |
 
 : **A worked loop starts by declaring its slice:** The chapter exercises one small loop turn from the lighthouse prompt, while recording which obligations remain outside the current evidence boundary. {#tbl-active-lighthouse-slice tbl-colwidths="[24,66]"}
 
 ::: {.callout-learning-objectives}
-After this chapter you can:
+After this chapter you can turn a broad prompt into one bounded, rejectable loop
+turn and read the receipt it leaves. That means you can:
 
 - instantiate and run a design-loop card on a concrete prompt, not merely fill it in;
 - recognize proxy mismatch when the cheapest winner fails at higher fidelity;
@@ -68,6 +70,10 @@ input-distribution variation, locality, runtime behavior, and coverage labels,
 so it flatters designs that keep arithmetic local. At this fidelity the loosely
 coupled accelerator looks best: it posts the lowest energy and latency because
 the proxy never charges it for moving data in and out.
+In this illustrative turn, the chapter seeds three candidate records rather
+than demonstrating a real generator or search trace. A real run would store the
+prompt, generator version, candidate IDs, invalid candidates, and selection
+rule as part of the receipt.
 
 A proxy result is low-fidelity feedback that becomes evidence only for the
 narrow action of deciding what to escalate. It is not evidence for an
@@ -86,8 +92,9 @@ Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like
 Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5
 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
 It is
-slower and scarcer than the proxy, so the loop spends it only on the candidates
-that survived screening. The result is the central lesson of the chapter:
+slower and scarcer than the proxy. In this toy turn all three candidates are
+escalated because proxy feedback has no final rejection authority. The result
+is the central lesson of the chapter:
 
 @tbl-worked-loop runs the comparison.
 
@@ -131,7 +138,7 @@ for c in candidates:
 lines.append("")
 lines.append(
     ": **One loop turning on the lighthouse prompt:** the lowest-energy candidate "
-    f"at proxy fidelity is the {proxy_pick.lower()}, but cycle-level simulation and the "
+    f"at proxy fidelity is the {proxy_pick.lower()}, but an illustrative simulation-stage estimate and the "
     f"{deadline_ms:.0f} ms / {power_budget_w:.0f} W gates reject it, and the {survivor.lower()} is the only "
     f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
     "envelope. Values are illustrative and computed in the chunk. {#tbl-worked-loop}"
@@ -148,8 +155,8 @@ The ledger is what makes the toy loop auditable rather than merely ranked.
 | **Stage** | **Feedback source** | **Fidelity and budget** | **Support** | **Rejection gate** | **Provenance / limit** | **Next evidence** |
 | --- | --- | --- | --- | --- | --- | --- |
 | Proxy screen | Operation-count or datapath-only estimate. | Three cheap evaluations; ignores most data movement. | Ranks the accelerator first on proxy energy. | No final rejection; only warnings. | Illustrative constants in this chapter. | Escalate all candidates to stronger feedback. |
-| Simulation-stage estimate | Gem5-class memory-aware estimate plus simple power check. | Three scarce illustrative checks; still no RTL or physical feedback. | Shared-memory SoC block clears both gates. | 8\ ms deadline and 3\ W envelope. | Hard-coded values; not XRBench, gem5, synthesis, silicon data, workload trace IDs, scenario coverage labels, or input-distribution receipts. | RTL, timing, area, thermal, and compiler/runtime checks. |
-| Negative traces | Recorded failed alternatives. | Two rejected candidates. | Failure reasons are preserved. | Latency miss, power-envelope violation, and proxy mismatch. | Candidate IDs and reasons only; no logs attached, and no evidence that another workload distribution would preserve the same rejection. | Prevent rediscovery and guide the next search. |
+| Simulation-stage estimate | Illustrative memory-aware estimate plus simple power check. | Three scarce illustrative checks; still no RTL or physical feedback. | Shared-memory SoC block clears both gates. | 8\ ms deadline and 3\ W envelope. | Hard-coded values; not XRBench, gem5, synthesis, silicon data, workload trace IDs, scenario coverage labels, or input-distribution receipts. | RTL, timing, area, thermal, and compiler/runtime checks. |
+| Negative traces | Recorded failed alternatives. | Two rejected candidates. | Failure reasons are preserved. | 8\ ms deadline and 3\ W envelope; proxy mismatch is recorded as diagnostic context. | Candidate IDs and reasons only; no logs attached, and no evidence that another workload distribution would preserve the same rejection. | Prevent rediscovery and guide the next search. |
 
 : **The evidence ledger records stages, not only the winner:** The reusable result is the sequence of feedback, support, rejection gates, limits, and next evidence. {#tbl-worked-loop-ledger tbl-colwidths="[13,16,17,14,13,14,13]"}
 
@@ -167,7 +174,7 @@ rediscover it. @fig-proxy-mirage shows the reorder.
 #| fig-cap: |
 #|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the loosely coupled accelerator, becomes the worst once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
 #| out-width: "82%"
-#| fig-alt: "Grouped comparison plot showing that proxy energy ranking reverses when cycle-level simulation and power constraints are applied."
+#| fig-alt: "Grouped comparison plot showing that proxy energy ranking reverses when an illustrative simulation-stage estimate and power constraints are applied."
 
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style
@@ -218,16 +225,18 @@ plt.close(fig)
 ## Round Three: Reject on the Envelope
 
 The simulation-stage estimate also exposes harder gates. The loosely coupled
-accelerator does not merely lose on energy; all three of its symptoms trace to a
-single cause. Reaching the accelerator means moving data across an interface to
-off-chip or distant memory, and that traffic is expensive on every axis at once.
-It stalls the datapath, so simulated latency misses the 8\ ms deadline. It pays
-off-chip access energy, so per-frame energy climbs above every alternative. And
-it keeps the memory subsystem busy rather than idle, so average power crosses the
-3\ W envelope. These are constraints, not just metrics, so no local proxy
-advantage rescues it. The rejection is the commitment rule from the trust chapter
-doing its work: a candidate advances only if it is valid, its evidence clears the
-threshold for the stage, and its residual risk is acceptable.
+accelerator does not merely lose on energy; in this constructed diagnosis, its
+symptoms point to one cause the next evidence stage would have to verify.
+Reaching the accelerator means moving data across an interface to off-chip or
+distant memory, and that traffic is expensive on every axis at once. It stalls
+the datapath, so the illustrative latency estimate misses the 8\ ms deadline.
+It pays off-chip access energy, so per-frame energy climbs above every
+alternative. And it keeps the memory subsystem busy rather than idle, so average
+power crosses the 3\ W envelope. These are constraints, not just metrics, so no
+local proxy advantage rescues it. The rejection is the commitment rule from the
+trust chapter doing its work: a candidate advances only if it is valid, its
+evidence clears the threshold for the stage, and its residual risk is
+acceptable.
 
 ::: {.callout-lighthouse title="Price the interface before believing the accelerator"}
 **Context.** This worked loop deliberately includes a loosely coupled
@@ -251,11 +260,11 @@ envelope, the local arithmetic win no longer matters.
 
 One candidate survives the deadline and the envelope. It is tempting to call
 that a result. It is not, yet. The evidence behind it is a simulation-stage
-estimate standing in for cycle-level and power evidence, which supports an
-experimental commitment, not an implementation or a tapeout. The architect's decision is therefore bounded:
-advance the surviving organization to an RTL study where synthesis, timing, and
-a stronger power estimate can confirm or reject it, and hold the other two as
-recorded negative traces.
+estimate standing in for cycle-level and power feedback, which supports an
+experimental commitment, not an implementation or a tapeout. The architect's
+decision is therefore bounded: advance the surviving organization to an RTL
+study where synthesis, timing, and a stronger power estimate can confirm or
+reject it, and hold the other two as recorded negative traces.
 
 This is the difference between an answer and a defensible loop turn. The result
 is a loop receipt: the surviving state, the evidence that supports it, the
@@ -279,12 +288,12 @@ loop can state what it did and what would reject it.
 | Task | Compare three bounded compute organizations for one XRBench-class workload slice. |
 | Design space | Choose among vector CPU extension, deliberately loose accelerator stress case, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, full tightly coupled accelerator search, and RTL edits outside this turn. |
 | Representation | Candidate ID, candidate record, legal action taken, workload slice ID/coverage label, proxy and simulation observations, uncertainty/provenance limits, deadline, power envelope, and verdict. |
-| Environment | Analytic proxy followed by a gem5-class cycle-level simulation and a simple power-envelope check. |
-| Method role | Generate candidates, predict cheap proxy scores, escalate promising candidates, and critique proxy wins against stronger feedback. |
+| Environment | Analytic proxy followed by an illustrative simulation-stage estimate standing in for cycle-level feedback and a simple power-envelope check. |
+| Method role | Seed candidates, predict cheap proxy scores, escalate all candidates because the proxy has no final rejection authority, and critique proxy wins against stronger feedback. |
 | Feedback budget | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
 | Evidence | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. |
-| Negative traces | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after simulation exposes data movement. |
-| Rejection authority | Deadline check, power-envelope check, and the stronger simulation result that can overturn the proxy ranking. |
+| Negative traces | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after the illustrative estimate exposes data movement. |
+| Rejection authority | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
 | Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, and stronger power evidence. |
 | Human decision | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
 
