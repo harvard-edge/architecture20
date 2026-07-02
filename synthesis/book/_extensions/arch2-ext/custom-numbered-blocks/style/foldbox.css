@@ -43,6 +43,27 @@ details.fbx-question {
   /* Subtle Arch2 blue shadow */
 }
 
+/* The Lua filter emits an outer Div for ids, xrefs, and Quarto book plumbing,
+   then inserts the actual rendered callout as an inner <details>. Keep all
+   visual styling on the inner foldbox so Quarto's native .callout shell never
+   appears behind custom callouts. */
+div.fbx-wrapper.callout {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  margin: 1.45rem 0 !important;
+  padding: 0 !important;
+}
+
+div.fbx-wrapper.callout > p:empty {
+  display: none;
+}
+
+div.fbx-wrapper.callout > details.fbx-default,
+div.fbx-wrapper.callout > p:empty + details.fbx-default {
+  margin: 0;
+}
+
 /* Remove default marker */
 details.fbx-default summary,
 details.fbx-answer summary,
@@ -56,31 +77,24 @@ details.fbx-question summary::-webkit-details-marker {
   display: none;
 }
 
-/* Ultra-specific override - nuclear option */
-body div details[class*="callout"]>summary,
+/* Keep foldbox headers on Quarto's sans stack, independent of page prose. */
 body div details.fbx-default>summary,
 body div details.fbx-answer>summary,
 body div details.fbx-question>summary,
-body div .callout-title-container,
-body details[class*="callout"]>summary,
 body details.fbx-default>summary,
 body details.fbx-answer>summary,
-body details.fbx-question>summary,
-body .callout-title-container {
+body details.fbx-question>summary {
   font-family: var(--bs-body-font-family, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif) !important;
   font-weight: 700 !important;
   font-size: 0.9rem !important;
 }
 
-/* Alternative approach using CSS custom properties */
-details[class*="callout"],
 details.fbx-default,
 details.fbx-answer,
 details.fbx-question {
   --custom-font-weight: 700;
 }
 
-details[class*="callout"]>summary,
 details.fbx-default>summary,
 details.fbx-answer>summary,
 details.fbx-question>summary {
@@ -116,11 +130,10 @@ details.fbx-question>summary {
   /* Reduced for snugger fit */
 }
 
-/* Ensure summary text (strong element) is left-aligned - all callout types */
+/* Ensure summary text (strong element) is left-aligned for foldbox callouts. */
 details.fbx-default>summary strong,
 details.fbx-answer>summary strong,
-details.fbx-question>summary strong,
-details[class*="callout-"]>summary strong {
+details.fbx-question>summary strong {
   text-align: left !important;
   flex-grow: 1;
   display: block;
@@ -177,7 +190,7 @@ details.fbx-question>summary::before {
 details.fbx-default>div,
 details.fbx-answer>div,
 details.fbx-question>div,
-details[class*="callout-"]>div {
+details.fbx-default[class*="callout-"]>div {
   font-family: var(--bs-body-font-family, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   font-size: var(--font-size);
   /* Now 0.9rem (14.4px) like Quarto */
@@ -195,13 +208,27 @@ details[class*="callout-"]>div {
   border-bottom-right-radius: var(--border-radius);
 }
 
+details.fbx-default[class*="callout-"]>div p,
+details.fbx-default[class*="callout-"]>div li {
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size);
+  line-height: 1.55;
+}
+
+details.fbx-default[class*="callout-"]>div p {
+  margin-bottom: 0.75rem;
+}
+
+details.fbx-default[class*="callout-"]>div strong {
+  font-family: var(--font-family) !important;
+  font-weight: 700;
+}
+
 /* Ensure last element in callout content doesn't add extra space */
 details.fbx-default>div>*:last-child,
 details.fbx-answer>div>*:last-child,
 details.fbx-question>div>*:last-child,
-details[class*="callout-"]>div>*:last-child,
-div[class*="callout-"]>div>*:last-child,
-.callout>div>*:last-child {
+details.fbx-default[class*="callout-"]>div>*:last-child {
   margin-bottom: 0 !important;
 }
 
@@ -213,57 +240,85 @@ div[class*="callout-"]>div>*:last-child,
 details.fbx-default>div>*:first-child,
 details.fbx-answer>div>*:first-child,
 details.fbx-question>div>*:first-child,
-details[class*="callout-"]>div>*:first-child,
-div[class*="callout-"]>div>*:first-child,
-.callout>div>*:first-child {
+details.fbx-default[class*="callout-"]>div>*:first-child {
   margin-top: 0 !important;
   padding-top: 0 !important;
 }
 
-/* Native Quarto callouts (.callout-tip, .callout-note, etc.) use
-   .callout-icon-container and .callout-title-container inside the
-   .callout-header. Both inner containers carry padding-bottom: 1em
-   from Quarto's own stylesheet, which makes the header ~17px taller
-   than necessary and creates visible empty space under the title
-   text. Foldbox callouts (our custom numbered blocks) don't have
-   this because they use <summary> as a single-element header. Zero
-   the inner padding-bottom so native callouts have the same header
-   geometry as foldbox callouts. */
-.callout-header .callout-icon-container,
-.callout-header .callout-title-container {
-  padding-bottom: 0 !important;
-}
-
-/* Catch-all for any div-based callouts (non-details structure) */
-div[class*="callout-"]:not(details)>div {
-  padding-bottom: 1rem !important;
-}
-
-/* Ensure all content inside callouts is left-aligned - all callout types */
-details[class*="callout-"] p,
-details[class*="callout-"] ul,
-details[class*="callout-"] ol {
+/* Ensure all content inside custom foldbox callouts is left-aligned. */
+details.fbx-default[class*="callout-"] p,
+details.fbx-default[class*="callout-"] ul,
+details.fbx-default[class*="callout-"] ol {
   text-align: left !important;
   margin-left: 0 !important;
 }
 
 /* Ensure list items are left-aligned with proper indentation */
-details[class*="callout-"] li {
+details.fbx-default[class*="callout-"] li {
   text-align: left !important;
 }
 
-/* Chapter-opening questions are not ordinary admonitions. Keep the title
-   compact, tint the whole box, and let the question itself read as the
-   guiding frame for the chapter. */
-details.callout-question {
-  box-shadow: none;
+details.callout-learning-objectives > div ul,
+details.callout-carry-forward > div ul,
+details.callout-architect-checkpoint > div ul {
+  margin-bottom: 0;
 }
 
-details.callout-question > div {
-  background-color: var(--background-color, #fff8ec);
+/* Chapter-opening crux blocks are not ordinary admonitions. Keep the title
+   compact, tint the whole box, and let the body read as the guiding frame. */
+details.callout-crux {
+  --icon-size: 1.15rem;
+  background: var(--background-color, #fff8ec) !important;
+  border: 0 !important;
+  border-left: 3px solid var(--border-color, #d18a24) !important;
+  border-radius: 0 0.55rem 0.55rem 0 !important;
+  box-shadow: none !important;
+  padding: 0.78rem 1rem;
+}
+
+details.callout-crux > summary {
+  background: transparent !important;
+  display: inline-flex;
+  min-height: 0;
+  padding: 0 0.35rem 0 2rem !important;
+}
+
+details.callout-crux > summary::before {
+  left: 0.12rem !important;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  background-size: var(--icon-size) var(--icon-size) !important;
+}
+
+details.callout-crux > summary::after {
+  display: none !important;
+}
+
+details.callout-crux > summary strong {
+  color: #6b4214;
+  font-size: 0.98rem !important;
+}
+
+details.callout-crux > summary strong::after {
+  content: ":";
+}
+
+details.callout-crux.fbx-default > div {
+  background: transparent !important;
+  display: block;
+  padding: 0.32rem 0 0 2rem !important;
+}
+
+details.callout-crux.fbx-default > div,
+details.callout-crux.fbx-default > div p {
+  color: #53606a;
   font-style: italic;
-  font-size: 1rem;
-  padding-top: 0.35rem !important;
+}
+
+details.callout-crux.fbx-default > div p {
+  display: inline;
+  font-size: 1.02rem;
+  margin: 0 !important;
 }
 
 /* Dark mode support - Quarto-aligned dark theme */
@@ -289,7 +344,7 @@ details.callout-question > div {
   details.fbx-default>div,
   details.fbx-answer>div,
   details.fbx-question>div,
-  details[class*="callout-"]>div {
+  details.fbx-default[class*="callout-"]>div {
     background-color: var(--bs-dark, #212529);
     color: #e6e6e6;
   }
@@ -313,7 +368,7 @@ body.quarto-dark details.fbx-question {
 body.quarto-dark details.fbx-default>div,
 body.quarto-dark details.fbx-answer>div,
 body.quarto-dark details.fbx-question>div,
-body.quarto-dark details[class*="callout-"]>div {
+body.quarto-dark details.fbx-default[class*="callout-"]>div {
   background-color: var(--bs-dark, #212529);
   color: #e6e6e6;
 }

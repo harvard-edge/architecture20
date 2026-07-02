@@ -425,9 +425,14 @@ local function fboxDiv_mark_for_processing(div)
   local cls = fbx.is_cunumblo(div)
   local ClassDef = fbx.classDefaults[cls]
   if(cls) then
-    -- Add "callout" class so site-level callout CSS can share selectors.
+    -- Keep the outer Div identifiable for xrefs and Quarto book plumbing.
+    -- The rendered visual box is the inner <details>; foldbox.css neutralizes
+    -- this wrapper so native .callout styling does not create a second shell.
     if not div.classes:includes("callout") then
       div.classes:insert(1, "callout")
+    end
+    if not div.classes:includes("fbx-wrapper") then
+      div.classes:insert(2, "fbx-wrapper")
     end
 
     diva._process_me = "true"
