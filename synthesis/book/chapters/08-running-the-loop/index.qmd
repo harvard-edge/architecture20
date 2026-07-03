@@ -103,7 +103,7 @@ To advance beyond the proxy's blind spots, an illustrative **simulation-stage es
 contract: it prices *data movement*, returns latency, energy, and power
 observations with provenance and cost, and has authority to overturn proxy
 rankings before commitment. Its power column is the frame energy divided by the
-frame time, an average-power check against the 3\ W envelope. (Note that average power itself is merely a higher-level proxy; a true rejection gate must eventually include thermal transients, as chips melt from peak power, not average power.) It stands in for a memory-aware model: a dataflow analysis like
+frame time, an average-power check against the 3\ W envelope. (Note that average power itself is merely a higher-level proxy; a true rejection gate must eventually include thermal transients, as chips melt from peak power, not average power.) For highly regular spatial accelerators, analytical models like Timeloop are not just cheap proxies; they provide *authoritative* high-fidelity evidence for dataflow mapping, bridged to physical limits via component plugins like Accelergy. It stands in for this class of model: a dataflow analysis like
 Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like
 Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5
 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
@@ -238,7 +238,18 @@ plt.show()
 plt.close(fig)
 ```
 
-To document this shift in ranking, @tbl-worked-loop-ledger shows the evidence ledger left behind. Read the first
+To document this shift in ranking, @tbl-worked-loop-ledger shows the evidence ledger left behind. The exact schema of the candidate record depends on the environment, but it must be machine-readable (e.g., JSON or YAML) to allow autonomous auditing. For example, a YAML evidence ledger entry might look like this:
+```yaml
+candidate_id: xr_soc_v4_2
+status: REJECTED
+rejection_gate: proxy_mismatch_communication_power
+proxy_estimates:
+  compute_energy_mJ: 4.2
+  latency_ms: 6.1
+simulation_estimates:
+  total_energy_mJ: 28.5  # Failed: excessive NOC traffic
+```
+Read the first
 two rows as feedback stages and the third as the record those stages leave; the
 columns are the ledger schema: the feedback source, its fidelity and budget,
 what it supported, the gate it could reject on, its provenance limit, and the
@@ -336,7 +347,7 @@ loop can state what it did and what would reject it.
 | Feedback budget | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
 | Evidence | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. |
 | Negative traces | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after the illustrative estimate exposes data movement. |
-| Rejection authority | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
+| Rejection authority | Deadline check, power-envelope check, ML compiler mapping (e.g., XLA/MLIR), and the stronger estimate that can overturn the proxy ranking. |
 | Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, and stronger power evidence. |
 | Human decision | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
 
