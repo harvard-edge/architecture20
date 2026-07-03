@@ -147,24 +147,23 @@ problem the human intended to solve.
 
 : **Architecture interfaces define action and evidence boundaries:** Each interface tells the loop what can be changed, what can be observed, what feedback is meaningful, and what can reject an invalid action. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
 
-::: {.callout-field-note title="What a real EDA environment makes the wrapper do"}
-Validity comes in two tiers, and honest environments separate them. *Schema
-legality* is cheap and checkable up front: are the parameters, clocks, and
-interfaces well formed? *Physical feasibility* is late and expensive:
-routability, timing closure, congestion, and IR drop often surface only at
-synthesis or place-and-route. A late failure must map back to the earlier action
-that caused it, not read as a contract violation.
+The EDA handoff row is worth making concrete, because it is where a wrapper does
+the most work. Validity comes in two tiers, and honest environments separate
+them. *Schema legality* is cheap and checkable up front, asking whether the
+parameters, clocks, and interfaces are well formed. *Physical feasibility* is
+late and expensive, because routability, timing closure, congestion, and IR drop
+often surface only at synthesis or place-and-route. A late failure must map back
+to the earlier action that caused it, not read as a contract violation.
 
 Wrapping a commercial flow as an environment is therefore not a thin API. The
 wrapper has to emit tool-specific scripts, parse unstructured reports, survive
 timeouts and run-to-run nondeterminism, and attach the fidelity or confidence
 label itself, because the tool emits metrics, warnings, and logs, not a fidelity
-level. To stay auditable, its provenance record must carry more than a number:
-tool and host version, thread count, license state, run-to-run variance, warnings
-and waivers, and a hash of the report the number came from. Two "identical" runs
-that differ on any of these are not comparable, and a loop that hides the
-difference will trust a result it should have rejected.
-:::
+level. To stay auditable, its provenance record must carry more than a bare
+number. It records the tool and host version, thread count, license state,
+run-to-run variance, warnings and waivers, and a hash of the report the number
+came from. Two "identical" runs that differ on any of these are not comparable,
+and a loop that hides the difference will trust a result it should have rejected.
 
 ::: {.callout-lighthouse title="One prompt, many interfaces"}
 **Context.** The lighthouse request crosses multiple interfaces at once, so no
@@ -208,15 +207,19 @@ maintained action/observation record: workload version, legal edits, failed
 runs, waivers, escalation gate, and human owner.
 
 In practice these environments are rarely used in isolation. Open frameworks
-integrate them. Chipyard, for example, wraps a configuration system, RTL
-generators, and a compiler path together with the simulation, synthesis, and
-FPGA-emulation backends the table lists, so one configuration can be carried
-reproducibly from a generated design to each evaluation path [@chipyard].
+integrate them. Chipyard, an open-source framework for generating and evaluating
+RISC-V systems-on-chip, wraps a configuration system, RTL generators, and a
+compiler path together with the simulation, synthesis, and FPGA-emulation
+backends the table lists, so one configuration can be carried reproducibly from a
+generated design to each evaluation path [@chipyard].
 @fig-chipyard-framework shows that integration.
-For an agentic loop, the useful property is not the framework name; it is the
-loop contract: configuration state, legal actions, backend receipts,
-invalid-action logs, escalation thresholds, and the human decision points that
-prevent a generated configuration from becoming an unowned commitment.
+For an agentic loop, the useful property is not the framework name but where the
+loop actually runs. The agent acts at the configuration boundary, editing one
+configuration under a set of legal actions; each backend, whether simulation,
+synthesis, or FPGA emulation, returns a receipt; and those receipts, together
+with invalid-action logs, escalation thresholds, and human decision points, are
+the loop contract that keeps a generated configuration from becoming an unowned
+commitment.
 
 ![**An integrated environment ties the backends together:** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="100%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
 
@@ -308,10 +311,10 @@ provenance, the loop cannot reason about sample efficiency or evidence.
 
 ## ArchGym as a Worked Example
 
-ArchGym is useful because it makes the environment idea concrete in the
-architecture domain. It frames architecture design as a gymnasium for
-machine-learning-assisted design, with agents interacting with architecture
-environments through defined interfaces [@KrishnanEtAl2023ArchGym]. The name is
+ArchGym, which frames architecture design as a gymnasium for
+machine-learning-assisted design where agents interact with architecture
+environments through defined interfaces [@KrishnanEtAl2023ArchGym], makes the
+environment idea concrete in the architecture domain. The name is
 deliberate: it borrows from OpenAI Gym, which standardized the agent-environment
 interface in reinforcement learning. Just as one learning algorithm can drive
 many Gym environments, an ArchGym user can swap a memory-controller simulator for
