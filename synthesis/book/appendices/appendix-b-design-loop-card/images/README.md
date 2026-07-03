@@ -6,5 +6,5 @@ Current figures:
 
 Needed next:
 
-- Preserve this as a teaching and review artifact.
+- Preserve this as a research and review artifact.
 - Future images should clarify how to fill out or grade a loop card.

@@ -10,7 +10,7 @@ Current figures:
 
 Needed next:
 
-- Add ladder-stack diagrams only where they teach how the ontology composes.
+- Add ladder-stack diagrams only where they clarify how the ontology composes.
 - Keep human/agent glyphs large and rare; this is the right chapter for that
   visual language.
-- Make the design-loop card visually reusable as a teaching artifact.
+- Make the design-loop card visually reusable as a review artifact.
