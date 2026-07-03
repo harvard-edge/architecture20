@@ -21,7 +21,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-
 ROOT = Path(__file__).resolve().parents[1]
 BOOK_DIR = ROOT / "book"
 BUILD_DIR = BOOK_DIR / "_build"
@@ -71,12 +70,24 @@ app = typer.Typer(
     help="Compiler-style build and audit driver for the Architecture 2.0 lecture.",
     no_args_is_help=True,
 )
-check_app = typer.Typer(help="Run composed manuscript quality gates.", no_args_is_help=True)
-validate_app = typer.Typer(help="Validate source files without requiring a render.", no_args_is_help=True)
-verify_app = typer.Typer(help="Verify rendered artifacts against manuscript sources.", no_args_is_help=True)
-layout_app = typer.Typer(help="Scan PDF and LaTeX layout signals.", no_args_is_help=True)
-review_app = typer.Typer(help="Open the Arch2 local review/commenting bench.", no_args_is_help=True)
-loop_app = typer.Typer(help="Run self-improving manuscript review loops.", no_args_is_help=True)
+check_app = typer.Typer(
+    help="Run composed manuscript quality gates.", no_args_is_help=True
+)
+validate_app = typer.Typer(
+    help="Validate source files without requiring a render.", no_args_is_help=True
+)
+verify_app = typer.Typer(
+    help="Verify rendered artifacts against manuscript sources.", no_args_is_help=True
+)
+layout_app = typer.Typer(
+    help="Scan PDF and LaTeX layout signals.", no_args_is_help=True
+)
+review_app = typer.Typer(
+    help="Open the Arch2 local review/commenting bench.", no_args_is_help=True
+)
+loop_app = typer.Typer(
+    help="Run self-improving manuscript review loops.", no_args_is_help=True
+)
 app.add_typer(check_app, name="check")
 app.add_typer(validate_app, name="validate")
 app.add_typer(verify_app, name="verify")
@@ -142,7 +153,10 @@ class SvgShape:
 
     def contains_point(self, x: float, y: float) -> bool:
         if self.kind == "rect":
-            return self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height
+            return (
+                self.x <= x <= self.x + self.width
+                and self.y <= y <= self.y + self.height
+            )
         dx = x - self.cx
         dy = y - self.cy
         return (dx * dx + dy * dy) <= self.radius * self.radius
@@ -192,19 +206,31 @@ class SvgBounds:
     label: str = ""
 
 
-OVERFULL_HBOX_RE = re.compile(r"Overfull \\hbox \((?P<pts>[0-9.]+)pt too wide\)(?P<context>[^\n]*)")
-OVERFULL_VBOX_RE = re.compile(r"Overfull \\vbox \((?P<pts>[0-9.]+)pt too high\)(?P<context>[^\n]*)")
+OVERFULL_HBOX_RE = re.compile(
+    r"Overfull \\hbox \((?P<pts>[0-9.]+)pt too wide\)(?P<context>[^\n]*)"
+)
+OVERFULL_VBOX_RE = re.compile(
+    r"Overfull \\vbox \((?P<pts>[0-9.]+)pt too high\)(?P<context>[^\n]*)"
+)
 UNDERFULL_RE = re.compile(r"Underfull \\(?:h|v)box (?P<context>[^\n]*)")
-UNRESOLVED_REF_RE = re.compile(r"(?:Reference|Citation) `?([^'\n]+)'? on page .* undefined", re.I)
+UNRESOLVED_REF_RE = re.compile(
+    r"(?:Reference|Citation) `?([^'\n]+)'? on page .* undefined", re.I
+)
 CONTENT_ROOTS = (BOOK_DIR / "chapters", BOOK_DIR / "appendices")
-QUARTO_LABEL_RE = re.compile(r"\{#(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)(?=[\s}])[^}]*\}")
+QUARTO_LABEL_RE = re.compile(
+    r"\{#(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)(?=[\s}])[^}]*\}"
+)
 LATEX_LABEL_RE = re.compile(r"\\label\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}")
 QUARTO_REF_RE = re.compile(r"(?<![#\w])@(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)\b")
-LATEX_REF_RE = re.compile(r"\\(?:auto|[cC]|eq)?ref\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}")
+LATEX_REF_RE = re.compile(
+    r"\\(?:auto|[cC]|eq)?ref\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}"
+)
 RAW_STRUCTURE_REF_RE = re.compile(
     r"\b(?:(?:[Cc]hapters?|Ch\.)\s*\d+(?:\s*(?:-|and|,)\s*\d+)*|(?:[Aa]ppendix|[Aa]ppendices)\s+[A-Z])\b"
 )
-CHAP_LABEL_OR_REF_RE = re.compile(r"(?<![\w#])@chap-[A-Za-z0-9_-]+\b|#chap-[A-Za-z0-9_-]+\b")
+CHAP_LABEL_OR_REF_RE = re.compile(
+    r"(?<![\w#])@chap-[A-Za-z0-9_-]+\b|#chap-[A-Za-z0-9_-]+\b"
+)
 LATEX_SECTION_REF_RE = re.compile(r"\\ref\{sec-[A-Za-z0-9_-]+\}")
 TABLE_ENV_RE = re.compile(
     r"\\begin\{(?P<env>table\*?)\}(?P<option>\[[^\]]+\])?"
@@ -229,10 +255,14 @@ CHUNK_LABEL_RE = re.compile(r"^\s*#\|\s*label:\s*(?P<label>fig-[A-Za-z0-9_-]+)\s
 CHUNK_FIG_ALT_RE = re.compile(r"^\s*#\|\s*fig-alt:\s*(?P<alt>.+?)\s*$")
 CHUNK_FIG_POS_RE = re.compile(r"^\s*#\|\s*fig-pos:\s*(?P<pos>.+?)\s*$")
 CITE_RE = re.compile(r"(?<![\w@])@(?P<key>[A-Za-z0-9:_-]+)")
-DEFINITION_RE = re.compile(r"^\s*>\s*\*\*(?P<term>[^*\n.][^*\n]{1,90}?)\.\*\*", re.MULTILINE)
+DEFINITION_RE = re.compile(
+    r"^\s*>\s*\*\*(?P<term>[^*\n.][^*\n]{1,90}?)\.\*\*", re.MULTILINE
+)
 STYLE_RE = re.compile(r"\.(?P<class>[A-Za-z0-9_-]+)\s*\{(?P<body>[^}]*)\}", re.DOTALL)
 FONT_SIZE_RE = re.compile(r"font-size\s*:\s*(?P<size>[0-9.]+)px")
-TRANSLATE_RE = re.compile(r"translate\(\s*(?P<x>-?[0-9.]+)(?:[,\s]+(?P<y>-?[0-9.]+))?\s*\)")
+TRANSLATE_RE = re.compile(
+    r"translate\(\s*(?P<x>-?[0-9.]+)(?:[,\s]+(?P<y>-?[0-9.]+))?\s*\)"
+)
 MIN_ARRAYSTRETCH = 1.2
 MIN_TABCOLSEP_PT = 2.5
 MIN_RECT_PADDING = 4.0
@@ -309,9 +339,15 @@ def _exit_if_failed(proc: subprocess.CompletedProcess[str], label: str) -> None:
     raise typer.Exit(proc.returncode)
 
 
-def _exit_on_findings(findings: list[Finding], *, title: str, fail_on_warning: bool = False) -> None:
+def _exit_on_findings(
+    findings: list[Finding], *, title: str, fail_on_warning: bool = False
+) -> None:
     _emit_findings(findings, title=title)
-    if any(finding.severity == "error" or (fail_on_warning and finding.severity == "warning") for finding in findings):
+    if any(
+        finding.severity == "error"
+        or (fail_on_warning and finding.severity == "warning")
+        for finding in findings
+    ):
         raise typer.Exit(1)
 
 
@@ -383,11 +419,19 @@ def collect_labels(path: Path) -> list[ManuscriptLabel]:
 
     for match in QUARTO_LABEL_RE.finditer(text):
         label = match.group("label")
-        labels.append(ManuscriptLabel(path, line_number(text, match.start()), label, label_kind(label)))
+        labels.append(
+            ManuscriptLabel(
+                path, line_number(text, match.start()), label, label_kind(label)
+            )
+        )
 
     for match in LATEX_LABEL_RE.finditer(text):
         label = match.group("label")
-        labels.append(ManuscriptLabel(path, line_number(text, match.start()), label, label_kind(label)))
+        labels.append(
+            ManuscriptLabel(
+                path, line_number(text, match.start()), label, label_kind(label)
+            )
+        )
 
     return labels
 
@@ -417,7 +461,9 @@ def equivalent_ref_labels(label: str) -> set[str]:
     return {label}
 
 
-def unreferenced_label_findings(targets: list[Path], all_paths: list[Path]) -> list[Finding]:
+def unreferenced_label_findings(
+    targets: list[Path], all_paths: list[Path]
+) -> list[Finding]:
     refs = collect_refs(all_paths)
     findings: list[Finding] = []
 
@@ -485,9 +531,23 @@ def table_findings(path: Path) -> list[Finding]:
             )
 
         if "\\caption" not in body:
-            findings.append(Finding("error", "table-caption", location, "raw LaTeX table is missing a caption"))
+            findings.append(
+                Finding(
+                    "error",
+                    "table-caption",
+                    location,
+                    "raw LaTeX table is missing a caption",
+                )
+            )
         if "\\label{tab:" not in body:
-            findings.append(Finding("error", "table-label", location, "raw LaTeX table is missing a tab: label"))
+            findings.append(
+                Finding(
+                    "error",
+                    "table-label",
+                    location,
+                    "raw LaTeX table is missing a tab: label",
+                )
+            )
         for spacing_match in ARRAYSTRETCH_RE.finditer(body):
             value = float(spacing_match.group("value"))
             if value < MIN_ARRAYSTRETCH:
@@ -516,7 +576,9 @@ def table_findings(path: Path) -> list[Finding]:
 
 def manuscript_source_lines(path: Path) -> Iterable[tuple[int, str]]:
     in_fence = False
-    for line_number_value, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    for line_number_value, line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
         stripped = line.strip()
         if stripped.startswith("```"):
             in_fence = not in_fence
@@ -570,17 +632,30 @@ def figure_path_findings(path: Path) -> list[Finding]:
             resolved.relative_to(ROOT)
         except ValueError:
             findings.append(
-                Finding("error", "figure-path", location, f"figure '{match.group('label')}' points outside the repo: {target}")
+                Finding(
+                    "error",
+                    "figure-path",
+                    location,
+                    f"figure '{match.group('label')}' points outside the repo: {target}",
+                )
             )
             continue
 
         exists = resolved.exists()
         if not exists and not resolved.suffix:
-            exists = any(resolved.with_suffix(suffix).exists() for suffix in (".pdf", ".svg", ".png", ".jpg", ".jpeg"))
+            exists = any(
+                resolved.with_suffix(suffix).exists()
+                for suffix in (".pdf", ".svg", ".png", ".jpg", ".jpeg")
+            )
 
         if not exists:
             findings.append(
-                Finding("error", "figure-path", location, f"figure '{match.group('label')}' target does not exist: {target}")
+                Finding(
+                    "error",
+                    "figure-path",
+                    location,
+                    f"figure '{match.group('label')}' target does not exist: {target}",
+                )
             )
 
     return findings
@@ -673,11 +748,15 @@ def manuscript_integrity_findings() -> list[Finding]:
         findings.extend(figure_source_findings(path))
         findings.extend(table_findings(path))
         findings.extend(structural_reference_findings(path))
-    return sorted(findings, key=lambda finding: (finding.location, finding.code, finding.message))
+    return sorted(
+        findings, key=lambda finding: (finding.location, finding.code, finding.message)
+    )
 
 
 def is_crossref_key(key: str) -> bool:
-    return key.startswith(("fig-", "tbl-", "eq-", "sec-", "fig:", "tab:", "eq:", "sec:"))
+    return key.startswith(
+        ("fig-", "tbl-", "eq-", "sec-", "fig:", "tab:", "eq:", "sec:")
+    )
 
 
 def citation_chapter_name(path: Path) -> str:
@@ -691,19 +770,27 @@ def citation_chapter_name(path: Path) -> str:
     return str(rel)
 
 
-def collect_citation_occurrences(paths: list[Path]) -> dict[str, list[CitationOccurrence]]:
+def collect_citation_occurrences(
+    paths: list[Path],
+) -> dict[str, list[CitationOccurrence]]:
     hits: dict[str, list[CitationOccurrence]] = {}
     for path in paths:
-        for line, text in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        for line, text in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
             for match in CITE_RE.finditer(text):
                 key = match.group("key").rstrip(".,;:]})")
                 if is_crossref_key(key):
                     continue
-                hits.setdefault(key, []).append(CitationOccurrence(path, line, text.strip()))
+                hits.setdefault(key, []).append(
+                    CitationOccurrence(path, line, text.strip())
+                )
     return hits
 
 
-def citation_reuse_findings(*, min_total: int = 4, min_chapters: int = 2, show_context: bool = False) -> list[Finding]:
+def citation_reuse_findings(
+    *, min_total: int = 4, min_chapters: int = 2, show_context: bool = False
+) -> list[Finding]:
     rows: list[Finding] = []
     hits = collect_citation_occurrences(content_qmd_files())
     for key, occurrences in hits.items():
@@ -719,8 +806,8 @@ def citation_reuse_findings(*, min_total: int = 4, min_chapters: int = 2, show_c
                             "citation-reuse-context",
                             f"{_relative(occurrence.path)}:{occurrence.line}",
                             occurrence.context,
-                )
-            )
+                        )
+                    )
     return sorted(rows, key=lambda finding: (finding.code, finding.location))
 
 
@@ -763,7 +850,9 @@ def is_disclosure_prose_line(text: str) -> bool:
     return True
 
 
-def collect_definition_occurrences(paths: list[Path]) -> dict[str, list[DefinitionOccurrence]]:
+def collect_definition_occurrences(
+    paths: list[Path],
+) -> dict[str, list[DefinitionOccurrence]]:
     hits: dict[str, list[DefinitionOccurrence]] = {}
     for path in paths:
         text = path.read_text(encoding="utf-8")
@@ -772,7 +861,9 @@ def collect_definition_occurrences(paths: list[Path]) -> dict[str, list[Definiti
             key = normalize_definition_term(term)
             context = text.splitlines()[line_number(text, match.start()) - 1].strip()
             hits.setdefault(key, []).append(
-                DefinitionOccurrence(path, line_number(text, match.start()), term, context)
+                DefinitionOccurrence(
+                    path, line_number(text, match.start()), term, context
+                )
             )
     return hits
 
@@ -782,9 +873,14 @@ def concept_findings(*, min_uses: int = 3) -> list[Finding]:
     findings: list[Finding] = []
 
     for key, occurrences in collect_definition_occurrences(paths).items():
-        definition_files = sorted({_relative(occurrence.path) for occurrence in occurrences})
+        definition_files = sorted(
+            {_relative(occurrence.path) for occurrence in occurrences}
+        )
         if len(definition_files) > 1:
-            locations = ", ".join(f"{_relative(occurrence.path)}:{occurrence.line}" for occurrence in occurrences)
+            locations = ", ".join(
+                f"{_relative(occurrence.path)}:{occurrence.line}"
+                for occurrence in occurrences
+            )
             findings.append(
                 Finding(
                     "error",
@@ -807,7 +903,15 @@ def concept_findings(*, min_uses: int = 3) -> list[Finding]:
                 )
             )
 
-    return sorted(findings, key=lambda finding: (finding.severity, finding.code, finding.location, finding.message))
+    return sorted(
+        findings,
+        key=lambda finding: (
+            finding.severity,
+            finding.code,
+            finding.location,
+            finding.message,
+        ),
+    )
 
 
 def disclosure_findings(
@@ -818,7 +922,9 @@ def disclosure_findings(
     paths = book_ordered_qmd_files()
     path_order = {path.resolve(): index for index, path in enumerate(paths)}
     definitions = collect_definition_occurrences(paths)
-    all_definitions = [occurrence for occurrences in definitions.values() for occurrence in occurrences]
+    all_definitions = [
+        occurrence for occurrences in definitions.values() for occurrence in occurrences
+    ]
     findings: list[Finding] = []
 
     for concept in concepts:
@@ -831,7 +937,9 @@ def disclosure_findings(
             continue
 
         matching_definitions = [
-            occurrence for occurrence in all_definitions if definition_matches_concept(occurrence.term, concept)
+            occurrence
+            for occurrence in all_definitions
+            if definition_matches_concept(occurrence.term, concept)
         ]
         if not matching_definitions:
             if len(hits) >= min_uses_without_definition:
@@ -848,7 +956,10 @@ def disclosure_findings(
 
         owner = min(
             matching_definitions,
-            key=lambda occurrence: (path_order.get(occurrence.path.resolve(), 10_000), occurrence.line),
+            key=lambda occurrence: (
+                path_order.get(occurrence.path.resolve(), 10_000),
+                occurrence.line,
+            ),
         )
         owner_key = (path_order.get(owner.path.resolve(), 10_000), owner.line)
         for hit_path, hit_line, context in hits:
@@ -869,15 +980,21 @@ def disclosure_findings(
             )
             break
 
-    return sorted(findings, key=lambda finding: (finding.code, finding.location, finding.message))
+    return sorted(
+        findings, key=lambda finding: (finding.code, finding.location, finding.message)
+    )
 
 
 def count_qmd_figures(content_root: Path = BOOK_DIR) -> int:
     labels: set[str] = set()
     for path in sorted(content_root.rglob("*.qmd")):
         text = path.read_text(encoding="utf-8")
-        labels.update(match.group("label") for match in MARKDOWN_FIGURE_RE.finditer(text))
-        labels.update(match.group("label") for match in EXECUTABLE_FIGURE_RE.finditer(text))
+        labels.update(
+            match.group("label") for match in MARKDOWN_FIGURE_RE.finditer(text)
+        )
+        labels.update(
+            match.group("label") for match in EXECUTABLE_FIGURE_RE.finditer(text)
+        )
     return len(labels)
 
 
@@ -910,12 +1027,26 @@ def count_pdf_visual_xobjects(pdf_path: Path) -> tuple[int, list[tuple[int, int]
 
 def pdf_figure_findings(pdf_path: Path = PDF_PATH) -> list[Finding]:
     if not pdf_path.exists():
-        return [Finding("error", "missing-pdf", _relative(pdf_path), "rendered PDF does not exist")]
+        return [
+            Finding(
+                "error",
+                "missing-pdf",
+                _relative(pdf_path),
+                "rendered PDF does not exist",
+            )
+        ]
 
     expected = count_qmd_figures()
     actual, pages = count_pdf_visual_xobjects(pdf_path)
     if actual < 0:
-        return [Finding("error", "missing-pypdf", "python", "pypdf is required for PDF figure verification")]
+        return [
+            Finding(
+                "error",
+                "missing-pypdf",
+                "python",
+                "pypdf is required for PDF figure verification",
+            )
+        ]
     if actual < expected:
         return [
             Finding(
@@ -930,7 +1061,14 @@ def pdf_figure_findings(pdf_path: Path = PDF_PATH) -> list[Finding]:
 
 def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
     if not html_path.exists():
-        return [Finding("error", "missing-html", _relative(html_path), "rendered HTML index does not exist")]
+        return [
+            Finding(
+                "error",
+                "missing-html",
+                _relative(html_path),
+                "rendered HTML index does not exist",
+            )
+        ]
 
     text = html_path.read_text(encoding="utf-8", errors="replace")
     findings: list[Finding] = []
@@ -977,7 +1115,14 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
 
 def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
     if not epub_path.exists():
-        return [Finding("error", "missing-epub", _relative(epub_path), "rendered EPUB does not exist")]
+        return [
+            Finding(
+                "error",
+                "missing-epub",
+                _relative(epub_path),
+                "rendered EPUB does not exist",
+            )
+        ]
 
     findings: list[Finding] = []
     try:
@@ -986,7 +1131,12 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
             html_names = [name for name in names if name.endswith((".html", ".xhtml"))]
             if not html_names:
                 findings.append(
-                    Finding("error", "epub-content", _relative(epub_path), "EPUB contains no HTML/XHTML content files")
+                    Finding(
+                        "error",
+                        "epub-content",
+                        _relative(epub_path),
+                        "EPUB contains no HTML/XHTML content files",
+                    )
                 )
                 return findings
 
@@ -996,12 +1146,21 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
                 if not name.endswith("nav.xhtml")
             )
     except zipfile.BadZipFile:
-        return [Finding("error", "invalid-epub", _relative(epub_path), "EPUB is not a readable zip package")]
-
-    if "callout-learning-objectives" not in combined or "callout-carry-forward" not in combined:
-        findings.append(
+        return [
             Finding(
                 "error",
+                "invalid-epub",
+                _relative(epub_path),
+                "EPUB is not a readable zip package",
+            )
+        ]
+
+    if (
+        "callout-learning-objectives" not in combined
+    ):
+        findings.append(
+            Finding(
+                "warning",
                 "epub-custom-callouts",
                 _relative(epub_path),
                 "EPUB is missing Arch2 custom callout markup",
@@ -1055,7 +1214,11 @@ def svg_text_content(element: ET.Element) -> str:
 
 
 def parse_class_font_sizes(root: ET.Element) -> dict[str, float]:
-    css = "\n".join(element.text or "" for element in root.iter() if strip_namespace(element.tag) == "style")
+    css = "\n".join(
+        element.text or ""
+        for element in root.iter()
+        if strip_namespace(element.tag) == "style"
+    )
     sizes: dict[str, float] = {}
     for match in STYLE_RE.finditer(css):
         size_match = FONT_SIZE_RE.search(match.group("body"))
@@ -1130,11 +1293,15 @@ def collect_svg_shapes(root: ET.Element) -> list[SvgShape]:
                 continue
             cx = parse_float(element.attrib.get("cx")) + ox
             cy = parse_float(element.attrib.get("cy")) + oy
-            shapes.append(SvgShape("circle", cx - radius, cy - radius, radius * 2.0, radius * 2.0))
+            shapes.append(
+                SvgShape("circle", cx - radius, cy - radius, radius * 2.0, radius * 2.0)
+            )
     return shapes
 
 
-def collect_svg_labels(root: ET.Element, class_sizes: dict[str, float]) -> list[SvgTextLabel]:
+def collect_svg_labels(
+    root: ET.Element, class_sizes: dict[str, float]
+) -> list[SvgTextLabel]:
     labels: list[SvgTextLabel] = []
     for element, offset in walk_with_translate(root):
         if strip_namespace(element.tag) != "text":
@@ -1174,7 +1341,9 @@ def parse_viewbox(root: ET.Element) -> tuple[float, float, float, float] | None:
     return (x, y, width, height)
 
 
-def collect_svg_bounds(root: ET.Element, class_sizes: dict[str, float]) -> list[SvgBounds]:
+def collect_svg_bounds(
+    root: ET.Element, class_sizes: dict[str, float]
+) -> list[SvgBounds]:
     bounds: list[SvgBounds] = []
     for element, offset in walk_with_translate(root):
         tag = strip_namespace(element.tag)
@@ -1197,7 +1366,9 @@ def collect_svg_bounds(root: ET.Element, class_sizes: dict[str, float]) -> list[
                 continue
             cx = parse_float(element.attrib.get("cx")) + ox
             cy = parse_float(element.attrib.get("cy")) + oy
-            bounds.append(SvgBounds("circle", cx - radius, cy - radius, cx + radius, cy + radius))
+            bounds.append(
+                SvgBounds("circle", cx - radius, cy - radius, cx + radius, cy + radius)
+            )
         elif tag == "ellipse":
             rx = parse_float(element.attrib.get("rx"))
             ry = parse_float(element.attrib.get("ry"))
@@ -1211,7 +1382,9 @@ def collect_svg_bounds(root: ET.Element, class_sizes: dict[str, float]) -> list[
             y1 = parse_float(element.attrib.get("y1")) + oy
             x2 = parse_float(element.attrib.get("x2")) + ox
             y2 = parse_float(element.attrib.get("y2")) + oy
-            bounds.append(SvgBounds("line", min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
+            bounds.append(
+                SvgBounds("line", min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2))
+            )
         elif tag == "text":
             text = svg_text_content(element)
             if not text:
@@ -1223,11 +1396,17 @@ def collect_svg_bounds(root: ET.Element, class_sizes: dict[str, float]) -> list[
                 font_size=font_size_for(element, class_sizes),
                 anchor=element.attrib.get("text-anchor", "start"),
             )
-            bounds.append(SvgBounds("text", label.left, label.top, label.right, label.bottom, label.text))
+            bounds.append(
+                SvgBounds(
+                    "text", label.left, label.top, label.right, label.bottom, label.text
+                )
+            )
     return bounds
 
 
-def svg_viewbox_findings(path: Path, root: ET.Element, class_sizes: dict[str, float]) -> list[Finding]:
+def svg_viewbox_findings(
+    path: Path, root: ET.Element, class_sizes: dict[str, float]
+) -> list[Finding]:
     viewbox = parse_viewbox(root)
     if viewbox is None:
         return []
@@ -1266,7 +1445,9 @@ def svg_shape_margin(label: SvgTextLabel, shape: SvgShape) -> float:
     return min(left_margin, right_margin, top_margin, bottom_margin)
 
 
-def containing_svg_shape(label: SvgTextLabel, shapes: list[SvgShape]) -> SvgShape | None:
+def containing_svg_shape(
+    label: SvgTextLabel, shapes: list[SvgShape]
+) -> SvgShape | None:
     candidates = [shape for shape in shapes if shape.contains_point(label.x, label.y)]
     if not candidates:
         return None
@@ -1278,7 +1459,9 @@ def containing_svg_shape(label: SvgTextLabel, shapes: list[SvgShape]) -> SvgShap
     return max(candidates, key=lambda shape: svg_shape_margin(label, shape))
 
 
-def svg_label_findings(path: Path, label: SvgTextLabel, shape: SvgShape) -> list[Finding]:
+def svg_label_findings(
+    path: Path, label: SvgTextLabel, shape: SvgShape
+) -> list[Finding]:
     findings: list[Finding] = []
     location = _relative(path)
     if shape.kind == "rect":
@@ -1297,15 +1480,36 @@ def svg_label_findings(path: Path, label: SvgTextLabel, shape: SvgShape) -> list
             )
         if label.font_size * 1.1 > available_height:
             findings.append(
-                Finding("error", "svg-text-fit", location, f"text '{label.text}' has too little vertical room")
+                Finding(
+                    "error",
+                    "svg-text-fit",
+                    location,
+                    f"text '{label.text}' has too little vertical room",
+                )
             )
-        if label.left < shape.x + padding or label.right > shape.x + shape.width - padding:
+        if (
+            label.left < shape.x + padding
+            or label.right > shape.x + shape.width - padding
+        ):
             findings.append(
-                Finding("error", "svg-text-fit", location, f"text '{label.text}' is too close to or crosses a rectangle boundary")
+                Finding(
+                    "error",
+                    "svg-text-fit",
+                    location,
+                    f"text '{label.text}' is too close to or crosses a rectangle boundary",
+                )
             )
-        if label.top < shape.y + padding or label.bottom > shape.y + shape.height - padding:
+        if (
+            label.top < shape.y + padding
+            or label.bottom > shape.y + shape.height - padding
+        ):
             findings.append(
-                Finding("error", "svg-text-fit", location, f"text '{label.text}' is too close to or crosses a rectangle top/bottom boundary")
+                Finding(
+                    "error",
+                    "svg-text-fit",
+                    location,
+                    f"text '{label.text}' is too close to or crosses a rectangle top/bottom boundary",
+                )
             )
     else:
         padding = max(MIN_CIRCLE_PADDING, label.font_size * 0.45)
@@ -1326,7 +1530,11 @@ def svg_text_findings_for_file(path: Path) -> list[Finding]:
     try:
         root = ET.parse(path).getroot()
     except ET.ParseError as exc:
-        return [Finding("error", "svg-parse", _relative(path), f"could not parse SVG: {exc}")]
+        return [
+            Finding(
+                "error", "svg-parse", _relative(path), f"could not parse SVG: {exc}"
+            )
+        ]
 
     class_sizes = parse_class_font_sizes(root)
     shapes = collect_svg_shapes(root)
@@ -1374,7 +1582,11 @@ def latex_logs() -> list[Path]:
 
 
 def generated_tex() -> Path | None:
-    candidates = sorted([*BOOK_DIR.glob("*.tex"), *BUILD_DIR.glob("*.tex")], key=lambda path: path.stat().st_mtime, reverse=True)
+    candidates = sorted(
+        [*BOOK_DIR.glob("*.tex"), *BUILD_DIR.glob("*.tex")],
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
     return candidates[0] if candidates else None
 
 
@@ -1422,7 +1634,12 @@ def scan_latex_text(text: str, *, location: str) -> list[Finding]:
 def scan_latex_logs() -> list[Finding]:
     findings: list[Finding] = []
     for log_path in latex_logs():
-        findings.extend(scan_latex_text(log_path.read_text(encoding="utf-8", errors="replace"), location=_relative(log_path)))
+        findings.extend(
+            scan_latex_text(
+                log_path.read_text(encoding="utf-8", errors="replace"),
+                location=_relative(log_path),
+            )
+        )
     return findings
 
 
@@ -1450,7 +1667,14 @@ def scan_pdf_geometry(
         ]
 
     if not pdf_path.exists():
-        return [Finding("error", "missing-pdf", _relative(pdf_path), "rendered PDF does not exist")]
+        return [
+            Finding(
+                "error",
+                "missing-pdf",
+                _relative(pdf_path),
+                "rendered PDF does not exist",
+            )
+        ]
 
     findings: list[Finding] = []
     with pdfplumber.open(str(pdf_path)) as pdf:
@@ -1467,14 +1691,29 @@ def scan_pdf_geometry(
                 x1 = float(char.get("x1", 0.0))
                 top = float(char.get("top", 0.0))
                 bottom = float(char.get("bottom", 0.0))
-                if x0 < -bleed_tolerance or x1 > width + bleed_tolerance or top < -bleed_tolerance or bottom > height + bleed_tolerance:
+                if (
+                    x0 < -bleed_tolerance
+                    or x1 > width + bleed_tolerance
+                    or top < -bleed_tolerance
+                    or bottom > height + bleed_tolerance
+                ):
                     findings.append(
-                        Finding("error", "physical-bleed", page_loc, f"text extends outside page bounds: {text!r}")
+                        Finding(
+                            "error",
+                            "physical-bleed",
+                            page_loc,
+                            f"text extends outside page bounds: {text!r}",
+                        )
                     )
                     break
 
             try:
-                words = page.extract_words(x_tolerance=1, y_tolerance=3, keep_blank_chars=False) or []
+                words = (
+                    page.extract_words(
+                        x_tolerance=1, y_tolerance=3, keep_blank_chars=False
+                    )
+                    or []
+                )
             except TypeError:
                 words = page.extract_words() or []
             crowded_words = [
@@ -1484,7 +1723,9 @@ def scan_pdf_geometry(
                 and not _is_page_number(str(word.get("text", "")))
             ]
             if crowded_words:
-                snippet = " ".join(str(word.get("text", "")) for word in crowded_words[:8])
+                snippet = " ".join(
+                    str(word.get("text", "")) for word in crowded_words[:8]
+                )
                 findings.append(
                     Finding(
                         "warning",
@@ -1500,7 +1741,12 @@ def scan_pdf_geometry(
                     x1 = float(obj.get("x1", 0.0) or 0.0)
                     top = float(obj.get("top", 0.0) or 0.0)
                     bottom = float(obj.get("bottom", 0.0) or 0.0)
-                    if x0 < -bleed_tolerance or x1 > width + bleed_tolerance or top < -bleed_tolerance or bottom > height + bleed_tolerance:
+                    if (
+                        x0 < -bleed_tolerance
+                        or x1 > width + bleed_tolerance
+                        or top < -bleed_tolerance
+                        or bottom > height + bleed_tolerance
+                    ):
                         findings.append(
                             Finding(
                                 "error",
@@ -1510,7 +1756,10 @@ def scan_pdf_geometry(
                             )
                         )
                         break
-                    if bottom > height - bottom_clearance and collection_name != "lines":
+                    if (
+                        bottom > height - bottom_clearance
+                        and collection_name != "lines"
+                    ):
                         findings.append(
                             Finding(
                                 "warning",
@@ -1523,7 +1772,12 @@ def scan_pdf_geometry(
 
             if len(findings) >= max_findings:
                 findings.append(
-                    Finding("warning", "truncated-report", _relative(pdf_path), f"stopped after {max_findings} findings")
+                    Finding(
+                        "warning",
+                        "truncated-report",
+                        _relative(pdf_path),
+                        f"stopped after {max_findings} findings",
+                    )
                 )
                 return findings
 
@@ -1550,9 +1804,23 @@ def footnote_overflow_findings(
     try:
         import pdfplumber
     except ImportError:
-        return [Finding("error", "missing-pdfplumber", "python", "pdfplumber is required for PDF geometry scanning")]
+        return [
+            Finding(
+                "error",
+                "missing-pdfplumber",
+                "python",
+                "pdfplumber is required for PDF geometry scanning",
+            )
+        ]
     if not pdf_path.exists():
-        return [Finding("error", "missing-pdf", _relative(pdf_path), "rendered PDF does not exist")]
+        return [
+            Finding(
+                "error",
+                "missing-pdf",
+                _relative(pdf_path),
+                "rendered PDF does not exist",
+            )
+        ]
 
     from collections import Counter
 
@@ -1568,7 +1836,9 @@ def footnote_overflow_findings(
             body_size = sizes.most_common(1)[0][0]
             if body_size <= 0:
                 continue
-            body_chars = [c for c in chars if round(float(c.get("size", 0.0)), 1) == body_size]
+            body_chars = [
+                c for c in chars if round(float(c.get("size", 0.0)), 1) == body_size
+            ]
             if not body_chars:
                 continue
             block_x0 = min(float(c.get("x0", 0.0)) for c in body_chars)
@@ -1579,15 +1849,27 @@ def footnote_overflow_findings(
                 c
                 for c in chars
                 if round(float(c.get("size", 0.0)), 1) <= body_size * 0.9
-                and (float(c.get("x1", 0.0)) < block_x0 - 2.0 or float(c.get("x0", 0.0)) > block_x1 + 2.0)
+                and (
+                    float(c.get("x1", 0.0)) < block_x0 - 2.0
+                    or float(c.get("x0", 0.0)) > block_x1 + 2.0
+                )
             ]
-            overflow = [c for c in margin_chars if float(c.get("bottom", 0.0)) > height - bottom_band]
+            overflow = [
+                c
+                for c in margin_chars
+                if float(c.get("bottom", 0.0)) > height - bottom_band
+            ]
             if not overflow:
                 continue
 
             lowest = max(float(c.get("bottom", 0.0)) for c in overflow)
-            line = [c for c in overflow if abs(float(c.get("bottom", 0.0)) - lowest) < 6.0]
-            snippet = "".join(c.get("text", "") for c in sorted(line, key=lambda c: float(c.get("x0", 0.0))))[:70].strip()
+            line = [
+                c for c in overflow if abs(float(c.get("bottom", 0.0)) - lowest) < 6.0
+            ]
+            snippet = "".join(
+                c.get("text", "")
+                for c in sorted(line, key=lambda c: float(c.get("x0", 0.0)))
+            )[:70].strip()
             off_page = lowest > height + 1.0
             findings.append(
                 Finding(
@@ -1612,7 +1894,9 @@ def layout_findings(pdf_path: Path, *, bottom_clearance: float = 72.0) -> list[F
     return findings
 
 
-def run_layout_check(*, bottom_clearance: float = 72.0, fail_on_warning: bool = False) -> None:
+def run_layout_check(
+    *, bottom_clearance: float = 72.0, fail_on_warning: bool = False
+) -> None:
     findings = layout_findings(PDF_PATH, bottom_clearance=bottom_clearance)
     _exit_on_findings(findings, title="layout audit", fail_on_warning=fail_on_warning)
 
@@ -1673,7 +1957,9 @@ def run_svg_check(paths: list[Path] | None = None) -> None:
 
 
 def run_citation_check(*, show_context: bool = False) -> None:
-    _emit_findings(citation_reuse_findings(show_context=show_context), title="citation reuse")
+    _emit_findings(
+        citation_reuse_findings(show_context=show_context), title="citation reuse"
+    )
 
 
 def run_concept_check() -> None:
@@ -1696,7 +1982,9 @@ def _loop_output_dir(out_dir: Path | None = None) -> Path:
     return target
 
 
-def _write_loop_artifact(kind: str, body: str, *, out_dir: Path | None = None, suffix: str = "md") -> Path:
+def _write_loop_artifact(
+    kind: str, body: str, *, out_dir: Path | None = None, suffix: str = "md"
+) -> Path:
     target_dir = _loop_output_dir(out_dir)
     path = target_dir / f"{kind}-{_timestamp()}.{suffix}"
     path.write_text(body, encoding="utf-8")
@@ -1705,14 +1993,22 @@ def _write_loop_artifact(kind: str, body: str, *, out_dir: Path | None = None, s
     return path
 
 
-def _latest_loop_artifact(kind: str, *, out_dir: Path | None = None, suffix: str = "md") -> Path:
+def _latest_loop_artifact(
+    kind: str, *, out_dir: Path | None = None, suffix: str = "md"
+) -> Path:
     target_dir = _loop_output_dir(out_dir)
     latest = target_dir / f"{kind}-latest.{suffix}"
     if latest.exists():
         return latest
-    matches = sorted(target_dir.glob(f"{kind}-*.{suffix}"), key=lambda path: path.stat().st_mtime, reverse=True)
+    matches = sorted(
+        target_dir.glob(f"{kind}-*.{suffix}"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
     if not matches:
-        console.print(f"[red]missing loop artifact[/red] no {kind}-*.{suffix} in {_relative(target_dir)}")
+        console.print(
+            f"[red]missing loop artifact[/red] no {kind}-*.{suffix} in {_relative(target_dir)}"
+        )
         raise typer.Exit(1)
     return matches[0]
 
@@ -1735,7 +2031,10 @@ def _chapter_title(path: Path) -> str:
 
 def _chapter_sections(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
-    return [match.group(1).strip() for match in re.finditer(r"^##\s+(.+?)(?:\s+\{#.*)?$", text, flags=re.MULTILINE)]
+    return [
+        match.group(1).strip()
+        for match in re.finditer(r"^##\s+(.+?)(?:\s+\{#.*)?$", text, flags=re.MULTILINE)
+    ]
 
 
 def _chapter_word_count(path: Path) -> int:
@@ -1811,17 +2110,23 @@ def _scoped_manuscript_markdown(scope: str, paths: list[Path]) -> str:
     return "\n".join(lines)
 
 
-def _concept_occurrences(concept: str, paths: list[Path]) -> list[tuple[Path, int, str]]:
+def _concept_occurrences(
+    concept: str, paths: list[Path]
+) -> list[tuple[Path, int, str]]:
     occurrences: list[tuple[Path, int, str]] = []
     pattern = re.compile(rf"\b{re.escape(concept)}\b", re.I)
     for path in paths:
-        for line_number_, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        for line_number_, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
             if pattern.search(line):
                 occurrences.append((path, line_number_, line.strip()))
     return occurrences
 
 
-def _concept_ledger_markdown(paths: list[Path], concepts: tuple[str, ...] = DEFAULT_LOOP_CONCEPTS) -> str:
+def _concept_ledger_markdown(
+    paths: list[Path], concepts: tuple[str, ...] = DEFAULT_LOOP_CONCEPTS
+) -> str:
     lines = [
         "## Progressive-Disclosure Ledger",
         "",
@@ -1869,16 +2174,22 @@ def _mechanical_state_markdown() -> str:
     if PDF_PATH.exists():
         lines.append(f"| Rendered PDF | 0 | 0 | `{_relative(PDF_PATH)}` exists |")
     else:
-        lines.append(f"| Rendered PDF | 0 | 1 | `{_relative(PDF_PATH)}` missing or not yet rendered |")
+        lines.append(
+            f"| Rendered PDF | 0 | 1 | `{_relative(PDF_PATH)}` missing or not yet rendered |"
+        )
     if HTML_PATH.exists():
         lines.append(f"| Rendered HTML | 0 | 0 | `{_relative(HTML_PATH)}` exists |")
     else:
-        lines.append(f"| Rendered HTML | 0 | 1 | `{_relative(HTML_PATH)}` missing or not yet rendered |")
+        lines.append(
+            f"| Rendered HTML | 0 | 1 | `{_relative(HTML_PATH)}` missing or not yet rendered |"
+        )
 
     if ref_findings:
         lines.extend(["", "### Source Findings", ""])
         for finding in ref_findings[:40]:
-            lines.append(f"- `{finding.severity}` `{finding.code}` `{finding.location}`: {finding.message}")
+            lines.append(
+                f"- `{finding.severity}` `{finding.code}` `{finding.location}`: {finding.message}"
+            )
         if len(ref_findings) > 40:
             lines.append(f"- ... {len(ref_findings) - 40} more")
 
@@ -1912,11 +2223,23 @@ def _git_state_markdown() -> str:
         "untracked": sum(1 for line in status_lines if line.startswith("??")),
         "other": 0,
     }
-    counts["other"] = len(status_lines) - counts["modified"] - counts["deleted"] - counts["untracked"]
+    counts["other"] = (
+        len(status_lines) - counts["modified"] - counts["deleted"] - counts["untracked"]
+    )
     highlights = [
         line
         for line in status_lines
-        if any(token in line for token in ("cli/", "README", ".arch2", "book/", "references/", "assets/figures/src"))
+        if any(
+            token in line
+            for token in (
+                "cli/",
+                "README",
+                ".arch2",
+                "book/",
+                "references/",
+                "assets/figures/src",
+            )
+        )
     ][:30]
     if not highlights:
         highlights = status_lines[:30]
@@ -1933,7 +2256,9 @@ def _git_state_markdown() -> str:
         *highlights,
     ]
     if len(status_lines) > len(highlights):
-        lines.append(f"... {len(status_lines) - len(highlights)} more git-status lines omitted from packet")
+        lines.append(
+            f"... {len(status_lines) - len(highlights)} more git-status lines omitted from packet"
+        )
     lines.append("```")
     return "\n".join(lines)
 
@@ -2009,9 +2334,13 @@ PACKET:
 """
 
 
-def run_loop_review(packet_path: Path, *, reviewer: str, model: str, timeout: str) -> str:
+def run_loop_review(
+    packet_path: Path, *, reviewer: str, model: str, timeout: str
+) -> str:
     packet = packet_path.read_text(encoding="utf-8")
-    prompt = build_reviewer_prompt(packet, focus=_packet_focus(packet, packet_path.stem))
+    prompt = build_reviewer_prompt(
+        packet, focus=_packet_focus(packet, packet_path.stem)
+    )
     normalized = reviewer.lower()
     if normalized == "none":
         return "\n".join(
@@ -2038,7 +2367,9 @@ def run_loop_review(packet_path: Path, *, reviewer: str, model: str, timeout: st
         if agy is None and fallback.exists():
             agy = str(fallback)
         if agy is None:
-            raise RuntimeError("could not find `agy`; install it or pass --reviewer none")
+            raise RuntimeError(
+                "could not find `agy`; install it or pass --reviewer none"
+            )
         cmd = [
             agy,
             "--model",
@@ -2052,7 +2383,9 @@ def run_loop_review(packet_path: Path, *, reviewer: str, model: str, timeout: st
     elif normalized == "claude":
         claude = shutil.which("claude")
         if claude is None:
-            raise RuntimeError("could not find `claude`; install it or pass --reviewer none")
+            raise RuntimeError(
+                "could not find `claude`; install it or pass --reviewer none"
+            )
         cmd = [claude, "-p", prompt]
     else:
         raise RuntimeError("reviewer must be one of: gemini, claude, none")
@@ -2060,7 +2393,9 @@ def run_loop_review(packet_path: Path, *, reviewer: str, model: str, timeout: st
     proc = _run(cmd, capture=True)
     transcript = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
     if proc.returncode != 0:
-        raise RuntimeError(f"{reviewer} review failed with exit code {proc.returncode}\n{transcript[-3000:]}")
+        raise RuntimeError(
+            f"{reviewer} review failed with exit code {proc.returncode}\n{transcript[-3000:]}"
+        )
     return transcript.strip() + "\n"
 
 
@@ -2114,7 +2449,9 @@ def _extract_review_items(review_text: str) -> list[str]:
         bullet = re.match(r"^(?:[-*]\s+|\d+\.\s+)(.+)", line)
         if bullet:
             item = bullet.group(1).strip()
-            if len(item) > 16 and not item.startswith(("Generated:", "Reviewer:", "Model:", "Packet:")):
+            if len(item) > 16 and not item.startswith(
+                ("Generated:", "Reviewer:", "Model:", "Packet:")
+            ):
                 items.append(item)
     return items[:80]
 
@@ -2123,15 +2460,22 @@ def _classify_review_item(item: str) -> str:
     lowered = item.lower()
     if re.search(r"\bauthor decision\b", lowered):
         return "author decision"
-    if re.search(r"\bmechanical arch2 check\b|\barch2 check\b|\bcheck candidate\b", lowered):
+    if re.search(
+        r"\bmechanical arch2 check\b|\barch2 check\b|\bcheck candidate\b", lowered
+    ):
         return "check candidate"
     if re.search(r"\breusable rule\b|\barch2 rule\b|\brule candidate\b", lowered):
         return "rule candidate"
     if re.search(r"\bmanuscript edit\b", lowered):
         return "fix candidate"
-    if re.search(r"\b(thesis|positioning|rename|merge appendices)\b|\bmove logca\b", lowered):
+    if re.search(
+        r"\b(thesis|positioning|rename|merge appendices)\b|\bmove logca\b", lowered
+    ):
         return "author decision"
-    if any(token in lowered for token in ("validate", "verify", "layout", "unresolved", "citation-reuse")):
+    if any(
+        token in lowered
+        for token in ("validate", "verify", "layout", "unresolved", "citation-reuse")
+    ):
         return "check candidate"
     if re.search(r"\b(defer|deferred|later|optional)\b", lowered):
         return "defer"
@@ -2221,10 +2565,14 @@ def build_learning_report(triage_text: str, *, triage_path: Path) -> str:
         "| --- | --- | --- |",
     ]
     if not detected:
-        lines.append("| None | Manual review | No common issue class detected automatically |")
+        lines.append(
+            "| None | Manual review | No common issue class detected automatically |"
+        )
     else:
         for label, action, needle in detected:
-            lines.append(f"| {_markdown_cell(label)} | {_markdown_cell(action)} | `{needle}` |")
+            lines.append(
+                f"| {_markdown_cell(label)} | {_markdown_cell(action)} | `{needle}` |"
+            )
 
     lines.extend(
         [
@@ -2250,17 +2598,36 @@ def build_learning_report(triage_text: str, *, triage_path: Path) -> str:
 
 
 def run_python_check() -> None:
-    sources = sorted([*ROOT.glob("cli/*.py"), *ROOT.glob("scripts/*.py"), *BOOK_DIR.glob("scripts/*.py")])
+    sources = sorted(
+        [
+            *ROOT.glob("cli/*.py"),
+            *ROOT.glob("scripts/*.py"),
+            *BOOK_DIR.glob("scripts/*.py"),
+        ]
+    )
     if not sources:
         console.print("[yellow]skipped[/yellow] Python syntax: no helper scripts found")
         return
-    proc = _run([sys.executable, "-m", "py_compile", *[str(path) for path in sources]], capture=True)
+    proc = _run(
+        [sys.executable, "-m", "py_compile", *[str(path) for path in sources]],
+        capture=True,
+    )
     _exit_if_failed(proc, "Python syntax")
 
 
 _LATEX_SCRATCH_PATTERNS = (
-    "*.aux", "*.bbl", "*.blg", "*.idx", "*.ilg", "*.ind", "*.log",
-    "*.out", "*.run.xml", "*.synctex.gz", "*.tex", "DescriptionTexts.txt",
+    "*.aux",
+    "*.bbl",
+    "*.blg",
+    "*.idx",
+    "*.ilg",
+    "*.ind",
+    "*.log",
+    "*.out",
+    "*.run.xml",
+    "*.synctex.gz",
+    "*.tex",
+    "DescriptionTexts.txt",
 )
 _PREPARE_SCRIPT = BOOK_DIR / "scripts" / "prepare_render.py"
 _RENDER_FORMATS = ("html", "pdf", "epub")
@@ -2291,9 +2658,15 @@ def _clean_latex_scratch(keep_logs: bool) -> None:
 
 
 def _resolve_formats(to: str) -> list[str]:
-    fmts = list(_RENDER_FORMATS) if to == "all" else [t.strip() for t in to.split(",") if t.strip()]
+    fmts = (
+        list(_RENDER_FORMATS)
+        if to == "all"
+        else [t.strip() for t in to.split(",") if t.strip()]
+    )
     if not fmts or any(f not in _RENDER_FORMATS for f in fmts):
-        console.print("[red]invalid render target[/red] use: all, or a comma list of html, pdf, epub")
+        console.print(
+            "[red]invalid render target[/red] use: all, or a comma list of html, pdf, epub"
+        )
         raise typer.Exit(2)
     return fmts
 
@@ -2382,12 +2755,28 @@ def _render_one(
 
 @app.command()
 def render(
-    layout: bool = typer.Option(True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."),
-    keep_logs: bool = typer.Option(True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."),
-    keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
-    refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
-    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
-    to: str = typer.Option("all", "--to", help="Render target: all, or a comma list of html, pdf, epub."),
+    layout: bool = typer.Option(
+        True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."
+    ),
+    keep_logs: bool = typer.Option(
+        True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."
+    ),
+    keep_tex: bool = typer.Option(
+        False,
+        "--keep-tex/--no-keep-tex",
+        help="Ask Quarto to preserve generated TeX for review.",
+    ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh/--no-refresh",
+        help="Re-execute code chunks and ignore Quarto execution caches.",
+    ),
+    bottom_clearance: float = typer.Option(
+        72.0, help="Bottom margin warning threshold in PDF points."
+    ),
+    to: str = typer.Option(
+        "all", "--to", help="Render target: all, or a comma list of html, pdf, epub."
+    ),
 ) -> None:
     """Render the book and run post-build audits."""
     _render_one(
@@ -2406,11 +2795,25 @@ def build(
     pdf: bool = typer.Option(False, "--pdf", help="Build the PDF."),
     epub: bool = typer.Option(False, "--epub", help="Build the EPUB."),
     all_: bool = typer.Option(False, "--all", help="Build HTML, PDF, and EPUB."),
-    layout: bool = typer.Option(True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."),
-    keep_logs: bool = typer.Option(True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."),
-    keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
-    refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
-    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
+    layout: bool = typer.Option(
+        True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."
+    ),
+    keep_logs: bool = typer.Option(
+        True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."
+    ),
+    keep_tex: bool = typer.Option(
+        False,
+        "--keep-tex/--no-keep-tex",
+        help="Ask Quarto to preserve generated TeX for review.",
+    ),
+    refresh: bool = typer.Option(
+        False,
+        "--refresh/--no-refresh",
+        help="Re-execute code chunks and ignore Quarto execution caches.",
+    ),
+    bottom_clearance: float = typer.Option(
+        72.0, help="Bottom margin warning threshold in PDF points."
+    ),
 ) -> None:
     """Build selected book formats and run the same post-build audits as render.
 
@@ -2441,7 +2844,9 @@ def build(
 
 @app.command()
 def clean(
-    scratch_only: bool = typer.Option(False, "--scratch-only", help="Only remove LaTeX scratch files; keep _build."),
+    scratch_only: bool = typer.Option(
+        False, "--scratch-only", help="Only remove LaTeX scratch files; keep _build."
+    ),
 ) -> None:
     """Remove build outputs (_build/) and stray LaTeX scratch files."""
     removed = 0
@@ -2452,7 +2857,9 @@ def clean(
                 removed += 1
     if not scratch_only and BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
-        console.print(f"[green]cleaned[/green] {_relative(BUILD_DIR)} and {removed} LaTeX scratch file(s)")
+        console.print(
+            f"[green]cleaned[/green] {_relative(BUILD_DIR)} and {removed} LaTeX scratch file(s)"
+        )
     else:
         console.print(f"[green]cleaned[/green] {removed} LaTeX scratch file(s)")
 
@@ -2460,18 +2867,40 @@ def clean(
 @app.command()
 def serve(
     port: int = typer.Option(8766, "--port", "-p", help="Port to serve on."),
-    prebuild: bool = typer.Option(True, "--build/--no-build", help="Build the HTML site before serving."),
+    prebuild: bool = typer.Option(
+        True, "--build/--no-build", help="Build the HTML site before serving."
+    ),
 ) -> None:
     """Build the HTML site (unless --no-build) and serve it locally."""
     if prebuild:
-        _render_one("html", layout=False, keep_logs=True, keep_tex=False, refresh=False, bottom_clearance=72.0)
+        _render_one(
+            "html",
+            layout=False,
+            keep_logs=True,
+            keep_tex=False,
+            refresh=False,
+            bottom_clearance=72.0,
+        )
     if not HTML_PATH.exists():
-        console.print("[red]no HTML build found[/red] run 'arch2 build --html' first, or drop --no-build")
+        console.print(
+            "[red]no HTML build found[/red] run 'arch2 build --html' first, or drop --no-build"
+        )
         raise typer.Exit(1)
     console.print(
         f"[cyan]serving[/cyan] {_relative(BUILD_DIR)} at http://127.0.0.1:{port}/  (Ctrl-C to stop)"
     )
-    _run(["python3", "-m", "http.server", str(port), "--bind", "127.0.0.1", "--directory", str(BUILD_DIR)])
+    _run(
+        [
+            "python3",
+            "-m",
+            "http.server",
+            str(port),
+            "--bind",
+            "127.0.0.1",
+            "--directory",
+            str(BUILD_DIR),
+        ]
+    )
 
 
 @validate_app.command("refs")
@@ -2496,7 +2925,9 @@ def verify_figures(
 
 @verify_app.command("html")
 def verify_html(
-    html: Path = typer.Option(HTML_PATH, "--html", help="Rendered HTML index to inspect."),
+    html: Path = typer.Option(
+        HTML_PATH, "--html", help="Rendered HTML index to inspect."
+    ),
 ) -> None:
     """Check that the local HTML site was rendered with the preview banner."""
     run_html_check(html)
@@ -2504,7 +2935,9 @@ def verify_html(
 
 @verify_app.command("epub")
 def verify_epub(
-    epub: Path = typer.Option(EPUB_PATH, "--epub", help="Rendered EPUB package to inspect."),
+    epub: Path = typer.Option(
+        EPUB_PATH, "--epub", help="Rendered EPUB package to inspect."
+    ),
 ) -> None:
     """Check that the local EPUB package contains custom callouts and resolved references."""
     _exit_on_findings(epub_findings(epub), title="EPUB package")
@@ -2512,7 +2945,9 @@ def verify_epub(
 
 @validate_app.command("svg")
 def validate_svg(
-    paths: list[Path] | None = typer.Argument(None, help="SVG files or directories to check."),
+    paths: list[Path] | None = typer.Argument(
+        None, help="SVG files or directories to check."
+    ),
 ) -> None:
     """Check SVG text fit across conceptual figures."""
     run_svg_check(paths)
@@ -2520,7 +2955,9 @@ def validate_svg(
 
 @validate_app.command("citations")
 def validate_citations(
-    show_context: bool = typer.Option(False, help="Show every repeated citation occurrence."),
+    show_context: bool = typer.Option(
+        False, help="Show every repeated citation occurrence."
+    ),
 ) -> None:
     """Report repeated citation keys for editorial classification."""
     run_citation_check(show_context=show_context)
@@ -2557,7 +2994,9 @@ def check_precommit() -> None:
 
 @check_app.command("standard")
 def check_standard(
-    fail_on_layout_warning: bool = typer.Option(False, help="Treat layout warnings as failures."),
+    fail_on_layout_warning: bool = typer.Option(
+        False, help="Treat layout warnings as failures."
+    ),
 ) -> None:
     """Run the standard rendered-manuscript gate."""
     run_refs_check()
@@ -2570,7 +3009,9 @@ def check_standard(
 
 @check_app.command("strict")
 def check_strict(
-    fail_on_layout_warning: bool = typer.Option(False, help="Treat layout warnings as failures."),
+    fail_on_layout_warning: bool = typer.Option(
+        False, help="Treat layout warnings as failures."
+    ),
 ) -> None:
     """Run the standard gate plus strict SVG text-fit checks."""
     run_refs_check()
@@ -2584,8 +3025,12 @@ def check_strict(
 
 @check_app.command("layout", hidden=True)
 def check_layout(
-    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
-    fail_on_warning: bool = typer.Option(False, help="Treat bottom-crowding warnings as failures."),
+    bottom_clearance: float = typer.Option(
+        72.0, help="Bottom margin warning threshold in PDF points."
+    ),
+    fail_on_warning: bool = typer.Option(
+        False, help="Treat bottom-crowding warnings as failures."
+    ),
 ) -> None:
     """Scan rendered PDF geometry and LaTeX overflow logs."""
     run_layout_check(bottom_clearance=bottom_clearance, fail_on_warning=fail_on_warning)
@@ -2593,8 +3038,12 @@ def check_layout(
 
 @check_app.command("all", hidden=True)
 def check_all(
-    include_svg: bool = typer.Option(False, "--include-svg/--skip-svg", help="Include full SVG text-fit backlog."),
-    fail_on_layout_warning: bool = typer.Option(False, help="Treat layout warnings as failures."),
+    include_svg: bool = typer.Option(
+        False, "--include-svg/--skip-svg", help="Include full SVG text-fit backlog."
+    ),
+    fail_on_layout_warning: bool = typer.Option(
+        False, help="Treat layout warnings as failures."
+    ),
 ) -> None:
     """Compatibility alias for check standard/strict."""
     run_refs_check()
@@ -2610,25 +3059,38 @@ def check_all(
 @layout_app.command("scan")
 def layout_scan(
     pdf: Path = typer.Argument(PDF_PATH, help="PDF to scan."),
-    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
-    json_out: Path | None = typer.Option(None, "--json", help="Write findings to JSON."),
+    bottom_clearance: float = typer.Option(
+        72.0, help="Bottom margin warning threshold in PDF points."
+    ),
+    json_out: Path | None = typer.Option(
+        None, "--json", help="Write findings to JSON."
+    ),
     fail_on_warning: bool = typer.Option(False, help="Treat warnings as failures."),
 ) -> None:
     """Scan PDF page geometry and preserved LaTeX logs."""
     findings = layout_findings(pdf, bottom_clearance=bottom_clearance)
     _emit_findings(findings, title="layout audit")
     if json_out:
-        json_out.write_text(json.dumps([asdict(f) for f in findings], indent=2), encoding="utf-8")
+        json_out.write_text(
+            json.dumps([asdict(f) for f in findings], indent=2), encoding="utf-8"
+        )
         console.print(f"[dim]wrote {_relative(json_out)}[/dim]")
-    if any(f.severity == "error" or (fail_on_warning and f.severity == "warning") for f in findings):
+    if any(
+        f.severity == "error" or (fail_on_warning and f.severity == "warning")
+        for f in findings
+    ):
         raise typer.Exit(1)
 
 
 @layout_app.command("contact-sheet")
 def layout_contact_sheet(
-    kind: str = typer.Argument("figures", help="Rendered pages to collect: figures or tables."),
+    kind: str = typer.Argument(
+        "figures", help="Rendered pages to collect: figures or tables."
+    ),
     pdf: Path = typer.Option(PDF_PATH, "--pdf", help="Rendered PDF to inspect."),
-    output: Path | None = typer.Option(None, "--output", "-o", help="PNG contact-sheet path."),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="PNG contact-sheet path."
+    ),
     dpi: int = typer.Option(90, help="PDF rasterization DPI for thumbnails."),
     columns: int = typer.Option(4, help="Number of columns in the contact sheet."),
     thumbnail_width: int = typer.Option(255, help="Thumbnail width in pixels."),
@@ -2641,7 +3103,9 @@ def layout_contact_sheet(
     """Render a figure/table page contact sheet for visual manuscript QA."""
     normalized = kind.lower()
     if normalized not in {"figures", "tables"}:
-        console.print("[red]invalid contact-sheet kind[/red] use one of: figures, tables")
+        console.print(
+            "[red]invalid contact-sheet kind[/red] use one of: figures, tables"
+        )
         raise typer.Exit(2)
     if not pdf.exists():
         console.print(f"[red]missing PDF[/red] {_relative(pdf)}")
@@ -2736,8 +3200,12 @@ def layout_contact_sheet(
         image = Image.open(rendered[-1]).convert("RGB")
         ratio = thumbnail_width / image.width
         thumbnail_height = int(image.height * ratio)
-        image = image.resize((thumbnail_width, thumbnail_height), Image.Resampling.LANCZOS)
-        tile = Image.new("RGB", (thumbnail_width, thumbnail_height + label_height), "white")
+        image = image.resize(
+            (thumbnail_width, thumbnail_height), Image.Resampling.LANCZOS
+        )
+        tile = Image.new(
+            "RGB", (thumbnail_width, thumbnail_height + label_height), "white"
+        )
         tile.paste(image, (0, label_height))
         draw = ImageDraw.Draw(tile)
         draw.rectangle(
@@ -2774,8 +3242,12 @@ def layout_contact_sheet(
 @review_app.command("open")
 def review_open(
     port: int = typer.Option(8765, help="Local review server port."),
-    no_browser: bool = typer.Option(False, help="Do not open the browser automatically."),
-    tex: Path | None = typer.Option(None, "--tex", help="Generated TeX file to anchor comments."),
+    no_browser: bool = typer.Option(
+        False, help="Do not open the browser automatically."
+    ),
+    tex: Path | None = typer.Option(
+        None, "--tex", help="Generated TeX file to anchor comments."
+    ),
     pdf: Path = typer.Option(PDF_PATH, "--pdf", help="Rendered PDF to review."),
     workbench: Path | None = typer.Option(
         None,
@@ -2784,7 +3256,9 @@ def review_open(
     ),
 ) -> None:
     """Open the Arch2 review bench for PDF-plus-source commenting."""
-    workbench_path = workbench or Path(os.environ.get("ARCH2_REVIEW_WORKBENCH", str(DEFAULT_REVIEW_WORKBENCH)))
+    workbench_path = workbench or Path(
+        os.environ.get("ARCH2_REVIEW_WORKBENCH", str(DEFAULT_REVIEW_WORKBENCH))
+    )
     if not workbench_path.exists():
         console.print(f"[red]missing review bench engine[/red] {workbench_path}")
         raise typer.Exit(1)
@@ -2792,7 +3266,9 @@ def review_open(
     tex_path = tex or generated_tex()
     if tex_path is None or not tex_path.exists():
         console.print("[red]missing generated TeX[/red]")
-        console.print("Run [cyan]./arch2 render --keep-tex[/cyan] first, then retry [cyan]./arch2 review open[/cyan].")
+        console.print(
+            "Run [cyan]./arch2 render --keep-tex[/cyan] first, then retry [cyan]./arch2 review open[/cyan]."
+        )
         raise typer.Exit(1)
     if not pdf.exists():
         console.print(f"[red]missing PDF[/red] {_relative(pdf)}")
@@ -2816,35 +3292,53 @@ def review_open(
         cmd.append("--no-browser")
     console.print(f"[cyan]Arch2 review bench[/cyan] http://127.0.0.1:{port}")
     console.print(f"[dim]engine: {workbench_path}[/dim]")
-    console.print(f"[dim]comments: {_relative(BOOK_DIR / '.paper-review' / 'comments.json')}[/dim]")
+    console.print(
+        f"[dim]comments: {_relative(BOOK_DIR / '.paper-review' / 'comments.json')}[/dim]"
+    )
     proc = _run(cmd, cwd=ROOT, env=env, capture=False)
     raise typer.Exit(proc.returncode)
 
 
 @loop_app.command("packet")
 def loop_packet(
-    scope: str = typer.Option("book", "--scope", help="Review scope label, such as book or a chapter slug."),
+    scope: str = typer.Option(
+        "book", "--scope", help="Review scope label, such as book or a chapter slug."
+    ),
     focus: str = typer.Option(
         "progressive-disclosure",
         "--focus",
         help="Primary review focus for the packet.",
     ),
-    out_dir: Path | None = typer.Option(None, "--out-dir", help="Private loop artifact directory."),
+    out_dir: Path | None = typer.Option(
+        None, "--out-dir", help="Private loop artifact directory."
+    ),
 ) -> None:
     """Generate a manuscript packet for an improvement loop."""
     body = build_loop_packet(scope=scope, focus=focus)
     path = _write_loop_artifact("packet", body, out_dir=out_dir)
     console.print(f"[green]wrote[/green] {_relative(path)}")
-    console.print(f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'packet-latest.md')}[/dim]")
+    console.print(
+        f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'packet-latest.md')}[/dim]"
+    )
 
 
 @loop_app.command("review")
 def loop_review(
-    packet: Path | None = typer.Option(None, "--packet", help="Loop packet to review. Defaults to packet-latest.md."),
-    reviewer: str = typer.Option("gemini", "--reviewer", help="Reviewer backend: gemini, claude, or none."),
-    model: str = typer.Option(DEFAULT_GEMINI_MODEL, "--model", help="Model name for Gemini review."),
-    timeout: str = typer.Option("15m", "--timeout", help="External reviewer timeout, e.g. 15m."),
-    out_dir: Path | None = typer.Option(None, "--out-dir", help="Private loop artifact directory."),
+    packet: Path | None = typer.Option(
+        None, "--packet", help="Loop packet to review. Defaults to packet-latest.md."
+    ),
+    reviewer: str = typer.Option(
+        "gemini", "--reviewer", help="Reviewer backend: gemini, claude, or none."
+    ),
+    model: str = typer.Option(
+        DEFAULT_GEMINI_MODEL, "--model", help="Model name for Gemini review."
+    ),
+    timeout: str = typer.Option(
+        "15m", "--timeout", help="External reviewer timeout, e.g. 15m."
+    ),
+    out_dir: Path | None = typer.Option(
+        None, "--out-dir", help="Private loop artifact directory."
+    ),
 ) -> None:
     """Run an external or skipped review against a loop packet."""
     packet_path = packet or _latest_loop_artifact("packet", out_dir=out_dir)
@@ -2855,7 +3349,9 @@ def loop_review(
         raise typer.Exit(1)
 
     try:
-        review_text = run_loop_review(packet_path, reviewer=reviewer, model=model, timeout=timeout)
+        review_text = run_loop_review(
+            packet_path, reviewer=reviewer, model=model, timeout=timeout
+        )
     except RuntimeError as exc:
         console.print(f"[red]review failed[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -2873,13 +3369,19 @@ def loop_review(
     )
     path = _write_loop_artifact("review", header + review_text, out_dir=out_dir)
     console.print(f"[green]wrote[/green] {_relative(path)}")
-    console.print(f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'review-latest.md')}[/dim]")
+    console.print(
+        f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'review-latest.md')}[/dim]"
+    )
 
 
 @loop_app.command("triage")
 def loop_triage(
-    review: Path | None = typer.Option(None, "--review", help="Loop review to triage. Defaults to review-latest.md."),
-    out_dir: Path | None = typer.Option(None, "--out-dir", help="Private loop artifact directory."),
+    review: Path | None = typer.Option(
+        None, "--review", help="Loop review to triage. Defaults to review-latest.md."
+    ),
+    out_dir: Path | None = typer.Option(
+        None, "--out-dir", help="Private loop artifact directory."
+    ),
 ) -> None:
     """Classify review feedback into fix, decision, rule, check, and defer buckets."""
     review_path = review or _latest_loop_artifact("review", out_dir=out_dir)
@@ -2889,16 +3391,26 @@ def loop_triage(
         console.print(f"[red]missing review[/red] {_relative(review_path)}")
         raise typer.Exit(1)
 
-    body = build_triage(review_path.read_text(encoding="utf-8"), review_path=review_path)
+    body = build_triage(
+        review_path.read_text(encoding="utf-8"), review_path=review_path
+    )
     path = _write_loop_artifact("triage", body, out_dir=out_dir)
     console.print(f"[green]wrote[/green] {_relative(path)}")
-    console.print(f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'triage-latest.md')}[/dim]")
+    console.print(
+        f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'triage-latest.md')}[/dim]"
+    )
 
 
 @loop_app.command("learn")
 def loop_learn(
-    triage: Path | None = typer.Option(None, "--triage", help="Loop triage to learn from. Defaults to triage-latest.md."),
-    out_dir: Path | None = typer.Option(None, "--out-dir", help="Private loop artifact directory."),
+    triage: Path | None = typer.Option(
+        None,
+        "--triage",
+        help="Loop triage to learn from. Defaults to triage-latest.md.",
+    ),
+    out_dir: Path | None = typer.Option(
+        None, "--out-dir", help="Private loop artifact directory."
+    ),
 ) -> None:
     """Turn a triage pass into rule/check/update candidates for the next loop."""
     triage_path = triage or _latest_loop_artifact("triage", out_dir=out_dir)
@@ -2908,24 +3420,38 @@ def loop_learn(
         console.print(f"[red]missing triage[/red] {_relative(triage_path)}")
         raise typer.Exit(1)
 
-    body = build_learning_report(triage_path.read_text(encoding="utf-8"), triage_path=triage_path)
+    body = build_learning_report(
+        triage_path.read_text(encoding="utf-8"), triage_path=triage_path
+    )
     path = _write_loop_artifact("learning", body, out_dir=out_dir)
     console.print(f"[green]wrote[/green] {_relative(path)}")
-    console.print(f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'learning-latest.md')}[/dim]")
+    console.print(
+        f"[dim]latest: {_relative(_loop_output_dir(out_dir) / 'learning-latest.md')}[/dim]"
+    )
 
 
 @loop_app.command("run")
 def loop_run(
-    scope: str = typer.Option("book", "--scope", help="Review scope label, such as book or a chapter slug."),
+    scope: str = typer.Option(
+        "book", "--scope", help="Review scope label, such as book or a chapter slug."
+    ),
     focus: str = typer.Option(
         "progressive-disclosure",
         "--focus",
         help="Primary review focus for the loop.",
     ),
-    reviewer: str = typer.Option("gemini", "--reviewer", help="Reviewer backend: gemini, claude, or none."),
-    model: str = typer.Option(DEFAULT_GEMINI_MODEL, "--model", help="Model name for Gemini review."),
-    timeout: str = typer.Option("15m", "--timeout", help="External reviewer timeout, e.g. 15m."),
-    out_dir: Path | None = typer.Option(None, "--out-dir", help="Private loop artifact directory."),
+    reviewer: str = typer.Option(
+        "gemini", "--reviewer", help="Reviewer backend: gemini, claude, or none."
+    ),
+    model: str = typer.Option(
+        DEFAULT_GEMINI_MODEL, "--model", help="Model name for Gemini review."
+    ),
+    timeout: str = typer.Option(
+        "15m", "--timeout", help="External reviewer timeout, e.g. 15m."
+    ),
+    out_dir: Path | None = typer.Option(
+        None, "--out-dir", help="Private loop artifact directory."
+    ),
 ) -> None:
     """Run packet -> review -> triage -> learn as one manuscript-improvement loop."""
     packet_body = build_loop_packet(scope=scope, focus=focus)
@@ -2933,7 +3459,9 @@ def loop_run(
     console.print(f"[green]packet[/green] {_relative(packet_path)}")
 
     try:
-        review_text = run_loop_review(packet_path, reviewer=reviewer, model=model, timeout=timeout)
+        review_text = run_loop_review(
+            packet_path, reviewer=reviewer, model=model, timeout=timeout
+        )
     except RuntimeError as exc:
         console.print(f"[red]review failed[/red] {exc}")
         raise typer.Exit(1) from exc
@@ -2949,17 +3477,23 @@ def loop_run(
             "",
         ]
     )
-    review_path = _write_loop_artifact("review", review_header + review_text, out_dir=out_dir)
+    review_path = _write_loop_artifact(
+        "review", review_header + review_text, out_dir=out_dir
+    )
     console.print(f"[green]review[/green] {_relative(review_path)}")
 
-    triage_body = build_triage(review_path.read_text(encoding="utf-8"), review_path=review_path)
+    triage_body = build_triage(
+        review_path.read_text(encoding="utf-8"), review_path=review_path
+    )
     triage_path = _write_loop_artifact("triage", triage_body, out_dir=out_dir)
     console.print(f"[green]triage[/green] {_relative(triage_path)}")
 
     learning_body = build_learning_report(triage_body, triage_path=triage_path)
     learning_path = _write_loop_artifact("learning", learning_body, out_dir=out_dir)
     console.print(f"[green]learning[/green] {_relative(learning_path)}")
-    console.print("[dim]next: inspect triage/learning, apply one scoped edit, then render/check[/dim]")
+    console.print(
+        "[dim]next: inspect triage/learning, apply one scoped edit, then render/check[/dim]"
+    )
 
 
 @app.command()
