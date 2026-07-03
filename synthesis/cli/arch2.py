@@ -2258,6 +2258,46 @@ def run_python_check() -> None:
     _exit_if_failed(proc, "Python syntax")
 
 
+_LATEX_SCRATCH_PATTERNS = (
+    "*.aux", "*.bbl", "*.blg", "*.idx", "*.ilg", "*.ind", "*.log",
+    "*.out", "*.run.xml", "*.synctex.gz", "*.tex", "DescriptionTexts.txt",
+)
+_PREPARE_SCRIPT = BOOK_DIR / "scripts" / "prepare_render.py"
+_RENDER_FORMATS = ("html", "pdf", "epub")
+
+
+def _prepare_figures() -> None:
+    """Convert SVG figures and refresh chapter images before Quarto renders.
+
+    Formerly the Quarto pre-render hook. The CLI now drives it explicitly so the
+    build pipeline is owned end to end here rather than by Quarto lifecycle hooks.
+    """
+    console.print("[cyan]preparing[/cyan] figures and chapter images")
+    proc = _run([sys.executable, str(_PREPARE_SCRIPT)], cwd=ROOT, capture=True)
+    if proc.returncode != 0:
+        console.print("[red]figure preparation failed[/red]")
+        console.print(((proc.stdout or "") + (proc.stderr or ""))[-4000:])
+        raise typer.Exit(proc.returncode)
+
+
+def _clean_latex_scratch(keep_logs: bool) -> None:
+    """Remove LaTeX scratch files left in the book directory after a PDF render."""
+    if keep_logs:
+        return
+    for pattern in _LATEX_SCRATCH_PATTERNS:
+        for path in BOOK_DIR.glob(pattern):
+            if path.is_file():
+                path.unlink()
+
+
+def _resolve_formats(to: str) -> list[str]:
+    fmts = list(_RENDER_FORMATS) if to == "all" else [t.strip() for t in to.split(",") if t.strip()]
+    if not fmts or any(f not in _RENDER_FORMATS for f in fmts):
+        console.print("[red]invalid render target[/red] use: all, or a comma list of html, pdf, epub")
+        raise typer.Exit(2)
+    return fmts
+
+
 def _render_one(
     to: str,
     *,
@@ -2267,17 +2307,29 @@ def _render_one(
     refresh: bool,
     bottom_clearance: float,
 ) -> None:
-    """Render one target (all|pdf|html|epub) and run its post-build audits."""
-    if to not in {"all", "pdf", "html", "epub"}:
-        console.print("[red]invalid render target[/red] use one of: all, pdf, html, epub")
-        raise typer.Exit(2)
+    """Prepare, render, and audit one or more formats in a single Quarto pass.
 
-    env = {"ARCH2_RENDER_TARGET": to}
+    Owns the whole pipeline natively: figure prep, the Quarto render (with no
+    lifecycle hooks), and every post-build audit (figure, HTML, EPUB, PDF layout)
+    plus LaTeX scratch cleanup. Multiple formats render in ONE pass so they do not
+    clobber each other's output.
+    """
+    fmts = _resolve_formats(to)
+
+    _prepare_figures()
+
+    env: dict[str, str] = {}
     if keep_logs:
         env["ARCH2_KEEP_LATEX_LOGS"] = "1"
+    # A Quarto book keeps multiple formats side by side only with a bare
+    # "render all"; any explicit --to (even repeated) re-cleans _build between
+    # formats and clobbers earlier output. So render ONE requested format with
+    # --to, and several by rendering all and pruning the unrequested single-file
+    # outputs (pdf/epub) afterward.
+    render_all = len(fmts) > 1
     cmd = ["quarto", "render", "book"]
-    if to != "all":
-        cmd.extend(["--to", to])
+    if not render_all:
+        cmd.extend(["--to", fmts[0]])
     if keep_tex:
         cmd.extend(["-M", "keep-tex:true"])
     if refresh:
@@ -2292,26 +2344,39 @@ def _render_one(
         console.print(transcript[-4000:])
         raise typer.Exit(proc.returncode)
 
-    if to in {"all", "pdf"}:
+    # When we rendered everything to build a subset, drop the unrequested
+    # single-file outputs so `build --html --pdf` leaves exactly HTML + PDF.
+    if render_all:
+        if "pdf" not in fmts and PDF_PATH.exists():
+            PDF_PATH.unlink()
+        if "epub" not in fmts and EPUB_PATH.exists():
+            EPUB_PATH.unlink()
+
+    if "pdf" in fmts:
         console.print(f"[green]rendered[/green] {_relative(PDF_PATH)}")
-    if to in {"all", "html"}:
+    if "html" in fmts:
         console.print(f"[green]rendered[/green] {_relative(HTML_PATH)}")
-    if to in {"all", "epub"}:
+    if "epub" in fmts:
         console.print(f"[green]rendered[/green] {_relative(EPUB_PATH)}")
     console.print(f"[dim]transcript: {_relative(log_path)}[/dim]")
     tex_path = generated_tex()
     if keep_tex and tex_path:
         console.print(f"[dim]generated TeX: {_relative(tex_path)}[/dim]")
 
-    if to in {"all", "html"}:
+    # Native finalization (formerly the Quarto post-render hook).
+    if "html" in fmts:
         run_html_check(HTML_PATH)
-    if to in {"all", "epub"}:
+    if "epub" in fmts:
         _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
-
-    if layout and to in {"all", "pdf"}:
-        findings = layout_findings(PDF_PATH, bottom_clearance=bottom_clearance)
-        _emit_findings(findings, title="layout audit")
-        if any(finding.severity == "error" for finding in findings):
+    if "pdf" in fmts:
+        run_figures_check(PDF_PATH)
+        layout_error = False
+        if layout:
+            findings = layout_findings(PDF_PATH, bottom_clearance=bottom_clearance)
+            _emit_findings(findings, title="layout audit")
+            layout_error = any(finding.severity == "error" for finding in findings)
+        _clean_latex_scratch(keep_logs)
+        if layout_error:
             raise typer.Exit(1)
 
 
@@ -2322,7 +2387,7 @@ def render(
     keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
     refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
     bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
-    to: str = typer.Option("all", "--to", help="Render target: all, pdf, html, or epub."),
+    to: str = typer.Option("all", "--to", help="Render target: all, or a comma list of html, pdf, epub."),
 ) -> None:
     """Render the book and run post-build audits."""
     _render_one(
@@ -2340,7 +2405,7 @@ def build(
     html: bool = typer.Option(False, "--html", help="Build the HTML site."),
     pdf: bool = typer.Option(False, "--pdf", help="Build the PDF."),
     epub: bool = typer.Option(False, "--epub", help="Build the EPUB."),
-    all_: bool = typer.Option(False, "--all", help="Build HTML, PDF, and EPUB in one pass."),
+    all_: bool = typer.Option(False, "--all", help="Build HTML, PDF, and EPUB."),
     layout: bool = typer.Option(True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."),
     keep_logs: bool = typer.Option(True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."),
     keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
@@ -2349,30 +2414,64 @@ def build(
 ) -> None:
     """Build selected book formats and run the same post-build audits as render.
 
-    Defaults to HTML + PDF when no format flag is given:
+    Defaults to HTML + PDF when no format flag is given. Multiple formats render
+    in a single Quarto pass, so they never clobber each other's output:
 
       arch2 build                # HTML + PDF
       arch2 build --html --pdf   # HTML + PDF (explicit)
       arch2 build --pdf          # PDF only
-      arch2 build --all          # HTML + PDF + EPUB (single pass)
+      arch2 build --all          # HTML + PDF + EPUB
     """
     if all_ or (html and pdf and epub):
-        targets = ["all"]
+        to = "all"
     else:
-        targets = [t for t, on in (("html", html), ("pdf", pdf), ("epub", epub)) if on]
-        if not targets:
-            targets = ["html", "pdf"]
-    shown = ["html", "pdf", "epub"] if targets == ["all"] else targets
+        chosen = [t for t, on in (("html", html), ("pdf", pdf), ("epub", epub)) if on]
+        to = ",".join(chosen) if chosen else "html,pdf"
+    shown = list(_RENDER_FORMATS) if to == "all" else to.split(",")
     console.print(f"[cyan]build[/cyan] targets: {', '.join(shown)}")
-    for target in targets:
-        _render_one(
-            target,
-            layout=layout,
-            keep_logs=keep_logs,
-            keep_tex=keep_tex,
-            refresh=refresh,
-            bottom_clearance=bottom_clearance,
-        )
+    _render_one(
+        to,
+        layout=layout,
+        keep_logs=keep_logs,
+        keep_tex=keep_tex,
+        refresh=refresh,
+        bottom_clearance=bottom_clearance,
+    )
+
+
+@app.command()
+def clean(
+    scratch_only: bool = typer.Option(False, "--scratch-only", help="Only remove LaTeX scratch files; keep _build."),
+) -> None:
+    """Remove build outputs (_build/) and stray LaTeX scratch files."""
+    removed = 0
+    for pattern in _LATEX_SCRATCH_PATTERNS:
+        for path in BOOK_DIR.glob(pattern):
+            if path.is_file():
+                path.unlink()
+                removed += 1
+    if not scratch_only and BUILD_DIR.exists():
+        shutil.rmtree(BUILD_DIR)
+        console.print(f"[green]cleaned[/green] {_relative(BUILD_DIR)} and {removed} LaTeX scratch file(s)")
+    else:
+        console.print(f"[green]cleaned[/green] {removed} LaTeX scratch file(s)")
+
+
+@app.command()
+def serve(
+    port: int = typer.Option(8766, "--port", "-p", help="Port to serve on."),
+    prebuild: bool = typer.Option(True, "--build/--no-build", help="Build the HTML site before serving."),
+) -> None:
+    """Build the HTML site (unless --no-build) and serve it locally."""
+    if prebuild:
+        _render_one("html", layout=False, keep_logs=True, keep_tex=False, refresh=False, bottom_clearance=72.0)
+    if not HTML_PATH.exists():
+        console.print("[red]no HTML build found[/red] run 'arch2 build --html' first, or drop --no-build")
+        raise typer.Exit(1)
+    console.print(
+        f"[cyan]serving[/cyan] {_relative(BUILD_DIR)} at http://127.0.0.1:{port}/  (Ctrl-C to stop)"
+    )
+    _run(["python3", "-m", "http.server", str(port), "--bind", "127.0.0.1", "--directory", str(BUILD_DIR)])
 
 
 @validate_app.command("refs")

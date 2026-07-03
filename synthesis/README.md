@@ -29,17 +29,19 @@ Pick formats with flags, or build one target when iterating:
 ./arch2 build --all           # HTML + PDF + EPUB in one pass
 ```
 
-`build` and `render` share the same engine and post-build audits (HTML checks,
-EPUB package check, PDF layout scan). `render --to all|pdf|html|epub` is the
+`build` and `render` share one native pipeline: the CLI owns figure preparation,
+a single Quarto render pass, and every post-build audit (figure, HTML, EPUB, PDF
+layout) plus scratch cleanup. There are no Quarto pre/post-render hooks; the
+`arch2` CLI drives the whole build. `render --to all|html|pdf|epub` is the
 lower-level single-target form; `build` is the flag-driven front end.
 
-Serve the HTML preview locally:
+Preview and clean:
 
 ```bash
-python3 -m http.server 8766 --bind 127.0.0.1 --directory book/_build
+./arch2 serve             # build the HTML site, then serve it at 127.0.0.1:8766
+./arch2 serve --no-build  # serve the existing build without rebuilding
+./arch2 clean             # remove _build/ and stray LaTeX scratch files
 ```
-
-Then open <http://127.0.0.1:8766/>.
 
 ## Quality Gates
 
