@@ -55,7 +55,7 @@ blocked.
 | Functional checks | Unit tests, reference outputs, assertions, simulation traces, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
 | Model and workload checks | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
 | Implementation checks | Synthesis, timing, area, power, congestion, design-rule checks, and physical warnings. | Architecture candidates that fail implementation-adjacent reality. |
-| Operational checks | SLOs, canaries, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
+| Operational checks | SLOs, canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
 | Expert review | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
 
 : **Verification names who or what can say no:** A credible claim should state
@@ -81,7 +81,9 @@ That means you can:
 
 Read the chapter as a sequence of review records rather than as separate trust
 concepts. Each record answers a different question about the same claim;
-@tbl-trust-record-map is the chapter's map.
+@tbl-trust-record-map is the chapter's map. Two further sections, on proxy
+mismatch and on confidentiality boundaries, defend the evidence ledger and the
+trust checklist against gamed metrics and hidden evidence.
 
 | **Review record** | **Role in the loop** | **Reviewer question** |
 | --- | --- | --- |
@@ -113,7 +115,10 @@ limited tool licenses, long queue delays, confidential workloads, and
 organizational deadlines. These limits shape which methods are appropriate and
 how much autonomy is acceptable.
 
-This is why a loop needs a feedback budget ledger. The ledger is not
+This is why a loop needs a feedback budget ledger: a record of which
+evaluations, measurements, tool runs, human reviews, and deployment signals are
+available, what they cost, how long they take, how reversible they are, and
+what level of decision they can support. The ledger is not
 accounting bureaucracy. It is the object that tells the method what kind of
 learning is possible. A Bayesian optimizer, reinforcement-learning policy[^fn-policy-c07],
 surrogate model, critic[^fn-critic-c07], or tool-using agent should behave differently when a
@@ -121,11 +126,6 @@ feedback source takes milliseconds versus days, when a failed action is
 reversible versus costly, and when the signal is a rough proxy versus a
 signoff report. @tbl-feedback-budget-ledger gives the working
 form.
-
-In this chapter, the feedback budget becomes a ledger. It records which
-evaluations, measurements, tool runs, human reviews, and deployment signals are
-available, what they cost, how long they take, how reversible they are, and
-what level of decision they can support.
 
 | **Budget item** | **What to record** | **Why it matters** |
 | --- | --- | --- |
@@ -159,9 +159,11 @@ $$
 This notation is a review prompt, not a universal evidence metric. Here, $n_i$
 is the number of evaluations of feedback type $i$, $c_i$ is
 the cost of one such evaluation, $B$ is the total feedback budget, $e_i$
-is the evidence produced by that evaluation, and $\Delta \mathrm{Conf}(d
-\mid e_i)$ is the change in confidence for the decision $d$. The equation is
-not a universal currency for evidence; ordinal confidence changes or
+is the evidence produced by that evaluation, $\Delta \mathrm{Conf}(d
+\mid e_i)$ is the change in confidence for the decision $d$, and $V_i$ is the
+resulting decision value of one such evaluation. It is the per-feedback-type
+form of the sample-value rule from
+@sec-methods-generation-prediction-optimization; ordinal confidence changes or
 decision-relevance labels are often more honest than unjustified numeric
 confidence. The notation is a question the loop designer must answer before
 each stage: will another simulation, synthesis run, expert review, or
@@ -186,6 +188,12 @@ baseline are explicit.
 > **Feedback regime.** A feedback regime is a class of checks at a particular
 > fidelity, cost, and commitment level, from cheap proxies to high-commitment
 > verification, deployment, or silicon evidence.
+
+Each rung of the fidelity ladder from
+@sec-methods-generation-prediction-optimization is a feedback regime: the
+ladder names the ordered levels a loop can climb, and the regime names the
+class of checks at one level. The evidence ledger records which rung produced
+which entry.
 
 This idea is not new to engineering. Safety-critical fields formalize it as an
 *assurance case*: a structured argument that links a top-level claim to
@@ -240,7 +248,8 @@ with commitment. A loop that generates a
 candidate simulator configuration can tolerate more automation than a loop
 that changes RTL, partitions a chiplet boundary, selects a package interface,
 or recommends a deployment policy. The difference is not whether AI is
-involved. The difference is rollback cost, blast radius, and who bears the
+involved. The difference is rollback cost, blast radius (how far a wrong change
+can propagate), and who bears the
 consequence when the loop is wrong.
 
 @tbl-commitment-ladder gives a commitment-level view. The exact
@@ -326,10 +335,13 @@ $$
 $$
 This is not an algorithm that makes the decision for the architect. It is a
 discipline for refusing unsupported commitment. Here, $x$ is the candidate,
-$k$ is the commitment level, $E_k(x)$ is the
-evidence available at that level, $\tau_k$ is the evidence threshold,
+$k$ is the commitment level, $\mathrm{valid}(x)$ is legality alone (the
+candidate breaks no declared contract), $E_k(x)$ is the
+sufficiency of the evidence at that level, $\tau_k$ is the evidence threshold,
 $\rho_k(x)$ is the residual risk, and $\rho_{\max,k}$ is the risk the
-architect or organization is willing to tolerate. The thresholds are policy
+architect or organization is willing to tolerate. Evidence and risk are written
+as scalars only for compactness; in practice each is the per-gate checklist the
+commitment ladder names. The thresholds are policy
 and judgment choices, not magic constants learned by the method. If validity,
 evidence, or residual risk fails, the loop should reject, revise, or escalate
 instead of silently turning output into commitment. @sec-running-the-loop runs this rule on
@@ -603,6 +615,6 @@ For trust and verification:
 
 [^fn-tool-using-agent-c07]: **Tool-using agent**: an AI system that can programmatically invoke external software tools or APIs to solve tasks.
 [^fn-policy-c07]: **Policy**: in reinforcement learning, a function that maps an agent's state to a chosen action.
-[^fn-critic-c07]: **Critic**: an algorithmic component in reinforcement learning that evaluates a policy's actions by estimating expected future returns.
+[^fn-critic-c07]: **Critic**: in this book, the critique method role of @sec-methods-generation-prediction-optimization, a component that challenges assumptions, evidence, or claims inside the loop; reinforcement learning uses the same word more narrowly for a learned estimator of expected future returns.
 [^fn-goal-structuring-notation-c07]: **Goal Structuring Notation (GSN)**: a graphical argumentation notation used in safety-critical engineering to formally document the elements of an assurance case.
 [^fn-held-out-data-c07]: **Held-out data**: a subset of a dataset reserved during model training, used exclusively to test the model's ability to generalize to unseen inputs.

@@ -72,7 +72,8 @@ physical-design assistance, and evidence critique are not the same problem.
 They expose different state, allow different actions, tolerate different
 errors, and require different feedback.
 
-This is why environment work such as ArchGym, an open-source OpenAI Gym[^fn-openai-gym-c06]-based architecture environment, is important. It makes method
+This is why environment work such as ArchGym, the worked example of
+@sec-architecture-environments-tool-interfaces, matters here: it makes method
 comparisons meaningful by defining tasks, actions, observations, workloads,
 and feedback [@KrishnanEtAl2023ArchGym]. But even a shared environment
 does not decide which method role is appropriate. The role depends on what
@@ -142,9 +143,9 @@ physical-design change.
 
 Naming the architecture object a method touches raises a prior question:
 whether the method actually understands the hardware behind that object, or
-only borrows its terms. The staged view that follows is the crux's second half
-made concrete for hardware: the level of hardware a method can actually be held
-to is the level of feedback that can make its output worth trusting. Hardware
+only borrows its terms. The staged view that follows makes the crux's second
+half concrete for hardware: the level of hardware awareness a method can be
+held to is set by the level of feedback that can reject its output. Hardware
 awareness is not the same as using hardware vocabulary. A generated
 proposal can mention caches, vector units, power targets, or a process node and
 still be unaware of the architectural consequences of those terms.
@@ -178,8 +179,13 @@ awareness applies declared budgets and limits such as power, area, latency,
 memory, precision, reliability, and process assumptions. Performance-model
 awareness reasons about the mechanisms that drive cost: data movement,
 locality, bandwidth, occupancy, parallelism, pipelines, and communication.
+Here, "performance model" means a cheap analytical, learned, or surrogate
+estimator used before live tool execution.
 Tool and environment awareness connects those mechanisms to compilers,
-profilers, simulators, synthesis reports, and failed runs. Evidence awareness
+profilers, simulators, synthesis reports, and failed runs; a simulator such as
+gem5 can itself be a tool environment when the loop invokes it, records
+configurations and outputs, and treats its result as feedback rather than as an
+abstract ranking. Evidence awareness
 adds calibration, uncertainty, proxy mismatch[^fn-proxy-mismatch-c06], fidelity, and negative traces.
 Commitment-boundary awareness is the highest level because the loop can state
 what the method may recommend, what must be escalated, and why the architect
@@ -242,10 +248,6 @@ blocked or rejected. It reaches commitment-boundary awareness only if the loop
 can connect workload intent, hardware resource limits, compiler/runtime
 assumptions, fidelity gates, and human decision points into one accountable
 loop.
-Here, "performance model" means a cheap analytical, learned, or surrogate
-estimator used before live tool execution. A simulator such as gem5 can itself
-be a tool environment when the loop invokes it, records configurations and
-outputs, and treats its result as feedback rather than as an abstract ranking.
 
 ```{=latex}
 \FloatBarrier
@@ -284,7 +286,7 @@ not design.
 The strongest near-term use of generation may be breadth. It can propose
 candidate decompositions, list assumptions, create alternative experiment
 plans, translate design intent into structured records, or draft the first
-version of a design-loop card (introduced in @sec-appendix-b-design-loop-card). Those outputs are valuable because they give
+version of a design-loop card (@sec-appendix-b-design-loop-card gives the full card and rubric). Those outputs are valuable because they give
 the architect more structured material to inspect. They become dangerous only
 when the loop treats them as decisions.
 
@@ -365,7 +367,8 @@ exchangeable. Still, the pattern is useful. It converts "report confidence"
 from a slogan into an operation. The predictor writes an interval, calibration
 receipt, and support-region label into the loop state; the environment may use
 that record only to prune, escalate, or defer, not to make an unowned
-commitment. The guarantee does not require a parametric residual model, which is
+commitment. The guarantee does not require assuming any particular error
+distribution for the surrogate, which is
 useful for architecture surrogates with awkward error shapes. But it still
 depends on the calibration assumption being meaningful; under distribution
 shift, the interval is a diagnostic that should trigger scrutiny rather than a
@@ -374,8 +377,8 @@ promise that the proxy is safe.
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
 depends on the decision. A rough predictor may be enough to discard obviously
-bad candidates. It is not enough to claim that a design meets a 3 W target on
-a 3 nm-class low-power mobile process. The stronger the commitment, the
+bad candidates. It is not enough to claim that a design meets a 3\ W target on
+a 3\ nm-class low-power mobile process. The stronger the commitment, the
 stronger the calibration and fidelity requirement.
 
 ## Optimization: Learning the Design Space
@@ -395,7 +398,8 @@ It encourages the loop to trade off exploration and exploitation, to reason
 about uncertainty, and to spend evaluations where they are likely to matter.
 Those properties align naturally with architecture settings where simulator,
 synthesis, or measurement runs are costly.
-In Architecture 2.0, the acquisition policy is itself a logged action proposal:
+In Architecture 2.0, the policy that picks the next sample, the *acquisition
+policy*, is itself a logged action proposal:
 it must name the candidate, the fidelity level, the expected decision value, and
 the condition under which the sample will be rejected or escalated.
 For an agent, optimization is therefore not autonomous selection of the best
@@ -410,8 +414,8 @@ the later baseline and reproducibility challenge. The important lesson for this
 chapter is not that every architecture task should become RL. It is that method
 choice depends on state, action, transition, feedback, and commitment structure.
 
-A narrower example bounds the design space until the environment can
-supply real rejection authority. PrefixRL casts the design of parallel-prefix
+A narrower example shows what happens when the design space is bounded tightly
+enough that the environment can supply real rejection authority. PrefixRL casts the design of parallel-prefix
 arithmetic circuits, such as adders, as a reinforcement-learning problem with
 logic synthesis in the loop, so every proposed circuit is scored by an actual
 synthesis run rather than a hand-built proxy [@RoyEtAl2021PrefixRL]. The
@@ -460,8 +464,8 @@ medium-fidelity simulations, many cheap proxies, and a long tail of hidden
 costs such as expert review, tool setup, debugging, and license availability.
 
 @fig-evidence-gap turns that mismatch into a count-scale picture. The upper
-rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the small product example
-from this book, the accelerator DSE scale of MAESTRO, an analytic model for
+rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the
+12,960-state slice computed there, the accelerator DSE scale of MAESTRO, an analytic model for
 evaluating DNN dataflows, AutoTVM-style operator tuning spaces, and the core
 mapspace expression of Timeloop, a mapping and evaluation framework
 [@KwonEtAl2019MAESTRO; @ChenEtAl2018AutoTVM; @ParasharEtAl2019Timeloop]. The
@@ -482,7 +486,7 @@ import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style, draw_range_rows, top_log_axis
 
 rows = [
-    {"display_label": "small product example", "display_note": "before corners/workloads", "count_low": 12_960, "count_high": 12_960, "right_label": "~1.3e4", "color": COLORS["orange"]},
+    {"display_label": "12,960-state slice", "display_note": "before corners/workloads", "count_low": 12_960, "count_high": 12_960, "right_label": "~1.3e4", "color": COLORS["orange"]},
     {"display_label": "MAESTRO accelerator DSE", "display_note": "reported candidate search scale", "count_low": 480_000_000, "count_high": 480_000_000, "right_label": "480M", "color": COLORS["orange"]},
     {"display_label": "AutoTVM operator tuning", "display_note": "reported order-of-billions space", "count_low": 1_000_000_000, "count_high": 1_000_000_000, "right_label": "~1B", "color": COLORS["orange"]},
     {"display_label": "Timeloop mapspace core", "display_note": "lower bound before factor choices", "count_low": 2_600_000_000_000_000_000, "count_high": 2_600_000_000_000_000_000, "right_label": ">2e18", "color": COLORS["orange"]},
@@ -525,14 +529,14 @@ same idea becomes a method-selection criterion. A sample is any feedback event
 that changes what the loop believes: a simulator result, tool warning, failed
 run, synthesis report, benchmark measurement, expert rejection, or
 higher-fidelity validation. The loop should not maximize sample count. It
-should maximize decision value per unit cost:
+should spend feedback where decision value per unit cost is highest:
 $$
 V_{\mathrm{sample}} \approx \frac{\Delta D}{C_{\mathrm{sample}}},
 $$
 where $\Delta D$ denotes the change in decision confidence, rejected-space
 coverage, or evidence strength produced by that sample. Neither term is
 directly measurable; the relation is a way to rank candidate experiments by
-what they would resolve, not a quantity the loop should try to maximize.
+what they would resolve, not a number to compute and literally optimize.
 
 This heuristic has a rigorous counterpart. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
@@ -622,6 +626,10 @@ one requires explicit architect review and a recorded waiver. Explanation then
 becomes the interface to the architect: why a candidate was rejected, why
 evidence is insufficient, or why one region of the space is worth more expensive
 evaluation.
+
+Verification, the remaining checking role, deliberately gets its own chapter:
+@sec-feedback-verification-trust develops it as the family of rejection
+authorities a loop needs, not as one more method to pick.
 
 ## Choosing a Method under Constraints
 
@@ -738,7 +746,6 @@ For method roles:
   feedback becomes evidence strong enough to support trust.
 :::
 
-[^fn-openai-gym-c06]: **OpenAI Gym**: In this chapter, a precedent for making action, observation, reward, and reset semantics explicit enough that method behavior can be compared.
 [^fn-neural-architecture-search-c06]: **Neural architecture search (NAS)**: In this chapter, a cautionary adjacent field where search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are recorded.
 [^fn-proxy-mismatch-c06]: **Proxy mismatch**: When a cheap stand-in metric diverges from the true objective it estimates, so optimizing the proxy stops improving the real goal; it is an instance of Goodhart's Law (when a measure becomes a target, it ceases to be a good measure), treated in full in @sec-feedback-verification-trust.
 [^fn-exchangeability-c06]: **Exchangeability**: A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).

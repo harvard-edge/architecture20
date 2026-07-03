@@ -20,10 +20,11 @@ feedback is, which assumptions are baked in, what state is logged, what can
 reject a candidate, and what commitment the environment can support before the
 loop spends more effort.
 
-> **Architecture environment.** An architecture environment is the explicit
-> loop contract around tools: it specifies legal actions, observations,
-> feedback costs, assumptions, logged state, provenance, rejection authority,
-> and commitment boundaries for an architecture design loop.
+> **Architecture environment.** An architecture environment is the tool-facing
+> part of the loop contract made executable: it specifies the legal actions,
+> observations, feedback costs, assumptions, logged state, provenance,
+> rejection authority, and commitment boundaries for the tools a design loop
+> acts through.
 
 Use the tool vocabulary carefully. A *tool* performs an operation. A *wrapper*
 calls that tool. An *environment contract* states what actions are legal, what
@@ -142,8 +143,8 @@ problem the human intended to solve.
 | Accelerator or runtime API | Invocation, data movement, synchronization, library calls, queues, and resource ownership. | End-to-end latency, overhead, utilization, portability, and software integration cost. | Specialized hardware is efficient in isolation but unusable in the system. |
 | Simulator or environment API | Legal parameters, workload inputs, observations, errors, seeds, and fidelity levels. | Comparable runs, replayable experiments, invalid-action records, and feedback cost. | The method optimizes simulator quirks or incomparable configurations. |
 | EDA handoff and constraints | RTL, clocks, floorplan hints, timing constraints, power intent, physical limits, and signoff checks. | Timing, area, power, congestion, rule violations, and implementation feasibility. | A candidate survives architectural simulation but fails physical reality. |
-| Benchmark harness | Inputs, versions, metrics, splits, leakage rules, and submission constraints. | Coverage, reproducibility, benchmark validity, and claim scope. | The loop overfits a stale or leaky benchmark slice. |
-| Telemetry and deployment schema | Live workload mix, SLOs, counters, interference, rollout state, and drift signals. | Field behavior, regressions, rollback triggers, and post-deployment calibration. | Production evidence is rich but too confounded to support the architecture claim. |
+| Benchmark harness | Inputs, versions, metrics, splits, data-leakage rules, and submission constraints. | Coverage, reproducibility, benchmark validity, and claim scope. | The loop overfits a stale or leaky benchmark slice. |
+| Telemetry and deployment schema | Live workload mix, service-level objectives (SLOs), counters, interference, rollout state, and drift signals. | Field behavior, regressions, rollback triggers, and post-deployment calibration. | Production evidence is rich but too confounded to support the architecture claim. |
 
 : **Architecture interfaces define action and evidence boundaries:** Each interface tells the loop what can be changed, what can be observed, what feedback is meaningful, and what can reject an invalid action. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
 
@@ -208,8 +209,9 @@ runs, waivers, escalation gate, and human owner.
 
 In practice these environments are rarely used in isolation. Open frameworks
 integrate them. Chipyard, an open-source framework for generating and evaluating
-RISC-V systems-on-chip, wraps a configuration system, RTL generators, and a
-compiler path together with the simulation, synthesis, and FPGA-emulation
+RISC-V systems-on-chip, wraps a configuration system, Chisel-based RTL
+generators such as the Rocket and BOOM cores, and a FIRRTL compiler path
+together with the simulation, synthesis, and FPGA-emulation
 backends the table lists, so one configuration can be carried reproducibly from a
 generated design to each evaluation path [@chipyard].
 @fig-chipyard-framework shows that integration.
@@ -223,7 +225,7 @@ commitment.
 
 ![**An integrated environment ties the backends together:** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="100%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
 
-Even the rows in this table hide internal ladders. Post-synthesis timing, for
+Even the rows in @tbl-environment-instances hide internal ladders. Post-synthesis timing, for
 example, is often a useful surrogate for post-route timing, but routing
 congestion, IR drop, clocking, and signoff checks can still reject a candidate
 that looked acceptable at synthesis. The lesson is not that every loop must
@@ -392,7 +394,7 @@ compared.
 Keeping those contracts valid after the first paper is the operating discipline
 @sec-archops-operating-discipline develops.
 
-It is useful to reserve the word harness for this larger object. A
+This larger object is why the opening vocabulary reserved the word *harness*. A
 wrapper calls a tool. A harness preserves the contract around the tool: task,
 workload, action schema, observation schema, cost, provenance, invalid-action
 semantics, negative traces, and review status. An agentic harness adds role
@@ -498,7 +500,10 @@ plt.show()
 plt.close(fig)
 ```
 
-The same pressure can be expressed as a design checklist. @tbl-feedback-latency-fidelity asks what each regime can reject,
+The same pressure can be expressed as a design checklist.
+@tbl-feedback-latency-fidelity extends the sample-cost regimes of
+@sec-data-representations-world-models (@tbl-sample-cost-regimes) from what to
+record toward what each regime can reject,
 how many samples the loop can plausibly afford, and what method behavior that
 economics permits. A loop that confuses those regimes can search quickly and
 still learn the wrong lesson.
@@ -560,7 +565,9 @@ state, cache initialization, interconnect models, and sampling choices. A
 method that searches aggressively can discover weaknesses in those assumptions
 just as easily as it can discover a good architecture candidate.
 
-When the proxy is a simulator, proxy mismatch takes a specific form: a gap
+When the proxy is a simulator, *proxy mismatch*, the divergence between what a
+cheap stand-in metric rewards and what the true objective needs, takes a
+specific form: a gap
 between the behavior an environment reports and the behavior that would matter at
 the next stronger fidelity level, such as a more detailed simulator, synthesis,
 physical design, emulation, silicon, or deployment. The failure mode is not
@@ -716,10 +723,8 @@ gates.
 :::
 
 The distinction matters because a one-time environment and a maintained
-one look identical on the first run and diverge completely by the tenth. That
-maintenance burden is what separates a script that supports a single paper from
-a harness that can support a field, once architecture
-loops become shared infrastructure rather than one-off scripts.
+one look identical on the first run and diverge completely by the tenth; the
+maintenance burden is what turns a one-off script into shared infrastructure.
 
 @tbl-archops-operating-discipline states the maintenance work in operational
 terms. The table is intentionally prosaic because the discipline succeeds only when
