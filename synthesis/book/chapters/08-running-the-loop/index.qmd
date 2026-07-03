@@ -102,11 +102,7 @@ To advance beyond the proxy's blind spots, an illustrative **simulation-stage es
 *traffic*. The exact tool is not the lesson. This stage is a stronger environment
 contract: it prices *data movement*, returns latency, energy, and power
 observations with provenance and cost, and has authority to overturn proxy
-rankings before commitment. Its power column is the frame energy divided by the
-frame time, an average-power check against the 3\ W envelope. (Note that average power itself is merely a higher-level proxy; a true rejection gate must eventually include thermal transients, as chips melt from peak power, not average power.) For highly regular spatial accelerators, analytical models like Timeloop are not just cheap proxies; they provide *authoritative* high-fidelity evidence for dataflow mapping, bridged to physical limits via component plugins like Accelergy. It stands in for this class of model: a dataflow analysis like
-Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like
-Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5
-[@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
+rankings before commitment. Its power column is frame energy divided by the frame time, an average-power check against the 3\ W envelope. (Note that average power itself is merely a higher-level proxy; a true rejection gate must eventually include thermal transients, as chips melt from peak power, not average power.) For highly regular spatial accelerators, analytical models like Timeloop are not just cheap proxies; they provide high-fidelity evidence for data movement energy, bridged to architecture-level component estimates via plugins like Accelergy. However, they are *not* physical signoff tools—they cannot capture routing congestion, IR drop, or true timing closure, which is where the physical limits of a 3 nm node will actually bite. Furthermore, evaluating any spatial architecture requires finding an optimal dataflow mapping; the loop-nest mapping space is astronomically large, meaning the AI loop must explicitly handle mapping search as a massive, decoupled obligation from hardware generation itself. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
 Furthermore, this simulation-stage estimate must model the compiler. A candidate is only valid if the compiler can actually target it efficiently; hardware search is meaningless if the software stack cannot discover the data paths.
 
 It is
@@ -242,12 +238,16 @@ To document this shift in ranking, @tbl-worked-loop-ledger shows the evidence le
 ```yaml
 candidate_id: xr_soc_v4_2
 status: REJECTED
-rejection_gate: proxy_mismatch_communication_power
+rejection_gate: physical_limit_power
+provenance:
+  git_hash: "a4c9f1b"
+  generator_version: "1.2.0"
 proxy_estimates:
   compute_energy_mJ: 4.2
   latency_ms: 6.1
 simulation_estimates:
-  total_energy_mJ: 28.5  # Failed: excessive NOC traffic
+  total_energy_mJ: 28.5
+failure_reason: "excessive NOC traffic exceeding 3W thermal design power"
 ```
 Read the first
 two rows as feedback stages and the third as the record those stages leave; the
@@ -347,7 +347,7 @@ loop can state what it did and what would reject it.
 | Feedback budget | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
 | Evidence | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. |
 | Negative traces | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after the illustrative estimate exposes data movement. |
-| Rejection authority | Deadline check, power-envelope check, ML compiler mapping (e.g., XLA/MLIR), and the stronger estimate that can overturn the proxy ranking. |
+| Rejection authority | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
 | Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, and stronger power evidence. |
 | Human decision | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
 
