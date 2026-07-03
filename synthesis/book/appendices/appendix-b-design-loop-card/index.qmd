@@ -118,14 +118,16 @@ design_loop_card:
     observations: [string]
     fidelity: { enum: [proxy, simulation, rtl, synthesis,
                        silicon, deployment] }
-  method_role: { enum: [generate, predict, optimize, critique,
-                        verify, plan, tool_call, coordinate] }
+  method_role:
+    roles: [ { enum: [generate, predict, optimize, critique,
+                      verify, plan, tool_call, coordinate] } ]
+    actor_map: [ { actor_id, role, reads, writes, authority } ]
   feedback_budget: { evaluations, latency, cost, fidelity }
   evidence:
     baseline_id: string        # what the claim is measured against
     records: [ { evidence_id, kind, workload_id, seed, provenance } ]
   negative_traces: [ { candidate_id, reason, stage, gate } ]
-  rejection_authority: { gates, independent_of_generator }
+  rejection_authority: { gates, independent_of_producer, independence_basis }
   commitment_boundary:
     level: { enum: [exploratory, experimental, implementation,
                     integration, irreversible] }
@@ -137,9 +139,12 @@ design_loop_card:
 The required fields are `card_id`, `task`, `method_role`, `evidence` (with a
 `baseline_id`), `rejection_authority`, `commitment_boundary`, and
 `human_decision`; the rest are recommended. The stable IDs (`card_id`,
-`workload_id`, `evidence_id`, `candidate_id`) are what let one loop's ledger
-reference another's, so a rejected candidate, a workload packet, or a baseline
-can be cited across cards rather than re-described.
+`workload_id`, `evidence_id`, `candidate_id`) let one loop's ledger reference
+another's, so a rejected candidate, a workload packet, or a baseline can be
+cited across cards rather than re-described. For a single-agent, workflow, or
+multi-agent loop, `actor_map` records the actor, tool, or human component
+playing each role, what state it reads and writes, and what authority it has.
+Simple loops may have one entry; split-role loops may have many.
 
 ## The Review Rubric
 
@@ -194,7 +199,7 @@ one below it.
   tool version, parameter hash) that let another team re-run the evidence and
   reproduce the ledger.
 - **Level 3, independently rejectable loop.** Adds a rejection authority that is
-  independent of the generator, an explicit commitment boundary, and a named human
+  independent of the producer actor, an explicit commitment boundary, and a named human
   decision owner. The result can be rejected by someone other than the party that
   produced it.
 
@@ -286,7 +291,7 @@ was done. @tbl-evidence-ledger-template gives the reusable fields.
 | Task and action space | What the loop was trying to do, and which actions were legal or out of scope. |
 | Representation | What workload, architecture, tool, software, physical, or deployment state was visible. |
 | Environment | Which tools, wrappers, simulators, benchmarks, EDA flows, or deployment systems returned feedback. |
-| Method role | Whether the method generated, predicted, optimized, critiqued, verified, explained, coordinated, or combined roles. |
+| Method role | Whether the method generated, predicted, optimized, critiqued, verified, explained, coordinated, or combined roles; for split roles, which actor performed each role. |
 | Feedback and evidence | What was measured, at what fidelity, with what provenance, uncertainty, and calibration. |
 | Rejected alternatives | What failed, was ruled out, regressed at higher fidelity, or remained unsupported. |
 | Human owner | Who accepted, rejected, escalated, or deferred the decision. |
@@ -334,7 +339,7 @@ the architect still owns.
 | @sec-architecture-20-ontology | Ontology and design-loop card preview. | Map a paper or project onto task, representation, environment, method role, feedback, evidence, and decision. |
 | @sec-data-representations-world-models | Architecture data-state checklist. | Compare what a paper preserves with what a loop would need: traces, configs, provenance, failed runs, and tacit assumptions. |
 | @sec-architecture-environments-tool-interfaces | Environment contract. | Specify actions, observations, invalid states, costs, and rejection paths for a simulator, compiler, or benchmark harness. |
-| @sec-methods-generation-prediction-optimization | Method-role matrix. | Classify a method as generation, prediction, optimization, critique, verification, or coordination, then ask what evidence can reject it. |
+| @sec-methods-generation-prediction-optimization | Method-role matrix. | Classify a method as generation, prediction, optimization, critique, repair, verification, explanation, or coordination, map actors to roles when roles are split, then ask what evidence can reject each output. |
 | @sec-feedback-verification-trust | Trust checklist. | Decide whether feedback is strong enough for the claimed commitment level and where escalation is required. |
 | @sec-running-the-loop | Lighthouse loop walkthrough. | Run the opening prompt through one end-to-end loop turn, from intent and representation to evidence, rejection, and revision. |
 | @sec-loop-patterns-across-stack | Loop-pattern comparison. | Compare a fast software loop with a high-commitment architecture loop using the same card fields. |
