@@ -12,7 +12,7 @@ tools, feedback, evidence, rejection, and human architectural judgment.
 Run commands from this directory:
 
 ```bash
-./arch2 render
+./arch2 build            # HTML + PDF (the usual build)
 ```
 
 That builds both:
@@ -20,12 +20,18 @@ That builds both:
 - `book/_build/index.html`
 - `book/_build/Architecture-2.0.pdf`
 
-Render one target when iterating:
+Pick formats with flags, or build one target when iterating:
 
 ```bash
-./arch2 render --to html --no-layout
-./arch2 render --to pdf
+./arch2 build --html --pdf     # both, explicitly
+./arch2 build --pdf            # PDF only
+./arch2 build --html --no-layout   # HTML only, skip the PDF layout scan
+./arch2 build --all           # HTML + PDF + EPUB in one pass
 ```
+
+`build` and `render` share the same engine and post-build audits (HTML checks,
+EPUB package check, PDF layout scan). `render --to all|pdf|html|epub` is the
+lower-level single-target form; `build` is the flag-driven front end.
 
 Serve the HTML preview locally:
 

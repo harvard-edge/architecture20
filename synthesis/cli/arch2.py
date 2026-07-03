@@ -2258,16 +2258,16 @@ def run_python_check() -> None:
     _exit_if_failed(proc, "Python syntax")
 
 
-@app.command()
-def render(
-    layout: bool = typer.Option(True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."),
-    keep_logs: bool = typer.Option(True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."),
-    keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
-    refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
-    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
-    to: str = typer.Option("all", "--to", help="Render target: all, pdf, html, or epub."),
+def _render_one(
+    to: str,
+    *,
+    layout: bool,
+    keep_logs: bool,
+    keep_tex: bool,
+    refresh: bool,
+    bottom_clearance: float,
 ) -> None:
-    """Render the book and run post-build audits."""
+    """Render one target (all|pdf|html|epub) and run its post-build audits."""
     if to not in {"all", "pdf", "html", "epub"}:
         console.print("[red]invalid render target[/red] use one of: all, pdf, html, epub")
         raise typer.Exit(2)
@@ -2313,6 +2313,66 @@ def render(
         _emit_findings(findings, title="layout audit")
         if any(finding.severity == "error" for finding in findings):
             raise typer.Exit(1)
+
+
+@app.command()
+def render(
+    layout: bool = typer.Option(True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."),
+    keep_logs: bool = typer.Option(True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."),
+    keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
+    refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
+    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
+    to: str = typer.Option("all", "--to", help="Render target: all, pdf, html, or epub."),
+) -> None:
+    """Render the book and run post-build audits."""
+    _render_one(
+        to,
+        layout=layout,
+        keep_logs=keep_logs,
+        keep_tex=keep_tex,
+        refresh=refresh,
+        bottom_clearance=bottom_clearance,
+    )
+
+
+@app.command()
+def build(
+    html: bool = typer.Option(False, "--html", help="Build the HTML site."),
+    pdf: bool = typer.Option(False, "--pdf", help="Build the PDF."),
+    epub: bool = typer.Option(False, "--epub", help="Build the EPUB."),
+    all_: bool = typer.Option(False, "--all", help="Build HTML, PDF, and EPUB in one pass."),
+    layout: bool = typer.Option(True, "--layout/--no-layout", help="Scan the rendered PDF for layout issues."),
+    keep_logs: bool = typer.Option(True, "--keep-logs/--clean-logs", help="Preserve LaTeX logs for audit."),
+    keep_tex: bool = typer.Option(False, "--keep-tex/--no-keep-tex", help="Ask Quarto to preserve generated TeX for review."),
+    refresh: bool = typer.Option(False, "--refresh/--no-refresh", help="Re-execute code chunks and ignore Quarto execution caches."),
+    bottom_clearance: float = typer.Option(72.0, help="Bottom margin warning threshold in PDF points."),
+) -> None:
+    """Build selected book formats and run the same post-build audits as render.
+
+    Defaults to HTML + PDF when no format flag is given:
+
+      arch2 build                # HTML + PDF
+      arch2 build --html --pdf   # HTML + PDF (explicit)
+      arch2 build --pdf          # PDF only
+      arch2 build --all          # HTML + PDF + EPUB (single pass)
+    """
+    if all_ or (html and pdf and epub):
+        targets = ["all"]
+    else:
+        targets = [t for t, on in (("html", html), ("pdf", pdf), ("epub", epub)) if on]
+        if not targets:
+            targets = ["html", "pdf"]
+    shown = ["html", "pdf", "epub"] if targets == ["all"] else targets
+    console.print(f"[cyan]build[/cyan] targets: {', '.join(shown)}")
+    for target in targets:
+        _render_one(
+            target,
+            layout=layout,
+            keep_logs=keep_logs,
+            keep_tex=keep_tex,
+            refresh=refresh,
+            bottom_clearance=bottom_clearance,
+        )
 
 
 @validate_app.command("refs")
