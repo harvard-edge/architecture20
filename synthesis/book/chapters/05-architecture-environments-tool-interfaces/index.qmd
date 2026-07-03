@@ -5,7 +5,7 @@
 ```
 
 ::: {.callout-crux}
-What turns a tool flow into an environment an AI agent can act in and a
+What turns a tool flow into an environment a generative model can act in and a
 reviewer can trust?
 :::
 
@@ -177,12 +177,10 @@ real-time mobile XR workload" fixes the workload harness and quality-of-service
 target. "3\ W TDP target in a 3\ nm-class LP mobile process" invokes power and
 physical-design constraints.
 
-**Boundary.** A SoC block is not just an accelerator renamed. It changes memory
-attachment, coherence, interrupts, DMA, runtime ownership, verification scope,
-and the evidence needed to show that the subsystem works in the larger system.
+**Boundary.** When the optimizer proposes a SoC block instead of an isolated accelerator, it changes the action space. The environment must now expose memory attachment, coherence, interrupts, DMA, runtime ownership, verification scope, and the evidence needed to show that the subsystem works in the larger system, otherwise the loop will optimize blindly.
 
 **Takeaway.** The environment for this prompt is a bundle of coherent
-interfaces. A loop can change vector width, local memory, data layout, or
+interfaces. An AI-assisted loop can change vector width, local memory, data layout, or
 accelerator interface only inside contracts that can reject
 software-incompatible, physically implausible, or integration-breaking
 candidates.
@@ -447,6 +445,14 @@ The environment therefore becomes the pacing item: it must decide which actions
 are worth spending feedback on, which cheap checks can reject early, and when
 the loop should escalate to a stronger but scarcer source of evidence.
 
+::: {.callout-architect-checkpoint title="The Escalation Gate"}
+When an AI method proposes a candidate, do not automatically grant it a high-fidelity evaluation. The environment must enforce an escalation gate that asks:
+
+- Did this candidate survive all cheap proxy and validity checks?
+- Is the potential improvement worth the cost of a scarce simulator or synthesis sample?
+- If the high-fidelity check fails, can the environment map that failure back to a specific agent action?
+:::
+
 This creates an economy of evidence. Cheap feedback buys breadth and pruning;
 expensive feedback buys stronger rejection authority. @fig-fidelity-cost-confidence
 shows the basic pressure: as feedback moves toward implementation and
@@ -701,14 +707,14 @@ layer asks whether the result can be replayed or audited. The rejection layer
 asks what can stop a candidate when it is illegal, unsupported, misleading, or
 insufficiently evidenced.
 
-::: {.callout-architect-checkpoint}
-Before trusting an environment's verdict, confirm:
+::: {.callout-architect-checkpoint title="The Environment Trust Gate"}
+Before trusting an environment's verdict on an AI-generated candidate, confirm:
 
-- the workload, action space, and observations still match the question being asked;
+- the workload, action space, and observations still match the architecture question the loop was intended to solve;
 - the feedback fidelity is strong enough for the commitment at stake;
-- versions, assumptions, and rejected candidates are recorded;
+- versions, assumptions, and rejected candidates proposed by the agent are recorded;
 - a rejection authority can stop an illegal, unsupported, or under-evidenced candidate;
-- another team could act in this harness without private knowledge.
+- another team could deploy an agent in this harness without private knowledge.
 :::
 
 Operating discipline, the architecture counterpart of MLOps[^fn-mlops-c05], is the practice of maintaining those layers over time.
@@ -775,7 +781,7 @@ For architecture environments:
    only valid rejection authority?
 4. How can heterogeneous architecture, compiler, simulator, RTL, EDA, and
    telemetry tools expose portable action, observation, provenance, and rejection
-   contracts so AI agents can preserve, weaken, reject, or recertify claims as
+   contracts so automation can preserve, weaken, reject, or recertify claims as
    workloads, PDKs, libraries, or deployment contexts drift?
 :::
 
