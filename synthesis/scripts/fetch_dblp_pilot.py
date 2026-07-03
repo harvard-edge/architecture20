@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-
 DEFAULT_MANIFEST = Path("data/manifests/dblp-pilot-pages.json")
 DEFAULT_RAW_DIR = Path("data/raw/dblp-toc")
 DEFAULT_OUTPUT_DIR = Path("data/processed/corpus-pilot")
@@ -197,7 +196,9 @@ def fetch_url(url: str, retries: int) -> bytes:
     )
     for attempt in range(retries + 1):
         try:
-            with urllib.request.urlopen(request, timeout=45, context=context) as response:
+            with urllib.request.urlopen(
+                request, timeout=45, context=context
+            ) as response:
                 status = getattr(response, "status", 200)
                 if status != 200:
                     raise RuntimeError(f"{url} returned HTTP {status}")
@@ -208,11 +209,19 @@ def fetch_url(url: str, retries: int) -> bytes:
             delay = min(60.0, 5.0 * (attempt + 1))
             print(f"HTTP 429 for {url}; retrying in {delay:.1f}s", file=sys.stderr)
             time.sleep(delay)
-        except (ConnectionResetError, TimeoutError, urllib.error.URLError, OSError) as exc:
+        except (
+            ConnectionResetError,
+            TimeoutError,
+            urllib.error.URLError,
+            OSError,
+        ) as exc:
             if attempt >= retries:
                 raise
             delay = min(60.0, 5.0 * (attempt + 1))
-            print(f"{type(exc).__name__} for {url}; retrying in {delay:.1f}s", file=sys.stderr)
+            print(
+                f"{type(exc).__name__} for {url}; retrying in {delay:.1f}s",
+                file=sys.stderr,
+            )
             time.sleep(delay)
     raise RuntimeError(f"failed to fetch {url}")
 
@@ -291,7 +300,10 @@ def categorize_title(title: str) -> list[str]:
 
 def term_matches(title_l: str, term: str) -> bool:
     if re.fullmatch(r"[a-z0-9]+", term) and len(term) <= 4:
-        return re.search(rf"(?<![a-z0-9]){re.escape(term)}s?(?![a-z0-9])", title_l) is not None
+        return (
+            re.search(rf"(?<![a-z0-9]){re.escape(term)}s?(?![a-z0-9])", title_l)
+            is not None
+        )
     return term in title_l
 
 
@@ -359,7 +371,9 @@ def write_json(path: Path, payload: Any) -> None:
         handle.write("\n")
 
 
-def summarize(paper_rows: list[dict[str, Any]], source_rows: list[dict[str, Any]]) -> dict[str, Any]:
+def summarize(
+    paper_rows: list[dict[str, Any]], source_rows: list[dict[str, Any]]
+) -> dict[str, Any]:
     by_venue_year = Counter((row["venue"], row["year"]) for row in paper_rows)
     by_category = Counter()
     by_category_venue_year: dict[tuple[str, int, str], int] = Counter()
@@ -434,7 +448,12 @@ def main() -> int:
             print(
                 f"{source_id}: {len(page_proceedings)} proceedings, {len(page_papers)} papers"
             )
-        except (ET.ParseError, urllib.error.URLError, RuntimeError, FileNotFoundError) as exc:
+        except (
+            ET.ParseError,
+            urllib.error.URLError,
+            RuntimeError,
+            FileNotFoundError,
+        ) as exc:
             print(f"ERROR {source_id} {page['url']}: {exc}", file=sys.stderr)
             return 1
         if index != len(pages) and not args.no_fetch:

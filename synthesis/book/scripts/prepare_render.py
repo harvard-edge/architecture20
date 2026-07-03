@@ -9,13 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 BOOK_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = BOOK_DIR.parent
 FIGURE_SRC_DIR = REPO_ROOT / "assets" / "figures" / "src"
 FIGURE_OUT_DIR = REPO_ROOT / "assets" / "figures" / "generated"
 DRAFT_SVGS = {"F2-corpus-pilot-topic-shift.svg"}
-IMAGE_REF_RE = re.compile(r"images/(?P<name>[^)\s.]+?)(?:\.(?P<ext>pdf|svg|png))?(?=[)\s])")
+IMAGE_REF_RE = re.compile(
+    r"images/(?P<name>[^)\s.]+?)(?:\.(?P<ext>pdf|svg|png))?(?=[)\s])"
+)
 
 
 def image_ref_stems(text: str) -> list[str]:
@@ -50,7 +51,12 @@ def convert_svg_figures() -> None:
 
 def copy_chapter_images() -> None:
     missing: list[str] = []
-    for qmd in sorted([*BOOK_DIR.glob("chapters/*/index.qmd"), *BOOK_DIR.glob("appendices/*/index.qmd")]):
+    for qmd in sorted(
+        [
+            *BOOK_DIR.glob("chapters/*/index.qmd"),
+            *BOOK_DIR.glob("appendices/*/index.qmd"),
+        ]
+    ):
         chapter_dir = qmd.parent
         image_dir = chapter_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)

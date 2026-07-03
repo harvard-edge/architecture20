@@ -9,14 +9,20 @@ from matplotlib.patches import Rectangle
 from pathlib import Path
 from textwrap import wrap
 
-
 STYLE_PATH = Path(__file__).resolve().parents[1] / "_styles" / "arch2.mplstyle"
 FONT_DIR = Path(__file__).resolve().parents[1] / "_fonts"
 
 # Preferred sans-serif stack for every figure, matching the SVG diagrams
 # ("Arial, Helvetica, sans-serif"). Arimo and Liberation Sans are open,
 # metric-compatible substitutes for machines without Arial (e.g. CI/Linux).
-BRAND_SANS = ["Arimo", "Arial", "Liberation Sans", "Helvetica Neue", "Helvetica", "DejaVu Sans"]
+BRAND_SANS = [
+    "Arimo",
+    "Arial",
+    "Liberation Sans",
+    "Helvetica Neue",
+    "Helvetica",
+    "DejaVu Sans",
+]
 
 
 COLORS = {

@@ -8,7 +8,6 @@ import csv
 from collections import Counter
 from pathlib import Path
 
-
 DEFAULT_INPUT = Path("data/processed/corpus-pilot/papers.csv")
 DEFAULT_OUTPUT_DIR = Path("data/processed/corpus-pilot")
 
@@ -68,9 +67,7 @@ def build_era_category_counts(papers: list[dict[str, str]]) -> list[dict[str, ob
     rows = []
     for era, venue_years in ERAS.items():
         subset = [
-            row
-            for row in papers
-            if (row["venue"], int(row["year"])) in venue_years
+            row for row in papers if (row["venue"], int(row["year"])) in venue_years
         ]
         category_counts: Counter[str] = Counter()
         for row in subset:
@@ -92,11 +89,7 @@ def build_era_category_counts(papers: list[dict[str, str]]) -> list[dict[str, ob
 def build_keyword_hits(papers: list[dict[str, str]]) -> list[dict[str, object]]:
     rows = []
     for keyword in KEYWORDS:
-        matches = [
-            row
-            for row in papers
-            if keyword in row["paper_title"].lower()
-        ]
+        matches = [row for row in papers if keyword in row["paper_title"].lower()]
         rows.append(
             {
                 "keyword": keyword,
