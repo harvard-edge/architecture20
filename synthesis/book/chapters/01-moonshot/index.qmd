@@ -276,11 +276,7 @@ or a chip artifact.
 
 With those terms fixed, consider the lighthouse prompt itself. We ground the Architecture 2.0 framework in a running prompt sequence.
 
-> **Sandbox Prompt:** Design a matrix multiplication systolic array in Chisel,
-> verify its correctness against a software model, sweep its dimensions to find
-> the optimal tradeoff between latency and area for a $16\times16$ workload,
-> and produce a reviewable evidence ledger explaining why suboptimal variants
-> were rejected.
+> **Sandbox Prompt:** Design a matrix multiplication systolic array in Chisel and integrate it into a full SoC via a standard NoC (e.g., TileLink or AXI) with DMA engines. Verify its correctness against a software model, sweep its dimensions to find the optimal system-level tradeoff between latency, area, and memory stalls for a $16\times16$ workload, and produce a reviewable evidence ledger explaining why suboptimal variants were rejected.
 
 While a sandbox prompt is excellent for learning to code an agentic loop locally (and we encourage students to start there), evaluating the full scale of Architecture 2.0 requires a moonshot. Our primary running example pushes the limit. It asks for a compute subsystem
 serving real-time mobile extended reality (XR), under a thermal-design-power
@@ -288,8 +284,7 @@ serving real-time mobile extended reality (XR), under a thermal-design-power
 rather than a chip:
 
 > **Moonshot Prompt:** Design a low-power, 64-bit RISC-V-based compute subsystem for an
-> XRBench-class real-time mobile XR workload. Realize it as a vector-capable
-> CPU, accelerator, or SoC block under a 3 W TDP target in a 3 nm-class LP
+> XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, fixed-function accelerator, reconfigurable spatial array (CGRA/RDA), or Processing-in-Memory (PIM) data-centric block under a 3 W TDP target in a 3 nm-class LP
 > mobile process, and return a design-space report with evidence and rejected
 > alternatives.
 
@@ -333,9 +328,9 @@ what it rejects, and who decides, it has not yet answered the prompt.
 
 Finally, while our examples primarily trace the mobile XR prompt to keep node-level concepts concrete, modern architecture is distributed hardware-software co-design. The most extreme version of our lighthouse prompt scales to the datacenter:
 
-> **Datacenter-Scale Lighthouse Prompt:** Design a scale-out TPU supercomputer topology for training 10T-parameter mixture-of-experts models. Ensure the tensor compiler (XLA/MLIR) can discover an efficient mapping, bound tail latency across 10,000 optical links, and guarantee recovery from synchronous faults.
+> **Datacenter-Scale Lighthouse Prompt:** Design a scale-out TPU supercomputer topology for training 10T-parameter mixture-of-experts models. Ensure the tensor compiler (XLA/MLIR) can discover an efficient mapping, bound tail latency across 10,000 optical links, co-design network topology with deadlock-free adaptive routing and virtual channels, guarantee recovery from synchronous faults, and tolerate cloud multi-tenancy overheads (cold starts, cache pollution, memory disaggregation latencies).
 
-Just like the mobile XR prompt, this datacenter prompt forces an AI-assisted loop to carry specific architectural state: "10T-parameter mixture-of-experts" sets the memory capacity and bandwidth bounds; "XLA/MLIR mapping" defines the software contract and rejection authority for tensor placement; "bound tail latency across 10,000 optical links" requires the loop to simulate network congestion, incast, and flow control as primary physical limits; and "synchronous faults" forces the evaluation of checkpointing and reliability overheads. The evidence ledger for this prompt must record not just the winning topology, but why alternative routing schemes or fault-tolerance mechanisms failed under scale.
+Just like the mobile XR prompt, this datacenter prompt forces an AI-assisted loop to carry specific architectural state: "10T-parameter mixture-of-experts" sets the memory capacity and bandwidth bounds; "XLA/MLIR mapping" defines the software contract and rejection authority for tensor placement; "network topology with deadlock-free adaptive routing" requires the loop to explicitly represent virtual channels and routing protocols as hard rejection gates to prevent bursty MoE AllToAll traffic deadlocks; and "cloud multi-tenancy overheads" forces the evaluation of general-purpose serverless latencies alongside AI training throughput. The evidence ledger for this prompt must record not just the winning topology, but why alternative routing schemes or fault-tolerance mechanisms failed under scale.
 
 The prompt is deliberately extreme. No architect, and no model, can turn that
 sentence into a verified subsystem today, and that is the point. Pushing the
@@ -507,10 +502,10 @@ a way for the loop to be wrong.
 
 | **Prompt fragment** | **Architectural decisions** | **Evidence or rejection need** |
 | --- | --- | --- |
-| XRBench mobile XR | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace provenance, benchmark version, workload coverage, and rejection when results miss real-time behavior. |
+| XRBench mobile XR | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace provenance, benchmark version, statistically rigorous phase clustering (e.g., SimPoint), and rejection when results over-optimize a single hot loop or miss real-time behavior. |
 | 64-bit RISC-V with vector or accelerator option | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
-| Compute subsystem | CPU, accelerator, tightly coupled unit, SoC block, memory hierarchy, interconnect, chiplet boundary if any, and integration point. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere. |
-| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, process/library assumptions, RTL feasibility, EDA constraints, and physical signoff path. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and rejection when stronger physical evidence violates the envelope. |
+| Compute subsystem | CPU, fixed-function accelerator, reconfigurable spatial array (CGRA/RDA), or Processing-in-Memory (PIM) data-centric block; includes SIMT state (TLP, register pressure), memory hierarchy, and SoC integration. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere, or those lacking hardware security isolation (e.g., timing channels, GLIFT). |
+| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, EDA constraints, and dynamic power management interfaces (DVFS, power domains, thermal sensors) for the OS/firmware. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and explicit rejection gates for memory disturbance faults (e.g., RowHammer) and runtime throttling failures. |
 | Design-space report with evidence and rejected alternatives | Alternatives, Pareto fronts (designs that nothing else beats on every objective at once), assumptions, uncertainty, verification plan, rejected or failed candidates, and human decision points. | Evidence ledger: connected measurements, assumptions, checks, rejections, coverage, reproducible artifacts, and explicit rejection authority before higher commitment. |
 
 : **Prompt fragments create architecture obligations:** The lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
