@@ -43,10 +43,11 @@ system. These roles collapse into the classic components of a closed-loop contro
 2. **Predictors (State Estimation)**: Evaluate candidate properties, checking constraints and estimating performance (*state seen* and *evidence*).
 3. **Optimizers (Search Policy)**: Navigate the design space, deciding which branches to evaluate, critique, or prune (*alternatives rejected*).
 
+To make these three core roles autonomous and robust, an agentic loop expands them with five supporting roles: **critique** (finding flaws), **repair** (fixing broken artifacts), **verification** (independent sign-off), **explanation** (making decisions legible), and **coordination** (routing tasks).
+
 The unifying schema across these roles is the trust envelope: what state they can see, what boundaries they may push, and what evidence forces them to stop or escalate. The method question is therefore not "Which AI system is best?" It is "Which role is needed, what feedback can support it, and what evidence would make its output credible?"
 
-Machine learning for architecture did not begin with recent generative methods. A useful
-historical shorthand is prediction, optimization, and generation. Prediction
+Machine learning for architecture did not begin with recent generative methods. Architecture has always relied on quantitative evaluation; a useful historical shorthand for ML's entry into the field is prediction, optimization, and generation. Prediction
 appears in regression models, learned surrogates, and calibrated performance
 or power estimators. Optimization appears in Bayesian optimization, autotuning,
 reinforcement learning, and search over compiler, mapping, placement, or
@@ -282,8 +283,9 @@ layouts, or CPU/accelerator partitions for the XRBench workload.
 The danger is to mistake candidate generation for design. Generated artifacts
 are useful when they expand the set of possibilities, expose alternatives, or
 accelerate tedious translation. They are not credible merely because they are
-well formed. The loop still needs validity checks, tool execution, evidence,
-rejected alternatives, and human decision.
+well formed. A generated RTL fragment that is syntactically valid might still
+fail to route or close timing during physical design. The loop still needs
+validity checks, tool execution, evidence, rejected alternatives, and human decision.
 
 A generated RTL fragment, parameter set, or benchmark question is a proposal.
 Generation earns its place only when it feeds a loop that can test, reject,
@@ -356,8 +358,10 @@ energy, area, latency, reliability, queueing behavior, memory traffic,
 thermal behavior, compile time, implementation feasibility, or deployment
 impact. It might be a regression model, a learned surrogate, a calibrated
 analytic model, a simulator-backed approximation, or a hybrid that combines
-domain structure with data.
-In an agentic loop, a predictor is not an oracle; it is a gate that decides
+domain structure with data. Predicting physical metrics (like power or latency)
+without accounting for logic synthesis, place-and-route congestion, or timing
+closure often leads to severe proxy mismatches. Therefore, in an agentic loop,
+a predictor is not an oracle; it is a quantitative gate that decides
 whether the system may prune, defer, escalate, or ask for stronger feedback.
 
 Some of these targets are harder to pin down than others. A single-kernel
@@ -399,7 +403,7 @@ stronger the calibration and fidelity requirement.
 ## Optimization: Learning the Design Space
 
 Once candidates are generated and their behavior predicted, the loop must decide what to evaluate next. Optimization is often framed as search: find the best point under an
-objective. Architecture needs a richer formulation. The useful goal is to
+objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are typically discrete, non-differentiable, and highly constrained. This makes gradient descent impossible and rewards methods that handle sparse, expensive feedback. The useful goal is to
 learn the design space well enough to make a defensible decision under
 limited feedback. That may mean finding a Pareto region[^fn-pareto-region-c06], identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
