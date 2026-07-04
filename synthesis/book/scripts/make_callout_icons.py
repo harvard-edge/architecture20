@@ -23,7 +23,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOOK = os.path.dirname(HERE)
 CONFIG = os.path.join(BOOK, "config", "custom-numbered-blocks.yml")
-DST = os.path.join(BOOK, "assets", "images", "icons", "callouts")
+DST = os.path.join(BOOK, "images", "icons", "callouts")
 SW = 2.8  # base stroke width (matches MLSysBook callout icons)
 
 
