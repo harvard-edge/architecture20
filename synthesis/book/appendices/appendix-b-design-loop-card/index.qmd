@@ -10,7 +10,7 @@ paper's result is not the whole review question. What matters is whether the
 reader can see the design loop that produced the result and can judge whether
 the evidence supports the commitment.
 
-The design-loop card is the practical form of the Architecture 2.0 ontology.
+The design-loop card is the practical form of the Architecture 2.0 ontology. Rather than maintaining separate claim cards for research and evidence ledgers for projects, the design-loop card provides a single, unified framework that adapts to both.
 It is meant to be filled in for a paper, a project proposal, a class exercise,
 or an internal design review. The review packet replaces a summary of the architecture. It
 exposes the loop behind the report. It shows what the system is trying to do, what it
@@ -170,7 +170,7 @@ Which fields are required depends on the conformance level the card claims
 `feedback_budget`, `evidence` (with a `baseline_id`), and `negative_traces`;
 Level 2 adds the stable IDs and provenance; Level 3 adds
 `rejection_authority` (independent of the producer), `commitment_boundary`,
-and `human_decision`. A validator checks a card against the level it claims.
+and `human_decision`.  The `independence_basis` field captures *why* the rejection authority is independent (e.g., a separate reporting chain or a formal verification tool). A validator checks a card against the level it claims.
 The stable IDs (`card_id`, `workload_id`, `evidence_id`, `candidate_id`, and
 the other `*_id` fields) are what let one loop's ledger
 reference another's, so a rejected candidate, a workload packet, or a baseline
@@ -246,6 +246,41 @@ its presence and a hash are still disclosed so the record stays auditable). A
 missing required field does not lower the score a little; it caps the whole card at
 the highest level whose required fields are all present.
 
+## Adapting the Card for Different Contexts
+
+The Design-Loop Card is the core artifact. However, you will use it differently depending on your audience. You do not need to create separate "Claim Cards" or "Evidence Ledgers"; rather, you simply emphasize different fields of the Design-Loop Card depending on the context.
+
+### 1. For Research Papers (Architecture Claim Card View)
+When publishing an Architecture 2.0 paper, the card answers the author and reviewer question that sits one level above the loop: what exact claim is being made, what evidence supports it, and what commitment does the evidence authorize? 
+
+Focus on:
+- **Claim boundary:** The exact architectural claim and non-claim.
+- **Evidence ledger:** Proxy metrics, simulation, synthesis, signoff, hardware measurement, and their uncertainty.
+- **Negative traces:** Crashes, invalid actions, constraint violations, and rejected alternatives. This prevents success-only reporting.
+- **Rejection authority:** Tests, tools, constraints, or reviewers that can reject the candidate.
+
+A paper may be technically interesting while leaving the loop underdescribed. The review question is whether a reader can tell what was tried, what failed, what was measured, what could reject the claim, and what decision the evidence actually supports. (See @tbl-evidence-disclosure-tiers for how to categorize the evidence made available).
+
+### 2. For Case Studies and Examples (Shareable Evidence Ledger)
+When sharing a case study, benchmark, or industrial example, the card acts as a shareable evidence ledger. It turns a success story into a reusable loop lesson.
+
+Focus on:
+- **Task and action space:** What the loop was trying to do, and which actions were legal.
+- **Feedback and evidence:** What was measured, at what fidelity, with what provenance.
+- **Rejected alternatives:** What failed or regressed at higher fidelity.
+- **Loop judgment:** The evidence threshold and human-owned commitment boundary the example demonstrates.
+
+Not every project can disclose the same evidence. The useful standard is to state the disclosure level (Public replay, Public evidence ledger, Confidential evidence available, Context only) rather than pretending the evidence is either fully open or absent.
+
+| Disclosure level | What is shared | Appropriate claim |
+| --- | --- | --- |
+| Public replay | Code, data, configs, versions, seeds, failed runs, and reviewer instructions. | Reproducible result within the stated environment. |
+| Public evidence ledger | Claim boundary, tool versions, metrics, candidates, rejected alternatives, and redacted limits. | Auditable loop lesson, but not full reproduction. |
+| Confidential evidence available | Internal traces, proprietary tools, RTL, PDK, or product data exist but cannot be released. | Bounded claim with explicit redaction and review boundary. |
+| Context only | Public source supports motivation, but not the full loop evidence. | Example of a pattern, not proof of a general architecture claim. |
+
+: **Evidence disclosure should be explicit.** A paper or review should say whether evidence is replayable, shareable, confidential, or only contextual. {#tbl-evidence-disclosure-tiers tbl-colwidths="[24,38,28]"}
+
 ## Paper-to-Loop Exercise
 
 To use the card in a reading group or class, choose a paper and fill in the
@@ -270,110 +305,6 @@ scope.
 A simple reading-group exercise is to assign two readers the same paper. One
 summarizes the paper conventionally. The other fills in the design-loop card.
 The group then discusses what the card exposed that the summary hid.
-
-## Architecture Claim Card View for Papers
-
-The same card can be rendered as a paper-facing view. The design-loop card is
-the book's core artifact; the **Architecture Claim Card** is its appendix-ready
-projection for one architectural claim. It does not replace the loop card. It
-answers the author and reviewer question that sits one level above the loop:
-what exact claim is being made, what loop produced it, what evidence supports
-it, what failed, what can reject it, and what commitment the evidence
-authorizes?
-
-Machine learning learned the hard way that strong results are difficult to
-compare when code, data, seeds, workloads, baselines, evaluation conditions, and
-failure cases are not exposed consistently [@PineauEtAl2021Reproducibility].
-Architecture inherits that lesson and adds its own constraints. Hardware claims
-also depend on workloads, tool versions, physical assumptions, software
-contracts, fidelity levels, and the authority allowed to reject a result.
-
-@tbl-research-paper-card-view gives a compact view for writing or reviewing an
-Architecture 2.0 paper. It is not a second schema. It reorganizes the
-design-loop card around the evidence a paper can make public. It does not
-require every paper to expose all proprietary artifacts. It does require the
-paper to state what can be checked, what is intentionally withheld, what is
-unknown, and what evidence would be needed before a stronger architectural
-commitment. A card may be tool-drafted, but the paper's authors remain
-responsible for the claim boundary, redactions, and commitment level.
-
-| Paper field | What to capture | Why it matters |
-| --- | --- | --- |
-| Claim boundary | The exact architectural claim, non-claim, workload slice, deployment setting, and commitment level. | Prevents a local result from being read as a general design rule. |
-| Claim strength and disclosure tier | Whether the claim is exploratory, experimental, implementation-facing, integration-facing, or irreversible, and whether evidence is public replay, public ledger, confidential, or context only. | Makes the requested level of trust visible before the reader inspects the details. |
-| Workloads and scenarios | Traces, benchmarks, inputs, quality-of-service targets, operating points, and data distributions. | Lets readers judge whether the result matches the intended architecture use. |
-| Design space and exclusions | Legal choices, invalid regions, out-of-scope alternatives, and assumptions held fixed. | Makes the explored space visible enough to compare with what was not tried. |
-| Baselines and alternatives | Baseline systems, baseline tuning effort, rejected candidates, failed variants, and why they were excluded. | Makes the design space visible instead of reporting only the winner, and helps reviewers judge whether the comparison was fair. |
-| Representation | State, constraints, costs, uncertainty, and assumptions visible to the method. | Shows whether the method had enough architecture state to act credibly. |
-| Environment | Tool versions, wrappers, legal actions, invalid states, failure semantics, and provenance. | Separates a repeatable environment from a private script that only returns numbers. |
-| Feedback budget | Sample counts, latency, fidelity, runtime, licenses, human review, and escalation cost. | Explains what kind of search, optimization, or verification the loop could afford. |
-| Evidence ledger | Proxy metrics, simulation, compilation, synthesis, signoff, hardware measurement, expert review, evidence IDs, uncertainty, and access level. | Matches the strength of evidence to the strength of the claim. |
-| Evidence-to-claim warrant | The short argument for why the evidence supports the claim rather than only coexisting with it. | Forces authors to connect measurements to architectural meaning, not only report numbers. |
-| Negative traces and counterevidence | Crashes, invalid actions, constraint violations, proxy failures, higher-fidelity regressions, failed alternatives, and redacted failure classes. | Helps future work avoid rediscovering the same dead ends and prevents success-only reporting. |
-| Rejection authority | Tests, tools, constraints, reviewers, or measurements that can reject the candidate. | Gives the loop a real way to say no. |
-| Residual risk and revalidation trigger | What remains uncertain if the claim is accepted, which invalid uses are known, and what workload, tool, model, or evidence change would stale the card. | Keeps the card from reading as permanent approval and makes drift visible. |
-| Commitment boundary / would overturn | The strongest claim the evidence supports, the stronger claim it does not, and the evidence that would reverse the decision. | Prevents proxy-supported exploration from being read as implementation readiness. |
-| Human decision and verification status | Who accepts, rejects, escalates, or defers the commitment, and which fields are tool-derived, AI-drafted, human-verified, redacted, or unknown. | Keeps accountability with the architect rather than hiding it inside the method, while making AI-drafted prose auditable. |
-
-: **An Architecture Claim Card makes evidence review reusable.** The view
-asks a paper to expose the claim boundary, loop state, evidence ledger, rejected
-alternatives, and decision authority needed for another architect to compare,
-reject, or extend the work. {#tbl-research-paper-card-view tbl-colwidths="[20,36,36]"}
-
-The view is deliberately stricter than a normal related-work summary. A paper
-can be technically interesting while still leaving the loop underdescribed. The
-review question is whether a reader can tell what was tried, what failed, what
-was measured, what could reject the claim, what residual risk remains, and what
-decision the evidence actually supports. The card is not certification,
-validation, compliance approval, or a badge. It is a compact disclosure record,
-AI-drafted when useful and human-owned when cited.
-
-## Shareable Evidence Ledger Template
-
-A shareable evidence ledger is the reusable version of a case study. It turns a paper,
-tool, benchmark, design review, or industrial example into a loop lesson rather
-than a success story. The ledger should be short enough to fit beside the
-claim it supports and concrete enough that another architect can inspect what
-was done. @tbl-evidence-ledger-template gives the reusable fields.
-
-| Ledger field | What to write |
-| --- | --- |
-| Claim | The bounded architecture claim and the commitment level it supports. |
-| Task and action space | What the loop was trying to do, and which actions were legal or out of scope. |
-| Representation | What workload, architecture, tool, software, physical, or deployment state was visible. |
-| Environment | Which tools, wrappers, simulators, benchmarks, EDA flows, or deployment systems returned feedback. |
-| Method role | Whether the method generated, predicted, optimized, critiqued, verified, explained, coordinated, or combined roles; for split roles, which actor performed each role. |
-| Feedback and evidence | What was measured, at what fidelity, with what provenance, uncertainty, and calibration. |
-| Rejected alternatives | What failed, was ruled out, regressed at higher fidelity, or remained unsupported. |
-| Human owner | Who accepted, rejected, escalated, or deferred the decision. |
-| Limitations | What the ledger cannot prove, which assumptions are local, and what stronger evidence would be needed. |
-| Loop judgment | The evidence threshold, rejection/escalation pattern, or human-owned commitment boundary the example demonstrates. |
-
-: **A shareable evidence ledger turns an example into a reusable record.** The ledger
-keeps examples grounded by naming the task, action space, representation,
-environment, method role, feedback, evidence, rejected alternatives, human
-owner, limitations, and loop judgment. {#tbl-evidence-ledger-template tbl-colwidths="[23,64]"}
-
-Use this template whenever a real example, floorplanning, design-space
-exploration, code generation, a simulator environment, or deployment feedback,
-enters a review, a paper, or a course discussion.
-If the public evidence cannot fill the ledger honestly, the example should be
-presented as context, not as proof.
-
-Not every project can disclose the same evidence. The useful standard is to
-state the disclosure level rather than pretending the evidence is either fully
-open or absent. @tbl-evidence-disclosure-tiers gives the practical distinction.
-
-| Disclosure level | What is shared | Appropriate claim |
-| --- | --- | --- |
-| Public replay | Code, data, configs, versions, seeds, failed runs, and reviewer instructions. | Reproducible result within the stated environment. |
-| Public evidence ledger | Claim boundary, tool versions, metrics, candidates, rejected alternatives, and redacted limits. | Auditable loop lesson, but not full reproduction. |
-| Confidential evidence available | Internal traces, proprietary tools, RTL, PDK, or product data exist but cannot be released. | Bounded claim with explicit redaction and review boundary. |
-| Context only | Public source supports motivation, but not the full loop evidence. | Example of a pattern, not proof of a general architecture claim. |
-
-: **Evidence disclosure should be explicit.** A paper or review should say
-whether evidence is replayable, shareable, confidential, or only contextual so
-readers know what kind of trust is being requested. {#tbl-evidence-disclosure-tiers tbl-colwidths="[24,38,28]"}
 
 ## Lighthouse Card Sketch
 
@@ -401,34 +332,6 @@ prompt becomes a loop that must be specified before any result can be trusted.
 This sketch also shows why the book does not treat the lighthouse prompt as a
 one-shot generation request. The prompt is useful because it exposes the state
 that must be represented, not because it eliminates the loop.
-
-## Lighthouse Architecture Claim Card View
-
-The same sketch can be rendered as an Architecture Claim Card for a paper
-appendix. @tbl-lighthouse-claim-card-view is intentionally narrower than the
-full design-loop card above. It states one claim view that a reviewer could
-inspect. The values and verdicts in @sec-running-the-loop are illustrative and
-computed in the chapter; the card therefore models honest claim bounding rather
-than measured XRBench, gem5 (a cycle-accurate architectural simulator), RTL, synthesis, or silicon evidence.
-
-| Claim-card section | Lighthouse sketch |
-| --- | --- |
-| Claim boundary | In one illustrative loop turn over a single XRBench-class mobile-XR workload slice, the shared-memory SoC block is the only one of three candidate organizations that clears the stated 8\ ms frame deadline and 3\ W power gate. |
-| Non-claims | This is not a measured XRBench result, not a gem5 or FireSim result, not RTL or synthesis evidence, not a physical-design result, and not implementation readiness. |
-| Claim strength and disclosure tier | Exploratory claim; context-only evidence for the numeric values, because the loop structure is the reusable pattern and the numbers are illustrative. |
-| Evaluation surface | Workload: one XRBench-class mobile-XR slice with a real-time frame deadline. Baseline/comparison set: vector CPU extension, loosely coupled accelerator stress case, and shared-memory SoC block. |
-| Design space and exclusions | Legal choice in this turn is compute organization under a fixed RISC-V-compatible software path. Cache policy, voltage, full memory hierarchy, compiler/runtime implementation, RTL, physical design, reliability, and thermal evidence are deferred. |
-| Loop contract | Instantiate candidate records, run a cheap proxy, escalate all candidates to an illustrative memory-aware estimate, apply deadline and power gates, preserve rejected alternatives, and stop at a stronger-modeling boundary. |
-| Environment and provenance | The environment is chapter code and a hand-constructed illustrative table. A real card would need workload IDs, trace provenance, tool versions, seeds, configs, invalid-action logs, and replay instructions. |
-| Evidence ledger | Proxy screen ranks the loosely coupled accelerator first on proxy energy; illustrative memory-aware estimate charges data movement and rejects it. The shared-memory SoC block clears the toy latency and power gates. |
-| Evidence-to-claim warrant | The claim is about the loop's rejection pattern, not product readiness. Once interface/data-movement cost is represented, the proxy winner no longer supports the stated objective. |
-| Negative traces and counterevidence | The loosely coupled accelerator is rejected after data movement pushes the toy estimate above the power envelope and deadline; the vector CPU extension misses the deadline in the same toy estimate. |
-| Rejection authority | In this sketch, the gates are the 8\ ms deadline and 3\ W power gate. In a real loop, they might be workload QoS violation, software incompatibility, simulator/tool failure, compiler/framework failure, thermal violation, routing congestion, CDC/RDC errors, RTL/synthesis failure, or architect review. |
-| Residual risk and revalidation trigger | The result may reverse under real XRBench traces, calibrated simulators, compiler/runtime evidence, cache and memory design, tighter accelerator coupling, voltage/frequency choices, or physical-design feedback. |
-| Commitment boundary / would overturn | Strongest supported move is to advance the shared-memory SoC block to stronger modeling or RTL-study questions. Higher-fidelity latency, power, software-path, workload-coverage, or physical evidence could overturn the decision. |
-| Human decision and verification status | Human owner decides whether to gather stronger evidence, revise the representation, or reject the loop as under-evidenced. Numeric fields are illustrative/chapter-derived; claim boundary and non-claims require human verification before citation. |
-
-: **The Lighthouse Claim Card demonstrates honest scope control.** The card turns the running example into a reviewer-facing claim record while making clear that the evidence licenses only an exploratory next step. {#tbl-lighthouse-claim-card-view tbl-colwidths="[25,62]"}
 
 ## Common Failure Modes
 
@@ -481,7 +384,7 @@ owner before running the loop.
 
 : **The blank card provides a reusable loop template.** A reader can fill it in for a paper, tool, benchmark, project proposal, or internal loop before judging the claim. {#tbl-blank-design-loop-card tbl-colwidths="[23,64]"}
 
-::: {.callout-note title="Practical workflow tips for solo researchers"}
+::: {.callout-field-note title="Practical workflow tips for solo researchers"}
 If you are a student or solo researcher, the machine-checkable schema may feel like intimidating bureaucracy. You do not need an enterprise database to track this. 
 
 For **Negative traces**, simply saving a local CSV of failed parameters and the tool's error code is sufficient to prove you explored the space. For **Rejection authority**, a "simulator segfault" or "failed to compile" is a perfectly valid gate to record. The goal is clarity and intellectual honesty, not compliance paperwork.
