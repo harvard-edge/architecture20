@@ -6,7 +6,6 @@
 > — Lord Kelvin
 :::
 
-
 ```{=latex}
 \abstract*{Architecture 2.0 needs a method-selection discipline for AI-assisted and agentic architecture loops, not a catalog of algorithms. Generation, prediction, optimization, critique, repair, verification, explanation, and coordination are roles inside a design loop. Which role matters depends on the task, representation, environment, feedback budget, evidence burden, and cost of being wrong.}
 ```
@@ -171,12 +170,14 @@ This definition matters because Architecture 2.0 methods will often generate
 or revise artifacts near the hardware/software boundary: kernels, compiler
 settings, accelerator configurations, RTL fragments, memory-system choices,
 placement constraints, or design reports. Hardware-aware neural architecture
-search[^fn-neural-architecture-search-c06] already shows the value of putting latency, energy, memory footprint,
+search already shows the value of putting latency, energy, memory footprint,
 and target-device cost into the search problem
 [@BenmezianeEtAl2021HardwareAwareNAS]. Architecture 2.0 uses a broader
 version of the same discipline: the question is not whether an artifact sounds
 hardware-aware, but what level of hardware-aware action and evidence the loop
 can support.
+
+> **Neural architecture search (NAS)**: In this chapter, a cautionary adjacent field where search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are recorded.
 
 @fig-hardware-awareness-ladder gives the working capability map. The levels
 are cumulative as an assessment vocabulary, but they are not a claim that every
@@ -198,10 +199,12 @@ profilers, simulators, synthesis reports, and failed runs; a simulator such as
 gem5 can itself be a tool environment when the loop invokes it, records
 configurations and outputs, and treats its result as feedback rather than as an
 abstract ranking. Evidence awareness
-adds calibration, uncertainty, proxy mismatch[^fn-proxy-mismatch-c06], fidelity, and negative traces.
+adds calibration, uncertainty, proxy mismatch, fidelity, and negative traces.
 Commitment-boundary awareness is the highest level because the loop can state
 what the method may recommend, what must be escalated, and why the architect
 still owns the commitment.
+
+> **Proxy mismatch**: When a cheap stand-in metric diverges from the true objective it estimates, so optimizing the proxy stops improving the real goal; it is an instance of Goodhart's Law (when a measure becomes a target, it ceases to be a good measure), treated in full in @sec-feedback-verification-trust.
 
 ::: {.callout-architect-checkpoint title="The Escalation Boundary"}
 When the method reaches the limit of its evidence fidelity or encounters a constraint it cannot safely resolve, it must escalate to the architect. The decision gate here relies on the AI loop's ability to clearly state its uncertainty and preserve negative traces, allowing the human architect to make the final commitment.
@@ -379,7 +382,7 @@ candidate was trusted?
 There is a rigorous way to make this concrete when the assumptions are
 appropriate. Conformal prediction can wrap a surrogate, regardless of its
 internals, so that it emits calibrated prediction sets: intervals that contain
-the true value with a user-chosen probability under an exchangeability[^fn-exchangeability-c06]
+the true value with a user-chosen probability under an exchangeability
 assumption [@AngelopoulosBates2021Conformal]. Architecture loops must audit
 that assumption because workloads, tools, and process corners are often not
 exchangeable. Still, the pattern is useful. It converts "report confidence"
@@ -393,6 +396,8 @@ depends on the calibration assumption being meaningful; under distribution
 shift, the interval is a diagnostic that should trigger scrutiny rather than a
 promise that the proxy is safe.
 
+> **Exchangeability**: A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).
+
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
 depends on the decision. A rough predictor may be enough to discard obviously
@@ -405,9 +410,11 @@ stronger the calibration and fidelity requirement.
 Once candidates are generated and their behavior predicted, the loop must decide what to evaluate next. Optimization is often framed as search: find the best point under an
 objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are typically discrete, non-differentiable, and highly constrained. This makes gradient descent impossible and rewards methods that handle sparse, expensive feedback. The useful goal is to
 learn the design space well enough to make a defensible decision under
-limited feedback. That may mean finding a Pareto region[^fn-pareto-region-c06], identifying a
+limited feedback. That may mean finding a Pareto region, identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
 candidates, or deciding which expensive experiment is worth running next.
+
+> **Pareto region**: The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.
 
 Optimization methods are useful here when they make the loop's sampling policy
 representable and rejectable. Bayesian optimization is attractive for
@@ -476,11 +483,13 @@ number without improving architectural understanding.
 ## Sample Efficiency Under Expensive Feedback {#sec-sample-efficiency-under-expensive-feedback}
 
 Whether an optimizer spends its scarce high-fidelity evaluations carefully is
-itself the problem of sample efficiency[^fn-sample-efficiency-c06], which is one of the reasons architecture is a hard AI domain.
+itself the problem of sample efficiency, which is one of the reasons architecture is a hard AI domain.
 Many AI settings assume abundant feedback. Architecture often has the
 opposite shape: a small number of high-fidelity runs, a larger number of
 medium-fidelity simulations, many cheap proxies, and a long tail of hidden
 costs such as expert review, tool setup, debugging, and license availability.
+
+> **Sample efficiency**: In this chapter, the amount of decision-relevant evidence a loop gains per scarce feedback event, including failed runs and expert rejections, not just successful simulations.
 
 @fig-evidence-gap turns that mismatch into a count-scale picture. The upper
 rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the
@@ -561,7 +570,7 @@ This heuristic has a rigorous counterpart. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
 each candidate next-sample) over a surrogate's posterior (its current
 probability estimate over outcomes), and GP-UCB (Gaussian Process Upper
-Confidence Bound) gives that choice a no-regret guarantee[^fn-no-regret-guarantee-c06] under stated
+Confidence Bound) gives that choice a no-regret guarantee under stated
 assumptions, so the loop can defend why it sampled where it did rather than
 appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian
 optimization goes one step further and treats the fidelity level itself as a
@@ -573,6 +582,8 @@ the sample, what assumptions made that rule legal, what evidence came back, and
 what threshold forced escalation. The loop still has to record the acquisition
 rule, fidelity choice, assumptions, rejected alternatives, and escalation
 threshold, or the optimizer becomes another opaque source of candidates.
+
+> **No-regret guarantee**: In this chapter, a formal promise about a sampling rule under stated assumptions; useful only when the loop records whether those assumptions apply.
 
 > **Fidelity ladder.** A fidelity ladder is the ordered set of feedback levels
 > a loop can climb, from cheap proxies through simulation, synthesis, physical
@@ -767,11 +778,4 @@ in this role for this AI-assisted loop?
 - Next loop state: Once models and methods can act, the next question is whether their
 feedback becomes evidence strong enough to support trust.
 
-
-[^fn-neural-architecture-search-c06]: **Neural architecture search (NAS)**: In this chapter, a cautionary adjacent field where search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are recorded.
-[^fn-proxy-mismatch-c06]: **Proxy mismatch**: When a cheap stand-in metric diverges from the true objective it estimates, so optimizing the proxy stops improving the real goal; it is an instance of Goodhart's Law (when a measure becomes a target, it ceases to be a good measure), treated in full in @sec-feedback-verification-trust.
-[^fn-exchangeability-c06]: **Exchangeability**: A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).
-[^fn-pareto-region-c06]: **Pareto region**: The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.
-[^fn-sample-efficiency-c06]: **Sample efficiency**: In this chapter, the amount of decision-relevant evidence a loop gains per scarce feedback event, including failed runs and expert rejections, not just successful simulations.
-[^fn-no-regret-guarantee-c06]: **No-regret guarantee**: In this chapter, a formal promise about a sampling rule under stated assumptions; useful only when the loop records whether those assumptions apply.
 :::
