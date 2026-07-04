@@ -143,9 +143,9 @@ Before traversing the stack layer by layer, it is useful to formally classify AI
 
 Despite operating on different parts of the stack, these loops share structural DNA. They can be classified into distinct branches based on how the agent interacts with the environment and the rejection authority:
 
-1. **The Surrogate Prediction Loop:** The loop structure where the AI’s job is to replace a brutally slow Environment (like a 3-day EDA physical design run or full-system simulation) with a fast, differentiable proxy. The failure mode here is *proxy mismatch*, where the surrogate's predictions diverge from the true physical constraints.
+1. **The Surrogate Prediction Loop:** The loop structure where the AI’s job is to replace a brutally slow Environment (like a 3-day EDA physical design run or full-system simulation) with a fast, differentiable proxy. The failure mode here is *proxy mismatch*, where the surrogate's predictions diverge from the true physical constraints (such as predicting routing congestion, which is highly non-local and non-linear).
 2. **The Constrained Optimization Loop:** The loop structure where the AI acts as the agent exploring a massively complex state space, heavily governed by a strict Rejection Authority. The environment itself is usually too complex to fully map, so the agent (often using Reinforcement Learning) must discover paths that clear physics or timing gates.
-3. **The Generative Repair Loop:** The loop structure where a weak generator (like an LLM) proposes an artifact, fails a formal check, and uses the exact error trace as the next prompt. The rejection authority is absolute (e.g., a compiler or Verilator), and the loop iterates until the artifact parses or synthesizes correctly.
+3. **The Generator-Critic Repair Loop:** The loop structure where a weak generator (like an LLM) proposes an artifact, fails a formal check, and uses the exact error trace as the next prompt. The rejection authority is absolute (e.g., a compiler or Verilator), and the loop iterates until the artifact parses or synthesizes correctly.
 
 The remainder of this chapter organizes the current state of the art through this structural lens, mapping these taxonomic branches to specific tasks across the computing stack.
 
@@ -177,7 +177,7 @@ MLPerf is the standing example; @sec-design-loop-no-longer-scales treated it as
 maintained community infrastructure with versions, rules, and submission
 practices [@MattsonEtAl2020MLPerf]. The point to carry into a loop pattern is not another benchmark history. The
 loop-pattern lesson is that a benchmark is a living agreement about what evidence should
-count. A workload loop should therefore record benchmark version, workload
+count. In the ML domain, workload drift is hyper-aggressive (e.g., shifting from dense Transformers to Mixture-of-Experts in months). A static benchmark quickly becomes a liability; an Architecture 2.0 loop must constantly ingest new computational graphs and trace data. A workload loop should therefore record benchmark version, workload
 source, coverage claims, known gaps, leakage risks, and the conditions under
 which a result should not generalize.
 
@@ -237,7 +237,7 @@ a fast software loop because correctness tests, compilation, profiling, and
 microbenchmark feedback are close to the generated artifact. It also touches
 hardware/software co-design because performance depends on memory layout,
 parallelism, numerical precision, backend behavior, and target-specific
-hardware resources. Multi-platform kernel-generation work makes that bridge
+hardware resources. Multi-platform kernel-generation work (often targeting intermediate frameworks like OpenAI's Triton or CUDA) makes that bridge
 explicit by separating the core benchmark from target backends
 [@WenEtAl2025MultiKernelBench].
 For an automated optimizer, the benchmark object needs more than a prompt and a score: kernel
@@ -537,7 +537,7 @@ end-to-end measurement survives.
 
 Treating the compiler merely as a "rejection gate"—a static wall the hardware bounces against—is an Architecture 1.0 mindset. In an Architecture 2.0 loop, the compiler is not a wall; it is the co-design engine. If the AI loop is exploring a reconfigurable spatial array or a custom vector accelerator, the instruction set is not static. The AI must synthesize the hardware *and* the compiler pass to target it simultaneously. The software contract isn't a fixed boundary; it is a co-optimized variable.
 
-This process is **Progressive Lowering**. When the AI agent decides to add a custom compute unit, it does not just output Verilog. It outputs *Intermediate Representation (IR) dialects*. It generates the new software dialect, the lowering rules to map high-level math into it, and the hardware dialect (using frameworks like CIRCT or MLIR) that implements it in silicon. The rejection authority is no longer just a simulator failing dynamically; it is the MLIR verifier proving statically that the lowering from software IR to hardware IR is semantically invalid (see @lst-mlir-co-generation).
+This process is **Progressive Lowering**. When the AI agent decides to add a custom compute unit, it does not just output Verilog. It outputs *Intermediate Representation (IR) dialects*. It generates the new software dialect, the lowering rules to map high-level math into it, and the hardware dialect (using frameworks like CIRCT—Circuit IR Compilers and Tools—or MLIR) that implements it in silicon. The rejection authority is no longer just a simulator failing dynamically; it is the MLIR verifier proving statically that the lowering from software IR to hardware IR is semantically invalid (see @lst-mlir-co-generation).
 
 ```mlir {#lst-mlir-co-generation lst-cap="Co-generated HW and SW IR lowering in an Architecture 2.0 loop"}
 // Architecture 2.0 AI Loop Output: Co-generated HW and SW
@@ -548,6 +548,7 @@ hw.module @CustomXR_SystolicArray(in %clk: i1, in %act: tensor<16x16xf16>, out %
   // Agent-generated spatial architecture constraints
   %area_est = hw.predict_area(...) 
   // Loop rejects if %area_est > mobile_XR_budget
+  // Note: Area is heavily approximated here; true IR drop or routing congestion requires physical synthesis.
 }
 
 // 2. The AI simultaneously generates the compiler scheduling policy 
@@ -749,7 +750,7 @@ review.
 
 At the furthest end of the spectrum from software, high-commitment loops stress-test the framework. RTL changes,
 generator-level edits, physical design, timing closure, layout, power
-analysis, formal verification, signoff, and silicon-facing decisions are
+analysis (including IR drop and thermal integrity), Design Rule Checking (DRC), formal verification, signoff, and silicon-facing decisions are
 expensive to evaluate and costly to get wrong. Feedback is delayed. Tool
 flows are complex. Evidence must survive independent checks. The human
 commitment level is high.
@@ -823,7 +824,7 @@ rejection can be applied, not by how fast candidates can be produced. That reaso
 can be written down. The interface speedup form
 used earlier for accelerators lifts cleanly from one block to the whole loop.
 There it priced the cost of reaching an accelerator. Lifted one level, it prices
-the cost of reaching a decision. The resulting bound measures how much useful
+the cost of reaching a decision. The resulting bound measures the loop's speedup—how much useful
 design progress the loop makes per commitment once the cost of trusted feedback
 is paid.
 
