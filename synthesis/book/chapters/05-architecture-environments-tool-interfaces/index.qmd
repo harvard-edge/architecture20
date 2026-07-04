@@ -134,7 +134,7 @@ and it defines what evidence those actions can produce. If either side is
 hidden, an automated optimizer can appear capable while acting outside the architecture
 problem the human intended to solve.
 
-| Interface | What it makes actionable | Evidence it makes interpretable | Failure if hidden |
+| **Interface** | **What it makes actionable** | **Evidence it makes interpretable** | **Failure if hidden** |
 | --- | --- | --- | --- |
 | ISA and vector contract | Instructions, registers, vector length, exceptions, privilege, and binary compatibility. | Correct execution, portability, software-visible behavior, and compatibility tests. | The loop proposes a microarchitecture that software cannot legally target. |
 | Compiler IR and schedule representation | Lowering choices, tiling, fusion, layout, vectorization, and target-specific code generation. | Compiler success, generated code, performance counters, and optimization provenance. | Performance is attributed to hardware while the software contract changed. |
@@ -191,7 +191,7 @@ flow. The point is that a loop must say which environment it is acting in, what
 that environment can observe, and what authority its feedback has.
 @tbl-environment-instances gives a compact set of examples.
 
-| Environment instance | Action boundary | Feedback and evidence | Loop lesson |
+| **Environment instance** | **Action boundary** | **Feedback and evidence** | **Loop lesson** |
 | --- | --- | --- | --- |
 | gem5-style cycle or full-system simulation [@BinkertEtAl2011Gem5] | Core, cache, memory-system, ISA, and workload configuration. | Statistics, traces, timing-model behavior, simulator warnings, and scoped performance comparisons. | Strong for controlled DSE; bounded by model fidelity and configuration state. |
 | Verilator-style compiled RTL simulation [@Veripool2026Verilator] | RTL modules, test benches, assertions, generated C++/SystemC models, and debug hooks. | Functional behavior, waveform/debug evidence, assertion failures, and implementation-adjacent traces. | Moves closer to implementation but narrows throughput and increases debug cost. |
@@ -236,7 +236,7 @@ not report "EDA feedback" as if all tool stages had the same authority.
 @tbl-eda-stage-contract separates common stages by what they can and cannot
 reject.
 
-| EDA stage | Feedback returned | What it can reject | What it cannot prove alone |
+| **EDA stage** | **Feedback returned** | **What it can reject** | **What it cannot prove alone** |
 | --- | --- | --- | --- |
 | Logic synthesis | Mapped gates, area proxy, timing estimates, constraint warnings, and early power estimates. | Nonsynthesizable RTL, impossible constraints, obvious area/timing problems. | Routability, final timing, IR drop, clocking, and post-layout power. |
 | Floorplanning and placement | Cell locations, utilization, congestion hints, timing pressure, and macro or memory placement effects. | Floorplans that create severe congestion, timing pressure, or integration problems. | Final routed timing, signoff power, manufacturability, and workload-level benefit. |
@@ -277,7 +277,7 @@ environments.
 Fundamentally, this abstraction can be described as a contract. The environment is literal: it is the toolchain exposed as an executable sandbox. The environment does not compute a scalar reinforcement-learning reward. It emits raw observations and cost telemetry—such as cycle counts, gate area, and test failures. The loop's *rejection authority* evaluates this multi-dimensional telemetry against our claims. If we let tools compute a scalar reward directly, we invite reward hacking where the loop optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit. @tbl-environment-contract
 lists the main fields.
 
-| Field | What it defines | Question it answers |
+| **Field** | **What it defines** | **Question it answers** |
 | --- | --- | --- |
 | Workload distribution | Inputs, traces, benchmark versions, software stack, and operating scenarios. | What behavior is the design supposed to serve? |
 | Action schema | Parameters, edits, configurations, generated artifacts, or commands the loop may propose. | What can the method actually change? |
@@ -336,7 +336,7 @@ invalid-action, escalation, and human-review rules.
 @tbl-archgym-mini-contract reads an ArchGym-style environment as a
 mini-contract.
 
-| Contract field | ArchGym-style instance |
+| **Contract field** | **ArchGym-style instance** |
 | --- | --- |
 | Task | Search or tune a bounded architecture design space under a declared workload and metric. |
 | Action space | Architecture parameters, simulator knobs, or mapping choices the automated method is allowed to change. |
@@ -525,7 +525,7 @@ still learn the wrong lesson.
 \FloatBarrier
 ```
 
-| Feedback regime | Cost / latency intuition | Sample budget | What can reject | Method implication |
+| **Feedback regime** | **Cost / latency intuition** | **Sample budget** | **What can reject** | **Method implication** |
 | --- | --- | --- | --- | --- |
 | Analytic proxy or learned surrogate | Milliseconds to seconds; low direct cost but high model-risk exposure. | Thousands to millions of candidate checks, highly parallelizable. | Obvious invalidity, dominated regions, sensitivity failures, or proxy-calibration failures. | Use for pruning, active learning, and broad search, not final commitment. |
 | Trace, profile, or replay | Seconds to hours depending on capture, replay, and privacy filtering. | Tens to thousands of slices or scenarios. | Coverage gaps, stale workload versions, leakage, or mismatch to intended deployment. | Use for workload state, clustering, and targeted tests. |
@@ -634,25 +634,30 @@ cleanly.
 
 To construct this bounded task, the recipe is straightforward.
 
-- **Define the task in architectural language:** workload characterization,
-   cache exploration, accelerator parameter search, compiler/runtime tuning,
-   chiplet partitioning, reliability analysis, or design-review critique.
-- **Choose the representation the loop will read and write:** configuration
-   file, architecture description, graph, trace record, report, RTL fragment,
-   test bench, or design-loop card.
-- **Define the action schema:** which fields can change, which are read-only,
-   which combinations are legal, and which changes require human approval.
-- **Wrap the tool path:** simulator, compiler, profiler, RTL flow, EDA stage,
-   runtime system, benchmark harness, or telemetry pipeline.
-- **Define observations and feedback:** metrics, traces, logs, warnings,
-   errors, generated artifacts, cost, and fidelity level.
-- **Define invalid-action semantics:** illegal parameter, noncompilable
-   artifact, nonsynthesizable design, violated constraint, timeout, simulator
-   crash, or unsupported workload.
-- **Log provenance and negative traces:** tool versions, seeds, workload
-   versions, failed candidates, rejected alternatives, and reasons for rejection.
-- **State the human decision rule:** what the architect reviews, what can be
-   accepted automatically, and what must escalate.
+```pseudocode
+#| label: alg-environment-recipe
+#| html-indent-size: "1.2em"
+#| html-comment-delimiter: "//"
+#| html-line-number: true
+#| html-line-number-punc: ":"
+#| html-no-end: false
+#| pdf-placement: "htb!"
+#| pdf-line-number: true
+
+\begin{algorithm}
+\caption{Recipe for Constructing a Bounded Task Environment}
+\begin{algorithmic}
+\State \textbf{Define the task in architectural language:} workload characterization, cache exploration, accelerator parameter search, compiler/runtime tuning, chiplet partitioning, reliability analysis, or design-review critique.
+\State \textbf{Choose the representation the loop will read and write:} configuration file, architecture description, graph, trace record, report, RTL fragment, test bench, or design-loop card.
+\State \textbf{Define the action schema:} which fields can change, which are read-only, which combinations are legal, and which changes require human approval.
+\State \textbf{Wrap the tool path:} simulator, compiler, profiler, RTL flow, EDA stage, runtime system, benchmark harness, or telemetry pipeline.
+\State \textbf{Define observations and feedback:} metrics, traces, logs, warnings, errors, generated artifacts, cost, and fidelity level.
+\State \textbf{Define invalid-action semantics:} illegal parameter, noncompilable artifact, nonsynthesizable design, violated constraint, timeout, simulator crash, or unsupported workload.
+\State \textbf{Log provenance and negative traces:} tool versions, seeds, workload versions, failed candidates, rejected alternatives, and reasons for rejection.
+\State \textbf{State the human decision rule:} what the architect reviews, what can be accepted automatically, and what must escalate.
+\end{algorithmic}
+\end{algorithm}
+```
 
 Once built, the readiness test for this environment is simple. Could a second method, student, or research group
 act inside the same harness without private knowledge from the original author?
@@ -747,7 +752,7 @@ maintenance burden is what turns a one-off script into shared infrastructure.
 terms. The table is intentionally prosaic because the discipline succeeds only when
 ordinary drift becomes visible before it invalidates evidence.
 
-| Drift source | What to record | Failure if ignored | Operating response |
+| **Drift source** | **What to record** | **Failure if ignored** | **Operating response** |
 | --- | --- | --- | --- |
 | Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
 | Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, seed, and configuration versions. | Results become incomparable across runs without a clear cause. | Treat version changes as evidence events and preserve old receipts. |

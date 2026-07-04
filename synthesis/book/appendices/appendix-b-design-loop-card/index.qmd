@@ -107,7 +107,7 @@ ordered to match the ontology used throughout the book.
 | Feedback budget | How many evaluations are available, at what latency, cost, fidelity, and sample efficiency requirement? |
 | Evidence | What supports the claim, and against which baseline is it measured? Sources can include baseline replay, proxy metrics, simulation, synthesis, verification, deployment telemetry, silicon data, expert review, or sensitivity analysis. |
 | Negative traces | What failed, was rejected, violated constraints, crashed tools, disappeared at higher fidelity, or was ruled out by human judgment? |
-| Rejection authority | What can say no? Examples include type checks, simulator failures, tests, formal tools, signoff, cross-tool disagreement, deployment signals, or expert review. |
+| Rejection authority | What can say no? Examples include type checks, simulator segfaults, CDC/RDC errors, routing congestion, compiler fusion failure, tests, formal tools, signoff, cross-tool disagreement, deployment signals, or expert review. |
 | Commitment boundary / would overturn | What claim level does the evidence support, what stronger claim is not yet authorized, and what evidence would overturn the decision? |
 | Human decision | What remains an architect-owned judgment, and what commitment does the decision authorize? |
 
@@ -137,14 +137,15 @@ design_loop_card:
   task: { enum: [generation, prediction, optimization, critique,
                  verification, characterization, benchmark, dse] }
   design_space: { legal, invalid, deferred }
-  representation: { state_schema_id, reads, writes, uncertainties }
+  representation: { state_schema_id, ir_level, reads, writes, uncertainties }
   environment:
     environment_id: string
     actions: [string]
     invalid_actions: [string]
+    blast_radius_limit: string
     observations: [string]
-    fidelity: { enum: [proxy, simulation, rtl, synthesis,
-                       silicon, deployment] }
+    fidelity: { enum: [proxy, simulation, rtl, synthesis_with_sdc,
+                       silicon, shadow_traffic, canary, global_fleet] }
   method_role:
     roles: [ { enum: [generate, predict, optimize, critique,
                       verify, plan, tool_call, coordinate] } ]
@@ -391,7 +392,7 @@ prompt becomes a loop that must be specified before any result can be trusted.
 | Feedback budget | Many cheap proxy evaluations, fewer simulator evaluations, and only a small number of high-fidelity checks before human review. |
 | Evidence | Pareto comparison over latency, energy, area proxy, memory traffic, software compatibility, and sensitivity to workload assumptions. |
 | Negative traces | Configurations that violate the 3\ W target, miss real-time latency, exceed memory bandwidth, require unsupported software, or fail at higher fidelity. |
-| Rejection authority | Constraint checker, simulator failure, power/thermal limit, workload quality-of-service violation, compiler/runtime incompatibility, or architect review. |
+| Rejection authority | Constraint checker, simulator failure, CDC/RDC violation, routing congestion, power/thermal limit, workload quality-of-service violation, compiler/runtime incompatibility, framework dispatch failure, or architect review. |
 | Commitment boundary / would overturn | Advance only to a stronger modeling or RTL-study question; overturn with higher-fidelity latency, power, software-path, or workload-coverage evidence. |
 | Human decision | Decide whether the candidate merits deeper modeling, different representation, stronger fidelity, or rejection. |
 
@@ -422,7 +423,7 @@ than measured XRBench, gem5 (a cycle-accurate architectural simulator), RTL, syn
 | Evidence ledger | Proxy screen ranks the loosely coupled accelerator first on proxy energy; illustrative memory-aware estimate charges data movement and rejects it. The shared-memory SoC block clears the toy latency and power gates. |
 | Evidence-to-claim warrant | The claim is about the loop's rejection pattern, not product readiness. Once interface/data-movement cost is represented, the proxy winner no longer supports the stated objective. |
 | Negative traces and counterevidence | The loosely coupled accelerator is rejected after data movement pushes the toy estimate above the power envelope and deadline; the vector CPU extension misses the deadline in the same toy estimate. |
-| Rejection authority | In this sketch, the gates are the 8\ ms deadline and 3\ W power gate. In a real loop, they might be workload QoS violation, software incompatibility, simulator/tool failure, compiler/runtime failure, thermal violation, RTL/synthesis failure, or architect review. |
+| Rejection authority | In this sketch, the gates are the 8\ ms deadline and 3\ W power gate. In a real loop, they might be workload QoS violation, software incompatibility, simulator/tool failure, compiler/framework failure, thermal violation, routing congestion, CDC/RDC errors, RTL/synthesis failure, or architect review. |
 | Residual risk and revalidation trigger | The result may reverse under real XRBench traces, calibrated simulators, compiler/runtime evidence, cache and memory design, tighter accelerator coupling, voltage/frequency choices, or physical-design feedback. |
 | Commitment boundary / would overturn | Strongest supported move is to advance the shared-memory SoC block to stronger modeling or RTL-study questions. Higher-fidelity latency, power, software-path, workload-coverage, or physical evidence could overturn the decision. |
 | Human decision and verification status | Human owner decides whether to gather stronger evidence, revise the representation, or reject the loop as under-evidenced. Numeric fields are illustrative/chapter-derived; claim boundary and non-claims require human verification before citation. |
@@ -466,11 +467,11 @@ owner before running the loop.
 | Field | Entry |
 | --- | --- |
 | Intent |  |
-| Task |  |
+| Task | *(What is the architectural goal? e.g., generation, verification)* |
 | Design space |  |
-| Representation |  |
+| Representation | *(Including intermediate representation level, e.g., MLIR, gate-level)* |
 | Environment |  |
-| Method role |  |
+| Method role | *(How is the algorithm specifically used? e.g., predict, critique)* |
 | Feedback budget |  |
 | Evidence |  |
 | Negative traces |  |
@@ -479,6 +480,12 @@ owner before running the loop.
 | Human decision |  |
 
 : **The blank card provides a reusable loop template.** A reader can fill it in for a paper, tool, benchmark, project proposal, or internal loop before judging the claim. {#tbl-blank-design-loop-card tbl-colwidths="[23,64]"}
+
+::: {.callout-note title="Practical workflow tips for solo researchers"}
+If you are a student or solo researcher, the machine-checkable schema may feel like intimidating bureaucracy. You do not need an enterprise database to track this. 
+
+For **Negative traces**, simply saving a local CSV of failed parameters and the tool's error code is sufficient to prove you explored the space. For **Rejection authority**, a "simulator segfault" or "failed to compile" is a perfectly valid gate to record. The goal is clarity and intellectual honesty, not compliance paperwork.
+:::
 
 After filling in the card, run the final review gate.
 
