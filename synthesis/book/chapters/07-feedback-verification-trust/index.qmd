@@ -58,9 +58,9 @@ blocked.
 | Verification authority | Typical evidence | What it can reject |
 | --- | --- | --- |
 | Syntax and interface checks | Parsers, type checks, API checks, ISA or ABI conformance, and schema validation. | Artifacts that cannot legally enter the loop. |
-| Functional checks | Unit tests, reference outputs, assertions, simulation traces, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
+| Functional checks | Unit tests, reference outputs, assertions, formal equivalence checking, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
 | Model and workload checks | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
-| Implementation checks | Synthesis, timing, area, power, congestion, design-rule checks, and physical warnings. | Architecture candidates that fail implementation-adjacent reality. |
+| Implementation checks | Synthesis constraints, timing closure, power envelopes, area budgets, gate-level simulation (GLS), and design-rule checks (DRC). | Architecture candidates that violate physical limits or fail pre-silicon validation. |
 | Operational checks | SLOs, canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
 | Expert review | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
 
@@ -170,7 +170,9 @@ resulting decision value of one such evaluation. It is the per-feedback-type
 form of the sample-value rule from
 @sec-methods-generation-prediction-optimization; ordinal confidence changes or
 decision-relevance labels are often more honest than unjustified numeric
-confidence. The notation is a question the loop designer must answer before
+confidence. 
+
+Just as the quantitative approach historically weighed performance gains against silicon area and power, Architecture 2.0 weighs confidence gains against computational and human costs. For example, spending 100 CPU-hours ($c_i$) on a cycle-accurate simulation to gain a modest reduction in PPA uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. The notation is a question the loop designer must answer before
 each stage: will another simulation, synthesis run, expert review, or
 deployment experiment change a decision enough to justify its cost? @sec-running-the-loop
 makes the question concrete, spending the proxy budget freely, the cycle-level
@@ -309,8 +311,8 @@ If commitment levels determine the cost of being wrong, rejection authority is
 the mechanism that pays that cost. To conceptualize this, consider the **4 P's of Rejection**, which form the primary taxonomy of rejection gates in Architecture 2.0:
 1. **Proxy Mismatches:** Rejection occurs because the system was optimizing a surrogate model instead of the true metric.
 2. **Protocol Violations:** Rejection occurs because the candidate breaks the ISA, hardware/software contract, or memory consistency model (which requires formal litmus testing as a first-class rejection gate).
-3. **Physical Limits:** Rejection occurs because the candidate fails timing, power, or area synthesis.
-4. **Policy Boundaries:** Rejection occurs because the candidate fails fast structural checks (e.g., FIRRTL compilation passes) or information-flow/timing-channel security boundaries (e.g., GLIFT).
+3. **Physical Limits:** Rejection occurs because the candidate fails timing closure, violates power envelopes, exceeds area budgets during physical synthesis, or fails Design Rule Checks (DRC).
+4. **Policy Boundaries:** Rejection occurs because the candidate fails fast structural checks (e.g., FIRRTL compilation passes), breaks interface contracts, or violates information-flow/timing-channel security boundaries (e.g., GLIFT).
 
 The first rule of Architecture 2.0 is that a credible loop needs
 something with authority to say no. The rejecting
@@ -337,7 +339,7 @@ build, invalid constraint, timing miss, benchmark violation, or expert
 objection is not merely an inconvenience. It is information about the boundary
 of the design space.
 
-We can write this commitment review compactly as:
+We can formalize this commitment discipline compactly as a boolean gate:
 $$
 \mathrm{Commit}_k(x) =
 \begin{cases}
@@ -346,13 +348,13 @@ $$
 0, & \text{otherwise}.
 \end{cases}
 $$
-This is not an algorithm that makes the decision for the architect. It is a
-discipline for refusing unsupported commitment. Here, $x$ is the candidate,
-$k$ is the commitment level, $\mathrm{valid}(x)$ is legality alone (the
-candidate breaks no declared contract), $E_k(x)$ is the
-sufficiency of the evidence at that level, $\tau_k$ is the evidence threshold,
-$\rho_k(x)$ is the residual risk, and $\rho_{\max,k}$ is the risk the
-architect or organization is willing to tolerate. Evidence and risk are written
+This notation is not an executable algorithm that makes the decision for the architect. It is a structured way to refuse unsupported commitment. Here, $x$ is the generated architecture candidate and $k$ is the current commitment level (e.g., experimental vs. integration). For a candidate to be committed at level $k$, three conditions must hold:
+
+1. $\mathrm{valid}(x)$: Legality alone. The candidate breaks no declared ISA, structural, or interface contracts.
+2. $E_k(x) \ge \tau_k$: Evidence sufficiency. The collected evidence $E_k(x)$ meets or exceeds the required threshold $\tau_k$ for that commitment level.
+3. $\rho_k(x) \le \rho_{\max,k}$: Residual risk. The remaining uncertainty $\rho_k(x)$ is below the maximum risk $\rho_{\max,k}$ the organization is willing to tolerate.
+
+Evidence and risk are written
 as scalars only for compactness; in practice each is the per-gate checklist the
 commitment ladder names. The thresholds are policy
 and judgment choices, not magic constants learned by the method. If validity,
@@ -440,14 +442,14 @@ improve while synthesis exposes timing or power problems. A benchmark result
 may improve while the real workload distribution changes. A Pareto frontier
 may look convincing because all points were evaluated under the same flawed
 proxy. An automated optimizer may appear capable because it overfits the evaluation loop,
-not because it understands the architecture problem.
+not because it understands the architecture problem. In the machine learning literature, this active exploitation of a flawed metric is known as *reward hacking* or *Goodhart's Law*.
 
-Two distinct failure modes hide within this proxy mismatch, and they need different cures. A proxy can simply be
+Two distinct failure modes hide within this proxy mismatch, and they need different cures. First, a proxy can simply be
 miscalibrated or too narrow, mis-estimating the objective even when nothing is
-pushing on it; a better-fitted or wider-coverage proxy helps. Or a method can
-actively exploit the proxy's blind spots, driving toward exactly what it fails to
-penalize; here a better proxy is not enough, and only an independent rejection
-authority can catch the win.
+pushing on it; a better-fitted or wider-coverage proxy helps. Second, a method can
+engage in reward hacking, driving the design toward exactly what the proxy fails to
+penalize (e.g., maximizing IPC by silently sacrificing thermal limits). Here, a better proxy is not enough; only an independent rejection
+authority can catch the spurious win.
 
 This is not a new problem created by AI. Benchmarks, simulators, cost models,
 and design rules have always been approximations. What changes in Architecture
@@ -594,7 +596,7 @@ made explicit.
 For Architecture 2.0, the reusable lesson is not the controversy itself; it is
 that a loop claiming placement quality must expose represented floorplan state,
 legal move/action space, workload and PPA records, baseline receipts, rejected
-alternatives, and the independent authority that can block commitment.
+alternatives, and the independent authority that can block commitment. Furthermore, because AI-assisted EDA is highly sensitive to initial conditions, true reproducibility requires exposing exact toolchain versions, environment constraints, and deterministic seeds, not just model weights.
 
 To make this dispute anatomy practical, @tbl-trust-checklist turns it into a checklist. It is
 intended for reading papers, reviewing internal tools, evaluating student
@@ -608,7 +610,7 @@ expensive commitment.
 | What loop state and action contract are exposed? | State fields, legal actions, tool or environment APIs, invalid transitions, and replay receipts. | The loop can act through hidden state or unlogged tool semantics. |
 | What feedback supports it? | Metrics, tool outputs, logs, reviews, and negative traces tied to a feedback budget. | Only the winning score is shown. |
 | What is the fidelity? | Proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level stated explicitly. | Treating all measurements as equivalent. |
-| What is the provenance? | Workload versions, tool versions, configs, seeds, constraints, assumptions, and baselines. | Hidden scripts or unstated defaults. |
+| What is the provenance? | Workload and exact tool versions, tech nodes, configs, deterministic seeds, constraints, assumptions, and baselines for replay. | Hidden scripts, unstated defaults, or non-deterministic environments. |
 | What is the security or confidentiality boundary? | Data classes, access rules, redaction limits, public proxy limits, and an audit path. | Private evidence is treated as invisible or unverifiable. |
 | What can reject it? | Tests, formal checks, simulators, signoff rules, deployment signals, or expert review. | No independent authority can say no. |
 | Who commits? | A named human or process accepts, rejects, escalates, or revises the artifact. | The loop silently turns output into decision. |

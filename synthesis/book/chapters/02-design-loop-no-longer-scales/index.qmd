@@ -140,7 +140,7 @@ can be trusted. @tbl-classical-vs-arch2-review summarizes that delta.
 | **Classical review might record** | **Architecture 2.0 additionally requires** |
 | --- | --- |
 | Candidate design and measured result. | The represented task, workload slice, assumptions, and candidate provenance. |
-| Tool output or benchmark score. | Tool version, feedback fidelity, uncertainty, cost, and what the feedback is allowed to reject. |
+| Tool output or benchmark score. | Tool version, heuristics, random seeds, feedback fidelity, uncertainty, cost, and what the feedback is allowed to reject. |
 | Expert judgment about whether the result looks plausible. | Explicit rejection authority, failed or rejected candidates, and the commitment level the evidence supports. |
 
 : **Architecture 2.0 makes review state inspectable:** Disciplined architects already review results. The new requirement is that the loop records the state, feedback, rejection, and commitment information needed for bounded methods to participate without hiding the architectural judgment. {#tbl-classical-vs-arch2-review tbl-colwidths="[40,50]"}
@@ -209,7 +209,7 @@ evidence gate, or the software path.
 | --- | --- | --- |
 | System/360 compatibility | A stable ISA contract separated architecture from implementation across a product family [@AmdahlBlaauwBrooks1964System360]. | Architecture is a durable interface and commitment policy, not only a circuit or microarchitecture. |
 | Mead--Conway VLSI and MOSIS | Design rules, layout abstractions, and fabrication access turned custom-chip design into a shareable and reusable loop [@MeadConway1980VLSI; @USCISI2025MOSISFirstYear]. | Representation and access to feedback can change who can participate in architecture work. |
-| RISC | Workload, compiler, VLSI, and implementation-cost assumptions became part of the architectural argument [@PattersonDitzel1980RISC]. | Evidence can reject attractive complexity when the full loop cost is visible. |
+| RISC | Workload, compiler, VLSI, and the quantitative Iron Law of Performance became the explicit architectural argument [@PattersonDitzel1980RISC]. | Evidence can reject attractive complexity when the full loop cost is visible. |
 | SPEC-style benchmarking | Workload selection, run rules, reporting conventions, and comparability became community infrastructure [@SPEC2017CPU]. | Benchmarks are loop governance, not just input programs. |
 | Logic synthesis and timing closure | HDL, libraries, constraints, and timing reports gave downstream tools authority to reject upstream choices [@DeMicheli1994SynthesisOptimization]. | Implementation feedback belongs in the architecture loop before commitment. |
 | CUDA-style GPU programming | Kernels, thread hierarchies, memory spaces, libraries, and toolchains made specialized hardware programmable [@NickollsEtAl2008CUDA]. | Specialized hardware succeeds only when the software loop is designed with it. |
@@ -356,10 +356,10 @@ concrete. For a single convolutional-neural-network (CNN) layer with seven neste
 loop dimensions, mapped onto a four-level memory hierarchy, the number of legal
 mappings is astronomically large. Before hitting the raw math, consider what is being multiplied: for every level of the memory hierarchy, we must permute the order of the seven loop dimensions, and for every tensor, we must decide whether it bypasses each memory level. The exact expression matters less than its
 size: the unconstrained mapspace contains $(7!)^4 \times (2^4)^3$ arrangements
-before co-factor choices are even counted. The $(7!)^4$ factor counts loop-order
-permutations of the seven tensor dimensions at each of the four memory levels,
-and $(2^4)^3$ counts the level-bypass choices that decide which tensors skip
-which levels [@ParasharEtAl2019Timeloop].
+before co-factor choices (such as tiling sizes) are even counted. The $(7!)^4$ factor counts loop-order
+permutations of the seven nested loop dimensions (e.g., batch, output channels, input channels, and spatial dimensions) at each of the four memory levels,
+and $(2^4)^3$ counts the level-bypass choices that decide which of the three tensors (inputs, weights, outputs) skip
+any of the four memory levels [@ParasharEtAl2019Timeloop].
 
 | **Loop example** | **Scale anchor** | **Loop lesson** |
 | --- | --- | --- |
@@ -421,7 +421,7 @@ subsystem can actually be used, not a label on the hardware box.
 ## Software Changes Faster Than Silicon {#sec-software-changes-faster-than-silicon}
 
 Even when that software contract is perfectly specified, specialization still depends on stable enough targets. But modern software stacks
-move quickly. AI models change. Compiler passes change. Kernel libraries
+move quickly. AI models change. Precision formats (e.g., FP8, INT4, block-scale formats) and sparsity patterns mutate wildly, meaning the hardware must place bets on data types years in advance. Compiler passes change. Kernel libraries
 change. Runtimes, serving systems, quantization formats, batching strategies,
 fleet policies, and benchmark versions change. The hardware design cycle does
 not move at the same pace.
@@ -613,11 +613,11 @@ overhead, or leakage has not necessarily improved the system, a trade-off illust
 Interconnect costs have the same character as memory movement. On-chip networks, package links, memory
 interfaces, collectives, and host-device protocols define what a design can
 actually sustain. EDA and physical-design constraints also move upward. Timing,
-placement, routing, IR drop, thermal behavior, leakage, signoff, and test are
-not late implementation details when they can overturn an architectural choice.
+placement, routing, IR drop, thermal behavior, power delivery networks (PDN), leakage, signoff, and test are
+not late implementation details when they can overturn an architectural choice. Thermal hotspots and IR drop, for instance, can veto a dense accelerator mapping before a single line of RTL is verified. Furthermore, because EDA tools rely on high-variance heuristics, a failed timing closure might just be a bad random seed, not a bad architecture. 
 For a design loop, this means that a simulator score or model prediction is
 not enough. The loop needs a path from low-fidelity estimates to stronger
-evidence, and it needs rules for when physical constraints reject an otherwise
+evidence, and it needs rules for when physical constraints—or tool limitations—reject an otherwise
 promising candidate.
 
 The Architecture 2.0 move is to make those physical assumptions inspectable
