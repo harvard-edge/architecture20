@@ -2,7 +2,7 @@ import os
 import glob
 import re
 
-chapters = sorted(glob.glob("chapters/*/*.qmd"))
+chapters = sorted(glob.glob(os.path.join(os.path.dirname(__file__), "chapters/*/*.qmd")))
 
 for chap in chapters:
     print(f"=== {os.path.basename(os.path.dirname(chap))} ===")
@@ -59,20 +59,14 @@ for chap in chapters:
         issues.append("Missing: What to carry forward")
 
     if gives_you_found and first_heading_idx != -1:
-        # Check if 'What this chapter gives you' is right before the first heading
-        # (allowing some blank lines or the end of the callout)
         dist = first_heading_idx - gives_you_idx
-        if dist > 25:  # It might have a few lines inside the callout
-            issues.append(
-                f"'What this chapter gives you' is at line {gives_you_idx} but first heading is at {first_heading_idx} (Too far apart?)"
-            )
+        if dist > 25:
+            issues.append(f"'What this chapter gives you' is at line {gives_you_idx} but first heading is at {first_heading_idx} (Too far apart?)")
 
     if carry_forward_found:
         dist_from_end = len(lines) - carry_forward_idx
         if dist_from_end > 30:
-            issues.append(
-                f"'What to carry forward' is at line {carry_forward_idx} out of {len(lines)} (Not at the very end?)"
-            )
+            issues.append(f"'What to carry forward' is at line {carry_forward_idx} out of {len(lines)} (Not at the very end?)")
 
     if not issues:
         print("  All structural elements present.")
