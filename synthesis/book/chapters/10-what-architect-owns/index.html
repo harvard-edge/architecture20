@@ -1,0 +1,2057 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.36">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vijay Janapa Reddi">
+<meta name="dcterms.date" content="2026-07-04">
+<meta name="description" content="A work-in-progress synthesis lecture on agentic design loops for computing-system synthesis.">
+
+<title>10&nbsp; What the Architect Owns – Architecture 2.0</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<link href="../../appendices/appendix-a-bootstrapping/index.html" rel="next">
+<link href="../../chapters/09-loop-patterns-across-stack/index.html" rel="prev">
+<script src="../../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting-ee8781756c15e1f75fd44a14f4f1706b.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap-621605efa075699597b5e43e9bcb7e79.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../../site_libs/quarto-contrib/foldbox/foldbox.css" rel="stylesheet">
+<script src="../../site_libs/quarto-contrib/glightbox/glightbox.min.js"></script>
+<link href="../../site_libs/quarto-contrib/glightbox/glightbox.min.css" rel="stylesheet">
+<link href="../../site_libs/quarto-contrib/glightbox/lightbox.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>html{ scroll-behavior: smooth; }</style>
+<!-- Favicon + app icons. Root-relative hrefs are rewritten per-page by Quarto. -->
+<link rel="icon" type="image/svg+xml" href="../../images/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../../images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../../images/favicon-16.png">
+<link rel="icon" href="../../images/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" sizes="180x180" href="../../images/apple-touch-icon.png">
+<link rel="manifest" href="../../images/site.webmanifest">
+<meta name="theme-color" content="#12384a">
+
+<!-- Open Graph / social card. Image must be an absolute URL for crawlers. -->
+<meta property="og:type" content="book">
+<meta property="og:site_name" content="Architecture 2.0">
+<meta property="og:title" content="10&nbsp; What the Architect Owns – Architecture 2.0">
+<meta property="og:description" content="A work-in-progress synthesis lecture on agentic design loops for computing-system synthesis.">
+<meta property="og:image" content="https://arch2.mlsysbook.ai/images/arch2-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Architecture 2.0: Designing the Loops that Design the Chips">
+<meta property="og:url" content="https://arch2.mlsysbook.ai/">
+
+<!-- Twitter / X card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="10&nbsp; What the Architect Owns – Architecture 2.0">
+<meta name="twitter:description" content="A work-in-progress synthesis lecture on agentic design loops for computing-system synthesis.">
+<meta name="twitter:image" content="https://arch2.mlsysbook.ai/images/arch2-card.png">
+<style>
+.callout-crux {
+  --color1: #F9F0E8;
+  --color2: #C06A1B;
+  --border-color: #C06A1B;
+  --background-color: rgba(192, 106, 27, 0.04);
+  --title-background-color: rgba(192, 106, 27, 0.04);
+  --dark-background-color: rgba(192, 106, 27, 0.12);
+  --dark-title-background-color: rgba(192, 106, 27, 0.12);
+}
+.callout-carry-forward {
+  --color1: #EAF2F4;
+  --color2: #2C7E8C;
+  --border-color: #2C7E8C;
+  --background-color: rgba(44, 126, 140, 0.04);
+  --title-background-color: rgba(44, 126, 140, 0.04);
+  --dark-background-color: rgba(44, 126, 140, 0.12);
+  --dark-title-background-color: rgba(44, 126, 140, 0.12);
+}
+.callout-research-question {
+  --color1: #EDEFF6;
+  --color2: #4E63A6;
+  --border-color: #4E63A6;
+  --background-color: rgba(78, 99, 166, 0.04);
+  --title-background-color: rgba(78, 99, 166, 0.04);
+  --dark-background-color: rgba(78, 99, 166, 0.12);
+  --dark-title-background-color: rgba(78, 99, 166, 0.12);
+}
+.callout-architect-checkpoint {
+  --color1: #E9EFF2;
+  --color2: #1F5F7A;
+  --border-color: #1F5F7A;
+  --background-color: rgba(31, 95, 122, 0.04);
+  --title-background-color: rgba(31, 95, 122, 0.04);
+  --dark-background-color: rgba(31, 95, 122, 0.12);
+  --dark-title-background-color: rgba(31, 95, 122, 0.12);
+}
+.callout-design-principle {
+  --color1: #F5F2E8;
+  --color2: #9A781E;
+  --border-color: #9A781E;
+  --background-color: rgba(154, 120, 30, 0.04);
+  --title-background-color: rgba(154, 120, 30, 0.04);
+  --dark-background-color: rgba(154, 120, 30, 0.12);
+  --dark-title-background-color: rgba(154, 120, 30, 0.12);
+}
+.callout-field-note {
+  --color1: #EEEFF0;
+  --color2: #59636D;
+  --border-color: #59636D;
+  --background-color: rgba(89, 99, 109, 0.04);
+  --title-background-color: rgba(89, 99, 109, 0.04);
+  --dark-background-color: rgba(89, 99, 109, 0.12);
+  --dark-title-background-color: rgba(89, 99, 109, 0.12);
+}
+.callout-engineer-move {
+  --color1: #EFF2EB;
+  --color2: #5F7A33;
+  --border-color: #5F7A33;
+  --background-color: rgba(95, 122, 51, 0.04);
+  --title-background-color: rgba(95, 122, 51, 0.04);
+  --dark-background-color: rgba(95, 122, 51, 0.12);
+  --dark-title-background-color: rgba(95, 122, 51, 0.12);
+}
+.callout-evidence-packet {
+  --color1: #F0EDF2;
+  --color2: #6B4A82;
+  --border-color: #6B4A82;
+  --background-color: rgba(107, 74, 130, 0.04);
+  --title-background-color: rgba(107, 74, 130, 0.04);
+  --dark-background-color: rgba(107, 74, 130, 0.12);
+  --dark-title-background-color: rgba(107, 74, 130, 0.12);
+}
+.callout-lighthouse {
+  --color1: #F5EEF1;
+  --color2: #A35C7A;
+  --border-color: #A35C7A;
+  --background-color: rgba(163, 92, 122, 0.04);
+  --title-background-color: rgba(163, 92, 122, 0.04);
+  --dark-background-color: rgba(163, 92, 122, 0.12);
+  --dark-title-background-color: rgba(163, 92, 122, 0.12);
+}
+.callout-learning-objectives {
+  --color1: #ECF2EE;
+  --color2: #3F7A52;
+  --border-color: #3F7A52;
+  --background-color: rgba(63, 122, 82, 0.04);
+  --title-background-color: rgba(63, 122, 82, 0.04);
+  --dark-background-color: rgba(63, 122, 82, 0.12);
+  --dark-title-background-color: rgba(63, 122, 82, 0.12);
+}
+.callout-failure-mode {
+  --color1: #F9EDED;
+  --color2: #C24A4F;
+  --border-color: #C24A4F;
+  --background-color: rgba(194, 74, 79, 0.04);
+  --title-background-color: rgba(194, 74, 79, 0.04);
+  --dark-background-color: rgba(194, 74, 79, 0.12);
+  --dark-title-background-color: rgba(194, 74, 79, 0.12);
+}
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  details.callout-crux {
+    --text-color: #e6e6e6;
+    --background-color: rgba(192, 106, 27, 0.12);
+    --title-background-color: rgba(192, 106, 27, 0.12);
+    border-color: #C06A1B;
+  }
+  details.callout-crux summary,
+  details.callout-crux summary strong,
+  details.callout-crux > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-crux code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-carry-forward {
+    --text-color: #e6e6e6;
+    --background-color: rgba(44, 126, 140, 0.12);
+    --title-background-color: rgba(44, 126, 140, 0.12);
+    border-color: #2C7E8C;
+  }
+  details.callout-carry-forward summary,
+  details.callout-carry-forward summary strong,
+  details.callout-carry-forward > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-carry-forward code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-research-question {
+    --text-color: #e6e6e6;
+    --background-color: rgba(78, 99, 166, 0.12);
+    --title-background-color: rgba(78, 99, 166, 0.12);
+    border-color: #4E63A6;
+  }
+  details.callout-research-question summary,
+  details.callout-research-question summary strong,
+  details.callout-research-question > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-research-question code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-architect-checkpoint {
+    --text-color: #e6e6e6;
+    --background-color: rgba(31, 95, 122, 0.12);
+    --title-background-color: rgba(31, 95, 122, 0.12);
+    border-color: #1F5F7A;
+  }
+  details.callout-architect-checkpoint summary,
+  details.callout-architect-checkpoint summary strong,
+  details.callout-architect-checkpoint > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-architect-checkpoint code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-design-principle {
+    --text-color: #e6e6e6;
+    --background-color: rgba(154, 120, 30, 0.12);
+    --title-background-color: rgba(154, 120, 30, 0.12);
+    border-color: #9A781E;
+  }
+  details.callout-design-principle summary,
+  details.callout-design-principle summary strong,
+  details.callout-design-principle > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-design-principle code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-field-note {
+    --text-color: #e6e6e6;
+    --background-color: rgba(89, 99, 109, 0.12);
+    --title-background-color: rgba(89, 99, 109, 0.12);
+    border-color: #59636D;
+  }
+  details.callout-field-note summary,
+  details.callout-field-note summary strong,
+  details.callout-field-note > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-field-note code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-engineer-move {
+    --text-color: #e6e6e6;
+    --background-color: rgba(95, 122, 51, 0.12);
+    --title-background-color: rgba(95, 122, 51, 0.12);
+    border-color: #5F7A33;
+  }
+  details.callout-engineer-move summary,
+  details.callout-engineer-move summary strong,
+  details.callout-engineer-move > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-engineer-move code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-evidence-packet {
+    --text-color: #e6e6e6;
+    --background-color: rgba(107, 74, 130, 0.12);
+    --title-background-color: rgba(107, 74, 130, 0.12);
+    border-color: #6B4A82;
+  }
+  details.callout-evidence-packet summary,
+  details.callout-evidence-packet summary strong,
+  details.callout-evidence-packet > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-evidence-packet code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-lighthouse {
+    --text-color: #e6e6e6;
+    --background-color: rgba(163, 92, 122, 0.12);
+    --title-background-color: rgba(163, 92, 122, 0.12);
+    border-color: #A35C7A;
+  }
+  details.callout-lighthouse summary,
+  details.callout-lighthouse summary strong,
+  details.callout-lighthouse > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-lighthouse code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-learning-objectives {
+    --text-color: #e6e6e6;
+    --background-color: rgba(63, 122, 82, 0.12);
+    --title-background-color: rgba(63, 122, 82, 0.12);
+    border-color: #3F7A52;
+  }
+  details.callout-learning-objectives summary,
+  details.callout-learning-objectives summary strong,
+  details.callout-learning-objectives > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-learning-objectives code {
+    color: #e6e6e6 !important;
+  }
+  details.callout-failure-mode {
+    --text-color: #e6e6e6;
+    --background-color: rgba(194, 74, 79, 0.12);
+    --title-background-color: rgba(194, 74, 79, 0.12);
+    border-color: #C24A4F;
+  }
+  details.callout-failure-mode summary,
+  details.callout-failure-mode summary strong,
+  details.callout-failure-mode > summary {
+    color: #f0f0f0 !important;
+  }
+  details.callout-failure-mode code {
+    color: #e6e6e6 !important;
+  }
+}
+body.quarto-dark details.callout-crux {
+    --text-color: #e6e6e6;
+    --background-color: rgba(192, 106, 27, 0.12);
+    --title-background-color: rgba(192, 106, 27, 0.12);
+    border-color: #C06A1B;
+  }
+body.quarto-dark details.callout-crux summary,
+body.quarto-dark details.callout-crux summary strong,
+body.quarto-dark details.callout-crux > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-crux code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-carry-forward {
+    --text-color: #e6e6e6;
+    --background-color: rgba(44, 126, 140, 0.12);
+    --title-background-color: rgba(44, 126, 140, 0.12);
+    border-color: #2C7E8C;
+  }
+body.quarto-dark details.callout-carry-forward summary,
+body.quarto-dark details.callout-carry-forward summary strong,
+body.quarto-dark details.callout-carry-forward > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-carry-forward code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-research-question {
+    --text-color: #e6e6e6;
+    --background-color: rgba(78, 99, 166, 0.12);
+    --title-background-color: rgba(78, 99, 166, 0.12);
+    border-color: #4E63A6;
+  }
+body.quarto-dark details.callout-research-question summary,
+body.quarto-dark details.callout-research-question summary strong,
+body.quarto-dark details.callout-research-question > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-research-question code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-architect-checkpoint {
+    --text-color: #e6e6e6;
+    --background-color: rgba(31, 95, 122, 0.12);
+    --title-background-color: rgba(31, 95, 122, 0.12);
+    border-color: #1F5F7A;
+  }
+body.quarto-dark details.callout-architect-checkpoint summary,
+body.quarto-dark details.callout-architect-checkpoint summary strong,
+body.quarto-dark details.callout-architect-checkpoint > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-architect-checkpoint code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-design-principle {
+    --text-color: #e6e6e6;
+    --background-color: rgba(154, 120, 30, 0.12);
+    --title-background-color: rgba(154, 120, 30, 0.12);
+    border-color: #9A781E;
+  }
+body.quarto-dark details.callout-design-principle summary,
+body.quarto-dark details.callout-design-principle summary strong,
+body.quarto-dark details.callout-design-principle > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-design-principle code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-field-note {
+    --text-color: #e6e6e6;
+    --background-color: rgba(89, 99, 109, 0.12);
+    --title-background-color: rgba(89, 99, 109, 0.12);
+    border-color: #59636D;
+  }
+body.quarto-dark details.callout-field-note summary,
+body.quarto-dark details.callout-field-note summary strong,
+body.quarto-dark details.callout-field-note > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-field-note code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-engineer-move {
+    --text-color: #e6e6e6;
+    --background-color: rgba(95, 122, 51, 0.12);
+    --title-background-color: rgba(95, 122, 51, 0.12);
+    border-color: #5F7A33;
+  }
+body.quarto-dark details.callout-engineer-move summary,
+body.quarto-dark details.callout-engineer-move summary strong,
+body.quarto-dark details.callout-engineer-move > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-engineer-move code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-evidence-packet {
+    --text-color: #e6e6e6;
+    --background-color: rgba(107, 74, 130, 0.12);
+    --title-background-color: rgba(107, 74, 130, 0.12);
+    border-color: #6B4A82;
+  }
+body.quarto-dark details.callout-evidence-packet summary,
+body.quarto-dark details.callout-evidence-packet summary strong,
+body.quarto-dark details.callout-evidence-packet > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-evidence-packet code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-lighthouse {
+    --text-color: #e6e6e6;
+    --background-color: rgba(163, 92, 122, 0.12);
+    --title-background-color: rgba(163, 92, 122, 0.12);
+    border-color: #A35C7A;
+  }
+body.quarto-dark details.callout-lighthouse summary,
+body.quarto-dark details.callout-lighthouse summary strong,
+body.quarto-dark details.callout-lighthouse > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-lighthouse code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-learning-objectives {
+    --text-color: #e6e6e6;
+    --background-color: rgba(63, 122, 82, 0.12);
+    --title-background-color: rgba(63, 122, 82, 0.12);
+    border-color: #3F7A52;
+  }
+body.quarto-dark details.callout-learning-objectives summary,
+body.quarto-dark details.callout-learning-objectives summary strong,
+body.quarto-dark details.callout-learning-objectives > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-learning-objectives code {
+    color: #e6e6e6 !important;
+  }
+body.quarto-dark details.callout-failure-mode {
+    --text-color: #e6e6e6;
+    --background-color: rgba(194, 74, 79, 0.12);
+    --title-background-color: rgba(194, 74, 79, 0.12);
+    border-color: #C24A4F;
+  }
+body.quarto-dark details.callout-failure-mode summary,
+body.quarto-dark details.callout-failure-mode summary strong,
+body.quarto-dark details.callout-failure-mode > summary {
+    color: #f0f0f0 !important;
+  }
+body.quarto-dark details.callout-failure-mode code {
+    color: #e6e6e6 !important;
+  }
+</style>
+<style>
+details.callout-crux > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_crux.svg");
+}
+details.callout-carry-forward > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_carry_forward.svg");
+}
+details.callout-research-question > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_research_question.svg");
+}
+details.callout-architect-checkpoint > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_architect_checkpoint.svg");
+}
+details.callout-design-principle > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_design_principle.svg");
+}
+details.callout-field-note > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_field_note.svg");
+}
+details.callout-engineer-move > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_engineer_move.svg");
+}
+details.callout-evidence-packet > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_evidence_packet.svg");
+}
+details.callout-lighthouse > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_lighthouse.svg");
+}
+details.callout-learning-objectives > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_learning_objectives.svg");
+}
+details.callout-failure-mode > summary::before {
+  background-image: url("../../images/icons/callouts/icon_callout_failure_mode.svg");
+}
+</style>
+
+
+</head>
+
+<body class="nav-sidebar floating slimcontent quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../../chapters/10-what-architect-owns/index.html"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">What the Architect Owns</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+  <div id="quarto-announcement" data-announcement-id="d10a181a4f3763ac83b962320cb2eda5" class="alert alert-warning hidden"><i class="bi bi-info-circle quarto-announcement-icon"></i><div class="quarto-announcement-content">
+<p>Part of the <a href="https://mlsysbook.ai">mlsysbook.ai</a> family. <strong>Work in progress</strong> preview v0.2.0 for the <a href="https://harvard-edge.github.io/isca-26-arch-2-workshop/">ISCA 2026 Architecture 2.0 workshop</a>.</p>
+</div><i class="bi bi-x-lg quarto-announcement-action"></i></div>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="../../">Architecture 2.0</a> 
+        <div class="sidebar-tools-main">
+    <div class="dropdown">
+      <a href="" title="Download" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" role="link" aria-label="Download"><i class="bi bi-download"></i></a>
+      <ul class="dropdown-menu" aria-labelledby="quarto-navigation-tool-dropdown-0">
+          <li>
+            <a class="dropdown-item sidebar-tools-main-item" href="../../Architecture-2.0.pdf">
+              <i class="bi bi-file-pdf pe-1"></i>
+            Download PDF
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item sidebar-tools-main-item" href="../../Architecture-2.0.epub">
+              <i class="bi bi-journal pe-1"></i>
+            Download ePub
+            </a>
+          </li>
+      </ul>
+    </div>
+</div>
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../acknowledgments.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Acknowledgments</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../about-the-author.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">About the Author</span></a>
+  </div>
+</li>
+        <li class="px-0"><hr class="sidebar-divider hi "></li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/01-moonshot/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">The Architecture 2.0 Moonshot</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/02-design-loop-no-longer-scales/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Why Classical Architecture Loops Strain</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/03-architecture-20-framework/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Architectural Claims and Design Loops</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/04-data-representations-world-models/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Representations and World Models</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/05-architecture-environments-tool-interfaces/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">Tools as Architecture Environments</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/06-methods-generation-prediction-optimization/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Method Roles: Generate, Predict, Optimize</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/07-feedback-verification-trust/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Feedback, Evidence, and Trust</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/08-running-the-loop/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Running the Lighthouse Loop</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/09-loop-patterns-across-stack/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Loop Patterns Across the Stack</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../chapters/10-what-architect-owns/index.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">What the Architect Owns</span></span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Appendices</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../appendices/appendix-a-bootstrapping/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Bootstrapping an Architecture 2.0 Loop</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../appendices/appendix-b-design-loop-card/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">B</span>&nbsp; <span class="chapter-title">Design-Loop Card and Review Rubric</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../appendices/appendix-c-resource-catalog/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">C</span>&nbsp; <span class="chapter-title">Judging Resources by Loop Role</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../../appendices/appendix-d-architecture-20-resources/index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">D</span>&nbsp; <span class="chapter-title">Architecture 2.0 Resource Links</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#the-architect-owns-the-loop" id="toc-the-architect-owns-the-loop" class="nav-link active" data-scroll-target="#the-architect-owns-the-loop"><span class="header-section-number">10.1</span> The Architect Owns the Loop</a></li>
+  <li><a href="#return-to-the-moonshot" id="toc-return-to-the-moonshot" class="nav-link" data-scroll-target="#return-to-the-moonshot"><span class="header-section-number">10.2</span> Return to the Moonshot</a></li>
+  <li><a href="#nondelegable-architectural-responsibilities" id="toc-nondelegable-architectural-responsibilities" class="nav-link" data-scroll-target="#nondelegable-architectural-responsibilities"><span class="header-section-number">10.3</span> Nondelegable Architectural Responsibilities</a></li>
+  <li><a href="#extracting-and-codifying-tacit-knowledge" id="toc-extracting-and-codifying-tacit-knowledge" class="nav-link" data-scroll-target="#extracting-and-codifying-tacit-knowledge"><span class="header-section-number">10.4</span> Extracting and Codifying Tacit Knowledge</a></li>
+  <li><a href="#the-strongest-objections" id="toc-the-strongest-objections" class="nav-link" data-scroll-target="#the-strongest-objections"><span class="header-section-number">10.5</span> The Strongest Objections</a></li>
+  <li><a href="#community-infrastructure-for-architecture-2.0" id="toc-community-infrastructure-for-architecture-2.0" class="nav-link" data-scroll-target="#community-infrastructure-for-architecture-2.0"><span class="header-section-number">10.6</span> Community Infrastructure for Architecture 2.0</a></li>
+  <li><a href="#open-research-questions" id="toc-open-research-questions" class="nav-link" data-scroll-target="#open-research-questions"><span class="header-section-number">10.7</span> Open Research Questions</a></li>
+  <li><a href="#long-horizon-challenge-tasks" id="toc-long-horizon-challenge-tasks" class="nav-link" data-scroll-target="#long-horizon-challenge-tasks"><span class="header-section-number">10.8</span> Long-Horizon Challenge Tasks</a></li>
+  <li><a href="#from-capability-to-standard" id="toc-from-capability-to-standard" class="nav-link" data-scroll-target="#from-capability-to-standard"><span class="header-section-number">10.9</span> From Capability to Standard</a></li>
+  <li><a href="#loop-invariants-as-review-checks" id="toc-loop-invariants-as-review-checks" class="nav-link" data-scroll-target="#loop-invariants-as-review-checks"><span class="header-section-number">10.10</span> Loop Invariants as Review Checks</a></li>
+  <li><a href="#beyond-the-current-loop" id="toc-beyond-the-current-loop" class="nav-link" data-scroll-target="#beyond-the-current-loop"><span class="header-section-number">10.11</span> Beyond the Current Loop</a></li>
+  <li><a href="#the-architects-standing-obligation" id="toc-the-architects-standing-obligation" class="nav-link" data-scroll-target="#the-architects-standing-obligation"><span class="header-section-number">10.12</span> The Architect’s Standing Obligation</a></li>
+  <li><a href="#final-thoughts-engineering-discipline-in-a-fast-moving-field" id="toc-final-thoughts-engineering-discipline-in-a-fast-moving-field" class="nav-link" data-scroll-target="#final-thoughts-engineering-discipline-in-a-fast-moving-field"><span class="header-section-number">10.13</span> Final Thoughts: Engineering Discipline in a Fast-Moving Field</a></li>
+  <li><a href="#bibliography" id="toc-bibliography" class="nav-link" data-scroll-target="#bibliography">Notes</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content page-columns page-full" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title"><span id="sec-what-architect-owns" class="quarto-section-identifier"><span class="chapter-number">10</span>&nbsp; <span class="chapter-title">What the Architect Owns</span></span></h1>
+</div>
+
+
+<div class="quarto-title-meta-author">
+  <div class="quarto-title-meta-heading">Author</div>
+  <div class="quarto-title-meta-heading">Affiliation</div>
+  
+    <div class="quarto-title-meta-contents">
+    <p class="author"><a href="https://vijay.seas.harvard.edu">Vijay Janapa Reddi</a> </p>
+  </div>
+  <div class="quarto-title-meta-contents">
+        <p class="affiliation">
+            Harvard John A. Paulson School of Engineering and Applied Sciences
+          </p>
+      </div>
+  </div>
+
+<div class="quarto-title-meta">
+
+      
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 4, 2026</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="epigraph">
+<blockquote class="blockquote">
+<p><em>“The architect’s two most important tools are the eraser at the drafting board and the wrecking bar at the site.”</em></p>
+<p>— Frank Lloyd Wright</p>
+</blockquote>
+</div>
+<div id="callout-crux*-1" class="callout fbx-wrapper callout-crux">
+<p></p><details class="callout-crux fbx-simplebox fbx-default" open=""><summary><strong>The crux</strong></summary><div>When automated participants, tools, and architecture environments can act inside the loop, what stays the architect’s to own, and what must the field share so ownership can be compared?<p></p>
+</div></details>
+</div>
+<p>To answer those questions, consider the lighthouse prompt that opened the book. It asked for a low-power, 64-bit RISC-V-based compute subsystem for real-time mobile XR under a 3&nbsp;W target in a 3&nbsp;nm-class low-power mobile process. At the start of the book, that prompt was a provocation. It looked like a request for a future hardware foundation model. At this point, it should read differently. The prompt is not powerful because it is short. It is powerful because it exposes a missing design loop.</p>
+<blockquote class="blockquote">
+<p><strong>Hardware foundation model</strong>: a foundation model is a large-scale machine learning model trained on a vast quantity of data that can be adapted to a wide range of downstream tasks; a hardware foundation model would apply this approach to hardware design representations.</p>
+</blockquote>
+<p>That loop includes workload definition, architecture representation, tool interfaces, compound method roles, feedback budgets, evidence ledgers, rejection authority, and human decisions. It also exposes the central conclusion of Architecture 2.0: AI systems do not eliminate the computer architect. They change what the architect must own.</p>
+<section id="the-architect-owns-the-loop" class="level2" data-number="10.1">
+<h2 data-number="10.1" class="anchored" data-anchor-id="the-architect-owns-the-loop"><span class="header-section-number">10.1</span> The Architect Owns the Loop</h2>
+<p>The architect’s responsibility moves upward. The architect does not own the answer; the architect owns the loop. Instead of owning every step of manual artifact construction, the architect owns the framing of the problem, the abstractions that make it tractable, the representations that make it legible, the evidence standards that make it believable, the rejection authority that makes it safe to use, and the commitment behind the final decision. This is why Architecture 2.0 is not simply an automation story. It is a responsibility story about loops in which AI-assisted systems can act but cannot own the commitment.</p>
+<p>That responsibility is sharper in hardware than in software. A generative model or an automated optimizer does not sign a tapeout check, and unlike a software defect that an overnight update can patch, a hardware bug ships in silicon, where a respin costs millions of dollars and months of schedule. The architect therefore has to own the commitment gate explicitly: the job shifts from crafting the artifact by hand to standing behind the evidence that justifies committing it, without ceasing to own the artifact’s consequences.</p>
+<div id="callout-learning-objectives*-2" class="callout fbx-wrapper callout-learning-objectives">
+<details class="callout-learning-objectives fbx-simplebox fbx-default" open=""><summary><strong>What this chapter gives you</strong></summary><div>
+<p>After this chapter you can draw the architect-owned commitment boundary for a loop. That means you can:</p>
+<ul>
+<li>name which architecture responsibilities remain human-owned when automated tools act inside the loop;</li>
+<li>decide which state, evidence, rejection authority, and workload records a loop must expose before delegation is credible;</li>
+<li>answer the strongest objections to Architecture 2.0 without treating automation as ownership;</li>
+<li>identify the community infrastructure the field still needs for comparable, evidence-bearing loops;</li>
+<li>state why every field of the design-loop card ultimately resolves to an accountable human owner.</li>
+</ul>
+</div></details>
+</div>
+</section>
+<section id="return-to-the-moonshot" class="level2" data-number="10.2">
+<h2 data-number="10.2" class="anchored" data-anchor-id="return-to-the-moonshot"><span class="header-section-number">10.2</span> Return to the Moonshot</h2>
+<p>To see how these shifted responsibilities manifest in practice, we must return to the lighthouse prompt that provoked this inquiry in the first place:</p>
+<blockquote class="blockquote">
+<p>Design a low-power, 64-bit RISC-V-based compute subsystem for an XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, accelerator, or SoC block under a 3&nbsp;W TDP target in a 3&nbsp;nm-class LP mobile process, and return a design-space report with evidence and rejected alternatives.</p>
+</blockquote>
+<p>This prompt may seem straightforward, but it implies a set of complex interface contracts. At first glance, it looks like a standard hardware specification—a list of targets, constraints, and deliverables. However, beneath the surface, it binds together workload assumptions, software dependencies, architectural representations, and physical constraints. For an AI-assisted loop to act on this prompt, these implicit contracts must be explicitly surfaced as machine-readable constraints and rejection criteria.</p>
+<div id="callout-lighthouse*-3" class="callout fbx-wrapper callout-lighthouse" title="The prompt hides interface contracts">
+<p></p><details class="callout-lighthouse fbx-simplebox fbx-default" open=""><summary><strong>Lighthouse prompt: The prompt hides interface contracts</strong></summary><div><strong>Context.</strong> The opening request is not a single hardware specification. It bundles workload, software, architecture, technology, and evidence obligations that must be made explicit before an automated participant can act on them.<p></p>
+<p><strong>In the Lighthouse prompt.</strong> “XRBench-class real-time mobile XR workload” creates an obligation to specify a workload distribution, quality-of-experience target, benchmark version, traces, and software stack. For an automated system, this workload obligation has to be represented as machine-readable data: scenario labels, trace provenance, coverage limits, excluded cases, quality-of-experience labels, and out-of-distribution rejection conditions. “64-bit RISC-V-based” means the AI loop needs access to correct compiler toolchains, simulators, and instruction semantics, rather than just generating text that looks like RISC-V. The fragment “vector-capable CPU, accelerator, or SoC block” defines the system’s allowed action space: the loop must be given explicit rules about which integration paths it can explore and which interfaces are fixed.</p>
+<p><strong>Evidence boundary.</strong> “3&nbsp;W TDP target” and “3&nbsp;nm-class LP mobile process” create power, thermal, and physical-design constraints; an optimizer evaluating candidates must not confuse a fast proxy average-power estimate with the sustained thermal or signoff evidence required for a final commitment.</p>
+<p><strong>Takeaway.</strong> The architect-owned work is deciding which contracts are fixed, which are exposed as actions to the automated tool, and which have enough evidence to support a human commitment.</p>
+</div></details>
+</div>
+<p>This need for explicit evidence introduces a hierarchy of commitment. As an AI-assisted design loop explores candidates, it must navigate different levels of fidelity—from fast, imprecise proxies to expensive, cycle-accurate physical simulations. The architect must define the escalation path, deciding exactly what level of evidence is required to advance a design to the next stage without incurring unacceptable risk. This progression is captured in the commitment ladder (<a href="#fig-commitment-ladder" class="quarto-xref">Figure&nbsp;<span class="quarto-unresolved-ref">fig-commitment-ladder</span></a>), which maps the rising standard of evidence against the increasing cost of being wrong.</p>
+<div id="fig-commitment-ladder" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Diagram of a ladder climbing through Design Space Report, RTL, Verified Implementation, and Tapeout-ready Design, with cost-of-being-wrong increasing.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-commitment-ladder-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="images/F10-commitment-ladder.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-1" title="Figure&nbsp;10.1: The Commitment Ladder: The evidence standard must rise as the cost of being wrong increases. A fast generative screen requires low evidence; a final silicon tapeout requires physical design closure. Each rung represents an architect-owned escalation threshold."><img src="images/F10-commitment-ladder.svg" class="img-fluid figure-img" style="width:100.0%" alt="Diagram of a ladder climbing through Design Space Report, RTL, Verified Implementation, and Tapeout-ready Design, with cost-of-being-wrong increasing."></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-commitment-ladder-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;10.1: <strong>The Commitment Ladder:</strong> The evidence standard must rise as the cost of being wrong increases. A fast generative screen requires low evidence; a final silicon tapeout requires physical design closure. Each rung represents an architect-owned escalation threshold.
+</figcaption>
+</figure>
+</div>
+<p>The requested deliverable also matters. A design-space report is different from RTL. RTL is different from a verified implementation. A verified implementation is completely different from a physically routable, timing-closed tapeout. (Logical correctness in RTL tells us nothing about whether power delivery, thermal bounds, and wire routing can physically close through rigorous signoff tools.) Each step changes the evidence standard. The same prompt can support a brainstorming loop, a research prototype, a simulator-backed design-space exploration, or a high-commitment implementation loop. Treating all of those deliverables as the same is one of the fastest ways to overclaim.</p>
+<p>To avoid this overclaiming, the framework developed here turns the prompt into a set of explicit questions: What task is being solved? What representation is available? What world model does the loop assume? What tools can the system act on? What method roles are allowed? What feedback is affordable? What evidence would make the result credible? What alternatives were rejected? Who can stop the loop? Who is accountable for the decision?</p>
+<p>Together, those questions define the part of the design space the architect exposes to methods, tools, and AI-assisted systems. Choosing what to expose is an architectural act. Expose too little and the loop cannot find useful alternatives. Expose too much without constraints, evidence, and rejection authority, and the loop can optimize the wrong object or cross a commitment boundary before anyone understands what happened.</p>
+<div id="callout-architect-checkpoint*-4" class="callout fbx-wrapper callout-architect-checkpoint" title="The Exposure Gate">
+<p></p><details class="callout-architect-checkpoint fbx-simplebox fbx-default" open=""><summary><strong>Architect’s checkpoint: The Exposure Gate</strong></summary><div>When defining an AI-loop’s environment, check the boundary of exposed actions. Have you provided explicit constraints, evidence checks, and rejection authority for every knob the automated optimizer can turn? If not, it may optimize an invalid metric and cross a commitment boundary unnoticed.<p></p>
+</div></details>
+</div>
+<p>Enforcing those boundaries marks the shift from prompt to loop. The prompt motivates the work. The loop makes the work inspectable.</p>
+<p>The phrase <em>prompt-to-loop</em> is deliberately more durable than prompt-to-chip. Prompt-to-chip asks whether a system can produce an impressive final artifact from a sentence. Prompt-to-loop asks whether it can preserve the task, state, tools, evidence, rejected alternatives, and human decision boundary that make the next architectural commitment believable. The second question remains important even after today’s models and tools are obsolete.</p>
+</section>
+<section id="nondelegable-architectural-responsibilities" class="level2" data-number="10.3">
+<h2 data-number="10.3" class="anchored" data-anchor-id="nondelegable-architectural-responsibilities"><span class="header-section-number">10.3</span> Nondelegable Architectural Responsibilities</h2>
+<p>Even the most explicitly defined, inspectable loop still leaves work the architect cannot hand off, and nondelegable does not mean unaided. An architect can use models, AI-assisted systems, search procedures, simulators, compilers, profilers, EDA tools, benchmarks, and critics. The point is narrower and more important. The architect cannot transfer responsibility for the architectural judgment itself into a model. Nor does responsibility become distributed simply because several automated participants divide the work. Splitting a loop across these tools can make delegation more effective, but it also creates more places where authority can become ambiguous. The architect still has to decide which roles may act, which system or tool can stop another, which evidence crosses an escalation threshold, and who owns the commitment when the tools disagree or all agree for the wrong reason.</p>
+<div id="callout-architect-checkpoint*-5" class="callout fbx-wrapper callout-architect-checkpoint" title="The Multi-Agent Authority Gate">
+<p></p><details class="callout-architect-checkpoint fbx-simplebox fbx-default" open=""><summary><strong>Architect’s checkpoint: The Multi-Agent Authority Gate</strong></summary><div>When splitting an architecture task across multiple automated participants, trace the rejection authority. Which system or tool is allowed to halt the process? What evidence crosses an escalation threshold back to a human? You must ensure that adding more participants does not diffuse final accountability.<p></p>
+</div></details>
+</div>
+<p>Because authority must not diffuse, the architect’s responsibility becomes more explicitly full-stack as automated tools enter the loop. A future architect may not be only a CPU architect, accelerator architect, compiler specialist, or physical-design expert. The nondelegable work is composition across those boundaries: deciding which hardware knobs to expose, which software contracts must remain stable, which workload scenarios matter, which tool feedback has authority, and which deployment consequences are acceptable. Automated systems can help operate pieces of the stack, but the architect owns the decisions that connect those pieces into a defensible system claim.</p>
+<p><a href="#fig-architect-owned-boundary" class="quarto-xref">Figure&nbsp;<span class="quarto-unresolved-ref">fig-architect-owned-boundary</span></a> separates assistable loop work from the commitments the architect must own. Automated methods may help represent state, generate candidates, evaluate proxies, call tools, critique results, summarize evidence, and preserve provenance. Those are substantial contributions. But they do not decide what problem matters, which abstraction is legitimate, what evidence is enough, which failure is acceptable, when to reject a result, or who answers for the consequences. An automated optimizer might tune a core’s thermal profile, for instance, but the architect owns the call if that profile melts the package or breaks the product’s safety certification. That line separates work a loop may assist from the commitments the architect still owns: intent, abstraction, evidence standards, rejection authority, deployment risk, and responsibility for consequences. It is the boundary the rest of this chapter defends.</p>
+<p>Read <a href="#fig-architect-owned-boundary" class="quarto-xref">Figure&nbsp;<span class="quarto-unresolved-ref">fig-architect-owned-boundary</span></a> as an ownership boundary: the loop can automate work inside the boundary, but only the architect can accept the risk of crossing it.</p>
+<div id="fig-architect-owned-boundary" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Boundary diagram showing which loop responsibilities can be assisted by AI systems and which remain owned by the architect.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-architect-owned-boundary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="images/F11-architect-owned-boundary.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-2" title="Figure&nbsp;10.2: The architect owns the boundary of the loop: AI systems can assist many operations inside an Architecture 2.0 loop, but intent, abstraction, representation, evidence standards, rejection authority, accountability, and field-building remain architect-owned responsibilities."><img src="images/F11-architect-owned-boundary.svg" class="img-fluid figure-img" style="width:100.0%" alt="Boundary diagram showing which loop responsibilities can be assisted by AI systems and which remain owned by the architect."></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-architect-owned-boundary-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;10.2: <strong>The architect owns the boundary of the loop:</strong> AI systems can assist many operations inside an Architecture 2.0 loop, but intent, abstraction, representation, evidence standards, rejection authority, accountability, and field-building remain architect-owned responsibilities.
+</figcaption>
+</figure>
+</div>
+<p><a href="#tbl-architect-responsibilities" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-architect-responsibilities</span></a> turns this claim into a practical review object. It is not meant to romanticize human judgment. Human judgment can be biased, inconsistent, and incomplete. The reason it remains central is that architecture decisions bind technical artifacts to organizational, economic, ethical, and deployment consequences. A model can help reason about those consequences, and a tool-using system can help surface them, but neither owns them when the loop crosses a commitment boundary.</p>
+<div id="tbl-architect-responsibilities" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[22,36,32]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-architect-responsibilities-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.1: <strong>Architect-owned responsibilities become explicit loop obligations:</strong> The architect must define intent, abstraction, constraints, evidence standards, rejection authority, escalation rules, and final commitment even when methods automate pieces of the loop.
+</figcaption>
+<div aria-describedby="tbl-architect-responsibilities-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 36%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Responsibility</th>
+<th>Why it cannot be delegated</th>
+<th>How AI can assist</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Intent and constraints</td>
+<td>The loop must serve a real architectural objective, not merely an available benchmark or proxy.</td>
+<td>Elicit missing constraints, surface conflicts, and compare formulations.</td>
+</tr>
+<tr class="even">
+<td>Abstraction and representation</td>
+<td>The encoded state determines what the loop can see, optimize, ignore, or falsely simplify.</td>
+<td>Translate artifacts, organize traces, find gaps, and suggest structured schemas.</td>
+</tr>
+<tr class="odd">
+<td>Evidence standard</td>
+<td>A result is useful only if the evidence matches the commitment level and cost of being wrong.</td>
+<td>Build evidence ledgers, track provenance, estimate uncertainty, and summarize rejected runs.</td>
+</tr>
+<tr class="even">
+<td>Escalation thresholds</td>
+<td>The moment when proxy evidence is no longer enough depends on risk, reversibility, blast radius, and organizational context.</td>
+<td>Detect threshold crossings, surface missing evidence, and route decisions to review.</td>
+</tr>
+<tr class="odd">
+<td>Rejection and commitment</td>
+<td>Someone must decide when a candidate is invalid, too risky, insufficiently supported, or ready to use.</td>
+<td>Critique assumptions, flag rule violations, and compare alternatives.</td>
+</tr>
+<tr class="even">
+<td>Accountability and boundaries</td>
+<td>Architecture choices affect users, teams, IP, security, cost, reliability, and long-lived systems.</td>
+<td>Maintain audit trails, identify policy conflicts, and make tradeoffs explicit.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>Those responsibilities become easier to review when they are attached to ordinary artifacts. <a href="#tbl-architect-owned-artifacts" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-architect-owned-artifacts</span></a> regroups them into the concrete records a team can inspect: it surfaces environment and action authority as its own row and folds escalation into the evidence standard and accountability into rejection and commitment.</p>
+<div id="tbl-architect-owned-artifacts" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[30,58]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-architect-owned-artifacts-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.2: <strong>Architect-owned work should leave inspectable artifacts:</strong> Intent, representation, environment authority, evidence standards, and commitment decisions should be review records, not only expert intuition.
+</figcaption>
+<div aria-describedby="tbl-architect-owned-artifacts-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 30%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Architect-owned responsibility</th>
+<th>Inspectable artifact</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Intent and constraints</td>
+<td>Problem statement, non-goals, workload slice, hard constraints, and decision owner.</td>
+</tr>
+<tr class="even">
+<td>Abstraction and representation</td>
+<td>Architecture schema, exposed design space, assumptions, hidden-state list, and redaction boundary.</td>
+</tr>
+<tr class="odd">
+<td>Environment and action authority</td>
+<td>Tool contract, legal actions, invalid-action rules, cost model, and provenance requirements.</td>
+</tr>
+<tr class="even">
+<td>Evidence standard</td>
+<td>Fidelity ladder, calibration record, evidence ledger, and escalation threshold.</td>
+</tr>
+<tr class="odd">
+<td>Rejection and commitment</td>
+<td>Rejected-alternative log, review note, waiver record, commitment level, and rollback or next-evidence plan.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>This boundary also clarifies the word <strong>agentic</strong>. The book is not arguing that every architecture loop should become autonomous. Agentic systems are useful because they can act inside represented loops: call tools, maintain state, revise plans, use feedback, and coordinate method roles. But action is not ownership. As loops become more capable, the architect’s responsibility is not reduced; it becomes more explicit.</p>
+<blockquote class="blockquote">
+<p><strong>Agentic system</strong>: an AI system capable of pursuing complex goals over time, making its own decisions about which tools to use and what steps to take next.</p>
+</blockquote>
+<div id="callout-architect-checkpoint*-6" class="callout fbx-wrapper callout-architect-checkpoint" title="The Ownership Test">
+<p></p><details class="callout-architect-checkpoint fbx-simplebox fbx-default" open=""><summary><strong>Architect’s checkpoint: The Ownership Test</strong></summary><div>If an AI-assisted design loop proposes an invalid artifact, the review record must show who is accountable. Can you trace who defined the intent, who accepted the abstraction, who trusted the evidence, who had authority to reject the result, and who accepted the final commitment? If those human names disappear, the loop has not become more advanced; it has only hidden the architecture decision.<p></p>
+</div></details>
+</div>
+</section>
+<section id="extracting-and-codifying-tacit-knowledge" class="level2" data-number="10.4">
+<h2 data-number="10.4" class="anchored" data-anchor-id="extracting-and-codifying-tacit-knowledge"><span class="header-section-number">10.4</span> Extracting and Codifying Tacit Knowledge</h2>
+<p>If the architect must own the constraints and accept the risk, where do those constraints actually come from if they are not written down?</p>
+<p>The reality of engineering in complex organizations is that the most valuable knowledge often resides not in formal specifications, but in the hard-won, tacit wisdom of domain experts. It is the packaging engineer knowing that a specific chiplet partition will silently break the power delivery mesh, the compiler lead knowing that their LLVM backend cannot lower a proposed matrix layout, or a senior architect anticipating that an accelerator’s coherency traffic will starve the XR display controller—integration failures that a local proxy would never catch.</p>
+<p>A skilled human engineer naturally performs the work of hunting down this context before acting. They know who holds the undocumented knowledge, they pull it from them, and they synthesize it so that work does not stall on missing context.</p>
+<p>An autonomous or AI-assisted system, however, expects to run end-to-end based on explicit inputs. If the rules are tacit, the AI behaves like an ML model encountering out-of-distribution data or a reinforcement learning agent engaging in reward hacking. It will either stall out due to missing context or, worse, hallucinate a mathematically optimal design that exploits loopholes in the incomplete constraints, completely violating the unwritten physical or software realities of the system.</p>
+<p>This forces a shift in the architect’s daily work. Before the AI can run the loop, the human architect must act as the knowledge extractor. As illustrated in <a href="#fig-tacit-extraction-bridge" class="quarto-xref">Figure&nbsp;<span class="quarto-unresolved-ref">fig-tacit-extraction-bridge</span></a>, they must bridge the gap between undocumented organizational wisdom and explicit loop state.</p>
+<div id="fig-tacit-extraction-bridge" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Diagram showing an architect extracting undocumented constraints from human experts and codifying them into explicit loop state for an AI agent to use.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-tacit-extraction-bridge-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="images/F10-tacit-extraction-bridge.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-3" title="Figure&nbsp;10.3: The Extraction Bridge: Autonomous agents stall or hallucinate when they encounter the undocumented, tacit constraints held by human experts. The human architect must bridge this gap by extracting tacit wisdom and codifying it into explicit, machine-readable loop state (such as environment contracts and rejection gates) that the AI can safely act upon."><img src="images/F10-tacit-extraction-bridge.svg" class="img-fluid figure-img" style="width:100.0%" alt="Diagram showing an architect extracting undocumented constraints from human experts and codifying them into explicit loop state for an AI agent to use."></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-tacit-extraction-bridge-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;10.3: <strong>The Extraction Bridge:</strong> Autonomous agents stall or hallucinate when they encounter the undocumented, tacit constraints held by human experts. The human architect must bridge this gap by extracting tacit wisdom and codifying it into explicit, machine-readable loop state (such as environment contracts and rejection gates) that the AI can safely act upon.
+</figcaption>
+</figure>
+</div>
+<p>Translating hallway conversations and senior-engineer intuition into formal <strong>Environment Contracts</strong> and <strong>Rejection Gates</strong> allows the loop to run autonomously and safely reject bad designs <em>before</em> they waste simulation time.</p>
+<p>The AI agent cannot query the unwritten wisdom directly; it relies entirely on the architect to explicitly bound the environment. In Architecture 2.0, extracting tacit knowledge is no longer just good communication—it is the prerequisite engineering step for automation.</p>
+</section>
+<section id="the-strongest-objections" class="level2 page-columns page-full" data-number="10.5">
+<h2 data-number="10.5" class="anchored" data-anchor-id="the-strongest-objections"><span class="header-section-number">10.5</span> The Strongest Objections</h2>
+<p>This insistence on explicit human ownership—and the prerequisite that architects must extract and codify tacit knowledge before AI can act safely—is a strong stance. A field-defining claim should survive its sharpest critics, so it is worth stating the strongest objections plainly.</p>
+<p>The first objection is that Architecture 2.0 is just good experimental methodology with new names. Provenance, baselines, rejection criteria, and held-out validation are not new; careful architects have always done them. The response concedes the lineage and locates the difference. What changes is who acts inside the loop and how fast. When a human runs the loop, tacit judgment supplies the missing rigor: the architect remembers why a workload was excluded or distrusts a proxy on instinct. When a method runs the loop at machine speed, that tacit layer no longer makes the loop reviewable unless it is recorded, so the discipline must be made explicit and machine-readable. Architecture 2.0 is the claim that the methodology must become an engineered object, not a craft, once automated tools participate. The book borrows established forms deliberately: the evidence ledger is an assurance case <span class="citation" data-cites="Kelly2004GSN">(<a href="#ref-Kelly2004GSN" role="doc-biblioref">Kelly and Weaver 2004</a>)</span>, a discipline already mandatory in safety-critical domains such as automotive functional safety, where a safety case must argue that a design meets its requirements before it ships <span class="citation" data-cites="ISO2018Iso26262">(<a href="#ref-ISO2018Iso26262" role="doc-biblioref">International Organization for Standardization 2018</a>)</span>; the fidelity ladder is multi-fidelity modeling <span class="citation" data-cites="PeherstorferWillcoxGunzburger2018Multifidelity">(<a href="#ref-PeherstorferWillcoxGunzburger2018Multifidelity" role="doc-biblioref">Peherstorfer et al. 2018</a>)</span>. Naming the lineage is the point, not a weakness.</p>
+<div class="no-row-height column-margin column-container"><div id="ref-Kelly2004GSN" class="csl-entry" role="listitem">
+Kelly, Tim, and Rob Weaver. 2004. <span>“The Goal Structuring Notation: A Safety Argument Notation.”</span> <em>Workshop on Assurance Cases, International Conference on Dependable Systems and Networks (DSN)</em>.
+</div><div id="ref-ISO2018Iso26262" class="csl-entry" role="listitem">
+International Organization for Standardization. 2018. <em><span>ISO</span> 26262: Road Vehicles — Functional Safety</em>. 2nd ed. ISO.
+</div><div id="ref-PeherstorferWillcoxGunzburger2018Multifidelity" class="csl-entry" role="listitem">
+Peherstorfer, Benjamin, Karen Willcox, and Max Gunzburger. 2018. <span>“Survey of Multifidelity Methods in Uncertainty Propagation, Inference, and Optimization.”</span> <em>SIAM Review</em> 60 (3): 550–91. <a href="https://doi.org/10.1137/16M1082469">https://doi.org/10.1137/16M1082469</a>.
+</div></div><blockquote class="blockquote">
+<p><strong>Held-out validation</strong>: in machine learning, the practice of reserving a portion of the dataset during training exclusively for evaluating a model’s performance on unseen data.</p>
+</blockquote>
+<blockquote class="blockquote">
+<p><strong>Multi-fidelity modeling</strong>: an optimization technique that combines cheap, low-accuracy simulations with expensive, high-accuracy simulations to explore a design space efficiently.</p>
+</blockquote>
+<p>The second objection is that AI for systems design is overhyped, and the most cited result, learned chip placement, is contested. That is true, and this book treats it as evidence rather than embarrassment. The placement dispute in <a href="#sec-feedback-verification-trust" class="quarto-xref"><span class="quarto-unresolved-ref">sec-feedback-verification-trust</span></a> is exactly why the field needs reproducible, end-to-end benchmarks and explicit rejection authority. An honest framework predicts that some flagship results will not survive scrutiny; its value is a standard that makes the difference visible.</p>
+<p>The third objection is that the design-loop card is process bureaucracy that will not survive a deadline. The card is not a mandatory form; it is a diagnostic for loops where tools or automated participants can advance candidates faster than reviewers can reconstruct the evidence. A team under deadline can fill it in a few minutes and learn whether its result rests on a proxy nobody validated or a baseline nobody documented. The cost of skipping that check is paid later, at higher commitment, where it is most expensive. The card earns its place only when it is shorter than the mistake it prevents.</p>
+<p>The fourth objection is that the framework is too conservative, preserving human authority when the goal is to deploy more capable AI systems. Architecture 2.0 does not oppose automation; it places automation where it can be inspected, rejected, and improved. A loop can be highly automated in low-commitment exploration and deliberately conservative near signoff. The design principle is not less automation. It is evidence-matched automation.</p>
+<p>None of these objections is fatal, but each sharpens the claim. Architecture 2.0 is not the assertion that AI will design chips. It is the narrower, more defensible claim that the design loop must become explicit enough to act on, judge, and trust.</p>
+</section>
+<section id="community-infrastructure-for-architecture-2.0" class="level2 page-columns page-full" data-number="10.6">
+<h2 data-number="10.6" class="anchored" data-anchor-id="community-infrastructure-for-architecture-2.0"><span class="header-section-number">10.6</span> Community Infrastructure for Architecture 2.0</h2>
+<p>Making the loop explicit within a single team is a start, but individual practice is not enough to move a field. The ownership test names who owned each decision inside one loop, but those names can only be compared across loops when the field shares a record format that carries them. Agentic architecture work becomes a field only when loops, not just artifacts, can be compared, reproduced, criticized, taught, and extended. Architecture 2.0 therefore needs community infrastructure, not only better private loops.</p>
+<p>The infrastructure does not have to expose proprietary designs or internal company data. It can start with shared conventions: design-loop cards, paper-facing claim-card views, environment schemas, provenance records, benchmark versions, negative traces, source records, tool-interface descriptions, and review rubrics. These are small artifacts, but they change what the community can ask of a claim. They let reviewers ask not only “What result did you get?” but also “What loop produced it? What feedback did it use? What did it reject? What evidence supports the decision?”</p>
+<p>Providing a useful answer to those questions does not require raw design disclosure. If the only way an AI can learn is by reading proprietary physical EDA failure logs, Architecture 2.0 risks becoming a closed oligopoly. To survive, the open-source architecture community must federate and share loop integrity. We need an <strong>ISA for Evidence</strong>—a common, standardized interface and protocol for exchanging verification data and “negative traces” without central corporate control or NDA violations. Just as a traditional ISA separates hardware implementation from software, an ISA for Evidence separates proprietary physical details from shared architectural learning.</p>
+<p>The community can establish this mechanism through <strong>Projected Proxies and Redacted Traces</strong>. When a corporate AI loop rejects a candidate due to a proprietary NDA constraint (e.g., TSMC 3nm wire congestion), the loop automatically maps that failure to an open-source proxy (e.g., ASAP7 or FreePDK45). The company publishes the <em>relative</em> failure, not the absolute proprietary data.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Example: A Redacted Negative Trace (RNT) shared to the open-source commons</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">schema_version</span><span class="kw">:</span><span class="at"> </span><span class="st">"Arch2.0-RNT-v1"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">context</span><span class="kw">:</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">workload_class</span><span class="kw">:</span><span class="at"> </span><span class="st">"XRBench-mobile-vision"</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">baseline_architecture</span><span class="kw">:</span><span class="at"> </span><span class="st">"urn:riscv:microarch:rocket:default"</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">proxy_environment</span><span class="kw">:</span><span class="at"> </span><span class="st">"Chipyard + ASAP7 (Open PDK)"</span><span class="co"> # The open projection</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">action</span><span class="kw">:</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">type</span><span class="kw">:</span><span class="at"> </span><span class="st">"microarch_parameter_sweep"</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">delta</span><span class="kw">:</span><span class="at"> </span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="kw">-</span><span class="at"> </span><span class="fu">component</span><span class="kw">:</span><span class="at"> </span><span class="st">"L2_Cache"</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">parameter</span><span class="kw">:</span><span class="at"> </span><span class="st">"associativity"</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">changed_from</span><span class="kw">:</span><span class="at"> </span><span class="dv">4</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">changed_to</span><span class="kw">:</span><span class="at"> </span><span class="dv">16</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">evaluation</span><span class="kw">:</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">status</span><span class="kw">:</span><span class="at"> </span><span class="st">"REJECTED"</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rejection_authority</span><span class="kw">:</span><span class="at"> </span><span class="st">"PhysicalDesign_Oracle"</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">redacted_reason</span><span class="kw">:</span><span class="at"> </span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">category</span><span class="kw">:</span><span class="at"> </span><span class="st">"PHYSICAL_VIOLATION"</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sub_category</span><span class="kw">:</span><span class="at"> </span><span class="st">"ROUTING_CONGESTION"</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">relative_impact</span><span class="kw">:</span><span class="at"> </span><span class="st">"Pin density exceeds 85% in L2 array macros; unroutable at target utilization"</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co">    # Note: Absolute cell dimensions and NDA PDK DRC rules are redacted.</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="fu">lessons_learned</span><span class="kw">:</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="st">"Non-linear routing congestion in high-associativity arrays negates IPC gains in XR workloads."</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This redacted evidence ledger acts as a small public record that names the loop well enough for another group to understand what was attempted, what was observed, what was rejected, and what kind of commitment the evidence can support. <a href="#tbl-public-evidence-ledger" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-public-evidence-ledger</span></a> gives the minimum version. Anything less makes the claim hard to compare; anything more may be impossible to share.</p>
+<div id="tbl-public-evidence-ledger" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[22,34,34]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-public-evidence-ledger-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.3: <strong>A public evidence ledger should expose the loop, not the proprietary design:</strong> The minimum useful record names the task, interface, versions, candidates, evidence stages, redaction boundary, and accountable decision owner.
+</figcaption>
+<div aria-describedby="tbl-public-evidence-ledger-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 34%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Public record</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Task and workload class</td>
+<td>Workload family, scenario, benchmark or trace version, and excluded cases.</td>
+<td>Prevents a result from being read as broader than the task that produced it.</td>
+</tr>
+<tr class="even">
+<td>Action-observation interface</td>
+<td>What the loop could change, what it could observe, and which tools or environments returned feedback.</td>
+<td>Makes the exposed design space inspectable.</td>
+</tr>
+<tr class="odd">
+<td>Tool and model versions</td>
+<td>Simulator, compiler, EDA flow, benchmark, model, and prompt or policy versions when they affect the result.</td>
+<td>Makes drift and reproduction failures diagnosable.</td>
+</tr>
+<tr class="even">
+<td>Accepted and rejected candidates</td>
+<td>A compact list of advanced candidates, rejected candidates, and the rule or evidence that separated them.</td>
+<td>Turns negative traces into reusable evidence.</td>
+</tr>
+<tr class="odd">
+<td>Evidence stages</td>
+<td>Proxy, simulation, compiler/runtime, RTL, physical, silicon, or deployment feedback used, with fidelity limits.</td>
+<td>Shows whether the evidence matches the claimed commitment.</td>
+</tr>
+<tr class="even">
+<td>Redaction and ownership</td>
+<td>What was hidden, why it was hidden, and who owned the final decision.</td>
+<td>Keeps IP boundaries explicit without hiding accountability.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>A redacted record has a failure condition. If redaction hides the workload class, action-observation interface, evidence stage, or decision owner, the record may still provide context, but it should not be treated as comparable loop evidence.</p>
+<div id="callout-architect-checkpoint*-7" class="callout fbx-wrapper callout-architect-checkpoint" title="The Redaction and Comparison Gate">
+<p></p><details class="callout-architect-checkpoint fbx-simplebox fbx-default" open=""><summary><strong>Architect’s checkpoint: The Redaction and Comparison Gate</strong></summary><div>Before publishing or sharing a redacted loop record, verify its failure condition: does it hide the workload class, action-observation interface, evidence stage, or decision owner? If any of these are missing, the record can provide context but cannot be treated as comparable evidence for an AI-mediated claim.<p></p>
+</div></details>
+</div>
+<p>When evaluating new benchmarks against this standard, read them by the loop fields they expose, not by their names. ArchGym and QuArch, met earlier, contribute environment/action interfaces and question-to-evidence review tasks. Two further examples fill fields the book has not yet seen instantiated: CircuitNet, an open dataset of physical-design flow records, contributes design-flow data, and ChiPBench, the end-to-end placement benchmark that grew out of the placement dispute (<a href="#sec-feedback-verification-trust" class="quarto-xref"><span class="quarto-unresolved-ref">sec-feedback-verification-trust</span></a>), contributes final power-performance-area rejection against proxy wins <span class="citation" data-cites="KrishnanEtAl2023ArchGym PrakashEtAl2025QuArch PrakashEtAl2025QuArchReasoning ChaiEtAl2022CircuitNet WangEtAl2025ChiPBench">(<a href="#ref-KrishnanEtAl2023ArchGym" role="doc-biblioref"><span class="nocase">Krishnan et al.</span> 2023</a>; <a href="#ref-PrakashEtAl2025QuArch" role="doc-biblioref"><span class="nocase">Prakash et al.</span> 2025b</a>, <a href="#ref-PrakashEtAl2025QuArchReasoning" role="doc-biblioref">2025a</a>; <a href="#ref-ChaiEtAl2022CircuitNet" role="doc-biblioref">Chai et al. 2022</a>; <a href="#ref-WangEtAl2025ChiPBench" role="doc-biblioref"><span class="nocase">Wang et al.</span> 2025</a>)</span>. The common test is whether an AI-mediated architecture claim can show what state it used, what it changed, what feedback it received, what failed, and who owned the commitment.</p>
+<div class="no-row-height column-margin column-container"><div id="ref-KrishnanEtAl2023ArchGym" class="csl-entry" role="listitem">
+<span class="nocase">Krishnan, Srivatsan et al.</span> 2023. <span>“<span>ArchGym</span>: An Open-Source Gymnasium for Machine Learning Assisted Architecture Design.”</span> <em>Proceedings of the 50th Annual International Symposium on Computer Architecture</em>, ISCA ’23. <a href="https://doi.org/10.1145/3579371.3589049">https://doi.org/10.1145/3579371.3589049</a>.
+</div><div id="ref-PrakashEtAl2025QuArch" class="csl-entry" role="listitem">
+<span class="nocase">Prakash, Shvetank et al.</span> 2025b. <span>“<span>QuArch</span>: A Question-Answering Dataset for <span>AI</span> Agents in Computer Architecture.”</span> <em>IEEE Computer Architecture Letters</em>, ahead of print. <a href="https://doi.org/10.1109/LCA.2025.3541961">https://doi.org/10.1109/LCA.2025.3541961</a>.
+</div><div id="ref-PrakashEtAl2025QuArchReasoning" class="csl-entry" role="listitem">
+<span class="nocase">Prakash, Shvetank et al.</span> 2025a. <em><span>QuArch</span>: A Benchmark for Evaluating <span>LLM</span> Reasoning in Computer Architecture</em>. <a href="https://arxiv.org/abs/2510.22087">https://arxiv.org/abs/2510.22087</a>.
+</div><div id="ref-ChaiEtAl2022CircuitNet" class="csl-entry" role="listitem">
+Chai, Zhuomin, Yuxiang Zhao, Yibo Lin, Wei Liu, Runsheng Wang, and Ru Huang. 2022. <span>“<span>CircuitNet</span>: An Open-Source Dataset for Machine Learning Applications in Electronic Design Automation (<span>EDA</span>).”</span> <em>Science China Information Sciences</em>, ahead of print. <a href="https://doi.org/10.1007/s11432-022-3571-8">https://doi.org/10.1007/s11432-022-3571-8</a>.
+</div><div id="ref-WangEtAl2025ChiPBench" class="csl-entry" role="listitem">
+<span class="nocase">Wang, Zhihai et al.</span> 2025. <span>“Benchmarking End-to-End Performance of <span>AI</span>-Based Chip Placement Algorithms.”</span> <em>Advances in Neural Information Processing Systems (NeurIPS)</em>. <a href="https://arxiv.org/abs/2407.15026">https://arxiv.org/abs/2407.15026</a>.
+</div></div><p>The missing pieces are just as important. Architecture work rarely preserves negative traces: failed runs, rejected candidates, invalid configurations, stale benchmarks, bad proxies, tool errors, and ideas that were ruled out by expert judgment. Yet these traces are exactly what an AI-assisted design loop needs to learn from the field’s failures rather than rediscover them. A community that records only successful artifacts gives future systems a distorted view of architecture practice.</p>
+<p>Community infrastructure should also respect privacy and IP boundaries. The goal is not to force every organization to publish internal traces. The goal is to build schemas, examples, synthetic tasks, open benchmarks, redacted records, and review artifacts that make credible loop design discussable. That is how Architecture 2.0 can become a research area rather than a set of private demos.</p>
+</section>
+<section id="open-research-questions" class="level2" data-number="10.7">
+<h2 data-number="10.7" class="anchored" data-anchor-id="open-research-questions"><span class="header-section-number">10.7</span> Open Research Questions</h2>
+<p>Building this shared infrastructure and navigating the transition to AI-assisted architecture introduces several unsettled research directions within the Architecture 2.0 ontology. For architect-owned work, the community must answer the following:</p>
+<ol type="1">
+<li><p><strong>How do we mathematically verify redacted loop integrity in competitive, federated ecosystems?</strong> Building on the public evidence ledger (<a href="#tbl-public-evidence-ledger" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-public-evidence-ledger</span></a>), future research must explore cryptographic guarantees—such as zero-knowledge proofs—to verify that an automated optimizer’s reported constraints, proxy simulations, and evidence ladder are authentic. This poses a thesis-level systems challenge: enforcing rigorous loop integrity and escalation protocols across organizational boundaries without leaking proprietary physical design IP or violating the redaction and comparison gate.</p></li>
+<li><p><strong>Can we construct predictive architecture foundation models entirely from federated negative traces?</strong> While this chapter (<a href="#sec-what-architect-owns" class="quarto-xref"><span class="quarto-unresolved-ref">sec-what-architect-owns</span></a>) argues for treating rejected alternatives as first-class evidence, learning from design failure at a discipline-wide scale remains unsolved. The open challenge is to formulate novel representation learning techniques capable of ingesting a shared, cross-organizational corpus of negative traces. This would enable an AI-assisted design loop to zero-shot anticipate complex physical integration faults in novel domains, effectively turning aggregated industry failures into a generalized architectural world model.</p></li>
+<li><p><strong>How can environments dynamically synthesize context-aware evidence gates under profound uncertainty?</strong> Expanding on the escalation rules and review artifacts (<a href="#tbl-architect-owned-artifacts" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-architect-owned-artifacts</span></a>), future autonomous systems must transcend static heuristics. A major research frontier is architecting environments that automatically generate, calibrate, and enforce dynamic rejection thresholds when a method encounters out-of-distribution workloads or unmodeled technology nodes. This requires deep advances in uncertainty quantification to proactively trigger human stop authority long before a catastrophic deployment commitment is made.</p></li>
+<li><p><strong>How do we preserve continuous human accountability across asynchronous, multi-agent drift?</strong> As formalized in the long-horizon challenge tasks (<a href="#tbl-long-horizon-challenges" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-long-horizon-challenges</span></a>), architecture decisions rapidly age as workloads, compilers, and surrogate models evolve. It is a fundamental open question how to cryptographically and organizationally re-verify the “named human owner” across continuous, asynchronous drift events when the original decision maker is unavailable. Addressing this necessitates entirely new frameworks for long-term algorithmic liability that keep multi-agent loops anchored to explicit human commitment boundaries.</p></li>
+</ol>
+</section>
+<section id="long-horizon-challenge-tasks" class="level2" data-number="10.8">
+<h2 data-number="10.8" class="anchored" data-anchor-id="long-horizon-challenge-tasks"><span class="header-section-number">10.8</span> Long-Horizon Challenge Tasks</h2>
+<p>To answer these open questions, the field needs realistic evaluations. Short demonstrations are useful for tool development, but they are too small to define the field. A model that writes a plausible RTL fragment, proposes a cache configuration, or summarizes a paper may be helpful without changing the architecture loop. The harder question is whether an AI-mediated system can participate in architecture work over the time scale on which architecture decisions actually mature: days, weeks, months, tool versions, workload updates, rejected alternatives, and design reviews.</p>
+<blockquote class="blockquote">
+<p><strong>Long-horizon architecture task.</strong> A long-horizon architecture task is a challenge in which a method or AI-assisted system must maintain design state across multiple steps, act through valid tools or interfaces, gather feedback at appropriate fidelities, preserve rejected alternatives, expose uncertainty, and support a human architectural commitment over an extended design interval.</p>
+</blockquote>
+<p><a href="#fig-long-horizon-task-timeline" class="quarto-xref">Figure&nbsp;<span class="quarto-unresolved-ref">fig-long-horizon-task-timeline</span></a> shows the target shape. The task is long horizon because the state, actions, evidence, rejections, and human commitment have to survive across revisions, not because the prompt is longer.</p>
+<div id="fig-long-horizon-task-timeline" class="quarto-float quarto-figure quarto-figure-center anchored" alt="Timeline diagram showing a task slice, state memory, valid action, feedback, reject or repair step, and human commitment connected across a persistent loop record.">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-long-horizon-task-timeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<a href="images/F11b-long-horizon-task-timeline.svg" class="lightbox" data-gallery="quarto-lightbox-gallery-4" title="Figure&nbsp;10.4: Long-horizon architecture tasks test the loop across time: A credible challenge preserves design state, acts through valid interfaces, gathers feedback at appropriate fidelity, records rejection or repair, and leaves a human able to accept, reject, or escalate the next commitment."><img src="images/F11b-long-horizon-task-timeline.svg" class="img-fluid figure-img" style="width:100.0%" alt="Timeline diagram showing a task slice, state memory, valid action, feedback, reject or repair step, and human commitment connected across a persistent loop record."></a>
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-long-horizon-task-timeline-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;10.4: <strong>Long-horizon architecture tasks test the loop across time:</strong> A credible challenge preserves design state, acts through valid interfaces, gathers feedback at appropriate fidelity, records rejection or repair, and leaves a human able to accept, reject, or escalate the next commitment.
+</figcaption>
+</figure>
+</div>
+<p>This framing changes what the community should ask for. The canonical challenge is not prompt-to-chip. It is prompt-to-loop: can a system preserve enough state, evidence, and rejection history that an architect can trust the next commitment? <a href="#tbl-long-horizon-challenges" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-long-horizon-challenges</span></a> sketches a starting set of tasks. The success criterion is whether the loop leaves a named human able to accept, reject, or escalate that next commitment. Each row names the paper object: a corpus or task source, the loop representation or environment to build, the evidence and rejection gate to test, and the commitment boundary the task may authorize.</p>
+<div id="tbl-long-horizon-challenges" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[15,21,22,23,19]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-long-horizon-challenges-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.4: <strong>Long-horizon challenges should test architecture loops, not single prompts:</strong> The field needs tasks that reward memory, valid action, feedback, rejection, evidence, and architect-owned commitment across time.
+</figcaption>
+<div aria-describedby="tbl-long-horizon-challenges-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 21%">
+<col style="width: 22%">
+<col style="width: 23%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Challenge task</th>
+<th>Corpus or task source</th>
+<th>Representation / environment</th>
+<th>Evidence and rejection gate</th>
+<th>Commitment boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Design-loop memory</td>
+<td>Multi-step DSE traces, notebooks, and review decisions.</td>
+<td>Replayable candidate records with assumptions, tool outputs, failures, decisions, and timestamps.</td>
+<td>Reviewer reconstructs why each candidate advanced, changed, or was rejected.</td>
+<td>Supports the next exploration decision, not implementation readiness.</td>
+</tr>
+<tr class="even">
+<td>Workload drift tracking</td>
+<td>Benchmark or trace-family versions plus affected conclusions.</td>
+<td>Workload-version monitor with coverage, stale assumptions, and revalidation actions.</td>
+<td>Drift detector weakens or invalidates claims whose workload support changed.</td>
+<td>Maintains or withdraws a bounded workload claim.</td>
+</tr>
+<tr class="odd">
+<td>Evidence-aware generation</td>
+<td>Candidate proposals paired with predicted benefit and feedback costs.</td>
+<td>Generator constrained by an evidence-gate policy and escalation rule.</td>
+<td>Cheapest independent rejection test catches unsupported proposals before expensive checks.</td>
+<td>Suggests next evidence to spend, not final design commitment.</td>
+</tr>
+<tr class="even">
+<td>Paper-to-loop reproduction</td>
+<td>Published claims, missing artifacts, assumed settings, and negative traces.</td>
+<td>Paper-to-loop reproduction packet with task, environment, evidence, and falsification needs.</td>
+<td>Independent reviewer states what would reproduce, weaken, or refute the claim.</td>
+<td>Makes the paper auditable, not automatically reproducible.</td>
+</tr>
+<tr class="odd">
+<td>Simulator trust calibration</td>
+<td>Proxy and higher-fidelity runs across workload slices and tool versions.</td>
+<td>Proxy-calibration record with support region, observed errors, and invalidation cases.</td>
+<td>Escalation gate rejects proxy wins outside calibrated support.</td>
+<td>Authorizes proxy screening inside the support region only.</td>
+</tr>
+<tr class="even">
+<td>Cross-stack co-design</td>
+<td>Workload, compiler, mapping, memory, accelerator, runtime, and deployment changes.</td>
+<td>Co-design card with layer owners, interface contracts, and changed assumptions.</td>
+<td>Interface and system-objective gates reject local wins that break another layer.</td>
+<td>Supports a bounded cross-layer claim with named owners.</td>
+</tr>
+<tr class="odd">
+<td>Negative-trace corpus</td>
+<td>Failed mappings, invalid RTL, bad floorplans, stale benchmarks, and misleading proxy wins.</td>
+<td>Redacted failure corpus with trigger, evidence, rejected fix, redaction boundary, and reusable lesson.</td>
+<td>Reuse test shows whether a new loop avoids or reopens the old failure correctly.</td>
+<td>Treats rejected alternatives as evidence, not universal design rules.</td>
+</tr>
+<tr class="even">
+<td>Design-review assistant</td>
+<td>Design-review notes, risks, missing evidence, sensitivity checks, and rejected alternatives.</td>
+<td>Review packet organized by design-loop card fields and human decision owner.</td>
+<td>Human veto and evidence-gap checks reject unsupported recommendations.</td>
+<td>Improves review judgment without owning the commitment.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>These challenges also give Architecture 2.0 a way to remain architecture centric. A generic AI benchmark can reward answer fluency. A long-horizon architecture challenge should reward state, interfaces, feedback economics, evidence quality, and rejection. That is where the computer architecture community has something specific to contribute.</p>
+</section>
+<section id="from-capability-to-standard" class="level2" data-number="10.9">
+<h2 data-number="10.9" class="anchored" data-anchor-id="from-capability-to-standard"><span class="header-section-number">10.9</span> From Capability to Standard</h2>
+<p>Building those capabilities is one thing; turning one into a shared field standard is another, and that path is gradual. The standard is not a governance process for its own sake; it is a shared loop contract. Automated systems need comparable action spaces, feedback contracts, workload/data boundaries, rejection logs, leakage controls, and named human commitment owners so that a claim can be inspected across labs without pretending every lab uses the same tools.</p>
+<p>That progression should not be rushed. Premature standardization can freeze weak tasks, reward narrow metrics, and encourage benchmark gaming. But the opposite failure is also real. If every project defines its own task, wrapper, metric, and evidence standard, the field cannot accumulate knowledge. The right target is not a single universal benchmark. It is a family of interfaces, cards, tasks, and evidence conventions that make claims comparable without pretending all architecture work is the same.</p>
+<p>A credible standard should make six things visible: the task/workload state, the legal actions and observations, the versioned tools/models/data, the evidence and rejected alternatives, the leakage/redaction boundary, and the accountable human or gate that can stop or accept a commitment.</p>
+<p>Architecture 2.0 will likely mature unevenly. Fast software loops may standardize earlier than RTL and physical-design loops. Workload and benchmark loops may become more public than industrial signoff loops. That unevenness is acceptable. What matters is that the field learns how to name the loop and state its evidence burden.</p>
+<p>Different communities can start at different leverage points. <a href="#tbl-role-agenda" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-role-agenda</span></a> states the first useful artifact each group can contribute without waiting for a complete field standard.</p>
+<div id="tbl-role-agenda" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[18,28,30,24]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-role-agenda-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.5: <strong>Architecture 2.0 needs role-specific starting points:</strong> The field can mature through small artifacts that make loops reviewable before any single benchmark becomes canonical.
+</figcaption>
+<div aria-describedby="tbl-role-agenda-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 28%">
+<col style="width: 30%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Community</th>
+<th>First useful artifact</th>
+<th>Evidence or rejection obligation</th>
+<th>First shared task</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Practicing architects</td>
+<td>A design-loop card attached to a design review or DSE report.</td>
+<td>Name the workload, exposed design space, evidence stages, rejected alternatives, and decision owner.</td>
+<td>Compare two candidate loops for the same design question.</td>
+</tr>
+<tr class="even">
+<td>ML researchers</td>
+<td>A method report that states action space, observation space, training data, leakage risks, and failure cases.</td>
+<td>Show what the method can reject, not only what it can generate.</td>
+<td>Reproduce or stress-test an architecture claim with explicit missing evidence.</td>
+</tr>
+<tr class="odd">
+<td>EDA and tool researchers</td>
+<td>An environment contract for a simulator, compiler, or physical-design flow.</td>
+<td>State legal actions, feedback latency, fidelity limits, provenance, and invalid actions.</td>
+<td>Build a benchmark where proxy wins must survive a stronger tool check.</td>
+</tr>
+<tr class="even">
+<td>Systems researchers</td>
+<td>A workload and deployment evidence ledger.</td>
+<td>Track software stack, runtime policy, operating point, and drift.</td>
+<td>Show when a local optimization stops supporting the end-to-end claim.</td>
+</tr>
+<tr class="odd">
+<td>Authors and reviewers</td>
+<td>An Architecture Claim Card attached to a paper claim.</td>
+<td>Separate generated candidates from supported decisions.</td>
+<td>Convert a result into task, representation, environment, method role, evidence, rejection, and commitment fields.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>For a team that wants to start immediately, the minimum useful target is one credible loop packet, not a process program. <a href="#tbl-minimum-credible-loop-packet" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-minimum-credible-loop-packet</span></a> turns the field agenda into three artifacts a reviewer can inspect.</p>
+<div id="tbl-minimum-credible-loop-packet" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[20,42,28]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-minimum-credible-loop-packet-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.6: <strong>Architecture 2.0 adoption starts with one credible loop packet:</strong> The first goal is a repeatable artifact that makes one architecture decision easier to inspect, reject, and improve.
+</figcaption>
+<div aria-describedby="tbl-minimum-credible-loop-packet-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 42%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Packet component</th>
+<th>What to attach</th>
+<th>Evidence that it worked</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Claim packet</td>
+<td>A design-loop card for one active design review, DSE result, or paper discussion.</td>
+<td>The team can name the task, exposed design space, evidence, rejected alternatives, commitment boundary, and decision owner.</td>
+</tr>
+<tr class="even">
+<td>Environment packet</td>
+<td>One tool path wrapped as an environment contract with logged runs and invalid-action records.</td>
+<td>A second person can replay or audit at least one successful run and one failed run.</td>
+</tr>
+<tr class="odd">
+<td>Evidence packet</td>
+<td>One shared evidence ledger or negative-trace format for a recurring architecture decision.</td>
+<td>Future reviews reuse prior failures instead of rediscovering them, and claims state their commitment level.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+</section>
+<section id="loop-invariants-as-review-checks" class="level2" data-number="10.10">
+<h2 data-number="10.10" class="anchored" data-anchor-id="loop-invariants-as-review-checks"><span class="header-section-number">10.10</span> Loop Invariants as Review Checks</h2>
+<p>Just as classic computer architecture relied on rigorous quantitative metrics to evaluate artifacts, Architecture 2.0 relies on the verifiable loop. A first packet is where adoption starts; the design principles are how any loop, including that packet, gets quantitatively and qualitatively checked. Each chapter has contributed one such principle, and together they test whether an AI-mediated loop has represented workloads and state, bounded its actions, preserved provenance, gathered evidence, rejected candidates, and assigned ownership. They are more useful than a list of fashionable tools because they give reviewers, authors, and builders a stable way to inspect new work. <a href="#tbl-architecture-20-design-principles" class="quarto-xref">Table&nbsp;<span class="quarto-unresolved-ref">tbl-architecture-20-design-principles</span></a> collects those principles as review checks and pairs each one with the design challenge it leaves behind.</p>
+<div id="tbl-architecture-20-design-principles" class="quarto-float quarto-figure quarto-figure-center anchored" data-tbl-colwidths="[24,20,46]">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-architecture-20-design-principles-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;10.7: <strong>Architecture 2.0 design principles are review checks:</strong> Each principle asks whether the loop has made enough of the architecture problem explicit for another architect to inspect, reject, reproduce, or extend it.
+</figcaption>
+<div aria-describedby="tbl-architecture-20-design-principles-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<table class="caption-top table">
+<colgroup>
+<col style="width: 24%">
+<col style="width: 20%">
+<col style="width: 46%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Principle</th>
+<th>Where it comes from</th>
+<th>Design challenge to keep in mind</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Design the loop, not only the artifact.</td>
+<td><a href="#sec-moonshot" class="quarto-xref"><span class="quarto-unresolved-ref">sec-moonshot</span></a></td>
+<td>A prompt or generated artifact is not enough; the loop must expose state, action, feedback, rejection, and decision.</td>
+</tr>
+<tr class="even">
+<td>Treat feedback as the bottleneck.</td>
+<td><a href="#sec-design-loop-no-longer-scales" class="quarto-xref"><span class="quarto-unresolved-ref">sec-design-loop-no-longer-scales</span></a></td>
+<td>More candidates do not help if the loop cannot evaluate, reject, and justify them.</td>
+</tr>
+<tr class="odd">
+<td>State the claim as a review object.</td>
+<td><a href="#sec-architecture-20-ontology" class="quarto-xref"><span class="quarto-unresolved-ref">sec-architecture-20-ontology</span></a></td>
+<td>A result should name workload, baseline, design space, objective, constraints, evidence, rejection rule, and decision owner.</td>
+</tr>
+<tr class="even">
+<td>Make architecture work legible.</td>
+<td><a href="#sec-data-representations-world-models" class="quarto-xref"><span class="quarto-unresolved-ref">sec-data-representations-world-models</span></a></td>
+<td>Data must include provenance, assumptions, costs, failures, and negative traces, not only successful endpoints.</td>
+</tr>
+<tr class="odd">
+<td>Turn tools into environments.</td>
+<td><a href="#sec-architecture-environments-tool-interfaces" class="quarto-xref"><span class="quarto-unresolved-ref">sec-architecture-environments-tool-interfaces</span></a></td>
+<td>A wrapper is credible only when it defines legal actions, observations, costs, invalid states, and rejection paths.</td>
+</tr>
+<tr class="even">
+<td>Match methods to roles.</td>
+<td><a href="#sec-methods-generation-prediction-optimization" class="quarto-xref"><span class="quarto-unresolved-ref">sec-methods-generation-prediction-optimization</span></a></td>
+<td>A method should be chosen for the loop bottleneck it relieves, not for its reputation.</td>
+</tr>
+<tr class="odd">
+<td>Escalate with commitment.</td>
+<td><a href="#sec-feedback-verification-trust" class="quarto-xref"><span class="quarto-unresolved-ref">sec-feedback-verification-trust</span></a></td>
+<td>Evidence requirements should rise with rollback cost, blast radius, and independence of rejection authority.</td>
+</tr>
+<tr class="even">
+<td>Stop at an honest evidence level.</td>
+<td><a href="#sec-running-the-loop" class="quarto-xref"><span class="quarto-unresolved-ref">sec-running-the-loop</span></a></td>
+<td>A loop should report what its evidence supports, what it rejected, and what would overturn the decision.</td>
+</tr>
+<tr class="odd">
+<td>The loop is rejection-bound, not generation-bound.</td>
+<td><a href="#sec-loop-patterns-across-stack" class="quarto-xref"><span class="quarto-unresolved-ref">sec-loop-patterns-across-stack</span></a></td>
+<td>Fast software loops, co-design loops, systems loops, and silicon-facing loops scale only as far as their cheap independent rejectors.</td>
+</tr>
+<tr class="even">
+<td>Keep a human accountable.</td>
+<td><a href="#sec-what-architect-owns" class="quarto-xref"><span class="quarto-unresolved-ref">sec-what-architect-owns</span></a></td>
+<td>A named owner must explain what was accepted, rejected, waived, and what would force revision.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</figure>
+</div>
+<p>These principles are deliberately phrased as checks, not slogans. A reader reviewing a paper can ask which principle is visible and which is missing. A researcher building a tool can ask which principle the tool makes easier to practice. A program committee, artifact committee, or internal review group can apply the same checks to a new paper, environment, or design-review packet.</p>
+<p>These principles also change what counts as a mature research contribution. When the architect’s work moves toward setting evidence standards, exercising rejection authority, and judging what to trust under automation, papers should make those obligations inspectable rather than treating them as process details outside the contribution.</p>
+</section>
+<section id="beyond-the-current-loop" class="level2 page-columns page-full" data-number="10.11">
+<h2 data-number="10.11" class="anchored" data-anchor-id="beyond-the-current-loop"><span class="header-section-number">10.11</span> Beyond the Current Loop</h2>
+<p>Mastering those review skills is what carries an architect past the current loop, and the horizon beyond this book is not another autonomy level. It is the moment when loops begin to improve their own representations, propose new tasks, repair tool interfaces, organize negative traces, and recalibrate evidence standards. That possibility is powerful, but it does not change the core obligation. A loop that can adapt can also adapt toward benchmark gaming, hidden failures, tool overfitting, or biased traces.</p>
+<p>This matters most because the design target no longer holds still. When software is continuously regenerated and retrained, as <a href="#sec-design-loop-no-longer-scales" class="quarto-xref"><span class="quarto-unresolved-ref">sec-design-loop-no-longer-scales</span></a> argued and <a href="#sec-loop-patterns-across-stack" class="quarto-xref"><span class="quarto-unresolved-ref">sec-loop-patterns-across-stack</span></a> showed at fleet scale, a specific artifact ages as the workload it served moves on. The artifact remains the thing committed at a point in time; the loop is the durable discipline for deciding whether that commitment is still supported. What remains stable is how intent is bounded, evidence is demanded, candidates are rejected, and commitment is decided as the target moves.</p>
+<p>The durable way to read emerging design assistants is therefore not by their feature lists, which will change, but by the partition of design autonomy: which decisions a human still makes, which decisions the loop may make within stated bounds, and which decisions the loop is never allowed to make alone <span class="citation" data-cites="ReddiYazdanbakhsh2025Architecture20">(<a href="#ref-ReddiYazdanbakhsh2025Architecture20" role="doc-biblioref">Janapa Reddi and Yazdanbakhsh 2025</a>)</span>. That partition, not the autonomy label, is what the architect must keep designing.</p>
+<div class="no-row-height column-margin column-container"><div id="ref-ReddiYazdanbakhsh2025Architecture20" class="csl-entry" role="listitem">
+Janapa Reddi, Vijay, and Amir Yazdanbakhsh. 2025. <span>“Architecture 2.0: Foundations of Artificial Intelligence Agents for Modern Computer System Design.”</span> <em>Computer</em> 58 (2): 116–24. <a href="https://doi.org/10.1109/MC.2024.3521641">https://doi.org/10.1109/MC.2024.3521641</a>.
+</div></div></section>
+<section id="the-architects-standing-obligation" class="level2" data-number="10.12">
+<h2 data-number="10.12" class="anchored" data-anchor-id="the-architects-standing-obligation"><span class="header-section-number">10.12</span> The Architect’s Standing Obligation</h2>
+<p>Designing that partition does not require a new instrument, because the operational checklist already exists. The trust checklist in <a href="#sec-feedback-verification-trust" class="quarto-xref"><span class="quarto-unresolved-ref">sec-feedback-verification-trust</span></a> and the design-loop card and rubric in <a href="#sec-appendix-b-design-loop-card" class="quarto-xref"><span class="quarto-unresolved-ref">sec-appendix-b-design-loop-card</span></a> give it for a single claim and for a whole project, and this chapter does not reprint them. The closing point is narrower and harder to delegate: accountability. Every field on that card ultimately resolves to a person who answers for the commitment. The card makes the loop visible; the architect decides what the visible loop is allowed to do, and owns the consequences when it is wrong.</p>
+<p>That bar is intentionally modest. It does not claim that every Architecture 2.0 project must solve every problem in the field. It asks for something more basic and more durable: make the loop visible, then keep a human accountable for it. Once the loop is visible, the community can critique it, improve it, compare it, reproduce it, and build on it.</p>
+<p>That is the promise of Architecture 2.0. The field does not need to wait for a single model that designs a computer from a sentence. It can start by changing the unit of architectural practice: from isolated artifacts to represented, instrumented, evidence-bearing design loops. The architect still owns the judgment. The opportunity is to build loops worthy of that judgment.</p>
+<div id="pri-human-accountable" class="callout fbx-wrapper callout-design-principle" title="Keep a human accountable">
+<p></p><details class="callout-design-principle fbx-simplebox fbx-default" open=""><summary><strong>Design principle: Keep a human accountable</strong></summary><div>Every commitment needs a named human owner. The loop can make intent, abstraction, evidence standards, rejection authority, and risk inspectable, but a person must still be able to explain what was accepted, what was rejected, what was waived, and what would force revision.<p></p>
+</div></details>
+</div>
+<p>This obligation to maintain a visible, accountable loop defines the agenda for the field as we transition to Architecture 2.0.</p>
+<div id="callout-carry-forward*-9" class="callout fbx-wrapper callout-carry-forward">
+<details class="callout-carry-forward fbx-simplebox fbx-default" open=""><summary><strong>What to carry forward</strong></summary><div>
+<ul>
+<li><strong>Public agenda:</strong> Build evidence ledgers, long-horizon loop challenges, environment contracts, design-loop cards, and negative-trace corpora that let the field compare loops rather than admire isolated demos.</li>
+<li><strong>Reader test:</strong> If the loop is wrong, who can explain what happened, what should have rejected it, and who accepted the commitment?</li>
+<li><strong>Standing obligation:</strong> Make the loop visible enough that the community can critique, compare, reproduce, and improve it.</li>
+</ul>
+</div></details>
+</div>
+</section>
+<section id="final-thoughts-engineering-discipline-in-a-fast-moving-field" class="level2" data-number="10.13">
+<h2 data-number="10.13" class="anchored" data-anchor-id="final-thoughts-engineering-discipline-in-a-fast-moving-field"><span class="header-section-number">10.13</span> Final Thoughts: Engineering Discipline in a Fast-Moving Field</h2>
+<p>When this book opened with the lighthouse prompt—asking a generative method to generate an entire XR subsystem from a text description—it may have sounded like a prediction that the human architect’s job was ending. The framework developed across these chapters argues the exact opposite.</p>
+<p>The tools, models, and automated systems driving this shift are changing at breakneck speed, and any catalog of today’s capabilities will quickly become obsolete. Because this transition is a massive work in progress, the one durable anchor is engineering discipline. We are crossing the threshold from <em>artifact scarcity</em> to <em>commitment scarcity</em>. When generating a plausible accelerator or floorplan becomes fast and cheap, the bottleneck shifts to the loop that produced it.</p>
+<p>Architecture 2.0 is not about trusting machines more. It is about building loops that earn our trust. The AI-assisted system can generate, predict, and optimize, but only the human architect can accept the risk and sign their name to the final commitment. The task ahead is not to wait for an AI that can design a computer from a single sentence. It is to enforce the engineering discipline, the evidence standards, and the rejection boundaries that make those AI-assisted claims credible. The loop is now the architecture.</p>
+
+
+</section>
+<section id="bibliography" class="level1 unnumbered">
+<h1 class="unnumbered">Notes</h1>
+
+</section>
+
+</main> <!-- /main -->
+<script>
+function arch2EnhanceTitleBlock() {
+  if (/\/(chapters|appendices)\//.test(window.location.pathname)) {
+    document.body.classList.add("arch2-content-page");
+    document.querySelectorAll(".quarto-title-meta, .quarto-title-meta-author").forEach(function (meta) {
+      meta.hidden = true;
+    });
+  } else {
+    document.body.classList.add("arch2-front-page");
+    var titleBlock = document.querySelector("#title-block-header");
+    if (titleBlock && !titleBlock.querySelector(".arch2-preview-meta")) {
+      var preview = document.createElement("div");
+      preview.className = "arch2-preview-meta";
+      preview.innerHTML = [
+        '<span>Preview v0.2.0</span>',
+        '<span>July 1, 2026</span>',
+        '<a class="arch2-download-pdf" href="Architecture-2.0.pdf" aria-label="Download Architecture 2.0 PDF">',
+        '<i class="bi bi-file-pdf" aria-hidden="true"></i>',
+        '<span>Download PDF</span>',
+        '</a>'
+      ].join("");
+      var description = titleBlock.querySelector(".description");
+      if (description) {
+        description.insertAdjacentElement("afterend", preview);
+      } else {
+        titleBlock.appendChild(preview);
+      }
+    }
+    document.querySelectorAll(".quarto-title-meta").forEach(function (meta) {
+      meta.hidden = true;
+    });
+  }
+
+  document.querySelectorAll(".quarto-title-meta-contents p.author").forEach(function (author) {
+    if (author.querySelector("a")) {
+      return;
+    }
+    var name = author.textContent.trim();
+    if (name !== "Vijay Janapa Reddi") {
+      return;
+    }
+    var link = document.createElement("a");
+    link.href = "https://vijay.seas.harvard.edu";
+    link.textContent = name;
+    author.textContent = "";
+    author.appendChild(link);
+  });
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", arch2EnhanceTitleBlock);
+} else {
+  arch2EnhanceTitleBlock();
+}
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../../chapters/09-loop-patterns-across-stack/index.html" class="pagination-link" aria-label="Loop Patterns Across the Stack">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">9</span>&nbsp; <span class="chapter-title">Loop Patterns Across the Stack</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../../appendices/appendix-a-bootstrapping/index.html" class="pagination-link" aria-label="Bootstrapping an Architecture 2.0 Loop">
+        <span class="nav-page-text"><span class="chapter-number">A</span>&nbsp; <span class="chapter-title">Bootstrapping an Architecture 2.0 Loop</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>Architecture 2.0 preview</p>
+</div>   
+    <div class="nav-footer-center">
+<p>Part of the <a href="https://mlsysbook.ai">mlsysbook.ai</a> family</p>
+</div>
+    <div class="nav-footer-right">
+<p>Preview v0.2.0</p>
+</div>
+  </div>
+</footer>
+<script>var lightboxQuarto = GLightbox({"closeEffect":"fade","descPosition":"bottom","loop":true,"openEffect":"fade","selector":".lightbox","skin":"arch2-lightbox"});
+(function() {
+  let previousOnload = window.onload;
+  window.onload = () => {
+    if (previousOnload) {
+      previousOnload();
+    }
+    lightboxQuarto.on('slide_before_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      const href = trigger.getAttribute('href');
+      if (href !== null) {
+        const imgEl = window.document.querySelector(`a[href="${href}"] img`);
+        if (imgEl !== null) {
+          const srcAttr = imgEl.getAttribute("src");
+          if (srcAttr && srcAttr.startsWith("data:")) {
+            slideConfig.href = srcAttr;
+          }
+        }
+      } 
+    });
+  
+    lightboxQuarto.on('slide_after_load', (data) => {
+      const { slideIndex, slideNode, slideConfig, player, trigger } = data;
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(slideNode);
+      }
+    });
+  
+  };
+  
+})();
+          </script>
+
+
+
+
+<script src="../../site_libs/quarto-html/zenscroll-min.js"></script>
+</body></html>
