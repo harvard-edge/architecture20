@@ -92,37 +92,9 @@ prompt, generator version, candidate IDs, invalid candidates, and selection
 rule as part of the receipt.
 
 Regardless of how candidates are generated, a proxy result is low-fidelity feedback that becomes evidence only for the
-narrow action of deciding what to escalate. Crucially, generative methods are notorious for proposing "spaghetti logic"—RTL that simulates cleanly but contains massive combinational depth. While high-level trade-offs like power and area act like a continuous waterbed, physical routing congestion acts like a cliff. At high placement utilization, detours explode and the design catastrophically fails timing and design rule checks (DRCs).
-
-To catch this early, the loop must shift-left its physical constraints by deploying a **Physical Fidelity Ladder**:
-1. **Rung 1 (Seconds) — Structural Proxies:** Abstract syntax tree (AST) level checks for combinational depth and maximum fan-out.
-2. **Rung 2 (Minutes) — Fast Logical Synthesis:** Zero-wireload mapping to check gate count and idealized timing.
-3. **Rung 3 (Hours) — Predictive Placement:** Floorplan-aware congestion maps and early IR-drop estimation.
-4. **Rung 4 (Days) — Full Sign-off:** Final routing, extraction, and DRC layout versus schematic (LVS).
-
-An AI agent must earn the right to launch a multi-hour EDA synthesis run (Rung 3) by first passing the mathematical proofs of Rung 1. 
-
-```python
-def early_physical_rejection_gate(rtl_candidate, target_freq, pdk_proxy):
-    """
-    Rung 1 Commitment Gate: Rejects un-implementable RTL in milliseconds 
-    before authorizing a costly EDA synthesis run.
-    """
-    ast = parse_rtl(rtl_candidate)
-    
-    # The Timing Cliff: Combinational Depth Check
-    max_depth = get_max_combinational_levels(ast)
-    if max_depth > pdk_proxy.max_levels_for(target_freq):
-        return Reject(
-            reason=f"Fails timing proxy: Logic depth {max_depth} exceeds PDK limit.",
-            action="Insert pipeline registers or re-architect datapath."
-        )
-    return AuthorizeHigherCommitmentRung()
-```
-
-The proxy is not evidence for an implementation commitment until stronger feedback confirms the gate. Proxy
+narrow action of deciding what to escalate. The proxy is not evidence for an implementation commitment until stronger feedback confirms the gate. Proxy
 deadline or power concerns are warnings until stronger feedback confirms them.
-The AI-assisted loop records the proxy ranking and escalates. *The loop escalated because proxy uncertainty crossed the threshold for physical commit: it lacks the evidence to support the claim, and therefore lacks the authority to record alternatives rejected on physical constraints.*
+The AI-assisted loop records the proxy ranking and escalates. *The loop escalated because it lacks the evidence to support a claim, and therefore lacks the authority to reject alternatives on performance or power constraints.*
 
 ::: {.callout-architect-checkpoint title="The Escalation Gate"}
 The automation's role: Rank candidates using the cheap proxy to prioritize the search space.
@@ -135,8 +107,7 @@ To advance beyond the proxy's blind spots, an illustrative **simulation-stage es
 *traffic*. The exact tool is not the lesson. This stage is a stronger environment
 contract: it prices *data movement*, returns latency, energy, and power
 observations with provenance and cost, and has authority to overturn proxy
-rankings before commitment. Its power column is frame energy divided by the frame time, an average-power check against the 3\ W envelope. (Note that average power itself is merely a higher-level proxy; a true rejection gate must eventually include thermal transients, as chips melt from peak power, not average power.) For highly regular spatial accelerators, analytical models like Timeloop are not just cheap proxies; they provide high-fidelity evidence for data movement energy, bridged to architecture-level component estimates via plugins like Accelergy. However, they are *not* physical signoff tools—they cannot capture routing congestion, IR drop, or true timing closure, which is where the physical limits of a 3 nm node will actually bite. Furthermore, evaluating any spatial architecture requires finding an optimal dataflow mapping; the loop-nest mapping space is astronomically large, meaning the AI loop must explicitly handle mapping search as a massive, decoupled obligation from hardware generation itself. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
-Furthermore, this simulation-stage estimate must model the compiler. A candidate is only valid if the compiler can actually target it efficiently; hardware search is meaningless if the software stack cannot discover the data paths.
+rankings before commitment. Its power column is frame energy divided by the frame time, an average-power check against the 3\ W envelope. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
 
 It is
 slower and scarcer than the proxy. In this toy turn all three candidates are
@@ -439,21 +410,18 @@ bounded enough that a candidate can actually be rejected; when a cheap proxy and
 a stronger check disagree, which one has authority; and at what commitment level
 does the evidence actually let the loop stop?
 
-::: {.callout-research-question title="Open Research Questions"}
+::: {.callout-research-question title="Open Research Directions"}
 
 The worked example in this chapter demonstrates a bounded, rejectable turn, but automating this process at scale exposes several unsettled research directions within the Architecture 2.0 ontology. Resolving these challenges requires moving beyond manual intervention toward robust, data-driven automation.
 
-1. **How do we train models to learn an optimal escalation policy?**
-Future AI loops need learned policies to dynamically allocate fixed feedback budgets. Research must define the multi-fidelity training datasets and state schemas required for an autonomous system to decide when to advance, reject, or request stronger checks without exceeding honest commitment boundaries.
+First, future AI loops require learned policies to dynamically allocate fixed feedback budgets. Research must define the multi-fidelity training datasets and state schemas necessary for an autonomous system to decide when to advance, reject, or request stronger checks without exceeding honest commitment boundaries.
 
-2. **Can we predict proxy ranking reversals before they occur?**
-Methods are needed to identify when cheap proxies are actively misleading rather than waiting for a simulation stage to catch them. Research should explore training automated methods to proactively recognize architectural blind spots—such as hidden data movement or interface costs—before running expensive memory-aware verification.
+Second, methods are needed to identify when cheap proxies are actively misleading. Rather than waiting for a simulation stage to catch them, research should explore training automated methods to proactively recognize architectural blind spots—such as hidden data movement or interface costs—before running expensive memory-aware verification.
 
-3. **What is the mathematical structure of a zero-knowledge replay receipt?**
-Sharing evidence across organizational boundaries currently risks leaking proprietary workload and baseline data. We need privacy-preserving formulations of the replay receipt that allow external tools and reviewers to audit candidate lineage, fidelity, and rejection reasons without exposing the underlying IP.
+Third, sharing evidence across organizational boundaries currently risks leaking proprietary workload and baseline data. We need privacy-preserving formulations of the replay receipt that allow external tools and reviewers to audit candidate lineage, fidelity, and rejection reasons without exposing the underlying intellectual property.
 
-4. **How do we build a dynamic, context-aware negative trace corpus?**
-The mechanism for recording a failure on the power envelope leaves open how to safely reuse that failure in future loops. Future work must design protocols that differentiate "failed this slice" from "universally bad," allowing an automated optimizer to resuscitate stale rejections when constraints, workloads, or software stacks fundamentally change.
+Finally, the mechanism for recording a failure on the power envelope leaves open how to safely reuse that failure in future loops. Future work must design protocols that differentiate specific task failures from universally invalid designs, allowing an automated optimizer to resuscitate stale rejections when constraints, workloads, or software stacks change.
+:::
 
 ::: {.callout-carry-forward}
 - Reader test: Could another architect reconstruct why the surviving candidate
