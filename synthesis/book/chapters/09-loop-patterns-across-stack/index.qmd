@@ -289,11 +289,12 @@ sharing, and memory-attachment contract.
 
 Integration boundary. The method may still test a looser accelerator variant,
 but the loop environment must make the coupling assumption explicit so the optimizer cannot silently break integration contracts.
+::::
 
 ::: {.callout-architect-checkpoint title="The Cross-Layer Rejection Gate"}
 When an optimizer tunes a candidate architecture against a local proxy (like core area), the architect must enforce cross-layer boundaries. Does the loop environment automatically reject candidates that only win by silently pushing complexity into memory traffic, compiler support, verification, or SoC integration?
 :::
-::::
+
 
 Read as a loop card, the task is architecture search; the representation is
 candidate parameters, workload state, constraints, tool configurations, and
@@ -508,6 +509,35 @@ the LogCA-style model makes visible. Price the interface and the software path b
 a local speedup, and reject the AI's candidate until a compiler-generated,
 end-to-end measurement survives.
 :::
+
+### Progressive Lowering as the Architecture Loop
+
+Treating the compiler merely as a "rejection gate"—a static wall the hardware bounces against—is an Architecture 1.0 mindset. In an Architecture 2.0 loop, the compiler is not a wall; it is the co-design engine. If the AI loop is exploring a reconfigurable spatial array or a custom vector accelerator, the instruction set is not static. The AI must synthesize the hardware *and* the compiler pass to target it simultaneously. The software contract isn't a fixed boundary; it is a co-optimized variable.
+
+This process is **Progressive Lowering**. When the AI agent decides to add a custom compute unit, it does not just output Verilog. It outputs *Intermediate Representation (IR) dialects*. It generates the new software dialect, the lowering rules to map high-level math into it, and the hardware dialect (using frameworks like CIRCT or MLIR) that implements it in silicon. The rejection authority is no longer just a simulator failing dynamically; it is the MLIR verifier proving statically that the lowering from software IR to hardware IR is semantically invalid (see @lst-mlir-co-generation).
+
+```mlir {#lst-mlir-co-generation lst-cap="Co-generated HW and SW IR lowering in an Architecture 2.0 loop"}
+// Architecture 2.0 AI Loop Output: Co-generated HW and SW
+// The agent writes the MLIR dialect and the lowering strategy simultaneously.
+
+// 1. The AI defines the hardware intent using CIRCT (Hardware IR)
+hw.module @CustomXR_SystolicArray(in %clk: i1, in %act: tensor<16x16xf16>, out %res: tensor<16x16xf16>) {
+  // Agent-generated spatial architecture constraints
+  %area_est = hw.predict_area(...) 
+  // Loop rejects if %area_est > mobile_XR_budget
+}
+
+// 2. The AI simultaneously generates the compiler scheduling policy 
+// using MLIR Transform Dialect to map the XR workload to the new hardware
+transform.sequence failures(propagate) {
+^bb1(%arg1: !pdl.operation):
+  // Agent discovers tiling to 16x16 is optimal for the power envelope
+  %0, %loops:2 = transform.structured.tile %arg1 [16, 16] 
+  
+  // Agent generates the mapping rule to the custom hardware it just designed
+  transform.structured.map_to_custom_hw %0 { target = @CustomXR_SystolicArray }
+}
+```
 
 ## Co-Design Loops: Compute, Memory, Network, and Power
 
@@ -963,7 +993,7 @@ The loop patterns outlined in this chapter define operating regimes, but operati
 4. How do we formalize the expiration of architectural evidence across loop boundaries?
    As demonstrated by the co-evolution of hardware and software in @fig-hardware-software-coevolution, assumptions change rapidly. We need to define formal evidence-transfer protocols that can automatically invalidate architectural claims when a downstream dependency—like a compiler path or workload distribution—drifts, preventing AI-assisted systems from composing systems out of stale, incompatible proofs.
 
-::: {.callout-carry-forward title="What to carry forward"}
+::: {.callout-carry-forward}
 - Reader test: Which AI-assisted loop pattern are you in, and what cheap, independent
   check can actually reject the automated optimizer's result?
 - Next loop state: Once AI-assisted loop patterns can be compared, the next question is

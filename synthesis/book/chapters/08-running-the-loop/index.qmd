@@ -52,7 +52,7 @@ next evidence stage.
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, silicon, or carbon-footprint evidence. |
 
-: A worked loop starts by declaring its slice: The chapter exercises one small loop turn from the lighthouse prompt, while recording which obligations remain outside the current evidence boundary. {#tbl-active-lighthouse-slice tbl-colwidths="[24,66]"}
+: **A worked loop starts by declaring its slice:** The chapter exercises one small loop turn from the lighthouse prompt, while recording which obligations remain outside the current evidence boundary. {#tbl-active-lighthouse-slice tbl-colwidths="[24,66]"}
 
 ::: {.callout-learning-objectives}
 After this chapter you can turn a broad prompt into one bounded, rejectable AI-assisted loop
@@ -66,10 +66,9 @@ turn and read the receipt it leaves. That means you can:
 
 ## Round One: Generate and Screen on a Proxy
 
-The four rounds that follow are not four turns. They are the four beats of one
-turn: generate and screen, escalate, reject, and commit.
+The four rounds that follow are not four turns. As illustrated in @fig-loop-beat, they are the four beats of one turn: generate and screen, escalate, reject, and commit.
 
-![The AI-Assisted Architecture Loop: The four beats of a single design-loop turn. A generative method searches for candidates, a proxy screens them, stronger simulation tests the survivors against physical constraints, and the architect reviews the evidence to make a bounded commitment.](images/F8-loop-beat){#fig-loop-beat width="100%" fig-alt="Sequence diagram showing Generation/Search, Proxy Screen, Escalation to Simulation, Rejection, and Human Commitment."}
+![**The AI-Assisted Architecture Loop:** The four beats of a single design-loop turn. A generative method searches for candidates, a proxy screens them, stronger simulation tests the survivors against physical constraints, and the architect reviews the evidence to make a bounded commitment.](images/F8-loop-beat){#fig-loop-beat width="100%" fig-alt="Sequence diagram showing Generation/Search, Proxy Screen, Escalation to Simulation, Rejection, and Human Commitment."}
 
 The loop begins cheaply. A generative model or search method proposes the
 three organizations in a bounded candidate schema, and an **analytic proxy**, an
@@ -86,8 +85,35 @@ prompt, generator version, candidate IDs, invalid candidates, and selection
 rule as part of the receipt.
 
 Regardless of how candidates are generated, a proxy result is low-fidelity feedback that becomes evidence only for the
-narrow action of deciding what to escalate. It is not evidence for an
-implementation commitment until stronger feedback confirms the gate. Proxy
+narrow action of deciding what to escalate. Crucially, generative methods are notorious for proposing "spaghetti logic"—RTL that simulates cleanly but contains massive combinational depth. While high-level trade-offs like power and area act like a continuous waterbed, physical routing congestion acts like a cliff. At high placement utilization, detours explode and the design catastrophically fails timing and design rule checks (DRCs).
+
+To catch this early, the loop must shift-left its physical constraints by deploying a **Physical Fidelity Ladder**:
+1. **Rung 1 (Seconds) — Structural Proxies:** Abstract syntax tree (AST) level checks for combinational depth and maximum fan-out.
+2. **Rung 2 (Minutes) — Fast Logical Synthesis:** Zero-wireload mapping to check gate count and idealized timing.
+3. **Rung 3 (Hours) — Predictive Placement:** Floorplan-aware congestion maps and early IR-drop estimation.
+4. **Rung 4 (Days) — Full Sign-off:** Final routing, extraction, and DRC layout versus schematic (LVS).
+
+An AI agent must earn the right to launch a multi-hour EDA synthesis run (Rung 3) by first passing the mathematical proofs of Rung 1. 
+
+```python
+def early_physical_rejection_gate(rtl_candidate, target_freq, pdk_proxy):
+    """
+    Rung 1 Commitment Gate: Rejects un-implementable RTL in milliseconds 
+    before authorizing a costly EDA synthesis run.
+    """
+    ast = parse_rtl(rtl_candidate)
+    
+    # The Timing Cliff: Combinational Depth Check
+    max_depth = get_max_combinational_levels(ast)
+    if max_depth > pdk_proxy.max_levels_for(target_freq):
+        return Reject(
+            reason=f"Fails timing proxy: Logic depth {max_depth} exceeds PDK limit.",
+            action="Insert pipeline registers or re-architect datapath."
+        )
+    return AuthorizeHigherCommitmentRung()
+```
+
+The proxy is not evidence for an implementation commitment until stronger feedback confirms the gate. Proxy
 deadline or power concerns are warnings until stronger feedback confirms them.
 The AI-assisted loop records the proxy ranking and escalates.
 
@@ -154,7 +180,7 @@ for c in candidates:
     )
 lines.append("")
 lines.append(
-    ": One loop turning on the lighthouse prompt: the lowest-energy candidate "
+    ": **One loop turning on the lighthouse prompt:** the lowest-energy candidate "
     f"at proxy fidelity is the {proxy_pick.lower()}, but an illustrative simulation-stage estimate and the "
     f"{deadline_ms:.0f} ms / {power_budget_w:.0f} W gates reject it, and the {survivor.lower()} is the only "
     f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
@@ -179,7 +205,7 @@ rediscover it. @fig-proxy-mirage shows the reorder.
 ```{python}
 #| label: fig-proxy-mirage
 #| fig-cap: |
-#|   The proxy ranking is a mirage: the candidate with the lowest proxy energy, the loosely coupled accelerator, becomes the worst once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
+#|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the loosely coupled accelerator, becomes the worst once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
 #| out-width: "82%"
 #| fig-alt: "Grouped comparison plot showing that proxy energy ranking reverses when an illustrative simulation-stage estimate and power constraints are applied."
 
@@ -249,12 +275,7 @@ simulation_estimates:
   total_energy_mJ: 28.5
 failure_reason: "excessive NOC traffic exceeding 3W thermal design power"
 ```
-Read the first
-two rows as feedback stages and the third as the record those stages leave; the
-columns are the ledger schema: the feedback source, its fidelity and budget,
-what it supported, the gate it could reject on, its provenance limit, and the
-next evidence required. The ledger is what makes the toy loop auditable rather
-than merely ranked.
+Read the first two rows of @tbl-worked-loop-ledger as feedback stages and the third as the record those stages leave; the columns are the ledger schema: the feedback source, its fidelity and budget, what it supported, the gate it could reject on, its provenance limit, and the next evidence required. The ledger is what makes the toy loop auditable rather than merely ranked.
 
 | Stage | Feedback source | Fidelity and budget | Support | Rejection gate | Provenance / limit | Next evidence |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -262,7 +283,7 @@ than merely ranked.
 | Simulation-stage estimate | Illustrative memory-aware estimate plus simple power check. | Three scarce illustrative checks; still no RTL or physical feedback. | Shared-memory SoC block clears both gates. | 8\ ms deadline and 3\ W envelope. | Hard-coded values; not XRBench, gem5, synthesis, silicon data, workload trace IDs, scenario coverage labels, or input-distribution receipts. | RTL, timing, area, thermal, and compiler/runtime checks. |
 | Negative traces | Recorded failed alternatives. | Two rejected candidates. | Failure reasons are preserved. | 8\ ms deadline and 3\ W envelope; proxy mismatch is recorded as diagnostic context. | Candidate IDs and reasons only; no logs attached, and no evidence that another workload distribution would preserve the same rejection. | Prevent rediscovery and guide the next search. |
 
-: The evidence ledger records stages, not only the winner: The reusable result is the sequence of feedback, support, rejection gates, limits, and next evidence. {#tbl-worked-loop-ledger tbl-colwidths="[13,16,17,14,13,14,13]"}
+: **The evidence ledger records stages, not only the winner:** The reusable result is the sequence of feedback, support, rejection gates, limits, and next evidence. {#tbl-worked-loop-ledger tbl-colwidths="[13,16,17,14,13,14,13]"}
 
 ## Round Three: Reject on the Envelope
 
@@ -355,7 +376,7 @@ loop can state what it did and what would reject it.
 | Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, and stronger power evidence. |
 | Human decision | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
 
-: The worked loop leaves a filled card, not just a winning row: The card
+: **The worked loop leaves a filled card, not just a winning row:** The card
 records the bounded task, evidence ledger, negative traces, rejection authority,
 and human decision that another architect would need before continuing the
 loop. {#tbl-worked-loop-card tbl-colwidths="[22,66]"}
@@ -376,7 +397,7 @@ need to be rerun. @tbl-loop-replay-receipt gives the minimum shape.
 | `evidence/` | Evidence ledger, fidelity labels, uncertainty, baseline, and sensitivity notes. |
 | `decisions/` | Architect review note, escalation rule, commitment level, and next evidence required. |
 
-: A loop result should leave a replay receipt: The useful artifact is not
+: **A loop result should leave a replay receipt:** The useful artifact is not
 only the winning candidate but the runnable or reviewable residue that explains
 inputs, candidates, runs, evidence, failures, and decisions. {#tbl-loop-replay-receipt tbl-colwidths="[24,64]"}
 
@@ -384,7 +405,7 @@ inputs, candidates, runs, evidence, failures, and decisions. {#tbl-loop-replay-r
 result row: the winner matters only because the surrounding artifacts explain
 what supported it, what failed, and what decision remains open.
 
-![A loop receipt is the reviewable residue of one turn: The reusable artifact is not the winning candidate alone, but the task boundary, inputs, candidate records, proxy and stronger runs, evidence ledger, and decision record that let another architect continue or reject the loop.](images/F9c-loop-receipt-bundle){#fig-loop-receipt-bundle width="100%" fig-alt="Directory-style diagram showing a loop receipt bundle with README, inputs, candidates, proxy runs, simulation runs, evidence, and decisions."}
+![**A loop receipt is the reviewable residue of one turn:** The reusable artifact is not the winning candidate alone, but the task boundary, inputs, candidate records, proxy and stronger runs, evidence ledger, and decision record that let another architect continue or reject the loop.](images/F9c-loop-receipt-bundle){#fig-loop-receipt-bundle width="100%" fig-alt="Directory-style diagram showing a loop receipt bundle with README, inputs, candidates, proxy runs, simulation runs, evidence, and decisions."}
 
 
 ## What the Loop Leaves Behind
@@ -427,7 +448,7 @@ The worked example in this chapter demonstrates a bounded, rejectable turn, but 
 4. How do we build a dynamic, context-aware negative trace corpus?
    The mechanism for recording a failure on the power envelope leaves open how to safely reuse that failure in future loops. Future work must design protocols that differentiate "failed this slice" from "universally bad," allowing an automated optimizer to resuscitate stale rejections when constraints, workloads, or software stacks fundamentally change.
 
-::: {.callout-carry-forward title="What to carry forward"}
+::: {.callout-carry-forward}
 - Reader test: Could another architect reconstruct why the surviving candidate
   advanced and what would overturn it?
 - Next loop state: @sec-loop-patterns-across-stack turns this worked AI-assisted loop into

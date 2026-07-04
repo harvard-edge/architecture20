@@ -517,6 +517,24 @@ evidence it cannot expose, audit, or legally reuse.
 Can the AI model's evidence be audited without violating security or IP boundaries? If a generative method produces a claim using confidential data that cannot be exposed to the rejection authority, the loop cannot trust the claim. The architect must explicitly define which AI tools can access which data classes, and how private evidence can be verified.
 :::
 
+This requirement also defines the bounds of microarchitectural security. If an unconstrained generative AI strictly maximizes Instructions Per Cycle (IPC), it acts as an *accidental adversary*. It will aggressively share microarchitectural state—branch predictors, translation lookaside buffers, or cache hierarchies—to squeeze out performance, silently inventing new side-channels by trading isolation for speed. The proxy mismatch here is that IPC is visible to the AI, but side-channel leakage is not. Architecture 2.0 requires a non-interference rejection gate; the AI must prove its generated layout maintains structural isolation before the loop advances it.
+
+```python
+def check_side_channel_interference(rtl_candidate, isolation_policy):
+    """
+    Rung 1 Security Gate: Rejects RTL that shares speculative structures 
+    across defined security domains before physical synthesis.
+    """
+    shared_structures = find_shared_state(rtl_candidate, type=["BPU", "Cache", "TLB"])
+    for struct in shared_structures:
+        if crosses_domain(struct, isolation_policy):
+            return Reject(
+                reason=f"Security violation: {struct.name} shares state across trust boundaries.",
+                action="Partition the structure or flush on context switch."
+            )
+    return Authorize()
+```
+
 For shared community infrastructure, this means the field should distinguish between
 public artifacts and private state. Public benchmarks, datasets, papers, and
 gym environments can help bootstrap shared progress. Private workloads,
@@ -621,7 +639,7 @@ The mechanisms of trust and verification presented in this chapter establish a f
 4. How do we stress-test the trust machinery itself?
    While the "Evidence Disputes and the Trust Checklist" section shows how to review a single claim, evaluating the robustness of the overarching feedback loop requires new experimental designs. Researchers must construct adversarial environments—injecting hidden workload shifts, flawed baselines, and deceptive proxies—to rigorously measure false commitment rates, escalation costs, and the true efficacy of human veto authority.
 
-::: {.callout-carry-forward title="What to carry forward"}
+::: {.callout-carry-forward}
 - Reader test: What evidence would overturn the AI model's result, and who or what has
   authority to reject it?
 - Next loop state: Once trust can be evaluated for an AI-assisted claim, the next step
