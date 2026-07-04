@@ -2,7 +2,7 @@ import os
 import glob
 import re
 
-chapters = sorted(glob.glob("/Users/VJ/GitHub/arch2/synthesis/book/chapters/*/*.qmd"))
+chapters = sorted(glob.glob("chapters/*/*.qmd"))
 
 for chap in chapters:
     print(f"=== {os.path.basename(os.path.dirname(chap))} ===")
