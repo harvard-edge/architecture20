@@ -8,7 +8,7 @@ import csv
 from pathlib import Path
 
 DEFAULT_INPUT = Path("data/processed/corpus-pilot/era_category_counts.csv")
-DEFAULT_OUTPUT = Path("assets/figures/src/F2-corpus-pilot-topic-shift.svg")
+DEFAULT_OUTPUT = Path("tmp/figures/F2-corpus-pilot-topic-shift.svg")
 
 ERAS = ["early", "2005_2006", "2015", "latest"]
 ERA_LABELS = {

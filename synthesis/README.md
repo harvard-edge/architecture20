@@ -59,7 +59,7 @@ Lower-level checks are grouped by purpose:
 ./arch2 validate citations
 ./arch2 validate concepts
 ./arch2 validate disclosure
-./arch2 validate svg assets/figures/src
+./arch2 validate svg book/chapters book/appendices
 ./arch2 verify figures
 ./arch2 verify html
 ./arch2 layout scan
@@ -86,7 +86,6 @@ synthesis/
 │   ├── csl/
 │   ├── scripts/
 │   └── tex/
-├── assets/figures/               # SVG sources and generated PDF figures
 ├── data/                         # checked-in receipts and small datasets
 ├── references/                   # bibliography and source notes
 └── scripts/                      # corpus and analysis helpers

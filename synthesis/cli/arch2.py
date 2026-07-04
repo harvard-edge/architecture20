@@ -2237,7 +2237,7 @@ def _git_state_markdown() -> str:
                 ".arch2",
                 "book/",
                 "references/",
-                "assets/figures/src",
+                "scripts/",
             )
         )
     ][:30]
