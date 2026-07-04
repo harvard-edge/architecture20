@@ -64,9 +64,8 @@ inside the loop rather than merely emit another candidate.
 redesigned loop would have to be.
 
 The quantitative method made architecture arguments measurable at the artifact
-level. Architecture 2.0 keeps that discipline but moves it one level up: the
-data, feedback, evidence, and rejection processes that produce the artifact
-must themselves be represented and designed.
+level, giving the field a shared vocabulary for performance, cost, and power. Architecture 2.0 keeps that quantitative discipline but moves it one level up: we must now develop metrics and rigorous evaluation for the loop itself. The data, feedback, evidence, and rejection processes that produce the artifact
+must themselves be represented, measured, and designed.
 
 The need for this explicit representation stems from the growing distance between an architectural intent and a
 software or hardware artifact that is implemented, tested, and credible enough
@@ -275,7 +274,7 @@ serving real-time mobile extended reality (XR), under a thermal-design-power
 rather than a chip:
 
 > **Moonshot Prompt:** Design a low-power, 64-bit RISC-V-based compute subsystem for an
-> XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, fixed-function accelerator, reconfigurable spatial array (CGRA/RDA), or Processing-in-Memory (PIM) data-centric block under a 3 W TDP target in a 3 nm-class LP
+> XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, fixed-function accelerator, reconfigurable spatial array (e.g., Coarse-Grained Reconfigurable Architecture or CGRA), or Processing-in-Memory (PIM) data-centric block under a 3 W TDP target in a 3 nm-class LP
 > mobile process. The resulting compute chiplet must support seamless scale-out from a 1-die mobile package to a multi-die performance package, accounting for core-disable yield binning and standardizing the die-to-die PHY/interfaces. Return a design-space report with evidence and rejected
 > alternatives.
 
@@ -495,8 +494,8 @@ a way for the loop to be wrong.
 | --- | --- | --- |
 | XRBench mobile XR | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace provenance, benchmark version, statistically rigorous phase clustering (e.g., SimPoint), and rejection when results over-optimize a single hot loop or miss real-time behavior. |
 | 64-bit RISC-V with vector or accelerator option | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
-| Compute subsystem | CPU, fixed-function accelerator, reconfigurable spatial array (CGRA/RDA), or Processing-in-Memory (PIM) data-centric block; includes SIMT state (TLP, register pressure), memory hierarchy, and SoC integration. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere, or those lacking hardware security isolation (e.g., timing channels, GLIFT). |
-| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, EDA constraints, and dynamic power management interfaces (DVFS, power domains, thermal sensors) for the OS/firmware. | Power-model provenance, synthesis or timing feedback, sensitivity analysis, and explicit rejection gates for memory disturbance faults (e.g., RowHammer) and runtime throttling failures. |
+| Compute subsystem | CPU, fixed-function accelerator, reconfigurable spatial array (e.g., CGRA or Reconfigurable Dataflow Architecture/RDA), or Processing-in-Memory (PIM) data-centric block; includes SIMT state (TLP, register pressure), memory hierarchy, and SoC integration. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere, or those lacking hardware security isolation (e.g., timing channels, GLIFT). |
+| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, EDA constraints, and dynamic power management interfaces (e.g., Dynamic Voltage and Frequency Scaling or DVFS, power domains, thermal sensors) for the OS/firmware. | Power-model provenance, physical RTL limits (IR drop, electromigration, timing closure), sensitivity analysis, and explicit rejection gates for memory disturbance faults (e.g., RowHammer) and runtime throttling failures. |
 | Design-space report with evidence and rejected alternatives | Alternatives, Pareto fronts (designs that nothing else beats on every objective at once), assumptions, uncertainty, verification plan, rejected or failed candidates, and human decision points. | Evidence ledger: connected measurements, assumptions, checks, rejections, coverage, reproducible artifacts, and explicit rejection authority before higher commitment. |
 
 : **Prompt fragments create architecture obligations:** The lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
@@ -532,7 +531,7 @@ a new request, fill them in.
 4. **Environment or tool path.** Through which simulator, flow, or harness does
    the AI loop act and observe?
 5. **Feedback budget.** How many evaluations, at what cost, latency, and fidelity,
-   can the AI method afford?
+   can the AI method afford? For example, the loop must explicitly distinguish between a millisecond analytical proxy and a three-day place-and-route (P&R) run.
 6. **Evidence and rejection gate.** What evidence does an AI claim owe, and what can
    reject it before human commitment?
 7. **Human commitment boundary.** What is the strongest claim the evidence
@@ -606,9 +605,9 @@ Optimization then has to compare that extension against an accelerator, a
 tighter memory hierarchy, or a software/runtime change. None of those steps is
 credible without rejection: a compiler may not generate valid code, a power
 model may be out of support, a timing check may fail, or a workload slice may
-not represent the intended XR behavior.
+not represent the intended XR behavior. Crucially, when an EDA tool rejects a candidate, it does not return a simple scalar loss; it returns structural feedback like thousands of timing violation paths, which the loop must parse and use to guide the next generation.
 
-Those roles overlap, but none is sufficient alone. At the center, systems are
+Those roles overlap, but none is sufficient alone. The process closely parallels machine learning training: generation proposes a candidate (like a forward pass), prediction evaluates its quality (like a loss function), and optimization searches for a better candidate (like backpropagation). At the center, systems are
 synthesized in a closed loop: generated candidates are predicted, optimized,
 checked, rejected, and revised under explicit evidence standards.
 
@@ -674,7 +673,7 @@ state, tool feedback, evidence ledger entries, rejected alternatives, or AI-assi
 search.
 
 To make these boundaries explicit, a credible loop must also record what failed as well as what worked, not only the
-winners. That record keeps later methods, reviewers, and architects from
+winners. Just as machine learning training relies on checkpoints to recover from divergent states, an AI-assisted design loop requires checkpointing the design state so it can roll back from failed architectural paths. That record keeps later methods, reviewers, and architects from
 re-exploring ground the loop already ruled out. Later chapters give it a
 sharper name and make it part of the evidence ledger.
 

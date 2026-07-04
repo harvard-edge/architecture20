@@ -53,7 +53,7 @@ next evidence stage.
 | --- | --- |
 | Workload | One XRBench-class mobile-XR slice with a real-time frame deadline; a real loop would also record workload ID, input schema, scenario labels, coverage limits, distribution assumptions, provenance, and validity checks. |
 | Baseline | A bounded comparison among three compute organizations, not a full product baseline. |
-| ISA/software assumption | All candidates remain within a 64-bit RISC-V-compatible software path; compiler/runtime feasibility is deferred. |
+| ISA/software assumption | All candidates must preserve the existing 64-bit RISC-V software ecosystem to avoid rewriting the full stack from scratch; full compiler/runtime feasibility is deferred to a later stage. |
 | Design space | Vector CPU extension, deliberately loose accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator search yet. |
 | Legal actions | Instantiate the three candidate organization records with prompt, generator/search version, candidate IDs, invalid-action records, and selection rule; run the proxy screen, escalate all candidates to the simulation-stage estimate because the proxy has no final rejection authority, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
@@ -167,15 +167,15 @@ lines.append(
 print("\n".join(lines))
 ```
 
-As the results show, the accelerator that won on the proxy collapses under the simulation-stage
+As the quantitative results show, the accelerator that won on the proxy collapses under the simulation-stage
 estimate. Once data
-movement is charged, its energy rises above every alternative and its latency
+movement across the system interconnect (e.g., a Network-on-Chip or AXI bus) is charged, its energy rises above every alternative and its latency
 loses most of its lead. The shared-memory SoC block absorbs the same charge
-with little damage because its traffic stays inside the on-chip hierarchy it
-shares with the CPU, so the proxy's blind spot was never subsidizing it; the
+with little damage because its traffic stays inside the tightly-coupled on-chip hierarchy it
+shares with the CPU, so the proxy's blind spot was never subsidizing it. The
 vector extension, which also keeps data local, fails instead on raw throughput
-against the deadline. This is **proxy mismatch** made concrete: the loop was
-optimizing the *measurement* it could see, not the *objective* it cared about. The proxy optimizes arithmetic, but the true simulation-stage rejection gate prices communication. The
+against the deadline. This is **proxy mismatch** made concrete, similar to the phenomenon in ML systems where optimizing for raw FLOPs starves memory bandwidth (as seen in the Roofline model): the loop was
+optimizing the *measurement* it could see (arithmetic), not the *objective* it cared about (end-to-end latency and energy). The true simulation-stage rejection gate correctly prices communication. The
 failed candidate is not deleted. It is recorded as a **negative trace**, with the
 fidelity level at which the proxy win disappeared, so a later loop does not
 rediscover it. @fig-proxy-mirage shows the reorder.
@@ -265,18 +265,17 @@ Read the first two rows of @tbl-worked-loop-ledger as feedback stages and the th
 
 ## Round Three: Reject on the Envelope
 
-Beyond simply reordering candidates, the simulation-stage estimate also exposes harder gates. The loosely coupled
+Beyond simply reordering candidates, the simulation-stage estimate also exposes harder physical gates. The loosely coupled
 accelerator does not merely lose on energy; in this constructed diagnosis, its
 symptoms point to one cause the next evidence stage would have to verify.
 Reaching the accelerator means moving data across an *interface* to off-chip or
 distant memory, and that *traffic* is expensive on every axis at once. In that diagnosis it
 stalls the datapath, so the illustrative latency estimate misses the 8\ ms
 deadline; it pays off-chip access energy, so per-frame energy climbs above every
-alternative; and it keeps the memory subsystem busy rather than idle, so average
-power crosses the 3\ W envelope. These are *constraints*, not just metrics, so no
+alternative. Furthermore, it keeps the memory subsystem continuously busy, causing the *average* power to cross the 3\ W envelope—which in turn raises red flags for sustained peak thermal design power (TDP) limits. These are hard *constraints*, not just soft metrics, so no
 local proxy advantage rescues it. The rejection is the **commitment rule** from the
 trust chapter doing its work: a candidate advances only if it is valid, its
-evidence clears the threshold for the stage, and its residual risk is
+evidence clears the threshold for the stage, and its residual physical risk is
 acceptable.
 
 ::: {.callout-architect-checkpoint title="The Rejection Gate"}
@@ -291,7 +290,7 @@ Context. This worked AI-assisted loop deliberately includes a loosely coupled
 accelerator as a stressed integration variant, even though the full prompt also
 allows a tighter accelerator path.
 
-In the Lighthouse prompt. The "64-bit RISC-V-based" software path, the
+In the Lighthouse prompt. The "64-bit RISC-V-based" software path (which anchors the architecture to a vast, existing software investment), the
 "XRBench-class real-time mobile XR workload" slice, the 8\ ms frame deadline
 the slice fixes,
 and the "3\ W TDP target" are fixed. The AI loop varies the "vector-capable CPU,
@@ -309,12 +308,12 @@ envelope, the local *arithmetic* win the automation found no longer matters.
 ## Round Four: Commit at an Honest Level
 
 With the rejection gates applied, one candidate survives the deadline and the envelope. It is tempting to call
-that a result. It is not, yet. The evidence behind it is a simulation-stage
-estimate standing in for cycle-level and power feedback, which supports an
+that a final result. It is not. The evidence behind it is a simulation-stage
+architectural estimate standing in for cycle-level and power feedback. This supports an
 experimental commitment, not an implementation or a tapeout. The architect's
 decision is therefore bounded: advance the surviving organization to an RTL
-study where synthesis, timing, and a stronger power estimate can confirm or
-reject it, and hold the other two as recorded negative traces.
+study where logic synthesis, place-and-route, exact timing closure, and a stronger physical power estimate can confirm or
+reject it. The other two candidates are held as recorded negative traces.
 
 Stopping at this honest boundary is the difference between an answer and a defensible AI-assisted loop turn. The result
 is a **replay receipt**: the surviving state, the evidence that supports it, the
@@ -418,9 +417,9 @@ The instantiation of the lighthouse loop (@sec-running-the-loop) demonstrates a 
 
 2. **Proactive Detection of Proxy Mirage and Architectural Blind Spots.** As demonstrated during escalation, cheap analytical proxies often exhibit catastrophic blind spots, such as ignoring interface taxes or data movement. Rather than passively waiting for expensive simulation to catch these inversions, research must develop predictive methods and formal verification techniques capable of structurally analyzing proxy models. The goal is to mathematically bound the risk of proxy mismatch and proactively identify when a proxy is actively misleading before expending scarce cycle-level simulation budgets.
 
-3. **Zero-Knowledge Evidence Ledgers and Replay Receipts.** Sharing the evidence ledger (@tbl-worked-loop-ledger) and replay receipts (@tbl-loop-replay-receipt) across organizational boundaries inherently risks leaking proprietary baselines and sensitive workload distributions. We require privacy-preserving formulations—leveraging zero-knowledge proofs or secure multi-party computation—that allow external tools, reviewers, or competing vendors to cryptographically audit candidate lineage, fidelity, and rejection authority without exposing the underlying intellectual property.
+3. **Privacy-Preserving Evidence Ledgers.** Sharing the evidence ledger (@tbl-worked-loop-ledger) and replay receipts (@tbl-loop-replay-receipt) across organizational boundaries inherently risks leaking proprietary baselines and sensitive workload distributions. We require privacy-preserving formulations—such as secure multi-party computation or federated validation—that allow external tools, reviewers, or competing vendors to audit candidate lineage, fidelity, and rejection authority without exposing intellectual property.
 
-4. **Ontological Resuscitation of Stale Rejections.** When a candidate is rejected on a strict physical constraint, it becomes a negative trace. However, treating these traces as permanent failures artificially restricts future search. Future work must design rigorous semantic protocols capable of differentiating localized, workload-specific failures from universally invalid architectures. This would enable automated optimizers to safely resuscitate stale negative traces when underlying physical constraints, process nodes, or software runtimes shift, achieving continuous architectural learning.
+4. **Re-evaluating Stale Rejections.** When a candidate is rejected on a strict physical constraint, it becomes a negative trace. However, treating these traces as permanent failures artificially restricts future search. Future work must design rigorous methods to differentiate localized, workload-specific failures from universally invalid architectures. This would enable automated optimizers to safely reconsider (or "resuscitate") stale negative traces when underlying physical constraints, process nodes, or software runtimes shift, achieving continuous architectural learning.
 :::
 
 ::: {.callout-carry-forward}
