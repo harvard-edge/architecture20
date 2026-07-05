@@ -25,21 +25,44 @@ BRAND_SANS = [
 ]
 
 
+# Canonical Arch2 figure palette (bold two-tier set; see _styles/arch2-html.scss
+# for the shared source of truth). Legacy keys (blue/green/orange/purple/red)
+# keep their names but now carry the new bold MARK hues so existing plot code
+# stays valid while matching the SVG diagrams. Semantic role keys map each hue
+# to the design-loop dimension it stands for; *_ink keys are text-safe (>=5:1 on
+# white and cream) for labels and thin marks.
 COLORS = {
-    "blue": "#4C78A8",
-    "green": "#54A24B",
-    "orange": "#D88A30",
-    "purple": "#7E6AA8",
-    "red": "#E15759",
-    "brown": "#8C6D31",
-    "ink": "#222222",
-    "muted": "#444444",
-    "grid": "#D7DEE5",
+    # MARK tier (bright fills / >=2px strokes)
+    "blue": "#1683A6",    # teal  -> workload / objective (brand anchor)
+    "green": "#1E9E48",   # green -> evidence / verification
+    "orange": "#E68A17",  # amber -> methods / generation
+    "purple": "#6A4FC7",  # violet-> design space / artifact
+    "red": "#DE3D3C",     # red   -> constraints / budget
+    "magenta": "#D24D96", # magenta-> decision / deliverable
+    "brown": "#8A5310",   # dark amber (neutral warm)
+    # Semantic role aliases (MARK)
+    "workload": "#1683A6",
+    "designspace": "#6A4FC7",
+    "constraints": "#DE3D3C",
+    "methods": "#E68A17",
+    "evidence": "#1E9E48",
+    "decision": "#D24D96",
+    # INK tier (text-safe: colored text, labels, thin strokes)
+    "workload_ink": "#136680",
+    "designspace_ink": "#59429E",
+    "constraints_ink": "#C62A2A",
+    "methods_ink": "#8A5310",
+    "evidence_ink": "#157A38",
+    "decision_ink": "#A82E70",
+    # Neutrals / chrome
+    "ink": "#20252B",
+    "muted": "#3E474B",
+    "grid": "#D5DEE3",
     "row": "#E4E8ED",
-    "note_text": "#356C8C",
-    "note_edge": "#356C8C",
-    "note_fill": "#F5FAFD",
-    "design_cost_fill": "#E9F1FA",
+    "note_text": "#136680",
+    "note_edge": "#136680",
+    "note_fill": "#E4F1F6",
+    "design_cost_fill": "#E4F1F6",
 }
 
 
