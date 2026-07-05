@@ -112,7 +112,7 @@ To advance beyond the proxy's blind spots, an illustrative **simulation-stage es
 *traffic*. The exact tool is not the lesson. This stage is a stronger environment
 contract: it prices *data movement*, returns latency, energy, and power
 observations with provenance and cost, and has authority to overturn proxy
-rankings before commitment. Its power column is frame energy divided by the frame time, an average-power check against the 3\ W envelope. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
+rankings before commitment. Its power column is frame energy divided by the candidate's active compute time, a conservative average-power screen against the 3\ W budget. It is a screen, not a signoff TDP verdict; peak and transient power (di/dt, IR drop) and sustained thermal behavior are deferred to later stages. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator like Aladdin [@ShaoEtAl2014Aladdin], or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
 
 It is
 slower and scarcer than the proxy. In this toy turn all three candidates are
@@ -131,7 +131,8 @@ candidates = [
     {"name": "Shared-memory SoC block",     "proxy_lat": 6.0, "proxy_e": 16, "sim_lat": 6.5, "sim_e": 18},
 ]
 for c in candidates:
-    # average power over the frame: energy (mJ) / time (ms) = W
+    # average power over the active compute window (a conservative screen):
+    # energy (mJ) / active latency (ms) = W
     c["power"] = c["sim_e"] / c["sim_lat"]
 deadline_ms = 8.0
 power_budget_w = 3.0
@@ -165,7 +166,7 @@ lines.append(
     f"at proxy fidelity is the {proxy_pick.lower()}, but an illustrative simulation-stage estimate and the "
     f"{deadline_ms:.0f} ms / {power_budget_w:.0f} W gates reject it, and the {survivor.lower()} is the only "
     f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
-    "envelope. Values are illustrative and computed in the chunk; average power is frame energy over frame time. {#tbl-worked-loop}"
+    "envelope. Values are illustrative and computed in the chunk; average power is frame energy over active compute time, a conservative screen rather than a signoff TDP verdict. {#tbl-worked-loop}"
 )
 print("\n".join(lines))
 ```
@@ -275,7 +276,7 @@ Reaching the accelerator means moving data across an *interface* to off-chip or
 distant memory, and that *traffic* is expensive on every axis at once. In that diagnosis it
 stalls the datapath, so the illustrative latency estimate misses the 8\ ms
 deadline; it pays off-chip access energy, so per-frame energy climbs above every
-alternative. Furthermore, it keeps the memory subsystem continuously busy, causing the *average* power to cross the 3\ W envelope—which in turn raises red flags for sustained peak thermal design power (TDP) limits. These are hard *constraints*, not just soft metrics, so no
+alternative. Furthermore, it keeps the memory subsystem continuously busy, so its conservative average-power screen crosses the 3\ W budget. That is enough to reject it at this stage and to flag it for the sustained-thermal and peak-power (TDP) signoff the loop has not yet run. These are hard *constraints*, not just soft metrics, so no
 local proxy advantage rescues it. The rejection is the **commitment rule** from the
 trust chapter doing its work: a candidate advances only if it is valid, its
 evidence clears the threshold for the stage, and its residual physical risk is
