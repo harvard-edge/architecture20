@@ -1,0 +1,44 @@
+name: Link Checker
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Run every Sunday at midnight
+  workflow_dispatch:
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install lychee
+        run: |
+          curl -sL https://github.com/lycheeverse/lychee/releases/latest/download/lychee-x86_64-unknown-linux-gnu.tar.gz | tar -xz
+          sudo mv lychee /usr/local/bin/
+
+      - name: Run link checker
+        run: |
+          mkdir -p lychee
+          lychee --timeout 15 --max-retries 3 \
+            --exclude "twitter.com" --exclude "linkedin.com" \
+            --output ./lychee/out.md --format markdown \
+            "./**/*.md" "./**/*.qmd" \
+            "./tools/tools.yml" "./tools/registry/*.yml" \
+            "./www/workshops.yml" "./www/workshops/*.yml" \
+            "./www/readings.yml" "./www/readings/*.yml"
+        continue-on-error: true
+        id: lychee
+
+      - name: Create Issue From File
+        if: steps.lychee.outcome == 'failure'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Broken links detected in repository"
+          content-filepath: ./lychee/out.md
+          labels: "automated-maintenance, link-rot"

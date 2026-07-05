@@ -1,0 +1,118 @@
+name: Validate site
+
+# Mandatory preflight for integration work. This workflow runs the same
+# pre-commit gate developers run locally, then validates community registries and
+# renders the public website surfaces that should stay fast.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-site-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Pre-commit gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  catalog:
+    name: Validate registries
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    needs: preflight
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Validate tool registry
+        env:
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/validate_catalog.py
+
+      - name: Validate workshop registry
+        env:
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/validate_workshops.py
+
+      - name: Validate reading list
+        env:
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/validate_readings.py
+
+      - name: Rebuild generated registry indexes
+        env:
+          PYTHONPATH: .github/scripts
+        run: |
+          python .github/scripts/build_catalog_index.py
+          python .github/scripts/build_workshops_index.py
+          python .github/scripts/build_readings_index.py
+          git diff --exit-code tools/tools.yml www/workshops.yml www/readings.yml
+
+  render:
+    name: Render landing + registries
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: catalog
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends librsvg2-bin
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render landing page
+        run: quarto render www
+
+      - name: Render tool registry
+        run: quarto render tools
+
+      - name: Validate rendered output
+        run: |
+          test -f www/_site/index.html
+          test -f www/_site/about.html
+          test -f tools/_site/index.html
+          test -f www/_site/workshops.html
+          test -f www/_site/readings.html
+          test -f www/_site/discord.html
+          test -f www/_site/huggingface.html
+          echo "Landing + registries rendered." >> "$GITHUB_STEP_SUMMARY"

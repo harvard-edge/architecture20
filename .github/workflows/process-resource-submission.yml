@@ -1,0 +1,104 @@
+name: Process resource submission
+
+# When someone files a "Submit a reading or resource" issue, parse it, validate
+# it, and open a pull request that adds the item to the reading list. A
+# maintainer reviews and merges the PR.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  create_pr_from_issue:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'resource-submission')
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Parse issue and update reading list
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/add_resource_from_issue.py
+
+      - name: Validate reading list
+        if: steps.parse.outputs.success == 'true'
+        env:
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/validate_readings.py
+
+      - name: Create pull request
+        if: steps.parse.outputs.success == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "readings: add ${{ steps.parse.outputs.resource_title }}"
+          title: "Add ${{ steps.parse.outputs.resource_title }} to the reading list"
+          body: |
+            Adds **${{ steps.parse.outputs.resource_title }}** to the Architecture
+            2.0 reading list, generated from issue #${{ github.event.issue.number }}.
+
+            ## Parsed card fields
+
+            | Field | Value |
+            | --- | --- |
+            | Resource | ${{ steps.parse.outputs.resource_title }} |
+            | URL | ${{ steps.parse.outputs.resource_url }} |
+            | Type | ${{ steps.parse.outputs.resource_kind }} |
+            | Venue or source | ${{ steps.parse.outputs.resource_venue }} |
+            | Date or year | ${{ steps.parse.outputs.resource_when }} |
+            | Author(s) | ${{ steps.parse.outputs.resource_authors }} |
+            | DOI | ${{ steps.parse.outputs.resource_doi }} |
+            | Primary topic | ${{ steps.parse.outputs.resource_category }} |
+            | Description | ${{ steps.parse.outputs.resource_description }} |
+            | Source YAML | `${{ steps.parse.outputs.resource_file }}` |
+
+            ## Maintainer review
+
+            - [ ] The resource is relevant to Architecture 2.0 or adjacent community work.
+            - [ ] The type and topic category are appropriate.
+            - [ ] The URL resolves.
+            - [ ] The generated `www/readings.yml` index matches the source YAML.
+            - [ ] The card helps readers understand why this resource matters.
+            - [ ] The description is concise and neutral.
+
+            Closes #${{ github.event.issue.number }}
+          branch: "readings/add-${{ github.event.issue.number }}"
+          labels: "community"
+
+      - name: Comment on the issue (accepted)
+        if: steps.parse.outputs.success == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Thanks for the submission. I parsed **${{ steps.parse.outputs.resource_title }}**
+            and opened a pull request to add it to the reading list. A maintainer
+            will review and merge it, and it will appear on the site shortly after.
+
+      - name: Comment on the issue (needs changes)
+        if: steps.parse.outputs.success == 'false'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Thanks for the submission. I could not add this automatically:
+            **${{ steps.parse.outputs.reason }}**
+
+            Please edit the issue to fix that, then close and reopen it to re-run
+            the check.

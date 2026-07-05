@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Assemble the full Architecture 2.0 site into ./_site
+#
+#   _site/         <- landing page (www/)
+#   _site/about.html
+#   _site/tools/   <- tool registry (tools/)
+#   _site/book/    <- the book (book/, rendered via the arch2 CLI)
+#
+# Each sub-project renders into its own local _site/ (see each _quarto.yml) and
+# is copied into the top-level _site/, so the projects never clobber one another.
+#
+# Usage:
+#   .github/scripts/build_site.sh              # full build, including the book
+#   SKIP_BOOK=1 .github/scripts/build_site.sh  # skip the heavy book render
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+
+rm -rf _site
+mkdir -p _site/book _site/tools _site/images
+
+echo "==> Copying shared preview assets"
+cp book/images/favicon.svg _site/images/
+cp book/images/favicon-16.png _site/images/
+cp book/images/favicon-32.png _site/images/
+cp book/images/favicon-48.png _site/images/
+cp book/images/favicon.ico _site/images/
+cp book/images/apple-touch-icon.png _site/images/
+cp book/images/icon-192.png _site/images/
+cp book/images/icon-512.png _site/images/
+cp book/images/arch2-card.png _site/images/
+cp book/images/site.webmanifest _site/images/
+
+echo "==> Building generated registry indexes"
+PYTHONPATH=.github/scripts python3 .github/scripts/build_catalog_index.py
+PYTHONPATH=.github/scripts python3 .github/scripts/build_workshops_index.py
+PYTHONPATH=.github/scripts python3 .github/scripts/build_readings_index.py
+
+if [[ "${SKIP_BOOK:-0}" != "1" ]]; then
+  echo "==> Rendering book (arch2 CLI)"
+  # Pages publishing should verify that the site and downloadable artifacts build.
+  # Manuscript PDF layout audits are run as a separate book-quality gate; blocking
+  # the site deploy on page-level layout noise prevents community pages from
+  # publishing even when HTML/PDF/EPUB artifacts render successfully.
+  ./arch2 render --no-layout
+  cp -r book/_build/* _site/book/
+else
+  echo "==> Skipping book render (SKIP_BOOK=1)"
+  if [[ -d book/_build ]] && compgen -G "book/_build/*" > /dev/null; then
+    echo "==> Using existing book/_build artifacts"
+    cp -r book/_build/* _site/book/
+  else
+    echo "warning: book/_build is empty; _site/book will not be populated" >&2
+  fi
+fi
+
+echo "==> Rendering tool registry"
+quarto render tools
+cp -r tools/_site/* _site/tools/
+
+echo "==> Rendering landing + about"
+quarto render www
+cp -r www/_site/* _site/
+
+echo "==> Rewriting assembled-site links"
+if [[ -d _site/tools ]]; then
+  find _site/tools -name '*.html' -print0 | xargs -0 perl -0pi -e '
+    s#href="\./book/#href="../book/#g;
+    s#href="\./about\.html"#href="../about.html"#g;
+    s#href="\./readings\.html"#href="../readings.html"#g;
+    s#href="\./workshops\.html"#href="../workshops.html"#g;
+    s#href="\./discord\.html"#href="../discord.html"#g;
+    s#href="\./huggingface\.html"#href="../huggingface.html"#g;
+    s#href="\./tools/index\.html"#href="./index.html"#g;
+    s#href="\./images/#href="../images/#g;
+    s#class="navbar-brand" href="\./index\.html"#class="navbar-brand" href="../index.html"#g;
+  '
+fi
+
+echo "==> Site assembled in ./_site"
+find _site -maxdepth 2 -name '*.html' | sort

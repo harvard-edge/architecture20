@@ -1,0 +1,832 @@
+# The Architecture 2.0 Moonshot {#sec-moonshot}
+
+::: {.epigraph}
+> *"The purpose of computing is insight, not numbers."*
+>
+> — Richard Hamming, *Numerical Methods for Scientists and Engineers* (1962)
+:::
+
+::: {.column-margin}
+*VJ's Note:* Richard Hamming, a pioneer in computer science, famously emphasized that computing should yield insight rather than just raw data. For us, this quote anchors the book's core premise: AI-assisted architecture isn't about blindly generating billions of candidate designs, but about accelerating our understanding of the design space.
+:::
+
+```{=latex}
+\abstract*{This chapter introduces the Architecture 2.0 moonshot and explains why it is a computer architecture problem rather than a generic AI-generation problem, automated optimizer demo, or product forecast.}
+```
+
+::: {.callout-crux}
+What would it take for AI to help architects turn intent into a system design
+that others can check, compare, and reject, not just a plausible answer?
+:::
+
+This shift toward designing loops is easiest to state as a rule: a prompt is not yet an architecture claim. It becomes one only when the loop explicitly defines its five-part execution state: what state it saw, what actions it allowed, what alternatives it rejected, what evidence supports the result, and who owns the commitment if the claim is wrong. When plausible artifacts are cheap, that burden of proof, not the artifact, becomes the scarce work. Without treating this loop as a rigorous system-level state machine, we risk building the software equivalent of dark silicon---wasting massive computational resources on unoptimized, unstructured generative runs.
+
+Computer architecture is the discipline of turning workload intent,
+technology constraints, software assumptions, physical limits, and evidence
+into credible hardware-software systems. It has never been only about which
+tools you use; it is about how well you build, holding efficiency, safety,
+robustness, and reliability to evidence rather than to assertion. Architecture
+2.0 names the next step in that practice: architects must design not only
+artifacts, but also the design loops that produce, evaluate, reject, and justify
+those artifacts [@ReddiYazdanbakhsh2025Architecture20].
+
+The practical reason architecture needs this discipline is efficiency, but
+efficiency no longer means a single
+performance number. The classical quantitative tradition already treated
+performance, cost, and power as coupled architectural questions
+[@HennessyPatterson2017QuantitativeApproach]. Just as the end of Dennard scaling forced hardware to transition from general-purpose frequency scaling to specialized accelerators, the economic and latency limits of monolithic LLMs force agent systems to transition from raw prompting to structured execution loops. Dark silicon (the share of a chip that must stay powered
+off to fit its thermal budget), data-movement energy, warehouse scale, and
+carbon accounting make architectural coupling more difficult
+[@DennardEtAl1974Scaling; @EsmaeilzadehEtAl2011DarkSilicon; @Horowitz2014Energy; @BarrosoHolzleRanganathan2019DatacenterAsComputer; @GuptaEtAl2021ChasingCarbon]. Today, efficiency includes performance, energy,
+power delivery, reliability, scalability, sustainability, cost, verification
+burden, engineering effort, and time to credible evidence. Across that range,
+the design problem is increasingly coupled across hardware, software, tools,
+and deployment.
+This multidimensional coupling is exactly what makes naive generation insufficient: an
+AI-assisted loop must know which constraints, tools, and evidence can change
+the architectural claim, making structured loops a physical necessity rather than a design metaphor.
+
+It helps to see how unusual this moment is. For roughly fifty years, processor
+generations improved through a remarkably stable loop. Device scaling delivered
+faster, cheaper, lower-power transistors on a predictable cadence; the
+quantitative method turned design choices into measured comparisons; when
+scaling slowed, microarchitecture, parallelism, and then domain specialization
+kept the gains coming [@HennessyPatterson2019GoldenAge]. That run of
+specialization is often called a new golden age for computer architecture; its
+quieter companion is a golden age of complexity, in which every design must
+navigate an explosion of workloads, software interfaces, and physical
+constraints. The artifacts changed every generation, but the loop that produced
+them stayed largely the same:
+propose, model, measure, and commit. What is new is not another lever inside that
+loop. It is that the loop itself, the rate at which credible choices can be
+proposed, evaluated, rejected, and justified, has become the bottleneck.
+What is missing is an explicit representation of that loop, and that
+representation is also the state an AI system would need before it can act
+inside the loop rather than merely emit another candidate.
+@sec-design-loop-no-longer-scales develops that breakdown in detail; this chapter asks what a
+redesigned loop would have to be.
+
+The quantitative method made architecture arguments measurable at the artifact
+level, giving the field a shared vocabulary for performance, cost, and power. Architecture 2.0 keeps that quantitative discipline but moves it one level up: we must now develop metrics and rigorous evaluation for the loop itself. The data, feedback, evidence, and rejection processes that produce the artifact
+must themselves be represented, measured, and designed.
+
+The need for this explicit representation stems from the growing distance between an architectural intent and a
+software or hardware artifact that is implemented, tested, and credible enough
+to use. AI can shorten parts
+of that distance, but only when the work between intent and artifact is
+represented as a loop with explicit state, actions, feedback, evidence, and
+decision authority. The moonshot is therefore not instant realization. It is a
+discipline for making the path to realization inspectable enough that humans
+and AI systems can work inside it.
+
+The purpose of this chapter is to make that shift concrete. We build toward a
+single concrete design request, not because the request is already solvable, but
+because it reveals the hidden architecture state that any credible solution would need.
+
+::: {.callout-learning-objectives}
+After this chapter you can turn a compact architecture request into an AI-assisted loop
+contract. That means you can:
+
+- explain why "AI for architecture" means designing the AI-assisted design loop, not prompt-to-chip generation;
+- explain why cheap plausible artifacts from AI methods move the scarce work toward credible commitment;
+- distinguish the familiar human-carried architecture loop from an explicit, represented Architecture 2.0 AI loop;
+- decompose a one-line design request into the architecture state a generative model hides;
+- treat efficiency as a multidimensional, loop-level property rather than a single metric;
+- separate generation, prediction, and optimization as distinct AI method roles in a design loop.
+:::
+
+## Ask What AI Can Do for Architecture
+
+The phrase "AI for architecture" can be read in a shallow way: use a model to
+generate text, write scripts, summarize papers, or propose configurations. All
+of those may be useful, but they are not the core shift. The deeper question is
+how the practice of architecture changes when AI systems can participate inside
+represented, instrumented, and checked design loops.
+
+That distinction matters because architecture work has always been organized
+around loops. Architects frame a problem, choose abstractions, construct models
+or simulators, select workloads, explore alternatives, evaluate results,
+reject weak candidates, and revise assumptions. For example, an architect
+weighing a larger L2 cache frames the question (does it help this workload mix
+without hurting energy?), sets up a cycle-level simulator (like gem5) or a full-system register-transfer-level (RTL) emulator (like FireSim), selects a benchmark suite,
+sweeps cache sizes, associativities, and replacement policies, reads the
+resulting miss rates and energy estimates, rejects the configurations that help
+one workload while hurting another, and revises the design before committing it
+to RTL. Tools already participate in this loop. Simulators, compilers,
+profilers, synthesis tools, spreadsheets, dashboards, and design reviews all
+mediate architectural judgment.
+
+AI systems become interesting when they can act inside that loop rather than
+around it. They may generate candidates, call tools, summarize evidence,
+predict outcomes, search design spaces, critique assumptions, or coordinate
+subtasks. But participation is credible only if the loop exposes what the
+system can see, what it can change, how feedback is obtained, what evidence is
+trusted, and what can reject the result.
+
+This book uses four names carefully. AI systems are participants in the loop,
+not the loop itself. Methods play bounded roles such as generation, prediction,
+optimization, critique, repair, verification, explanation, or coordination.
+Tools become useful architecture environments only when they expose actions,
+feedback, costs, and failure modes. Architects still own the intent, evidence
+standard, rejection authority, and final commitment.
+
+::: {.callout-architect-checkpoint title="Architect-Owned Commitment"}
+AI methods can act within the design loop, proposing and testing candidates, but the human architect acts as the ultimate decision gate, retaining rejection authority and finalizing any commitment.
+:::
+
+The term *participant* is often singular in the prose and figures, but it names an
+AI-assisted system in the loop. A real implementation may use one generative method, a
+pipeline of methods, or several specialized tools; the Architecture 2.0
+question is still what each participant may see, change, test, reject, and
+return for architect-owned decision.
+
+Those four roles together define a single discipline, Architecture 2.0, whose
+central act is architecture-level computing-system synthesis: turning intent
+into a defensible computing-system design. That act does not mean only logic synthesis or
+high-level synthesis. The short phrase is simple, but the loop is not. To
+synthesize a computing-system design credibly, the loop must coordinate constraints,
+representations, tools, methods, feedback, evidence, and human judgment. The
+two terms below fix the discipline and describe the bounded role each method
+plays inside the loop.
+
+> **Architecture 2.0.** Architecture 2.0 is the engineering discipline of
+> building and governing the design loops that produce computing systems,
+> alongside the artifact rather than in place of it, so that AI-assisted
+> architecture claims can be made *credible, reviewable, and contrastable*, and
+> comparable in MLPerf's sense once the field fixes a shared task, workload,
+> metric, and rejection protocol.
+
+> **Method role.** A method role is the bounded job an AI method, model, search
+> procedure, or tool wrapper plays inside the loop: generate, predict, optimize,
+> critique, repair, verify, explain, or coordinate. The role is credible only
+> when the loop defines what the method can read, what it can change, what
+> feedback it receives, and what can reject its output.
+
+That AI-assisted loops can automate bounded parts of producing computing-system
+design artifacts is the premise of Architecture 2.0, not its achievement. The
+achievement is a claim another architect can believe, reject if it is wrong, and
+trace to whoever owns the commitment, which is why the rest of the book is about
+evidence, rejection, and commitment rather than automation for its own sake.
+
+It helps to place that act on a familiar ladder. The dates are approximate; the
+point is the widening unit of intent and the widening artifact produced.
+
+- **1980s--1990s (Logic Synthesis):** Logic synthesis turns Boolean and RTL intent into gate-level structure, governed by libraries, physical constraints, and timing feedback [@DeMicheli1994SynthesisOptimization].
+- **1990s--2000s (High-Level Synthesis):** High-level synthesis turns algorithmic behavior into RTL candidates, offloading the tactical microarchitecture search from the human to the tool [@CoussyMorawiec2008HighLevelSynthesis].
+- **2000s--2010s (Domain-Specific Synthesis):** Building on deductive program synthesis from the 1970s, domain-specific synthesis turns mathematical kernels and DSL intent into executable code and specialized hardware/software artifacts [@GulwaniPolozovSingh2017ProgramSynthesis].
+- **2010s--2020s (Agile Hardware Generation):** Agile hardware generation turns parameterized templates (e.g., Chisel, FIRRTL) into bespoke SoC instances, enabling rapid specialization through reusable IP libraries.
+- **Architecture 2.0 (Computing-System Synthesis):** Architecture 2.0 turns workload intent, software contracts, and physical constraints into a defensible, verified system organization. After this point, this book often shortens the phrase to *system synthesis* when the context is clear.
+
+The lower rungs are largely automated; the top rung is what Architecture 2.0
+has to learn to support.
+
+The architecture design loop is the object this book will make precise. For
+now, treat it as the repeated movement from intent to bounded action, feedback,
+evidence, rejection, revision, and architect-owned commitment.
+
+The framework should be useful in three concrete situations. First, a
+researcher should be able to describe an AI-for-architecture paper by naming its
+task, representation, environment, method role, feedback, evidence, and human
+decision point. Second, a tool builder should be able to ask whether a harness
+records enough state for another method or team to learn from it. Third, an
+author or reviewer should be able to ask what would reject the result, not only
+what result was produced. Later chapters turn those needs into reusable cards,
+ledgers, and review checks.
+
+## From Architecture 1.0 to Architecture 2.0 {#sec-from-architecture-10-to-architecture-20}
+
+To see what changes, it helps to name the practice this framework is moving
+beyond. Architecture 1.0 is the familiar practice of human-orchestrated artifact
+design. The architect defines the problem, chooses models, uses tools,
+interprets feedback, and decides what to build. This practice is not obsolete.
+It is the foundation on which the field stands.
+
+Architecture 2.0 shifts the emphasis from human-crafted static pipelines to agentic, optimization-driven loops. The architect still owns intent,
+constraints, abstraction, evidence standards, rejection, and accountability.
+But the architect must now also design the loop around the artifact. The
+architect must decide how tasks are represented, which tools become
+environments, which method roles are allowed, what feedback budget is
+available, what evidence is required, and what can say no.
+
+The difference can be seen in a familiar design-space exploration. In
+Architecture 1.0, an architect might manually script a simulator sweep over
+cache sizes, associativities, and replacement policies, then inspect the
+results. In Architecture 2.0, the architect may design a loop in which a
+method proposes candidates, a surrogate estimates outcomes, a simulator
+evaluates selected points, a critic flags invalid assumptions, and a human
+decides whether the evidence is strong enough. The artifact may still be a
+cache hierarchy. The new contribution is the explicit, inspectable, and
+rejectable loop that produced it.
+
+> **Surrogate model**: A data-driven approximation used to quickly estimate the results of a computationally expensive simulator.
+
+@fig-design-loop-breaks makes the shift explicit. The left loop is the familiar
+human-carried practice: intent, models, candidates, tool runs, and expert review
+are coordinated by architectural judgment. The right loop does not remove that
+judgment. It represents enough loop state, action boundaries, evidence,
+rejection, and decision authority that bounded AI methods can participate
+without becoming an uninspectable prompt-to-chip shortcut.
+
+![**The architecture design loop changes form:** Architecture 2.0 represents loop state, tool interfaces, evidence, rejection, and decision authority rather than leaving them implicit in human-carried practice.](images/F2a-design-loop-breaks){#fig-design-loop-breaks width="100%" fig-alt="Two side-by-side loop diagrams compare an implicit human-carried architecture loop with a represented Architecture 2.0 loop that exposes state, evidence, rejection, and decision authority."}
+
+This need for inspectability is why this book centers on *agentic design loops*, meaning loops
+where AI systems can choose bounded actions, call tools, revise state, and use
+feedback without owning the commitment. The AI-assisted participant, whether singular or a
+coordinated set of role-specific methods, is not the whole system. The governed
+loop is the system around the artifact. The automated parts must be embedded in
+representations, environments, evidence ledgers, and human decision points.
+
+::: {#pri-design-the-loop .callout-design-principle title="Design the AI-assisted loop, not only the artifact"}
+The key move is to design the AI-assisted loop, not only the thing it produces. A single
+artifact, a generated design from an AI model, a candidate configuration, or a plausible answer,
+is not the contribution. The durable object is the AI loop that exposes state,
+action, feedback, rejection, and decision, because that is what another architect
+can inspect, compare, reject, and improve before an AI method's output crosses a commitment
+boundary.
+:::
+
+To see why the loop itself must be designed, work backward from the systems tradition. A useful AI-assisted system should
+not merely know how to call a simulator, propose RTL, or summarize papers. It
+should carry the habits that make systems engineering credible: suspect the
+bottleneck, account for memory movement and physical limits, compare tradeoffs
+numerically, preserve provenance, expose failure modes, and ask what evidence is
+strong enough for the next commitment. Those habits do not appear automatically
+because a model is capable. They have to be designed into the loop.
+
+## The Architecture Moonshot
+
+Before introducing a concrete design prompt, we must fix two terms: *architecture* and *architect*. In
+this book, architecture does not mean only microarchitecture, a block diagram,
+or a chip artifact.
+
+> **Architecture.** Architecture is the hardware-software contract and system
+> organization that turn workload intent and technology constraints into a
+> defensible system design. It includes ISA and microarchitecture, memory and
+> interconnect, accelerators and chiplets, compiler/runtime interfaces,
+> physical-design constraints, verification, deployment, and the evidence used
+> to justify choices.
+
+> **Architect.** The architect is the human who owns the intent, frames the
+> problem, chooses the abstractions, sets the evidence standard, and retains
+> rejection authority and final accountability for the committed design. AI
+> methods act inside the loop; the architect owns it.
+
+With those terms fixed, we ground the Architecture 2.0 framework in a running prompt sequence, building toward the lighthouse prompt this book traces throughout.
+
+> **Sandbox Prompt:** Design a matrix multiplication systolic array in Chisel and integrate it into a full SoC via a standard NoC (e.g., TileLink or AXI) with DMA engines. Verify its correctness against a software model, sweep its dimensions to find the optimal system-level tradeoff between latency, area, and memory stalls for a $16\times16$ workload, and produce a reviewable evidence ledger explaining why suboptimal variants were rejected.
+
+While a sandbox prompt is excellent for learning to code an agentic loop locally (and we encourage students to start there), evaluating the full scale of Architecture 2.0 requires a moonshot. Our primary running example pushes the limit. It asks for a compute subsystem
+serving real-time mobile extended reality (XR), under a thermal-design-power
+(TDP) budget in a low-power (LP) mobile process class, and it asks for a report
+rather than a chip:
+
+> **Lighthouse Prompt:** Design a low-power, 64-bit RISC-V-based compute subsystem for an
+> XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, accelerator, or SoC block under a 3\ W TDP target in a 3\ nm-class LP mobile process, and return a design-space report with evidence and rejected alternatives.
+
+The accelerator option spans fixed-function, reconfigurable-spatial (CGRA), and
+processing-in-memory (PIM) realizations, and a full program would also have to
+decide chiplet scale-out (die-to-die PHY, core-disable yield binning). The
+running example defers those so that one canonical sentence can travel through
+the book verbatim.
+
+This sentence is quoted, fragment by fragment, throughout the book, so it is
+worth reading once in full. @fig-moonshot-prompt keeps it visible as an object of
+analysis. The top panel restates the prompt; the middle panel names the
+architectural obligations embedded in that request; and the bottom panel shows
+the loop turn that would be needed before an AI system's answer deserved
+architectural trust: represent the task, act through bounded tools and methods,
+gather evidence, reject weak outputs, decide what to commit, and revise the
+next turn. The point is not "type a prompt and get a chip." The point is to
+expose what a credible loop would need to know.
+
+![**The lighthouse prompt exposes hidden loop state:** It is useful because it surfaces the loop state, evidence, rejection, and decision authority a credible architecture answer would need.](images/F1-moonshot-stack){#fig-moonshot-prompt width="92%" fig-alt="Stacked diagram with the full lighthouse prompt sentence at the top, decomposed into architecture obligations and the design-loop requirements needed before a result can be trusted."}
+
+> **Lighthouse prompt.** The lighthouse prompt is this compact Architecture 2.0
+> design request, used throughout the book: a request for a low-power,
+> RISC-V-based mobile XR compute subsystem that must be answered with a
+> design-space report carrying evidence and rejected alternatives.
+
+::: {.callout-lighthouse title="Read the prompt as an AI-assisted loop request"}
+**Context.** The lighthouse prompt is not a miniature product specification. It
+is a compact way to expose the state a credible AI-assisted architecture loop would have to
+carry.
+
+**In the Lighthouse prompt.** "64-bit RISC-V-based compute subsystem" sets the
+ISA/ABI and software contract the method must respect. "XRBench-class real-time mobile XR workload" sets
+the workload scope the AI method must optimize. "vector-capable CPU, accelerator, or SoC block" sets the
+compute organization bounds for the method's action space. "3\ W TDP target in a 3\ nm-class LP mobile
+process" sets the physical-design envelope that can reject a generated proposal, and "design-space report
+with evidence and rejected alternatives" sets the evidence standard the AI loop owes the human architect.
+Those fragments force the AI-assisted loop to carry memory, data movement, compiler,
+runtime, reliability, and verification state rather than treating the prompt
+as a simple hardware generation task.
+
+**Takeaway.** Treat the prompt as a recurring stress test: if a proposed AI-assisted loop
+cannot say what it represents, what it may change, what evidence it records,
+what it rejects, and who decides, it has not yet answered the prompt.
+:::
+
+Finally, while our examples primarily trace the mobile XR prompt to keep node-level concepts concrete, modern architecture is distributed hardware-software co-design. The most extreme version of our lighthouse prompt scales to the datacenter:
+
+> **Datacenter-Scale Lighthouse Prompt:** Design a scale-out TPU supercomputer topology for training 10T-parameter mixture-of-experts^[A mixture-of-experts (MoE) model selectively routes each input to a small, specialized subset of its neural network weights, reducing compute cost per token while maintaining a large total parameter count.] models. Ensure the tensor compiler (XLA/MLIR) can discover an efficient mapping, bound tail latency across 10,000 optical links, co-design network topology with deadlock-free adaptive routing and virtual channels, define recovery targets and rejection gates for synchronous faults, and tolerate cloud multi-tenancy overheads (cold starts, cache pollution, memory disaggregation latencies). Crucially, the loop must explicitly measure and enforce software ecosystem preservation—rejecting any topology or ISA change that breaks compatibility with the dominant TPU software stack (XLA, JAX and PyTorch/XLA, and the collective-communication libraries).
+
+Just like the mobile XR prompt, this datacenter prompt forces an AI-assisted loop to carry specific architectural state: "10T-parameter mixture-of-experts" sets the memory capacity and bandwidth bounds; "XLA/MLIR mapping" defines the software contract and rejection authority for tensor placement; "network topology with deadlock-free adaptive routing" requires the loop to explicitly represent virtual channels and routing protocols as hard rejection gates to prevent bursty MoE AllToAll traffic deadlocks; and "cloud multi-tenancy overheads" forces the evaluation of general-purpose serverless latencies alongside AI training throughput. Furthermore, by elevating ecosystem compatibility to a first-class rejection authority, the AI agent is forced to respect the software moat—ensuring it is designing a usable data center platform, not just drawing a mathematically optimal but useless network graph. The evidence ledger for this prompt must record not just the winning topology, but why alternative routing schemes or fault-tolerance mechanisms failed under scale.
+
+The prompt is deliberately extreme. No architect, and no model, can turn that
+sentence into a verified subsystem today, and that is the point. Pushing the
+request past what is currently feasible is a forcing function: it exposes the
+hidden architectural state, evidence, and decisions a credible design loop would
+have to handle, rather than letting a plausible-sounding answer conceal them.
+
+With that concrete prompt in view, the word *moonshot* can be used precisely.
+The term should not mean a prediction that the field can already automate
+architecture end to end. X, the Moonshot Factory, frames a moonshot as the
+intersection of a huge problem, a radical solution, and a breakthrough
+technology that makes the solution plausible enough to pursue
+[@XCompanyMoonshotBlueprint]. This book adapts that structure to computer
+architecture.
+
+Use the moonshot analogy only to name a loop requirement: a hard target becomes
+useful when it defines shared state, instruments, feedback, rejection rules, and
+commitment boundaries. Apollo, the Human Genome Project, DARPA's Grand
+Challenge, and AlphaFold matter here as examples of targets that created shared
+tasks, instruments, datasets, tests, and evidence standards, not as a claim that
+architecture should imitate their politics, budgets, or technical domains
+[@NASA2008Apollo11; @NHGRI2025HumanGenomeProject; @DARPA2014GrandChallenge; @JumperEtAl2021AlphaFold].
+
+The common pattern is not that a moonshot is
+large or fashionable. It is that the target organizes a community around a hard
+problem, a different way of working, and an enabling technical shift.
+
+There is a sharper lesson here than the analogy first suggests. Each example
+is remembered as a singular achievement: a flag on the Moon, a finished genome,
+a solved protein structure. But the durable contribution was rarely the single
+result. It was the shared task, the instruments, the methods, and the evidence
+standards that turned an exceptional effort into a process others could run.
+Architecture 2.0 takes that stance. The goal is not to celebrate one impressive
+design that a generative method happens to emit. It is to engineer the design and
+discovery process itself, the loop, the representations, the instruments, and
+the evidence, so that credible architecture results can be produced, checked,
+and reproduced rather than admired as isolated showcases. Computer architecture
+has done exactly this before, more than once.
+
+The Mead and Conway VLSI design methodology turned chip design into a
+structured, reusable discipline with shared abstractions and design rules
+[@MeadConway1980VLSI], and the reduced-instruction-set program
+reshaped the hardware/software contract around quantitative evidence
+[@PattersonDitzel1980RISC]. Both changed the loop, not just the artifact.
+Architecture 2.0 belongs in that lineage: the next shift is in the design loop
+itself.
+
+> **Architecture moonshot.** An architecture moonshot is an aspirational target
+> at the intersection of three conditions: a grand architecture challenge that
+> ordinary ad hoc coordination cannot evaluate credibly enough, a radical
+> design-loop target that changes how architectural work is represented and
+> evaluated, and an enabling AI/data/tool breakthrough that makes the target
+> technically plausible enough to study without pretending it is solved.
+
+@fig-moonshot-venn shows that pattern in the architecture vocabulary used here.
+The phrase is deliberately about loop capacity, not about dismissing classical
+architecture practice. Classical architecture already has models, measurements,
+review, and signoff discipline. The moonshot is to make enough of that loop
+explicit, tool-connected, and evidence-bearing that AI methods can participate
+without hiding what would reject their output.
+
+![**A moonshot needs three conditions at once:** An architecture moonshot is not just a big challenge, a radical target, or a promising technology. It sits at the intersection of a grand architecture challenge, a design-loop target that changes how work is represented and evaluated, and an enabling AI/data/tool breakthrough that makes the target plausible enough to study.](images/F1c-moonshot-venn){#fig-moonshot-venn width="100%" fig-alt="Three-circle Venn diagram showing an architecture moonshot at the intersection of grand challenge, radical target, and enabling breakthrough."}
+
+This architecture-specific moonshot is worth naming because the pressure is real but the
+solution is not yet settled. The grand challenge is that hardware/software
+systems now span workloads, software stacks, ISAs, microarchitecture,
+accelerators, memory systems, EDA, physical constraints, verification, and
+deployment. The radical target is not to automate architects away; it is to
+design interoperable loops that represent these choices, call the right tools,
+preserve evidence, record failures, and give humans rejection authority across
+ISA, microarchitecture, compiler, RTL, physical-design, and deployment
+boundaries. The enabling shift is the arrival of AI methods, architecture
+datasets, executable environments, and tool interfaces that make pieces of those
+loops plausible enough to study. Publicly reported examples already include reinforcement
+learning systems for physical-design exploration and learned circuit-generation
+loops with silicon evidence
+[@Synopsys2023DSOai; @RoyEtAl2021PrefixRL]. @sec-loop-patterns-across-stack returns to those examples
+as loop-pattern cases. These examples show bounded loop pieces with evidence,
+not end-to-end architecture autonomy. The moonshot is not that these pieces
+exist; it is assembling them into a family of represented, evidence-bearing
+loops that a human can still govern.
+
+> **Reinforcement learning**: A machine learning method in which an agent learns to choose actions that maximize a cumulative reward signal from its environment, often used to navigate complex design spaces [@SuttonBarto2018ReinforcementLearning].
+
+Returning to the lighthouse prompt, each fragment sets a specific constraint. XRBench, a benchmark suite for mobile XR workloads, gives the prompt a workload anchor rather than a vague application
+label [@KwonEtAl2023XRBench]. Real-time mobile XR stresses latency,
+energy, memory movement, model concurrency, sensing, graphics, and deployment
+constraints. End-to-end XR systems research has shown how tightly those stages
+couple across the full perception-to-display pipeline, which is what makes mobile
+XR a demanding architecture target rather than a single kernel to optimize
+[@HuzaifaEtAl2021ILLIXR]. A 64-bit RISC-V contract (an open standard instruction set architecture) gives the design an ISA boundary. Vector
+capability makes the compute organization concrete but does not decide whether
+the realization should be a CPU extension, accelerator, or SoC block. The 3\ W
+TDP target and 3\ nm-class LP mobile process assumption
+force the prompt into a contemporary technology envelope. The node is
+intentionally stated as a class rather than as a named foundry PDK (process design kit); current
+mobile SoCs are publicly
+described in 3-nanometer-class technology, but a credible architecture loop
+must still state which process, libraries, voltage assumptions, and signoff
+path it actually uses [@Apple2024A18Pro; @Apple2024M4]. The requested
+deliverable is not merely a design. It is a design-space report with evidence
+and rejected alternatives.
+
+Another way to read the prompt's requirements is through the familiar foundation-model stack. In
+the generic version, many kinds of inputs feed a central foundation model, and
+many downstream applications fan out on the other side. The architecture
+analogy is different. The left side includes workload traces, specifications,
+RTL or IP blocks, simulator configurations, process and library assumptions,
+verification logs, papers, and prior designs. The middle should not be read as
+a single language model or as a current capability claim. It is a placeholder
+for a represented design loop connected to tools, constraints, evidence, and
+rejection. The right side is not "a chip" as a single output. It includes ISA proposals,
+microarchitecture sketches, accelerator or SoC partitioning choices, RTL and
+testbench fragments, design-space reports, verification packages, and
+deployment decisions.
+@fig-foundation-wall-stack should be read in two steps. Panel A
+shows the generic foundation-model pattern. Panel B translates each part of the
+pattern into architecture: the inputs become design artifacts and evidence, the
+middle becomes a represented and tool-connected design loop, and the outputs
+become architecture deliverables with different commitment levels.
+
+> **Foundation model**: A large-scale AI model trained on a vast quantity of data that can be adapted to a wide range of downstream tasks.
+
+![**A foundation-model analogy for architecture loops, not a prompt-to-chip shortcut:** The center is a represented design loop tied to architecture artifacts, tools, constraints, evidence, and rejection.](images/F1a-foundation-wall-stack){#fig-foundation-wall-stack width="100%" fig-alt="Two-panel diagram contrasting a generic foundation-model stack with an architecture loop substrate centered on a represented tool-connected design loop."}
+
+Read Panel B as a loop substrate, not as a single model call. For the
+lighthouse prompt, one loop turn might ingest an XRBench trace slice and a
+software pipeline description, generate vector-width, local-memory, and
+CPU/accelerator partition candidates, run a cheap performance and power proxy,
+reject candidates that miss the latency or 3\ W envelope, and preserve the
+rejected alternatives as evidence for the next turn. A higher-commitment turn
+would replace some of that proxy evidence with simulator runs, compiler output,
+RTL fragments, or physical-design feedback. The foundation-model analogy is
+useful only if it points to that maintained architecture state and evidence
+path.
+
+::: {.callout-architect-checkpoint title="Higher-Commitment Decision Gate"}
+Before a design loop transitions from proxy evidence to expensive simulator or physical-design feedback, the architect must evaluate the retained evidence and authorize the higher-commitment turn. Automation does not cross this boundary autonomously.
+:::
+
+```{=latex}
+\FloatBarrier
+```
+
+The prompt should be treated as a moonshot, not as a current capability claim.
+A present-day generative method may draft a plausible answer. It may produce a list of
+architectural choices, cite related ideas, or generate code fragments. That is
+not enough. The useful question is what loop would be required before such an
+answer deserved architectural trust.
+The book uses this prompt as a spine rather than as the only example. Later
+chapters zoom into facets of the same request: memory and data movement,
+software drift, chiplet partitioning, verification, physical design, and
+deployment. Additional examples appear only when a facet needs a more specific
+loop.
+
+## Why the Prompt Spans the Stack {#sec-why-the-prompt-spans-the-stack}
+
+The prompt is architectural because each phrase creates obligations beyond the
+surface words. A credible loop must track workload behavior, software
+contracts, hardware organization, physical feasibility, evidence, and rejection
+paths together. @tbl-moonshot-decomposition keeps that
+obligation compact. The table is not meant to exhaust every subtask. It is a
+reader's checklist for why the prompt crosses boundaries that architecture
+cannot ignore.
+
+Read the table as a stack of obligations rather than as a shopping list. The
+workload phrase says what behavior the design must serve. The ISA and compute
+phrases say what boundary the hardware/software interface must expose. The
+power and process phrase says what physical world can reject the idea. The
+report phrase says what kind of evidence the loop owes the architect before
+the answer deserves trust. Each row therefore names both a design decision and
+a way for the loop to be wrong.
+
+| **Prompt fragment** | **Architectural decisions** | **Evidence or rejection need** |
+| --- | --- | --- |
+| XRBench mobile XR | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace provenance, benchmark version, statistically rigorous phase clustering (e.g., SimPoint), and rejection when results over-optimize a single hot loop or miss real-time behavior. |
+| 64-bit RISC-V with vector or accelerator option | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
+| Compute subsystem | CPU, fixed-function accelerator, reconfigurable spatial array (e.g., CGRA or Reconfigurable Dataflow Architecture/RDA), or Processing-in-Memory (PIM) data-centric block; includes SIMT state (TLP, register pressure), memory hierarchy, and SoC integration. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, or complexity elsewhere, or those lacking hardware security isolation (e.g., timing channels, GLIFT). |
+| 3\ W, 3\ nm-class low-power envelope | Power, voltage/frequency, thermal, area, EDA constraints, and dynamic power management interfaces (e.g., Dynamic Voltage and Frequency Scaling or DVFS, power domains, thermal sensors) for the OS/firmware. | Power-model provenance, physical RTL limits (IR drop, electromigration, timing closure), sensitivity analysis, and explicit rejection gates for DRAM read-disturbance faults (e.g., RowHammer, worsened when a tight power budget reduces refresh) and runtime throttling failures. |
+| Design-space report with evidence and rejected alternatives | Alternatives, Pareto fronts (designs that nothing else beats on every objective at once), assumptions, uncertainty, verification plan, rejected or failed candidates, and human decision points. | Evidence ledger: connected measurements, assumptions, checks, rejections, coverage, reproducible artifacts, and explicit rejection authority before higher commitment. |
+
+: **Prompt fragments create architecture obligations:** The lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
+
+The table gives the first concrete version of a loop contract. It says what
+state must be represented, which parts of the design space can be exposed to
+methods, what feedback matters, and what can reject a result before commitment.
+Later chapters make each field more precise, but the contract begins here.
+A weak lighthouse answer can be rejected immediately if it cannot say which
+workload slice, software contract, evidence level, and human decision owner
+its design claim depends on.
+The terms below are signposts for that later precision; the only idea needed
+now is simple. A loop should say what it may change (the part of the design
+space the architect exposes to methods, narrower than the full space), what
+evidence it owes, what can reject it, and who decides.
+
+> **Loop contract.** A loop contract is the explicit agreement a design loop
+> makes visible before a method acts: the task, represented state, permitted
+> actions, architecture environment, feedback budget, evidence standard,
+> rejection authority, and human decision owner.
+
+::: {.callout-engineer-move title="Fill in an AI-assisted loop contract"}
+A compact request becomes an AI-assisted loop contract by answering seven questions. For the
+lighthouse prompt the answers are the entries in @tbl-moonshot-decomposition; for
+a new request, fill them in.
+
+1. **Workload or scenario.** Which workload slice, input distribution, and
+   quality-of-service target is the AI-assisted loop actually optimizing?
+2. **Interface or software contract.** Which ISA, programming model,
+   compiler/runtime path, and compatibility must the method respect?
+3. **Legal action space.** Which design choices may the AI method change, and which
+   are fixed or deferred to a later turn?
+4. **Environment or tool path.** Through which simulator, flow, or harness does
+   the AI loop act and observe?
+5. **Feedback budget.** How many evaluations, at what cost, latency, and fidelity,
+   can the AI method afford? For example, the loop must explicitly distinguish between a millisecond analytical proxy and a three-day place-and-route (P&R) run.
+6. **Evidence and rejection gate.** What evidence does an AI claim owe, and what can
+   reject it before human commitment?
+7. **Human commitment boundary.** What is the strongest claim the evidence
+   licenses, and who owns the final architectural commitment?
+
+A request that cannot answer these is not yet a credible AI-assisted loop; it is a wish, and the architect
+can reject it on that basis.
+:::
+
+> **Design-loop card.** A design-loop card is a compact review artifact that
+> records the intent, task, design space, representation, environment, method
+> role, feedback budget, evidence, rejected and failed candidates, rejection
+> authority, commitment boundary, and human decision for a loop.
+
+The rest of the vocabulary in the loop contract is a signpost here, not a full definition stack.
+Later chapters give sharper treatment to evidence ledgers, feedback budgets,
+rejection authority, and commitment boundaries. For now, the point is that those
+terms turn the lighthouse prompt from a request for an answer into a reviewable
+contract for a loop.
+
+::: {#pri-system-synthesis .callout-design-principle title="Make AI synthesis obligations explicit"}
+System synthesis is credible only when the AI-assisted loop exposes the obligations that
+make a result reviewable: what state it represents, which actions are bounded,
+which environment returns feedback, which AI method role acts, what feedback budget
+it spends, what evidence ledger it preserves, and what can reject the claim
+before human commitment.
+:::
+
+These obligations are the chapter-level preview of the design-loop card,
+not a competing schema. Represented state maps to the card's intent, task, and
+representation fields; bounded action maps to design space and method role;
+architecture environment and feedback budget map directly; evidence ledger
+maps to evidence and negative traces; and rejection authority carries the
+commitment boundary and human decision fields that keep the loop accountable.
+
+No single model can make these obligations disappear. The table is deliberately
+compressed; each row expands into many implementation and evidence questions.
+The "3\ W, 3\ nm-class" row, for example, reaches down into RTL, synthesis,
+floorplanning, timing, IR drop, leakage, thermal behavior, and signoff. The
+"RISC-V with vector or accelerator option" row reaches sideways into compilers,
+runtimes, libraries, generated code, and portability. Architecture development
+therefore means proposing artifacts, predicting consequences, optimizing under
+constraints, and rejecting weak evidence across changing fidelity levels. This
+is why the moonshot is a computer architecture problem rather than prompt
+engineering: the loop has to carry architectural state across the stack.
+
+## Architecture Development Spans Three Roles {#sec-architecture-development-spans-three-roles}
+
+These obligations of the lighthouse prompt also clarify what the word *development* has to cover.
+Architecture development is not one AI task. It is a loop in which different
+roles produce different kinds of architectural work.
+
+This chapter emphasizes generation, prediction, and optimization because they
+are the development roles most easily mistaken for the whole story. Later
+chapters add critique, repair, verification, explanation, and coordination as
+the checking and governance roles that keep automated participation credible.
+
+Generation proposes objects the architect can inspect: an ISA extension,
+microarchitecture sketch, accelerator interface, memory hierarchy option, RTL
+fragment, testbench, benchmark harness, or design-space report. Prediction
+estimates what those objects would do before every expensive evaluation:
+latency, energy, memory traffic, timing risk, compiler support, verification
+burden, or deployment behavior. Optimization searches among alternatives:
+which cache shape, vector width, dataflow, voltage/frequency policy, chiplet
+partition, or compiler schedule best satisfies the objective and constraints.
+
+The lighthouse prompt needs all three. A generator might propose a vector
+extension for XR kernels, but prediction has to estimate whether the extension
+actually improves latency and energy under the mobile power envelope.
+Optimization then has to compare that extension against an accelerator, a
+tighter memory hierarchy, or a software/runtime change. None of those steps is
+credible without rejection: a compiler may not generate valid code, a power
+model may be out of support, a timing check may fail, or a workload slice may
+not represent the intended XR behavior. Crucially, when an EDA tool rejects a candidate, it does not return a simple scalar loss; it returns structural feedback like thousands of timing violation paths, which the loop must parse and use to guide the next generation.
+
+Those roles overlap, but none is sufficient alone. The process closely parallels machine learning training: generation proposes a candidate (like a forward pass), prediction evaluates its quality (like a loss function), and optimization searches for a better candidate (like backpropagation). At the center, systems are
+synthesized in a closed loop: generated candidates are predicted, optimized,
+checked, rejected, and revised under explicit evidence standards.
+
+@fig-architecture-development-triad visualizes this distinction.
+Its purpose is not to introduce three disconnected topics. It shows why an
+architecture loop needs all three roles at once: generation without prediction
+produces unsupported artifacts, prediction without optimization does not search
+the space, and optimization without generation and evidence can overfit a
+proxy. @sec-methods-generation-prediction-optimization returns to the methods in detail; here they establish that
+Architecture 2.0 is about the loop among these roles, not only about producing
+candidate designs.
+
+> **Overfitting**: In machine learning, fitting the noise and idiosyncrasies of a training sample so that performance fails to generalize to new data. An optimizer can *overfit a proxy* in the same way, raising the proxy's measured score by exploiting its quirks rather than improving the true objective.
+
+![**Architecture development is broader than generation:** Generation proposes artifacts and candidates, prediction estimates behavior and risk, and optimization searches tradeoffs under constraints. Architecture 2.0 is concerned with the closed loop in the middle, governed by evidence, rejection, and human architectural judgment.](images/F1b-architecture-development-triad){#fig-architecture-development-triad width="100%" fig-alt="Three-circle diagram showing generation, prediction, and optimization overlapping around closed-loop architectural synthesis governed by evidence and rejection."}
+
+The figure shifts the reader from a list of AI capabilities to a loop contract:
+each method role is useful only when its output is checked by the other roles
+and by evidence strong enough for the next commitment boundary.
+
+
+
+## Efficiency Claims Need Rejectable Loops {#sec-efficiency-claims-need-rejectable-loops}
+
+Naming the roles inside the loop does not yet say what the loop is optimizing
+for. Architecture still cares about efficiency: the discipline turns scarce
+resources into useful work through durable hardware/software interfaces. But the
+loop optimizes for credible efficiency claims, not raw artifact output. A design
+that is faster but consumes too much power, is impossible to verify, or depends
+on fragile software assumptions has not really solved the architectural problem.
+If Architecture 2.0 only made architects produce more artifacts, it would not be
+enough. The goal is to produce better, more credible, and more efficient systems
+under rising complexity.
+
+The hard shift is not from performance to a single new metric called power. It
+is that efficiency itself is becoming more multidimensional. Classical computer
+architecture made performance quantitative, but it also treated cost and power
+as first-class constraints
+[@HennessyPatterson2017QuantitativeApproach]. Dennard-style scaling once
+made it easier to improve performance while keeping power density manageable
+[@DennardEtAl1974Scaling]. As that story weakened, dark silicon and the limits
+of multicore scaling pushed the field toward specialization
+[@BorkarChien2011FutureMicroprocessors; @EsmaeilzadehEtAl2011DarkSilicon; @HennessyPatterson2019GoldenAge].
+Data-movement energy made arithmetic alone an insufficient efficiency story
+[@Horowitz2014Energy]. Warehouse-scale operation expanded the boundary to
+power delivery, utilization, networking, operations, and total cost of
+ownership [@BarrosoHolzleRanganathan2019DatacenterAsComputer].
+Sustainability adds another layer because carbon depends on operational
+energy, hardware manufacturing and infrastructure, utilization, geography, and
+lifetime
+[@GuptaEtAl2021ChasingCarbon].
+For an AI-assisted architecture loop, each efficiency dimension becomes represented
+state, an evidence requirement, and a possible rejection condition.
+
+Given this multidimensional efficiency, the question is not whether traditional architecture methods suddenly stop
+working. Many still work extremely well when the workload, abstraction,
+feedback path, and commitment level are bounded. The harder question is where
+the classical loop becomes too slow, too implicit, or too expensive to manage
+the coupled objectives. Architecture 2.0 should be understood as a way to make
+that boundary explicit: which parts can still be handled by familiar models,
+scripts, simulation, and expert review, and which parts need more explicit
+state, tool feedback, evidence ledger entries, rejected alternatives, or AI-assisted
+search.
+
+To make these boundaries explicit, a credible loop must also record what failed as well as what worked, not only the
+winners. Just as machine learning training relies on checkpoints to recover from divergent states, an AI-assisted design loop requires checkpointing the design state so it can roll back from failed architectural paths. That record keeps later methods, reviewers, and architects from
+re-exploring ground the loop already ruled out. Later chapters give it a
+sharper name and make it part of the evidence ledger.
+
+Modern benchmark suites show this same pressure toward multidimensional efficiency. MLPerf, the community benchmark effort for
+making machine-learning performance claims reproducible across systems, treats
+deployment scenario, latency, throughput, accuracy, and power as part of the
+comparison rather than as one scalar claim [@MattsonEtAl2020MLPerf].
+@sec-design-loop-no-longer-scales develops that case with the numbers; the
+architectural lesson here is that efficiency is not one number. It is a
+structured claim about useful work under constraints. Useful work must be
+evaluated against the relevant scarce resource: latency, throughput, energy,
+power, area, dollar cost, carbon, reliability, verification effort, engineering
+time, or risk.
+
+A compact way to write the point is that every efficiency claim has a design,
+workload, scenario, and resource denominator:
+
+$$
+\mathrm{Eff}_r(d,w,s) =
+\frac{\mathrm{UsefulWork}(d,w,s)}{\mathrm{Resource}_r(d,w,s)}.
+$$
+
+Here, $d$ is the design, $w$ is the workload, $s$ is the deployment or
+evaluation scenario, and $r$ may be time, energy, power, area, dollar cost,
+carbon, validation effort, or another scarce resource. In an AI-assisted design
+loop, $d$, $w$, $s$, and $r$ are represented state, not only notation: changing
+any one changes what evidence can support the claim and what should reject it.
+The equation is simple on purpose. It prevents the loop from treating a faster design as efficient if
+the useful work, scenario, or resource denominator has quietly changed, and
+because the denominator is stated openly, it also lets a second architect
+compare two competing designs on equal footing rather than trusting whichever
+number looks larger.
+
+@tbl-efficiency-dimensions summarizes the dimensions that this chapter
+will treat as part of efficiency. The rows are not separate goals to optimize
+independently. They are coupled obligations that a design loop must represent
+and test.
+
+| **Dimension** | **Efficiency question** | **Why it complicates the loop** |
+| --- | --- | --- |
+| Performance | How much useful work is delivered per unit time, latency budget, or service-level target? | The answer depends on workload selection, scenario, software stack, and whether the measured behavior matches the deployment claim. |
+| Power and energy | How much useful work is delivered per watt, joule, thermal budget, or battery envelope? | The loop must model activity, data movement, voltage/frequency choices, thermal constraints, and fidelity gaps between estimates and signoff. |
+| Reliability and correctness | How much useful work survives faults, corner cases, nondeterminism, and validation? | A faster candidate is not efficient if it spends its savings on fragility, debug burden, or invalid software and hardware assumptions. |
+| Scalability and cost | How much useful work is delivered per dollar, rack, network hop, operator action, or unit of capacity? | Local wins can shift cost to memory, network, power delivery, utilization, operations, or total cost of ownership. |
+| Sustainability | How much useful work is delivered per unit of operational and embodied environmental footprint? | Carbon depends on hardware lifetime, manufacturing, energy mix, utilization, and where and when computation runs. |
+| Evidence and engineering effort | How much credible evidence is obtained per simulation, experiment, verification run, or engineer-hour? | A loop that generates more candidates can still be inefficient if it consumes scarce feedback, hides failures, or produces evidence that cannot reject outputs. |
+
+: **Efficiency is becoming multidimensional:** Performance, power, reliability, scalability, sustainability, and evidence cost are increasingly coupled. The architecture question is which parts traditional loops can still handle and which parts need more explicit state, feedback, and rejection. {#tbl-efficiency-dimensions tbl-colwidths="[22,32,34]"}
+
+The word efficient should therefore be read broadly. A candidate that improves
+simulated performance while increasing verification burden may not be
+efficient. A candidate that reduces energy but requires fragile software
+assumptions may not be efficient. A candidate that looks good under a proxy
+metric but fails under a more faithful workload may not be efficient.
+Architecture 2.0 should treat efficiency as a loop property, not only an
+artifact property.
+
+The lighthouse prompt makes this concrete. The requested subsystem must
+support a workload class, meet a power envelope, fit a technology assumption,
+interact with software, and produce evidence. The design loop must reason about
+tradeoffs among energy, latency, memory traffic, programmability,
+verification, and deployment risk. A single scalar objective may be useful
+inside the loop, but it cannot be the whole architectural judgment.
+
+## Boundaries of the Argument
+
+Having set credible efficiency claims as the loop-level target, it is worth
+being equally clear about what this book is not trying to do. The goal is not to
+produce a paper
+catalog. The field is moving too quickly
+for a catalog to remain useful for long. The goal is to give readers a
+framework that can organize current work and still be useful as models, tools,
+and benchmarks change.
+
+Nor is the goal to make a product forecast. The book does not claim that a
+particular model, tool harness, simulator, EDA flow, or benchmark will define
+the field. Those will evolve. The durable question is what must be represented,
+measured, checked, rejected, and decided.
+
+Nor is this a tool manual. Tools matter deeply, but the focus is the
+architecture of the design loop rather than installation instructions or
+process recipes. @sec-appendix-a-bootstrapping gives a compact bootstrap
+path. @sec-appendix-b-design-loop-card gives the design-loop card and rubric.
+
+It is also not a claim that AI systems replace architects. The opposite is
+closer to the book's argument. As design loops become more automated, the
+architect's responsibility moves upward. The architect must frame the task,
+choose representations, define environments, set evidence standards, inspect
+rejected and failed candidates, maintain rejection authority, and own the final
+commitment. @sec-data-representations-world-models gives those records a
+sharper name and shows why they matter as loop state.
+
+::: {.callout-failure-mode title="What not to claim"}
+Architecture 2.0 should not be read as push-button chip design, replacement of
+architects, or a claim that today's generative methods define the field. The defensible
+claim is narrower and stronger: architecture can move toward synthesizing
+systems under governance when design loops expose state, actions, feedback,
+evidence, rejection authority, and architect-owned commitment.
+:::
+
+The rest of the book follows the loop exposed by the moonshot. @sec-design-loop-no-longer-scales
+explains why the classical architecture loop strains as specialization,
+chiplets, software velocity, data movement, EDA constraints, reliability
+expectations, sustainability pressure, and verification burden grow together.
+@sec-architecture-20-ontology names the ontology of the new loop.
+@sec-data-representations-world-models asks what architecture data must
+represent, including the world models introduced by the ontology.
+@sec-architecture-environments-tool-interfaces
+turns tools into environments with actions, observations, feedback, and
+constraints. @sec-methods-generation-prediction-optimization separates
+generation, prediction, optimization, critique, and repair as method roles.
+@sec-feedback-verification-trust defines feedback, verification, and trust.
+@sec-running-the-loop runs one loop end to end on the lighthouse prompt.
+@sec-loop-patterns-across-stack compares loop patterns across the stack.
+@sec-what-architect-owns returns to what the architect owns, then turns the
+framework into long-horizon challenge tasks and a research agenda. The
+appendices then equip the reader: a bootstrap path for a first loop, the
+design-loop card and review rubric, and a loop-role resource catalog with
+living links.
+
+> **World model**: A predictive model of an environment used to anticipate the consequences of actions. The seminal sense is a *learned* latent model [@HaSchmidhuber2018WorldModels]; this book uses the term more broadly, covering simulators, surrogates, cost models, and design rules that encode what the loop expects to happen.
+
+## Open Research Questions
+
+These open research questions represent unsettled, forward-looking directions that push the boundaries of current architecture research. Carry them as conceptual challenges to consider as subsequent chapters formalize the design loop.
+
+1. **Formalizing Reproducibility and Provenance in Non-Deterministic AI Generators.**
+How can the computer architecture community construct a formal framework for verifying hardware designs synthesized by stochastic, non-stationary AI models? This requires establishing cryptographic or formal bounds on provenance such that a generated microarchitectural claim remains rigorously reproducible, reviewable, and defensible even when the underlying foundational models shift or their weights remain proprietary (see the discussion on "Why the Prompt Spans the Stack" in @sec-why-the-prompt-spans-the-stack).
+
+2. **Adversarial Red-Teaming^[Red-teaming in AI involves proactively probing a system to discover vulnerabilities, biases, or unexpected failure modes.] for Autonomous Hardware Generation Loops.**
+How do we design a systematic theory of adversarial workloads and edge-case constraints designed exclusively to stress-test the validation mechanisms of AI-assisted design loops? Addressing this demands the creation of novel, mathematically grounded "red-team" benchmarks that intentionally induce compounding errors across the hardware-software stack, forcing agents to propose plausible yet physically or logically flawed systems to evaluate the robustness of their rejection authorities (see the discussion on "Efficiency Claims Need Rejectable Loops" in @sec-efficiency-claims-need-rejectable-loops).
+
+3. **Establishing a Unified Currency for Multi-Fidelity Feedback Budgets.**
+As AI agents query a mix of rapid surrogates and highly accurate but computationally expensive cycle-accurate simulators, how do we formalize an economic and information-theoretic model of "evidence cost"? A thesis in this space must derive a rigorous optimization framework that dynamically balances financial cost, latency, and predictive uncertainty to establish a standardized currency for the feedback budget in automated design loops (see the discussion on "Architecture Development Spans Three Roles" in @sec-architecture-development-spans-three-roles).
+
+4. **Federated Ontologies for Architectural Rejection and Failure Modes.**
+How can the community synthesize a unified, machine-readable taxonomy of failure modes that structurally encodes *why* an AI-generated architecture candidate was rejected by a simulator, compiler, or physical design tool? Formulating this shared infrastructure would prevent independent AI-assisted systems from repeating foundational mistakes, requiring research at the intersection of knowledge representation, compiler feedback loops, and hardware design verification (see the discussion on "From Architecture 1.0 to Architecture 2.0" in @sec-from-architecture-10-to-architecture-20).
+
+::: {.callout-carry-forward}
+- **Reader test:** For any AI architecture result, can you say what state was represented, what method role acted, what evidence was preserved, what could reject it, and where the commitment boundary stays human-owned?
+- **Up next:** Cheap generation makes that reading habit matter more, not less; the next chapter turns it into a pressure test by asking why the classical loop no longer scales.
+:::

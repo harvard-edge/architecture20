@@ -1,0 +1,107 @@
+name: Process workshop submission
+
+# When someone files a "Submit a workshop" issue, parse it, validate it, and
+# open a pull request that adds the workshop to the community registry. A
+# maintainer reviews and merges the PR.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  create_pr_from_issue:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'workshop-submission')
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml
+
+      - name: Parse issue and update workshop registry
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/add_workshop_from_issue.py
+
+      - name: Validate workshop registry
+        if: steps.parse.outputs.success == 'true'
+        env:
+          PYTHONPATH: .github/scripts
+        run: python .github/scripts/validate_workshops.py
+
+      - name: Create pull request
+        if: steps.parse.outputs.success == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "workshops: add ${{ steps.parse.outputs.workshop_name }}"
+          title: "Add ${{ steps.parse.outputs.workshop_name }} to the workshop registry"
+          body: |
+            Adds **${{ steps.parse.outputs.workshop_name }}** to the workshop
+            registry, generated from issue #${{ github.event.issue.number }}.
+
+            ## Parsed card fields
+
+            | Field | Value |
+            | --- | --- |
+            | Workshop | ${{ steps.parse.outputs.workshop_name }} |
+            | URL | ${{ steps.parse.outputs.workshop_url }} |
+            | Venue or host | ${{ steps.parse.outputs.workshop_venue }} |
+            | Date or year | ${{ steps.parse.outputs.workshop_when }} |
+            | Primary topic | ${{ steps.parse.outputs.workshop_category }} |
+            | Description | ${{ steps.parse.outputs.workshop_description }} |
+            | Location | ${{ steps.parse.outputs.workshop_location }} |
+            | Organizer(s) | ${{ steps.parse.outputs.workshop_organizers }} |
+            | Institution(s) | ${{ steps.parse.outputs.workshop_institution }} |
+            | CFP or submission URL | ${{ steps.parse.outputs.workshop_submission_url }} |
+            | Submission deadline | ${{ steps.parse.outputs.workshop_deadline }} |
+            | Source YAML | `${{ steps.parse.outputs.workshop_file }}` |
+
+            ## Maintainer review
+
+            - [ ] The venue is relevant to Architecture 2.0 or adjacent community work.
+            - [ ] The topic category is appropriate.
+            - [ ] The URL and CFP/submission link resolve.
+            - [ ] The generated `www/workshops.yml` index matches the source YAML.
+            - [ ] The public card gives useful context for potential submitters.
+            - [ ] The description is concise and useful to readers.
+
+            Closes #${{ github.event.issue.number }}
+          branch: "workshops/add-${{ github.event.issue.number }}"
+          labels: "community"
+
+      - name: Comment on the issue (accepted)
+        if: steps.parse.outputs.success == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Thanks for the submission. I parsed **${{ steps.parse.outputs.workshop_name }}**
+            and opened a pull request to add it to the workshop registry. A
+            maintainer will review and merge it, and it will appear on the site
+            shortly after.
+
+      - name: Comment on the issue (needs changes)
+        if: steps.parse.outputs.success == 'false'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          body: |
+            Thanks for the submission. I could not add this automatically:
+            **${{ steps.parse.outputs.reason }}**
+
+            Please edit the issue to fix that, then close and reopen it to re-run
+            the check.

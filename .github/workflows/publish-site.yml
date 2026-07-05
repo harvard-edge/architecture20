@@ -1,0 +1,177 @@
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "book/**"
+      - "tools/**"
+      - "www/**"
+      - "_global/**"
+      - ".github/scripts/**"
+      - "book/images/arch2-card.png"
+      - "book/images/favicon.svg"
+      - "book/images/favicon-16.png"
+      - "book/images/favicon-32.png"
+      - "book/images/favicon.ico"
+      - "requirements.txt"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/publish-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: publish-site-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
+jobs:
+  preflight:
+    name: Pre-commit gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run pre-commit hooks
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  build:
+    name: Render and assemble site
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: preflight
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            latexmk \
+            tex-gyre \
+            lmodern \
+            librsvg2-bin \
+            poppler-utils \
+            texlive-fonts-extra \
+            texlive-fonts-recommended \
+            texlive-latex-base \
+            texlive-latex-extra \
+            texlive-latex-recommended \
+            texlive-pictures \
+            texlive-plain-generic \
+            texlive-science
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Build the full site
+        run: |
+          chmod +x .github/scripts/build_site.sh
+          .github/scripts/build_site.sh
+
+      - name: Validate Pages payload
+        run: |
+          test -f _site/index.html
+          test -f _site/about.html
+          test -f _site/workshops.html
+          test -f _site/readings.html
+          test -f _site/discord.html
+          test -f _site/huggingface.html
+          test -f _site/tools/index.html
+          test -f _site/book/index.html
+          test -f _site/images/arch2-card.png
+          test -f _site/book/Architecture-2.0.pdf
+          touch _site/.nojekyll
+          echo "arch2.mlsysbook.ai" > _site/CNAME
+          {
+            echo "HTML pages: $(find _site -name '*.html' | wc -l)"
+            echo "PDF: _site/book/Architecture-2.0.pdf"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Upload render logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch2-render-logs
+          path: book/_build/logs
+          if-no-files-found: ignore
+
+  deploy:
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify live site
+        run: |
+          for attempt in $(seq 1 12); do
+            if curl -fsSL https://arch2.mlsysbook.ai/ -o /tmp/arch2-index.html &&
+               grep -q "Architecture 2.0" /tmp/arch2-index.html &&
+               curl -fsSI https://arch2.mlsysbook.ai/book/Architecture-2.0.pdf >/dev/null; then
+              echo "Live site verified on attempt $attempt" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Waiting for Pages propagation ($attempt/12)..."
+            sleep 10
+          done
+          echo "Live site did not verify after Pages deployment."
+          exit 1
+
+      - name: Summarize deployment
+        run: |
+          {
+            echo "Published: ${{ steps.deployment.outputs.page_url }}"
+            echo "Custom domain: https://arch2.mlsysbook.ai/"
+          } >> "$GITHUB_STEP_SUMMARY"
