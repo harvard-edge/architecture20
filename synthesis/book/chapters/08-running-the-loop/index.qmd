@@ -62,7 +62,7 @@ next evidence stage.
 | Design space | Vector CPU extension, deliberately loose accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator search yet. |
 | Legal actions | Instantiate the three candidate organization records with prompt, generator/search version, candidate IDs, invalid-action records, and selection rule; run the proxy screen, escalate all candidates to the simulation-stage estimate because the proxy has no final rejection authority, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
-| Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, silicon, or carbon-footprint evidence. |
+| Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, silicon, carbon-footprint, or memory-consistency/coherence evidence. |
 
 : **A worked loop starts by declaring its slice:** The chapter exercises one small loop turn from the lighthouse prompt, while recording which obligations remain outside the current evidence boundary. {#tbl-active-lighthouse-slice tbl-colwidths="[24,66]"}
 
@@ -246,16 +246,18 @@ To document this shift in ranking, @tbl-worked-loop-ledger shows the evidence le
 ```yaml
 candidate_id: xr_accel_loose_v4_2
 status: REJECTED
-rejection_gate: physical_limit_power
+rejection_gate: power_screen  # also misses the 8 ms deadline
 provenance:
   git_hash: "a4c9f1b"
   generator_version: "1.2.0"
 proxy_estimates:
-  compute_energy_mJ: 4.2
-  latency_ms: 6.1
+  energy_mJ: 12
+  latency_ms: 4.5
 simulation_estimates:
-  total_energy_mJ: 28.5
-failure_reason: "excessive NOC traffic exceeding 3W thermal design power"
+  energy_mJ: 28
+  latency_ms: 8.8
+  avg_active_power_W: 3.2   # conservative screen, not a signoff TDP
+failure_reason: "interconnect/DMA traffic pushes the average-power screen to 3.2 W (over the 3 W budget) and latency to 8.8 ms (over the 8 ms deadline)"
 ```
 Read the first two rows of @tbl-worked-loop-ledger as feedback stages and the third as the record those stages leave; the columns are the ledger schema: the feedback source, its fidelity and budget, what it supported, the gate it could reject on, its provenance limit, and the next evidence required. The ledger is what makes the toy loop auditable rather than merely ranked.
 
@@ -317,7 +319,7 @@ architectural estimate standing in for cycle-level and power feedback. This supp
 experimental commitment, not an implementation or a tapeout. The architect's
 decision is therefore bounded: advance the surviving organization to an RTL
 study where logic synthesis, place-and-route, exact timing closure, and a stronger physical power estimate can confirm or
-reject it. The other two candidates are held as recorded negative traces.
+reject it. Because the survivor is a shared-memory block, it also owes what a cycle-level simulator cannot discharge: formal memory-consistency and coherence verification (@sec-architecture-environments-tool-interfaces, @sec-feedback-verification-trust). It won partly by keeping traffic on-chip, which trades the interface data-movement cost that sank the accelerator for on-chip coherence traffic the proxy never charged, so that gate stays open until the RTL study. The other two candidates are held as recorded negative traces.
 
 Stopping at this honest boundary is the difference between an answer and a defensible AI-assisted loop turn. The result
 is a **replay receipt**: the surviving state, the evidence that supports it, the
@@ -354,7 +356,7 @@ loop can state what it did and what would reject it.
 | Evidence | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. |
 | Negative traces | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after the illustrative estimate exposes data movement. |
 | Rejection authority | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
-| Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, and stronger power evidence. |
+| Commitment boundary / would overturn | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, memory-consistency/coherence, and stronger power evidence. |
 | Human decision | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
 
 : **The worked loop leaves a filled card, not just a winning row:** The card
