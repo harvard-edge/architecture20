@@ -28,7 +28,7 @@ lesson is the shape of the loop, not the values. The numbers are constructed to
 be inspectable, not XRBench measurements, gem5 results, or synthesis estimates;
 replace them with local source receipts before using this pattern for an
 empirical claim. A real, measured instance of the same discipline comes in
-@sec-loop-patterns-across-stack: a production fleet migration whose
+@sec-loop-patterns-across-stack, a production fleet migration whose
 generate, reject, escalate, and commit spine runs with instrument-held rejection
 authority on live services. That case is a software build-and-test repair loop,
 not a hardware design loop; it shares the loop contract but not the
@@ -113,14 +113,14 @@ The human architect's role: Verify that proxy results only guide escalation and 
 
 To advance beyond the proxy's blind spots, an illustrative **simulation-stage estimate** is the first stage that charges memory
 *traffic*. The exact tool is not the lesson. This stage is a stronger environment
-contract: it prices *data movement*, returns latency, energy, and power
+contract. It prices *data movement*, returns latency, energy, and power
 observations with provenance and cost, and has authority to overturn proxy
 rankings before commitment. Its power column is frame energy divided by the candidate's active compute time, a conservative average-power screen against the 3\ W budget. It is a screen, not a signoff TDP verdict; peak and transient power (di/dt, IR drop) and sustained thermal behavior are deferred to later stages. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator such as Aladdin [@ShaoEtAl2014Aladdin] coupled to a full-system model [@ShaoEtAl2016Gem5Aladdin] so interface and off-chip traffic are priced rather than idealized, or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
 
 It is
 slower and scarcer than the proxy. In this toy turn all three candidates are
 escalated because proxy feedback has no final rejection authority. The result
-is the central lesson of the chapter: the candidate that wins the cheap screen
+is the central lesson of the chapter. The candidate that wins the cheap screen
 does not survive the stage that charges *data movement*. @tbl-worked-loop runs
 the comparison.
 
@@ -181,7 +181,7 @@ loses most of its lead. The shared-memory SoC block absorbs the same charge
 with little damage because its traffic stays inside the tightly-coupled on-chip hierarchy it
 shares with the CPU, so the proxy's blind spot was never subsidizing it. The
 vector extension, which also keeps data local, fails instead on raw throughput
-against the deadline. This is proxy mismatch made concrete, similar to the phenomenon in ML systems where optimizing for raw FLOPs starves memory bandwidth (as seen in the Roofline model [@WilliamsWatermanPatterson2009Roofline]): the loop was
+against the deadline. This is proxy mismatch made concrete, similar to the phenomenon in ML systems where optimizing for raw FLOPs starves memory bandwidth (as seen in the Roofline model [@WilliamsWatermanPatterson2009Roofline]). The loop was
 optimizing the *measurement* it could see (arithmetic), not the *objective* it cared about (end-to-end latency and energy). The true simulation-stage rejection gate correctly prices communication. The
 failed candidate is not deleted. It is recorded as a **negative trace**, with the
 fidelity level at which the proxy win disappeared, so a later loop does not
@@ -283,7 +283,7 @@ stalls the datapath, so the illustrative latency estimate misses the 8\ ms
 deadline; it pays off-chip access energy, so per-frame energy climbs above every
 alternative. Furthermore, it keeps the memory subsystem continuously busy, so its conservative average-power screen crosses the 3\ W budget. That is enough to reject it at this stage and to flag it for the sustained-thermal and peak-power (TDP) signoff the loop has not yet run. These are hard *constraints*, not just soft metrics, so no
 local proxy advantage rescues it. The rejection is the **commitment rule** from the
-trust chapter doing its work: a candidate advances only if it is valid, its
+trust chapter doing its work. A candidate advances only if it is valid, its
 evidence clears the threshold for the stage, and its residual physical risk is
 acceptable.
 
@@ -320,7 +320,7 @@ With the rejection gates applied, one candidate survives the deadline and the en
 that a final result. It is not. The evidence behind it is a simulation-stage
 architectural estimate standing in for cycle-level and power feedback. This supports an
 experimental commitment, not an implementation or a tapeout. The architect's
-decision is therefore bounded: advance the surviving organization to an RTL
+decision is therefore bounded. Advance the surviving organization to an RTL
 study where logic synthesis, place-and-route, exact timing closure, and a stronger physical power estimate can confirm or
 reject it. Because the survivor is a shared-memory block, it owes two formal obligations a cycle-level simulator cannot discharge, and neither is settled by the RTL timing study: its coherence protocol needs explicit-state model checking (the SLICC-to-Murphi path of @sec-architecture-environments-tool-interfaces [@Dill1996Murphi]), and its consistency model needs litmus tests escalated to formal memory-model verification (@sec-feedback-verification-trust [@NagarajanEtAl2020MemoryPrimer]), since litmus tests show the presence of ordering bugs, not their absence. It won partly by keeping traffic on-chip, trading the interface data-movement cost that sank the accelerator for on-chip coherence traffic the proxy never charged, so both gates stay open beyond this turn. The other two candidates are held as recorded negative traces.
 
@@ -387,7 +387,7 @@ need to be rerun. @tbl-loop-replay-receipt gives the minimum shape.
 only the winning candidate but the runnable or reviewable residue that explains
 inputs, candidates, runs, evidence, failures, and decisions. {#tbl-loop-replay-receipt tbl-colwidths="[24,64]"}
 
-To emphasize that a winning claim cannot exist in a vacuum, @fig-loop-receipt-bundle visualizes this receipt as a cohesive directory bundle: the winning architecture only matters because the surrounding artifacts explicitly record what evidence supported it, what alternatives failed, and what human decisions govern its deployment.
+To emphasize that a winning claim cannot exist in a vacuum, @fig-loop-receipt-bundle visualizes this receipt as a cohesive directory bundle. The winning architecture only matters because the surrounding artifacts explicitly record what evidence supported it, what alternatives failed, and what human decisions govern its deployment.
 
 ![**A loop receipt is the reviewable residue of one turn:** The reusable artifact is not the winning candidate alone, but the task boundary, inputs, candidate records, proxy and stronger runs, evidence ledger, and decision record that let another architect continue or reject the loop.](images/F9c-loop-receipt-bundle){#fig-loop-receipt-bundle width="100%" fig-alt="Directory-style diagram showing a loop receipt bundle with README, inputs, candidates, proxy runs, simulation runs, evidence, and decisions."}
 
@@ -397,23 +397,39 @@ Ultimately, the residue of one turn is the reusable artifact.
 
 ::: {.callout-evidence-packet title="What one AI-assisted loop turn leaves behind"}
 The evidence packet for this turn is the filled design-loop card and replay
-receipt above: it exposes the task boundary, evidence level, negative traces,
+receipt above. It exposes the task boundary, evidence level, negative traces,
 rejection authority, commitment boundary, and next evidence owner. Another
 architect can read that residue and reconstruct why the surviving candidate
 advanced, why the others did not, and what would overturn the decision.
 :::
 
-Producing this reviewable residue is the test the rest of the book has been building toward. The reader
-should now be able to take a new project and do three things: name the loop,
-judge whether its evidence matches its commitment level, and state what remains
-a human decision. The next chapter generalizes this single worked loop into the
-patterns that recur across the stack, from fast software loops to
-high-commitment silicon-facing work.
+## Conclusion
 
-When you run your own loop, the review test is deliberately narrow: is the task
-bounded enough that a candidate can actually be rejected; when a cheap proxy and
-a stronger check disagree, which one has authority; and at what commitment level
-does the evidence actually let the loop stop?
+This chapter asked how an AI-assisted loop converts the lighthouse prompt into
+one bounded, rejectable turn rather than a one-shot design answer. The move is to
+shrink the prompt to a task small enough that a candidate can actually be
+rejected, then walk it through generation and proxy screening, escalation to a
+stronger estimate, rejection on the power envelope, and commitment at a level the
+evidence can honestly support. The numbers were illustrative. The shape was the
+lesson. A loop is not a single answer but a sequence of bounded, checkable
+transitions.
+
+What the turn leaves behind matters as much as the candidate that survives it.
+The residue, a filled design-loop card and replay receipt, records the task
+boundary, the evidence level, the negative traces, the rejection authority, and
+the next evidence owner. That receipt is what lets a second architect reconstruct
+why the surviving candidate advanced, why the others did not, and what would
+overturn the decision. A win with no reviewable residue is a claim no one else
+can check.
+
+The discipline the turn enforces is to stop at an honest evidence level. When a
+cheap proxy and a stronger check disagree, the stronger check holds authority,
+and the loop commits only as far as its evidence reaches, refusing to dress a
+proxy result as silicon-grade proof. Read this way, the worked turn becomes a
+template a reader can reuse on a real project, naming the loop, judging whether
+its evidence matches its commitment level, and saying what remains a human
+decision. One loop turn stays small, bounded, and reviewable, which is exactly
+what makes it worth trusting.
 
 ## Open Research Questions
 
