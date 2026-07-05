@@ -1,34 +1,49 @@
 ```{=html}
 <div class="tool-listing list">
 <% for (const item of items) { %>
+  <% const primaryUrl = item.url || item.href || item.path || "#"; %>
+  <% const categories = Array.isArray(item.categories) ? item.categories : []; %>
+  <% const tags = Array.isArray(item.tags) ? item.tags : []; %>
+  <% const links = [
+    ["Paper", item.paper_url],
+    ["Docs", item.docs_url],
+    ["Artifact", item.artifact_url],
+  ].filter((entry) => entry[1]); %>
+  <% const creditParts = []; %>
+  <% if (item.authors) { creditParts.push(item.authors); } %>
+  <% if (item.institution) { creditParts.push(item.institution); } %>
   <article class="tool-card" <%= metadataAttrs(item) %>>
     <div class="tool-card-link">
+      <a class="tool-card-hitarea" href="<%= primaryUrl %>" target="_blank" rel="noopener" aria-label="Open <%= item.title %>"></a>
       <div class="tool-card-top">
-        <h3 class="listing-title"><a href="<%- item.url || item.href || item.path || '#' %>" target="_blank" rel="noopener"><%- item.title %></a></h3>
-        <a class="tool-card-arrow" href="<%- item.url || item.href || item.path || '#' %>" target="_blank" rel="noopener" aria-label="Open <%- item.title %>">&nearr;</a>
+        <h3 class="listing-title"><%= item.title %></h3>
+        <span class="tool-card-arrow" aria-hidden="true">&nearr;</span>
       </div>
-      <p class="listing-description"><%- item.description %></p>
-      <% const credits = []; %>
-      <% if (item.authors) { credits.push(["Authors", item.authors]); } %>
-      <% if (item.institution) { credits.push(["Institution", item.institution]); } %>
-      <% if (item.status) { credits.push(["Status", item.status]); } %>
-      <% if (credits.length || item.paper_url || item.example_loop) { %>
-      <dl class="tool-card-meta">
-        <% for (const [label, value] of credits) { %>
-          <div><dt><%- label %></dt><dd><%- value %></dd></div>
+      <p class="listing-description"><%= item.description %></p>
+      <% if (links.length) { %>
+      <div class="tool-card-links" aria-label="Links for <%= item.title %>">
+        <% for (const [label, href] of links) { %>
+          <a href="<%= href %>" target="_blank" rel="noopener"><%= label %></a>
         <% } %>
-        <% if (item.paper_url) { %>
-          <div><dt>Paper</dt><dd><a href="<%- item.paper_url %>" target="_blank" rel="noopener">Open paper</a></dd></div>
+      </div>
+      <% } %>
+      <% if (creditParts.length || item.status) { %>
+      <div class="tool-card-credit">
+        <% if (creditParts.length) { %>
+          <span><%= creditParts.join(" · ") %></span>
         <% } %>
-        <% if (item.example_loop) { %>
-          <div><dt>Loop</dt><dd><%- item.example_loop %></dd></div>
+        <% if (item.status) { %>
+          <span><%= item.status %></span>
         <% } %>
-      </dl>
+      </div>
       <% } %>
       <div class="listing-categories tool-card-categories">
-        <% for (const category of (item.categories || [])) { %>
+        <% for (const category of categories) { %>
           <% const slug = String(category).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); %>
-          <span class="tool-card-category <%- slug %>"><%- category %></span>
+          <span class="tool-card-category <%= slug %>"><%= category %></span>
+        <% } %>
+        <% for (const tag of tags) { %>
+          <span class="tool-card-tag"><%= tag %></span>
         <% } %>
       </div>
     </div>

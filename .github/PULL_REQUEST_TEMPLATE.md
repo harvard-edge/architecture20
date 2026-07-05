@@ -1,13 +1,32 @@
 ## Description
-<!-- Describe the changes in this PR. If this is a new tool submission, what does the tool do? If this is a book edit, what section is affected? -->
+<!-- Describe the change. If this adds a tool, resource, or workshop, include the public-card summary and why it belongs in Architecture 2.0. -->
 
 ## Related Issues
 <!-- Link to any related issues (e.g., "Closes #123") -->
 
+## Registry Submission Details
+<!-- Fill this section when adding or editing tools, readings, workshops, or artifacts. Delete it for unrelated changes. -->
+
+| Field | Value |
+| --- | --- |
+| Submission type | Tool / resource / workshop / book correction / other |
+| Public title |  |
+| Primary URL |  |
+| Short public summary |  |
+| Author(s) or organizer(s) |  |
+| Institution(s) |  |
+| Primary category |  |
+| Tags |  |
+| Paper / docs / artifact links |  |
+
 ## Checklist
 - [ ] I have read the [CONTRIBUTING.md](CONTRIBUTING.md) guide.
-- [ ] (If applicable) I have successfully rendered the Quarto site locally (`quarto render book` or `quarto render tools`).
-- [ ] My changes follow the Architecture 2.0 design loop philosophy.
+- [ ] I edited the source file, not a generated index (`tools/registry/*.yml`, `www/resources/*.yml`, or `www/workshops/*.yml`).
+- [ ] The generated index was rebuilt when a registry source changed.
+- [ ] The short public summary is concise enough to fit on a card.
+- [ ] Categories and tags are useful to readers, not just keywords.
+- [ ] Links resolve and point to the intended project, paper, documentation, CFP, or artifact.
+- [ ] I rendered or validated the affected site surface locally.
 
 ## Reviewers
 <!-- Tag any specific maintainers or reviewers you'd like feedback from. -->

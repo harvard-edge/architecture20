@@ -37,7 +37,7 @@ open learning and community resources.
 | If you want to... | Go here |
 | --- | --- |
 | Read the core argument | [Architecture 2.0 book](https://arch2.mlsysbook.ai/book/) |
-| Find tools, simulators, benchmarks, and loop infrastructure | [Tool registry](https://arch2.mlsysbook.ai/tools/) |
+| Find tools, simulators, benchmarks, datasets, and loop infrastructure | [Tool registry](https://arch2.mlsysbook.ai/tools/) |
 | Orient yourself with papers, posts, talks, and datasets | [Reading list](https://arch2.mlsysbook.ai/readings.html) |
 | Find venues where this work is being discussed | [Workshops](https://arch2.mlsysbook.ai/workshops.html) |
 | Ask questions or propose ideas | [GitHub Discussions](https://github.com/harvard-edge/arch2/discussions) |
@@ -73,7 +73,7 @@ research community.
 | Surface | Role |
 | --- | --- |
 | **Synthesis lecture** | A compact framework for auditable AI-assisted architecture loops. |
-| **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, and data representations. |
+| **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, datasets, and data representations. |
 | **Reading list** | A curated path through papers, SIGARCH posts, talks, datasets, and workshop writeups. |
 | **Workshop tracker** | A community-maintained list of relevant venues and calls for participation. |
 | **Artifact hub** | A coming-soon Hugging Face collection for datasets, models, examples, and reusable loop artifacts with clear attribution. |

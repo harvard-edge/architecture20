@@ -8,12 +8,23 @@ can block a bad submission before it merges.
 """
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 import yaml
 
-from catalog_common import ALLOWED_CATEGORIES, ALLOWED_STATUSES, CATALOG_DIR
+from catalog_common import (
+    ALLOWED_CATEGORIES,
+    ALLOWED_STATUSES,
+    CATALOG_DIR,
+    DESCRIPTION_MAX_CHARS,
+    OPTIONAL_URL_FIELDS,
+    TRIAGE_CATEGORY,
+    is_http_url,
+    one_line,
+    tag_errors,
+)
 
 REQUIRED = ("title", "url", "description", "categories")
 
@@ -42,12 +53,20 @@ def main() -> int:
                 errors.append(f"{where}: missing '{key}'")
 
         url = tool.get("url", "") or ""
-        if url and not url.startswith(("http://", "https://")):
+        if url and not is_http_url(url):
             errors.append(f"{where}: url must start with http:// or https://")
 
-        paper_url = tool.get("paper_url", "") or ""
-        if paper_url and not paper_url.startswith(("http://", "https://")):
-            errors.append(f"{where}: paper_url must start with http:// or https://")
+        for field in OPTIONAL_URL_FIELDS:
+            value = tool.get(field, "") or ""
+            if value and not is_http_url(value):
+                errors.append(f"{where}: {field} must start with http:// or https://")
+
+        description = one_line(tool.get("description", "") or "")
+        if description and len(description) > DESCRIPTION_MAX_CHARS:
+            errors.append(
+                f"{where}: description is {len(description)} chars; "
+                f"maximum is {DESCRIPTION_MAX_CHARS}"
+            )
 
         status = tool.get("status", "") or ""
         if status and status not in ALLOWED_STATUSES:
@@ -60,12 +79,26 @@ def main() -> int:
         if not isinstance(categories, list):
             errors.append(f"{where}: 'categories' must be a list")
         else:
+            if len(categories) != 1:
+                errors.append(
+                    f"{where}: use exactly one primary category; use tags for "
+                    "secondary labels"
+                )
             for category in categories:
-                if category not in ALLOWED_CATEGORIES:
+                allowed = category in ALLOWED_CATEGORIES
+                triage_allowed = (
+                    category == TRIAGE_CATEGORY
+                    and os.environ.get("ARCH2_ALLOW_TRIAGE_CATEGORY") == "1"
+                )
+                if not (allowed or triage_allowed):
                     errors.append(
                         f"{where}: category '{category}' not in allowed set "
                         f"({', '.join(ALLOWED_CATEGORIES)})"
                     )
+
+        tags = tool.get("tags") or []
+        for error in tag_errors(tags):
+            errors.append(f"{where}: {error}")
 
         title_key = (tool.get("title") or "").lower()
         if title_key:

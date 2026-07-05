@@ -21,20 +21,37 @@ from pathlib import Path
 import yaml
 
 from build_catalog_index import main as build_catalog_index
-from catalog_common import ALLOWED_CATEGORIES, ALLOWED_STATUSES, CATALOG_DIR, slugify
+from catalog_common import (
+    ALLOWED_STATUSES,
+    CATALOG_DIR,
+    DESCRIPTION_MAX_CHARS,
+    SUBMISSION_CATEGORIES,
+    SUGGESTED_CATEGORY_OPTION,
+    TRIAGE_CATEGORY,
+    is_http_url,
+    one_line,
+    slugify,
+    split_tags,
+    tag_errors,
+)
 
 # Labels here must match the field labels in the issue form exactly. GitHub
 # renders each issue-form field as "### <label>" in the issue body.
 LABELS = {
     "name": "Tool name",
     "url": "Repository or website URL",
-    "category": "Category",
+    "category": "Primary category",
+    "category_suggestion": "Suggested category",
     "description": "Short description",
+    "tags": "Tags",
     "authors": "Author(s)",
     "institution": "Institution(s)",
     "paper_url": "Paper or preprint URL",
+    "docs_url": "Documentation URL",
+    "artifact_url": "Artifact URL",
     "status": "Artifact status",
     "example_loop": "Example loop",
+    "maintainer_note": "Maintainer note",
 }
 
 
@@ -66,22 +83,23 @@ def fail(reason: str) -> None:
     emit(success="false", reason=reason)
 
 
-def one_line(value: str) -> str:
-    return re.sub(r"\s+", " ", value or "").strip()
-
-
 def main() -> None:
     body = os.environ.get("ISSUE_BODY", "").replace("\r\n", "\n")
 
     name = field(body, LABELS["name"])
     url = field(body, LABELS["url"])
     category = field(body, LABELS["category"])
+    category_suggestion = field(body, LABELS["category_suggestion"])
     description = field(body, LABELS["description"])
+    tags = split_tags(field(body, LABELS["tags"]))
     authors = field(body, LABELS["authors"])
     institution = field(body, LABELS["institution"])
     paper_url = field(body, LABELS["paper_url"])
+    docs_url = field(body, LABELS["docs_url"])
+    artifact_url = field(body, LABELS["artifact_url"])
     status = field(body, LABELS["status"])
     example_loop = field(body, LABELS["example_loop"])
+    maintainer_note = field(body, LABELS["maintainer_note"])
 
     missing = [
         human
@@ -101,15 +119,54 @@ def main() -> None:
     if missing:
         return fail(f"missing required field(s): {', '.join(missing)}")
 
-    if not re.match(r"^https?://", url):
+    name = one_line(name)
+    url = one_line(url)
+    category = one_line(category)
+    category_suggestion = one_line(category_suggestion)
+    description = one_line(description)
+    authors = one_line(authors)
+    institution = one_line(institution)
+    paper_url = one_line(paper_url)
+    docs_url = one_line(docs_url)
+    artifact_url = one_line(artifact_url)
+    status = one_line(status)
+    example_loop = one_line(example_loop)
+    maintainer_note = one_line(maintainer_note)
+
+    if not is_http_url(url):
         return fail("the URL must start with http:// or https://")
 
-    if category not in ALLOWED_CATEGORIES:
+    if category not in SUBMISSION_CATEGORIES:
         return fail(
-            f"category '{category}' is not one of: {', '.join(ALLOWED_CATEGORIES)}"
+            f"category '{category}' is not one of: {', '.join(SUBMISSION_CATEGORIES)}"
         )
-    if paper_url and not re.match(r"^https?://", paper_url):
-        return fail("the paper or preprint URL must start with http:// or https://")
+
+    categories = [category]
+    if category == SUGGESTED_CATEGORY_OPTION:
+        if not category_suggestion:
+            return fail(
+                "please provide a suggested category when choosing "
+                f"'{SUGGESTED_CATEGORY_OPTION}'"
+            )
+        categories = [TRIAGE_CATEGORY]
+
+    for key, value in {
+        "paper or preprint URL": paper_url,
+        "documentation URL": docs_url,
+        "artifact URL": artifact_url,
+    }.items():
+        if value and not is_http_url(value):
+            return fail(f"the {key} must start with http:// or https://")
+
+    if len(description) > DESCRIPTION_MAX_CHARS:
+        return fail(
+            f"the short description is {len(description)} characters; "
+            f"the maximum is {DESCRIPTION_MAX_CHARS}"
+        )
+    tag_problems = tag_errors(tags)
+    if tag_problems:
+        return fail("; ".join(tag_problems))
+
     if status and status not in ALLOWED_STATUSES:
         return fail(f"status '{status}' is not one of: {', '.join(ALLOWED_STATUSES)}")
 
@@ -128,15 +185,20 @@ def main() -> None:
     entry = {
         "title": name,
         "url": url,
-        "categories": [category],
+        "categories": categories,
         "description": description,
     }
     optional_fields = {
+        "tags": tags,
         "authors": authors,
         "institution": institution,
         "paper_url": paper_url,
+        "docs_url": docs_url,
+        "artifact_url": artifact_url,
         "status": status,
         "example_loop": example_loop,
+        "category_suggestion": category_suggestion,
+        "maintainer_note": maintainer_note,
     }
     entry.update({key: value for key, value in optional_fields.items() if value})
     target = Path(CATALOG_DIR) / f"{slugify(name)}.yml"
@@ -159,13 +221,18 @@ def main() -> None:
         tool_file=one_line(str(target)),
         tool_name=one_line(name),
         tool_url=one_line(url),
-        tool_category=one_line(category),
+        tool_category=one_line(", ".join(categories)),
+        tool_category_suggestion=one_line(category_suggestion) or "Not provided",
         tool_description=one_line(description),
+        tool_tags=one_line(", ".join(tags)) or "Not provided",
         tool_authors=one_line(authors) or "Not provided",
         tool_institution=one_line(institution) or "Not provided",
         tool_paper_url=one_line(paper_url) or "Not provided",
+        tool_docs_url=one_line(docs_url) or "Not provided",
+        tool_artifact_url=one_line(artifact_url) or "Not provided",
         tool_status=one_line(status) or "Not provided",
         tool_example_loop=one_line(example_loop) or "Not provided",
+        tool_maintainer_note=one_line(maintainer_note) or "Not provided",
     )
 
 
