@@ -33,13 +33,13 @@ BRAND_SANS = [
 # white and cream) for labels and thin marks.
 COLORS = {
     # MARK tier (bright fills / >=2px strokes)
-    "blue": "#1683A6",    # teal  -> workload / objective (brand anchor)
-    "green": "#1E9E48",   # green -> evidence / verification
+    "blue": "#1683A6",  # teal  -> workload / objective (brand anchor)
+    "green": "#1E9E48",  # green -> evidence / verification
     "orange": "#E68A17",  # amber -> methods / generation
     "purple": "#6A4FC7",  # violet-> design space / artifact
-    "red": "#DE3D3C",     # red   -> constraints / budget
-    "magenta": "#D24D96", # magenta-> decision / deliverable
-    "brown": "#8A5310",   # dark amber (neutral warm)
+    "red": "#DE3D3C",  # red   -> constraints / budget
+    "magenta": "#D24D96",  # magenta-> decision / deliverable
+    "brown": "#8A5310",  # dark amber (neutral warm)
     # Semantic role aliases (MARK)
     "workload": "#1683A6",
     "designspace": "#6A4FC7",
