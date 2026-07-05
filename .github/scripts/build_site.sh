@@ -34,6 +34,7 @@ echo "==> Building generated registry indexes"
 PYTHONPATH=.github/scripts python3 .github/scripts/build_catalog_index.py
 PYTHONPATH=.github/scripts python3 .github/scripts/build_workshops_index.py
 PYTHONPATH=.github/scripts python3 .github/scripts/build_readings_index.py
+python3 .github/scripts/render_book_navbar.py
 
 if [[ "${SKIP_BOOK:-0}" != "1" ]]; then
   echo "==> Rendering book (arch2 CLI)"

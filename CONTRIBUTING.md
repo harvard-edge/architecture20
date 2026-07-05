@@ -12,7 +12,7 @@ reproducible. Contributions of all sizes are welcome. Please also read our
 
 Built an open simulator, proxy model, verification harness, or agentic workflow?
 
-1. Open the [Submit a tool](https://github.com/harvard-edge/architecture20/issues/new?template=submit_tool.yml) template.
+1. Open the [Submit a tool](https://github.com/harvard-edge/arch2/issues/new?template=submit_tool.yml) template.
 2. Fill in the name, URL, category, and a one- or two-sentence description.
 3. Optionally add authors, institutions, paper/preprint link, artifact status,
    and an example loop so the public card gives proper visibility to the work.
@@ -35,7 +35,7 @@ Organizing a workshop, special session, or recurring venue relevant to
 Architecture 2.0, ML for systems, agentic AI, or AI-assisted computer
 architecture?
 
-1. Open the [Submit a workshop](https://github.com/harvard-edge/architecture20/issues/new?template=submit_workshop.yml) template.
+1. Open the [Submit a workshop](https://github.com/harvard-edge/arch2/issues/new?template=submit_workshop.yml) template.
 2. Fill in the workshop name, website, venue or host, date, primary topic, and a
    short description.
 3. Optionally add location, organizers, institutions, CFP/submission URL, and
@@ -54,7 +54,7 @@ PYTHONPATH=.github/scripts python .github/scripts/validate_workshops.py
 Submitting a paper, SIGARCH post, podcast, talk, dataset, or other reference
 that helps readers orient around Architecture 2.0?
 
-1. Open the [Submit a resource](https://github.com/harvard-edge/architecture20/issues/new?template=submit_resource.yml) template.
+1. Open the [Submit a resource](https://github.com/harvard-edge/arch2/issues/new?template=submit_resource.yml) template.
 2. Fill in the resource title, URL, type, primary topic, and short description.
 3. Optionally add venue/source, date, authors, and DOI so the card is easy to
    cite and evaluate.

@@ -18,9 +18,21 @@ on:
       - ".pre-commit-config.yaml"
       - ".github/workflows/publish-site.yml"
   workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "Preview version bump for this publish"
+        required: true
+        default: "skip"
+        type: choice
+        options:
+          - skip
+          - patch
+          - minor
+          - major
 
 permissions:
-  contents: read
+  contents: write
+  actions: write
   pages: write
   id-token: write
 
@@ -31,6 +43,7 @@ concurrency:
 env:
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
+  ARCH2_SITE_DOMAIN: ${{ vars.ARCH2_SITE_DOMAIN || 'arch2.mlsysbook.ai' }}
 
 jobs:
   preflight:
@@ -41,6 +54,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,10 +77,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: preflight
+    outputs:
+      arch2_version: ${{ steps.release_metadata.outputs.arch2_version }}
+      arch2_publish_date: ${{ steps.release_metadata.outputs.arch2_publish_date }}
+      arch2_version_bump: ${{ steps.release_metadata.outputs.arch2_version_bump }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -100,6 +121,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Resolve release metadata
+        id: release_metadata
+        env:
+          ARCH2_CURRENT_VERSION: ${{ vars.ARCH2_CURRENT_VERSION }}
+          ARCH2_VERSION_BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.version_bump || 'skip' }}
+        run: python .github/scripts/release_metadata.py --bump "$ARCH2_VERSION_BUMP"
+
       - name: Build the full site
         run: |
           chmod +x .github/scripts/build_site.sh
@@ -118,8 +146,10 @@ jobs:
           test -f _site/images/arch2-card.png
           test -f _site/book/Architecture-2.0.pdf
           touch _site/.nojekyll
-          echo "arch2.mlsysbook.ai" > _site/CNAME
+          echo "$ARCH2_SITE_DOMAIN" > _site/CNAME
           {
+            echo "Version: $ARCH2_VERSION"
+            echo "Publish date: $ARCH2_PUBLISH_DATE"
             echo "HTML pages: $(find _site -name '*.html' | wc -l)"
             echo "PDF: _site/book/Architecture-2.0.pdf"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -148,18 +178,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
+    env:
+      ARCH2_VERSION: ${{ needs.build.outputs.arch2_version }}
+      ARCH2_PUBLISH_DATE: ${{ needs.build.outputs.arch2_publish_date }}
+      ARCH2_VERSION_BUMP: ${{ needs.build.outputs.arch2_version_bump }}
 
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
 
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Verify live site
         run: |
           for attempt in $(seq 1 12); do
-            if curl -fsSL https://arch2.mlsysbook.ai/ -o /tmp/arch2-index.html &&
+            if curl -fsSL "https://$ARCH2_SITE_DOMAIN/" -o /tmp/arch2-index.html &&
+               curl -fsSL "https://$ARCH2_SITE_DOMAIN/book/" -o /tmp/arch2-book.html &&
                grep -q "Architecture 2.0" /tmp/arch2-index.html &&
-               curl -fsSI https://arch2.mlsysbook.ai/book/Architecture-2.0.pdf >/dev/null; then
+               grep -q "$ARCH2_VERSION" /tmp/arch2-book.html &&
+               curl -fsSI "https://$ARCH2_SITE_DOMAIN/book/Architecture-2.0.pdf" >/dev/null; then
               echo "Live site verified on attempt $attempt" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
@@ -169,9 +210,30 @@ jobs:
           echo "Live site did not verify after Pages deployment."
           exit 1
 
+      - name: Persist release metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh variable set ARCH2_CURRENT_VERSION --body "$ARCH2_VERSION" --repo "$GITHUB_REPOSITORY"
+          if [[ "$ARCH2_VERSION_BUMP" != "skip" ]]; then
+            if git rev-parse "$ARCH2_VERSION" >/dev/null 2>&1; then
+              if [[ "$(git rev-list -n 1 "$ARCH2_VERSION")" != "$GITHUB_SHA" ]]; then
+                echo "Tag $ARCH2_VERSION already exists on a different commit."
+                exit 1
+              fi
+            else
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git tag -a "$ARCH2_VERSION" "$GITHUB_SHA" -m "Architecture 2.0 $ARCH2_VERSION"
+              git push origin "$ARCH2_VERSION"
+            fi
+          fi
+
       - name: Summarize deployment
         run: |
           {
             echo "Published: ${{ steps.deployment.outputs.page_url }}"
-            echo "Custom domain: https://arch2.mlsysbook.ai/"
+            echo "Custom domain: https://$ARCH2_SITE_DOMAIN/"
+            echo "Version: $ARCH2_VERSION"
+            echo "Publish date: $ARCH2_PUBLISH_DATE"
           } >> "$GITHUB_STEP_SUMMARY"

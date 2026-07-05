@@ -10,7 +10,7 @@ This is the living registry accompanying the book [*Architecture 2.0: Designing 
 
 If you have built an open-source tool, surrogate model, verification harness,
 benchmark, dataset, or agentic loop, use the
-[Submit a tool form](https://github.com/harvard-edge/architecture20/issues/new?template=submit_tool.yml)
+[Submit a tool form](https://github.com/harvard-edge/arch2/issues/new?template=submit_tool.yml)
 to get it reviewed for the registry. Strong submissions describe where the tool
 fits in a design loop and include optional visibility metadata such as authors,
 institutions, paper links, artifact status, and an example loop.

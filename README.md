@@ -8,14 +8,14 @@
   <a href="https://arch2.mlsysbook.ai/tools/"><b>Tool registry</b></a> ·
   <a href="https://arch2.mlsysbook.ai/readings.html"><b>Readings</b></a> ·
   <a href="https://arch2.mlsysbook.ai/workshops.html"><b>Workshops</b></a> ·
-  <a href="https://github.com/harvard-edge/architecture20/discussions"><b>Discussions</b></a>
+  <a href="https://github.com/harvard-edge/arch2/discussions"><b>Discussions</b></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/harvard-edge/architecture20/stargazers"><img src="https://img.shields.io/github/stars/harvard-edge/architecture20?style=social" alt="GitHub stars"></a>
-  <a href="https://github.com/harvard-edge/architecture20/actions/workflows/publish-site.yml"><img src="https://img.shields.io/github/actions/workflow/status/harvard-edge/architecture20/publish-site.yml?branch=main&label=site&logo=githubactions" alt="Site workflow"></a>
+  <a href="https://github.com/harvard-edge/arch2/stargazers"><img src="https://img.shields.io/github/stars/harvard-edge/arch2?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/harvard-edge/arch2/actions/workflows/publish-site.yml"><img src="https://img.shields.io/github/actions/workflow/status/harvard-edge/arch2/publish-site.yml?branch=main&label=site&logo=githubactions" alt="Site workflow"></a>
   <a href="https://arch2.mlsysbook.ai"><img src="https://img.shields.io/badge/site-arch2.mlsysbook.ai-1f6f8b" alt="Architecture 2.0 site"></a>
-  <a href="#community-contributors"><img src="https://img.shields.io/github/all-contributors/harvard-edge/architecture20?color=ee8449" alt="All Contributors"></a>
+  <a href="#community-contributors"><img src="https://img.shields.io/github/all-contributors/harvard-edge/arch2?color=ee8449" alt="All Contributors"></a>
 </p>
 
 **Architecture 2.0** is an open community hub for AI-assisted computer
@@ -40,7 +40,7 @@ open learning and community resources.
 | Find tools, simulators, benchmarks, and loop infrastructure | [Tool registry](https://arch2.mlsysbook.ai/tools/) |
 | Orient yourself with papers, posts, talks, and datasets | [Reading list](https://arch2.mlsysbook.ai/readings.html) |
 | Find venues where this work is being discussed | [Workshops](https://arch2.mlsysbook.ai/workshops.html) |
-| Ask questions or propose ideas | [GitHub Discussions](https://github.com/harvard-edge/architecture20/discussions) |
+| Ask questions or propose ideas | [GitHub Discussions](https://github.com/harvard-edge/arch2/discussions) |
 | Track future shared artifacts | [🤗 Hugging Face plan](https://arch2.mlsysbook.ai/huggingface.html) |
 
 ## Join The Community
@@ -54,11 +54,11 @@ You can also help by contributing:
 
 | Contribution | Submit |
 | --- | --- |
-| Tool, benchmark, model, or workflow | [Submit a tool](https://github.com/harvard-edge/architecture20/issues/new?template=submit_tool.yml) |
-| Paper, post, talk, dataset, or reference | [Submit a resource](https://github.com/harvard-edge/architecture20/issues/new?template=submit_resource.yml) |
-| Workshop, tutorial, CFP, or venue | [Submit a workshop](https://github.com/harvard-edge/architecture20/issues/new?template=submit_workshop.yml) |
-| Book correction or clarification | [Suggest a correction](https://github.com/harvard-edge/architecture20/issues/new?template=suggest_book_correction.yml) |
-| Broken link | [Report a link](https://github.com/harvard-edge/architecture20/issues/new?template=report_broken_link.yml) |
+| Tool, benchmark, model, or workflow | [Submit a tool](https://github.com/harvard-edge/arch2/issues/new?template=submit_tool.yml) |
+| Paper, post, talk, dataset, or reference | [Submit a resource](https://github.com/harvard-edge/arch2/issues/new?template=submit_resource.yml) |
+| Workshop, tutorial, CFP, or venue | [Submit a workshop](https://github.com/harvard-edge/arch2/issues/new?template=submit_workshop.yml) |
+| Book correction or clarification | [Suggest a correction](https://github.com/harvard-edge/arch2/issues/new?template=suggest_book_correction.yml) |
+| Broken link | [Report a link](https://github.com/harvard-edge/arch2/issues/new?template=report_broken_link.yml) |
 
 Accepted tools, resources, workshops, corrections, and artifact submissions are
 community contributions. We use the

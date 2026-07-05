@@ -1072,13 +1072,13 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
 
     text = html_path.read_text(encoding="utf-8", errors="replace")
     findings: list[Finding] = []
-    if "Work in progress" not in text or "ISCA 2026 Architecture 2.0" not in text:
+    if "arch2-preview-meta" not in text or "Architecture-2.0.pdf" not in text:
         findings.append(
             Finding(
                 "error",
-                "html-preview-banner",
+                "html-preview-meta",
                 _relative(html_path),
-                "preview HTML is missing the WIP / ISCA 2026 Architecture 2.0 announcement banner",
+                "preview HTML is missing the version/date/download metadata strip",
             )
         )
 
@@ -2599,6 +2599,7 @@ def run_python_check() -> None:
     sources = sorted(
         [
             *ROOT.glob("cli/*.py"),
+            *ROOT.glob(".github/scripts/*.py"),
             *ROOT.glob("scripts/*.py"),
             *BOOK_DIR.glob("scripts/*.py"),
         ]
@@ -2611,6 +2612,19 @@ def run_python_check() -> None:
         capture=True,
     )
     _exit_if_failed(proc, "Python syntax")
+
+
+def run_book_navbar_check() -> None:
+    proc = _run(
+        [
+            sys.executable,
+            str(ROOT / ".github/scripts/render_book_navbar.py"),
+            "--check",
+        ],
+        cwd=ROOT,
+        capture=True,
+    )
+    _exit_if_failed(proc, "book navbar sync")
 
 
 _LATEX_SCRATCH_PATTERNS = (
@@ -2641,6 +2655,19 @@ def _prepare_figures() -> None:
     proc = _run([sys.executable, str(_PREPARE_SCRIPT)], cwd=ROOT, capture=True)
     if proc.returncode != 0:
         console.print("[red]figure preparation failed[/red]")
+        console.print(((proc.stdout or "") + (proc.stderr or ""))[-4000:])
+        raise typer.Exit(proc.returncode)
+
+
+def _render_book_navbar() -> None:
+    console.print("[cyan]rendering[/cyan] book navbar from shared metadata")
+    proc = _run(
+        [sys.executable, str(ROOT / ".github/scripts/render_book_navbar.py")],
+        cwd=ROOT,
+        capture=True,
+    )
+    if proc.returncode != 0:
+        console.print("[red]book navbar render failed[/red]")
         console.print(((proc.stdout or "") + (proc.stderr or ""))[-4000:])
         raise typer.Exit(proc.returncode)
 
@@ -2687,6 +2714,7 @@ def _render_one(
     """
     fmts = _resolve_formats(to)
 
+    _render_book_navbar()
     _prepare_figures()
 
     env: dict[str, str] = {}
@@ -2705,6 +2733,12 @@ def _render_one(
         cmd.extend(["-M", "keep-tex:true"])
     if refresh:
         cmd.extend(["--execute", "--no-cache"])
+    release_version = os.environ.get("ARCH2_VERSION", "").strip()
+    if release_version:
+        cmd.extend(["-M", f"arch2-version:{release_version}"])
+    publish_date = os.environ.get("ARCH2_PUBLISH_DATE", "").strip()
+    if publish_date:
+        cmd.extend(["-M", f"date:{publish_date}"])
     console.print(f"[cyan]rendering[/cyan] {' '.join(cmd)}")
     proc = _run(cmd, cwd=ROOT, env=env, capture=True)
     transcript = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
@@ -2978,10 +3012,17 @@ def validate_python() -> None:
     run_python_check()
 
 
+@validate_app.command("book-navbar")
+def validate_book_navbar() -> None:
+    """Check that the book navbar include matches the shared navbar metadata."""
+    run_book_navbar_check()
+
+
 @check_app.command("precommit")
 def check_precommit() -> None:
     """Run fast, no-render checks suitable for pre-commit."""
     run_python_check()
+    run_book_navbar_check()
     run_refs_check()
     run_footnote_table_check()
     run_concept_check()
