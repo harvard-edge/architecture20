@@ -19,7 +19,7 @@ If you have built an end-to-end design loop (e.g., combining an RL agent with ge
 
 ### 3. Join the Community
 * **Discord:** Connect with other researchers and engineers building agentic hardware design tools on our Discord server (Link coming soon).
-* **Hugging Face Hub:** We encourage the community to host their surrogate predictors and architecture world models on the [Hugging Face Hub](https://huggingface.co/harvard-edge). 
+* **Hugging Face Hub:** We encourage the community to host their surrogate predictors and architecture world models on the [Hugging Face Hub](https://huggingface.co/architecture20). 
 
 ### 4. Book Corrections (Typos, Broken Links)
 If you find a typo, a broken cross-reference, or formatting issue in the book text:

@@ -2,7 +2,7 @@
 
 [![Read the Book](https://img.shields.io/badge/Read_the_Book-Hosted_on_GitHub_Pages-blue?style=for-the-badge)](https://harvard-edge.github.io/architecture20)
 [![Join the Discord](https://img.shields.io/badge/Discord-Join_the_Community-7289da?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/your-invite-link)
-[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-Organization-FFD21E?style=for-the-badge)](https://huggingface.co/harvard-edge)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97_Hugging_Face-Organization-FFD21E?style=for-the-badge)](https://huggingface.co/architecture20)
 
 Welcome to the central repository for **Architecture 2.0**, a movement toward fully agentic, AI-driven design loops in computer architecture.
 
@@ -25,7 +25,7 @@ We maintain a living catalog of Architecture 2.0 tools in the book's Appendix. I
 ## 🌐 The Community
 Architecture 2.0 requires a village. We are building a community of hardware purists, ML systems researchers, and EDA developers.
 * **Join the Discord:** Come chat with us, share your loops, and discuss the book! (Link coming soon)
-* **Hugging Face Hub:** While this GitHub repo hosts the book and tool registry, we encourage researchers to host their pre-trained architecture surrogates, proxy models, and datasets on the [Hugging Face Hub](https://huggingface.co/).
+* **Hugging Face Hub:** While this GitHub repo hosts the book and tool registry, we encourage researchers to host their pre-trained architecture surrogates, proxy models, and datasets on the [Hugging Face Hub](https://huggingface.co/architecture20).
 
 ## Building the Book Locally
 If you want to compile the book yourself (to output PDF, HTML, or EPUB), you will need to install [Quarto](https://quarto.org/).
