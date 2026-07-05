@@ -18,7 +18,7 @@ You can read the latest compiled web version of the book here: [Read Architectur
 ## 🛠 The Living Catalog (Community Submissions)
 The ecosystem of AI tools for hardware design is moving faster than any static book can capture. 
 
-We maintain a living catalog of Architecture 2.0 tools in the book's Appendix. If you have built an open-source tool, proxy model, simulator environment, or agentic workflow, **we want to feature it!**
+We maintain a living catalog of Architecture 2.0 tools in the [**Awesome Architecture 2.0 List**](AWESOME.md). If you have built an open-source tool, proxy model, simulator environment, or agentic workflow, **we want to feature it!**
 
 👉 **[Submit your tool to the catalog here](https://github.com/harvard-edge/architecture20/issues/new/choose)** using our automated Issue Template.
 
