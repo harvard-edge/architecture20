@@ -537,6 +537,18 @@ Can the AI model's evidence be audited without violating security or IP boundari
 
 This requirement also defines the bounds of microarchitectural security. If an unconstrained generative AI strictly maximizes Instructions Per Cycle (IPC), it acts as an *accidental adversary*. It will aggressively share microarchitectural state—branch predictors, translation lookaside buffers, or cache hierarchies—to squeeze out performance, silently inventing new side-channels by trading isolation for speed. The proxy mismatch here is that IPC is visible to the AI, but side-channel leakage is not. Architecture 2.0 requires a non-interference screen: a cheap structural check that a generated layout does not silently share state across trust boundaries. It is necessary but not sufficient, since it misses contention, transient-execution, and SMT channels, so passing it only earns escalation to formal side-channel verification, not commitment. A complete security screen also covers memory-integrity and disturbance faults, not only information-flow side channels: a design that trims DRAM refresh to meet a power budget can open a RowHammer path, so read-disturbance is a rejection gate in its own right.
 
+::: {.callout-field-note title="When the missing gate shipped: Spectre and Meltdown"}
+For two decades, microarchitecture optimized one visible number, instructions per
+cycle, by speculating ever more aggressively and sharing predictors, caches, and
+buffers. Every functional test passed; speculation computed the correct
+architectural results. In 2018 that same optimization pressure was shown to have
+built a class of side channels that leak across privilege boundaries
+[@KocherEtAl2019Spectre]. No cheap check caught it because the objective the loop
+could see, IPC, and the leakage it could not, were different quantities. The
+missing rejection gate, non-interference, not any single bug, was the price. It is
+the accidental adversary above, run at industry scale for twenty years.
+:::
+
 ```{.python #lst-side-channel lst-cap="**Security Gate Check:** An illustrative Python snippet rejecting RTL candidates that share state across trust boundaries."}
 def check_side_channel_interference(rtl_candidate, isolation_policy):
     """
