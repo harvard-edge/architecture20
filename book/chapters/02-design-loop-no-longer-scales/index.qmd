@@ -400,16 +400,40 @@ intermediate representations central parts of the performance loop
 [@RaganKelleyEtAl2017HalideCACM; @LattnerEtAl2020MLIR].
 
 ::: {.callout-field-note title="The architecture bet the compiler never paid: Itanium"}
-Itanium's EPIC architecture bet that a compiler could expose enough
-instruction-level parallelism statically to feed a very wide machine
-[@SchlanskerRau2000EPIC]. The hardware shipped; the compiler evidence did not.
-Extracting that parallelism across real control flow and memory aliasing proved
-harder than the design assumed, and the part underdelivered against simpler
-out-of-order rivals for a decade. The architectural claim rested on a
-software-loop capability that was asserted, not demonstrated. Read through
-Architecture 2.0, the loop committed silicon on feedback it never gathered. The
-compiler was a rejection authority the design should have consulted before the
-bet, not after it.
+Itanium's EPIC architecture rested on one claim, that a compiler could
+statically expose enough instruction-level parallelism to feed a very wide
+machine [@SchlanskerRau2000EPIC]. Written as a design-loop card, that bet is a
+rejection gate waiting to fire.
+
+- **State seen:** a wide static-issue target whose payoff needs sustained ILP
+  close to the hardware's issue width, running general-purpose code with
+  unpredictable control flow and memory aliasing.
+- **Action allowed:** widen the machine and delegate parallelism extraction to
+  the compiler.
+- **Evidence required to commit:** compiler-*achieved* ILP measured on
+  representative branchy workloads, not the ILP the machine could retire in
+  principle.
+- **Rejection rule:** reject the wide-static bet if achieved ILP stays far below
+  the issue width. The machine was built to issue on the order of six operations
+  per cycle, against sustained integer ILP that real compilers struggled to push
+  past one or two.
+- **Commitment owner:** the architects who signed the tapeout.
+
+The rejecting evidence was gatherable before commit by building the compiler,
+running real control flow, and measuring the ILP it actually extracts. Evaluated
+that way, the gate fires early and the bet is rejected in favor of a narrower or
+out-of-order organization. Instead the loop committed silicon on the assumed
+capability, and the part underdelivered against simpler rivals for a decade.
+Intel's Larrabee made the same shape of bet a decade later, that software
+rasterization on many x86 cores would match fixed-function GPUs
+[@SeilerEtAl2008Larrabee], and Transmeta's Crusoe bet that code-morphing
+software would let a simple core match x86 [@DehnertEtAl2003Transmeta]. Both
+rested on a software capability asserted rather than measured.
+
+That is the whole difference. Architecture 1.0 can name this failure in
+hindsight. Architecture 2.0 makes the compiler-ILP evidence a gate the bet must
+clear before commit, so an architecture can no longer be committed on a software
+capability that was asserted rather than measured.
 :::
 
 For the lighthouse prompt, this means that a "64-bit RISC-V compute subsystem"
@@ -839,7 +863,7 @@ earlier in this chapter asked which part of one loop saturates first;
 @sec-loop-patterns-across-stack makes the stronger, loop-wide claim precise.
 Whichever part saturates, end-to-end throughput is set by how cheaply the loop
 can reject, not by how much it can generate. Generating proposals faster than
-trusted feedback cannot keep up widens the scissors gap rather than closing it. Just as Amdahl's Law dictates that sequential code bottlenecks multicore speedups, the Architecture 2.0 loop has its own Amdahl's Law. No matter how fast the generative AI proposes candidates, the throughput of the design loop is strictly bounded by the serial fraction of trusted, independent rejection capacity, of which accountable human judgment is the irreducible floor (see @fig-rejection-bottleneck). @sec-loop-patterns-across-stack makes that bound precise and shows how much of it a cheap, independent, often-automated rejector can discharge before it reaches the human floor.
+trusted feedback cannot keep up widens the scissors gap rather than closing it. Just as Amdahl's Law dictates that sequential code bottlenecks multicore speedups, the Architecture 2.0 loop has its own Amdahl's Law. No matter how fast the generative AI proposes candidates, the throughput of the design loop is bounded by the serial fraction of trusted, independent rejection capacity (see @fig-rejection-bottleneck). That capacity has two parts, and they age differently. How *fast* the loop can reject is a throughput limit, and cheap, independent, increasingly automated rejectors keep raising it. Who is *accountable* for the commitment if a claim is wrong is not a speed limit at all; it is a governance floor that stays human even as verification gets faster. @sec-loop-patterns-across-stack makes the throughput bound precise and shows how much of it an automated rejector can discharge before it reaches what only accountable judgment can clear.
 
 ![**The Rejection Bottleneck:** No matter how many candidates an AI loop can generate (millions) or how fast surrogate models can screen them (thousands), the total throughput of an architectural exploration loop is bottlenecked by the serial capacity of trusted, independent rejection, illustrated here by the human-review floor that only accountable judgment can clear.](images/F2-rejection-bottleneck){#fig-rejection-bottleneck width="100%" fig-alt="A funnel diagram showing 1,000,000 AI generated candidates hitting a bottleneck of 5 manual human reviews per day."}
 
