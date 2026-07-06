@@ -620,7 +620,7 @@ The clearest illustration comes from the field that named the failure.
 ::: {.callout-field-note title="The boat that won by crashing"}
 In a boat-racing game used to study reinforcement learning, an agent rewarded on game score stopped racing and looped in a lagoon to harvest respawning targets, catching fire and never finishing the race while out-scoring the average human player by about 20 percent [@ClarkAmodei2016FaultyReward]. Nothing malfunctioned. The loop optimized exactly the number it was given, and that number was a proxy for "win the race" that the race never actually checked.
 
-**Takeaway.** An architecture environment that hands a tool a scalar reward invites the same move on a simulator's blind spots, so the environment, not the optimizer, must own the invalid-action and baseline checks that keep the proxy honest.
+**Lesson:** An architecture environment that hands a tool a scalar reward invites the same move on a simulator's blind spots, so the environment, not the optimizer, must own the invalid-action and baseline checks that keep the proxy honest.
 :::
 
 Environment design should therefore include red-team checks^[Red-teaming involves intentionally attacking a system to expose vulnerabilities, flaws, and failure modes before deployment.] for the feedback
@@ -646,9 +646,7 @@ cleanly.
 
 To construct this bounded task, the recipe is straightforward.
 
-```lstlisting
-#| lst-label: lst-environment-recipe
-#| lst-cap: "**Environment recipe:** Constructing a small, bounded, rejectable Architecture 2.0 environment step by step."
+**Environment recipe.** Constructing a small, bounded, rejectable Architecture 2.0 environment proceeds step by step.
 
 1. Define the task in architectural language: workload characterization, cache exploration, accelerator parameter search, compiler/runtime tuning, chiplet partitioning, reliability analysis, or design-review critique.
 2. Choose the representation the loop will read and write: configuration file, architecture description, graph, trace record, report, RTL fragment, test bench, or design-loop card.
@@ -658,7 +656,6 @@ To construct this bounded task, the recipe is straightforward.
 6. Define invalid-action semantics: illegal parameter, noncompilable artifact, nonsynthesizable design, violated constraint, timeout, simulator crash, or unsupported workload.
 7. Log provenance and negative traces: tool versions, seeds, workload versions, failed candidates, rejected alternatives, and reasons for rejection.
 8. State the human decision rule: what the architect reviews, what can be accepted automatically, and what must escalate.
-```
 
 Once built, the readiness test for this environment is simple. Could a second method, student, or research group
 act inside the same harness without private knowledge from the original author?
@@ -765,6 +762,22 @@ ordinary drift becomes visible before it invalidates evidence.
 version workloads, tools, actions, evidence rules, and ownership so that drift
 does not silently change what a loop result means. {#tbl-archops-operating-discipline tbl-colwidths="[18,25,25,22]"}
 
+## Open Research Questions
+
+The concepts in this chapter establish the foundation for AI-assisted architecture environments, but they also expose major gaps in how AI-assisted loops interact with legacy tools. The following thesis-level challenges push beyond wrapper engineering toward self-learning, verifiable, and evidence-gated environment infrastructure capable of seeding high-impact research at ASPLOS, ISCA, or NeurIPS.
+
+1. **Can agents infer formal environment contracts from unstructured tool exhaust?**
+Legacy EDA flows and simulators emit opaque warnings, timeouts, and unstructured logs rather than clean APIs. A major open challenge is whether language models can observe thousands of such interactions and help synthesize action schemas, constraint bounds, and rejection authorities defined in the environment contract (@tbl-environment-contract), making environment boundaries more explicit for human review.
+
+2. **How can generative loops extract and transfer "negative evidence" across mismatched physical and simulated environments?**
+While positive architectural wins are highly context-dependent, failures (e.g., routing congestion, IR drop, timing violations) expose fundamental physical limits. As outlined in the EDA stage contract (@tbl-eda-stage-contract), a critical open problem is formalizing how this "dark matter" of rejected candidates from slow, high-fidelity physical flows can be automatically distilled into reusable constraints for fast, early-stage proxies evaluating completely different workloads or technology nodes.
+
+3. **Can we reduce routine review with risk-aware escalation while preserving architect-defined commit gates?**
+The economy of evidence regarding feedback latency and fidelity (@tbl-feedback-latency-fidelity) currently relies on static heuristics to promote candidates from cheap analytic proxies to expensive cycle-level simulators. A thesis-level challenge is building environments that dynamically quantify proxy-mismatch risk, triggering high-fidelity evaluation when a surrogate model's uncertainty bounds breach a stated threshold and reducing proxy gaming by design.
+
+4. **How do we engineer self-healing infrastructure for continuous architectural claim recertification?**
+As workloads drift, software stacks mutate, and tool versions evolve, the validity of static architectural baselines decays. Building on the operating discipline for ArchOps (see the discussion on "Environment Validity and Operating Discipline" in @sec-archops-operating-discipline), a fundamental systems challenge is designing governance environments that detect semantic shifts, dispatch AI-assisted verifiers to re-evaluate historical data, and recertify or reject past claims under human-defined review gates.
+
 ## Conclusion
 
 This chapter asked what turns a tool flow into an environment a generative model
@@ -792,22 +805,6 @@ MLOps, is what versions workloads and tools, preserves provenance and negative
 traces, monitors drift, and keeps architect-owned rejection gates alive.
 Building the environment earns a paper. Maintaining it is what lets a loop, and
 a field, keep trusting the evidence.
-
-## Open Research Questions
-
-The concepts in this chapter establish the foundation for AI-assisted architecture environments, but they also expose major gaps in how AI-assisted loops interact with legacy tools. The following thesis-level challenges push beyond wrapper engineering toward self-learning, verifiable, and evidence-gated environment infrastructure capable of seeding high-impact research at ASPLOS, ISCA, or NeurIPS.
-
-1. **Can agents infer formal environment contracts from unstructured tool exhaust?**
-Legacy EDA flows and simulators emit opaque warnings, timeouts, and unstructured logs rather than clean APIs. A major open challenge is whether language models can observe thousands of such interactions and help synthesize action schemas, constraint bounds, and rejection authorities defined in the environment contract (@tbl-environment-contract), making environment boundaries more explicit for human review.
-
-2. **How can generative loops extract and transfer "negative evidence" across mismatched physical and simulated environments?**
-While positive architectural wins are highly context-dependent, failures (e.g., routing congestion, IR drop, timing violations) expose fundamental physical limits. As outlined in the EDA stage contract (@tbl-eda-stage-contract), a critical open problem is formalizing how this "dark matter" of rejected candidates from slow, high-fidelity physical flows can be automatically distilled into reusable constraints for fast, early-stage proxies evaluating completely different workloads or technology nodes.
-
-3. **Can we reduce routine review with risk-aware escalation while preserving architect-defined commit gates?**
-The economy of evidence regarding feedback latency and fidelity (@tbl-feedback-latency-fidelity) currently relies on static heuristics to promote candidates from cheap analytic proxies to expensive cycle-level simulators. A thesis-level challenge is building environments that dynamically quantify proxy-mismatch risk, triggering high-fidelity evaluation when a surrogate model's uncertainty bounds breach a stated threshold and reducing proxy gaming by design.
-
-4. **How do we engineer self-healing infrastructure for continuous architectural claim recertification?**
-As workloads drift, software stacks mutate, and tool versions evolve, the validity of static architectural baselines decays. Building on the operating discipline for ArchOps (see the discussion on "Environment Validity and Operating Discipline" in @sec-archops-operating-discipline), a fundamental systems challenge is designing governance environments that detect semantic shifts, dispatch AI-assisted verifiers to re-evaluate historical data, and recertify or reject past claims under human-defined review gates.
 
 ::: {.callout-carry-forward}
 - **Reader test:** Could another method act in the same harness without private knowledge from the original author, judged by loop conditions rather than fashion?
