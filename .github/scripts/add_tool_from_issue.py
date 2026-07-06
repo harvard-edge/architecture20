@@ -25,7 +25,7 @@ from catalog_common import (
     ALLOWED_STATUSES,
     CATALOG_DIR,
     DESCRIPTION_MAX_CHARS,
-    LOOP_ROLE_MAX_CHARS,
+    FIT_NOTE_MAX_CHARS,
     SUBMISSION_CATEGORIES,
     SUGGESTED_CATEGORY_OPTION,
     TRIAGE_CATEGORY,
@@ -44,7 +44,7 @@ LABELS = {
     "category": "Primary category",
     "category_suggestion": "Suggested category",
     "description": "Short description",
-    "loop_role": "Architecture-loop fit",
+    "fit_note": "Why does this belong in Architecture 2.0?",
     "tags": "Tags",
     "authors": "Author(s)",
     "institution": "Institution(s)",
@@ -53,7 +53,6 @@ LABELS = {
     "docs_url": "Documentation URL",
     "artifact_url": "Artifact URL",
     "status": "Artifact status",
-    "example_loop": "Example loop",
     "maintainer_note": "Maintainer note",
 }
 
@@ -94,7 +93,7 @@ def main() -> None:
     category = field(body, LABELS["category"])
     category_suggestion = field(body, LABELS["category_suggestion"])
     description = field(body, LABELS["description"])
-    loop_role = field(body, LABELS["loop_role"]) or field(body, LABELS["example_loop"])
+    fit_note = field(body, LABELS["fit_note"])
     tags = split_tags(field(body, LABELS["tags"]))
     authors = field(body, LABELS["authors"])
     institution = field(body, LABELS["institution"])
@@ -112,14 +111,14 @@ def main() -> None:
             ("url", "repository/website URL"),
             ("category", "category"),
             ("description", "short description"),
-            ("loop_role", "architecture-loop fit"),
+            ("fit_note", "Architecture 2.0 fit"),
         )
         if not {
             "name": name,
             "url": url,
             "category": category,
             "description": description,
-            "loop_role": loop_role,
+            "fit_note": fit_note,
         }[key]
     ]
     if missing:
@@ -130,7 +129,7 @@ def main() -> None:
     category = one_line(category)
     category_suggestion = one_line(category_suggestion)
     description = one_line(description)
-    loop_role = one_line(loop_role)
+    fit_note = one_line(fit_note)
     authors = one_line(authors)
     institution = one_line(institution)
     submitted_by = one_line(submitted_by)
@@ -170,10 +169,10 @@ def main() -> None:
             f"the short description is {len(description)} characters; "
             f"the maximum is {DESCRIPTION_MAX_CHARS}"
         )
-    if len(loop_role) > LOOP_ROLE_MAX_CHARS:
+    if len(fit_note) > FIT_NOTE_MAX_CHARS:
         return fail(
-            f"the architecture-loop fit is {len(loop_role)} characters; "
-            f"the maximum is {LOOP_ROLE_MAX_CHARS}"
+            f"the Architecture 2.0 fit note is {len(fit_note)} characters; "
+            f"the maximum is {FIT_NOTE_MAX_CHARS}"
         )
     tag_problems = tag_errors(tags)
     if tag_problems:
@@ -199,7 +198,7 @@ def main() -> None:
         "url": url,
         "categories": categories,
         "description": description,
-        "loop_role": loop_role,
+        "fit_note": fit_note,
     }
     optional_fields = {
         "tags": tags,
@@ -237,7 +236,7 @@ def main() -> None:
         tool_category=one_line(", ".join(categories)),
         tool_category_suggestion=one_line(category_suggestion) or "Not provided",
         tool_description=one_line(description),
-        tool_loop_role=one_line(loop_role),
+        tool_fit_note=one_line(fit_note),
         tool_tags=one_line(", ".join(tags)) or "Not provided",
         tool_authors=one_line(authors) or "Not provided",
         tool_institution=one_line(institution) or "Not provided",
@@ -246,7 +245,6 @@ def main() -> None:
         tool_docs_url=one_line(docs_url) or "Not provided",
         tool_artifact_url=one_line(artifact_url) or "Not provided",
         tool_status=one_line(status) or "Not provided",
-        tool_example_loop=one_line(loop_role) or "Not provided",
         tool_maintainer_note=one_line(maintainer_note) or "Not provided",
     )
 

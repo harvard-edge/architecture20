@@ -13,12 +13,13 @@ reproducible. Contributions of all sizes are welcome. Please also read our
 Built an open simulator, proxy model, verification harness, or agentic workflow?
 
 1. Open the [Submit a tool](https://github.com/harvard-edge/arch2/issues/new?template=submit_tool.yml) template.
-2. Fill in the name, URL, one primary category, a short public summary, and the
-   architecture-loop fit. The summary is limited to 220 characters because it
-   appears directly on the registry card.
+2. Fill in the name, URL, one primary category, a short public summary, and a
+   brief note explaining why the item belongs in Architecture 2.0. The summary
+   is limited to 220 characters because it appears directly on the registry
+   card.
 3. Optionally add tags, authors, institutions, submitter credit, paper/preprint
-   link, documentation link, artifact link, and artifact status so the card
-   gives proper visibility to the work.
+   link, documentation link, artifact link, and artifact status. The public card
+   shows the concise summary, credit, category, and tags.
 4. On submit, an automated check parses the form and opens a pull request adding
    one source file under `tools/registry/` and regenerating `tools/tools.yml`.
    A maintainer reviews it for fit and category, then merges. It appears on the

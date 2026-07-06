@@ -13,7 +13,7 @@
 | Public title |  |
 | Primary URL |  |
 | Short public summary |  |
-| Architecture-loop fit |  |
+| Architecture 2.0 fit |  |
 | Author(s) or organizer(s) |  |
 | Institution(s) |  |
 | Submitted by |  |
@@ -26,7 +26,7 @@
 - [ ] I edited the source file, not a generated index (`tools/registry/*.yml`, `www/resources/*.yml`, or `www/workshops/*.yml`).
 - [ ] The generated index was rebuilt when a registry source changed.
 - [ ] The short public summary is concise enough to fit on a card.
-- [ ] Tool entries explain how they fit into an architecture design loop.
+- [ ] Tool entries explain why they belong in the Architecture 2.0 registry.
 - [ ] Categories and tags are useful to readers, not just keywords.
 - [ ] Links resolve and point to the intended project, paper, documentation, CFP, or artifact.
 - [ ] I rendered or validated the affected site surface locally.

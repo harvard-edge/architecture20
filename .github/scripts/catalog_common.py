@@ -7,7 +7,7 @@ CATALOG_PATH = os.environ.get("ARCH2_TOOL_INDEX", "tools/tools.yml")
 CATALOG_DIR = os.environ.get("ARCH2_TOOL_REGISTRY", "tools/registry")
 
 DESCRIPTION_MAX_CHARS = 220
-LOOP_ROLE_MAX_CHARS = 180
+FIT_NOTE_MAX_CHARS = 180
 MAX_TAGS = 5
 TAG_MAX_CHARS = 32
 
