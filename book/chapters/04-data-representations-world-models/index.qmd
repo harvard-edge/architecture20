@@ -7,11 +7,11 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Ludwig Wittgenstein, one of the most important philosophers of the 20th century, argued that language constrains what we can possibly conceive. For us, this means an AI agent can only optimize what it can represent; if a hardware description language lacks the vocabulary for a novel concept, the generative AI remains completely blind to it.
+**Author's Note:** Ludwig Wittgenstein, one of the most important philosophers of the 20th century, argued that language constrains what we can possibly conceive. For this chapter, the architectural lesson is narrower: a loop can only optimize and audit the state its representations, tools, and rejection rules expose. If an HDL or architecture description has no field for a design concept, a generator may still mention it, but the loop cannot test or own that concept until the representation is extended.
 :::
 
 ```{=latex}
-\abstract*{Representation is the first hard problem in Architecture 2.0. Automated optimizers cannot act credibly unless architecture work is made legible. The representation must structure three state schemas to directly implement the five-part execution state: Loop State (workload, architecture, constraints), Execution History (provenance, feedback, rejected alternatives), and Meta-State (assumptions and tools) must be captured in forms the loop can read, replay, compare, and revise.}
+\abstract*{Representation is one of the first hard problems in Architecture 2.0. Automated optimizers cannot act credibly unless architecture work is made legible. The representation must structure three state schemas to directly implement the five-part execution state: Loop State (workload, architecture, constraints), Execution History (provenance, feedback, rejected alternatives), and Meta-State (assumptions and tools) must be captured in forms the loop can read, replay, compare, and revise.}
 ```
 
 ::: {.callout-crux}
@@ -19,12 +19,13 @@ What must architecture data record before an automated optimizer can act on it a
 architect can audit the result?
 :::
 
-@sec-architecture-20-ontology defined the ontology. This chapter deepens
-representation and world model, the piece that determines what every later
-piece can see. That ordering is deliberate. It is
-tempting to begin Architecture 2.0 by asking which model, agent framework, or
-optimization method to use. But a method can only act on what the loop can
-represent. *If the relevant state is invisible, a more capable model may simply move faster in the wrong direction.*
+@sec-architecture-20-ontology ended with the design-loop card, where
+representation and world model are the fields that make a claim inspectable.
+This chapter opens those fields: what state the loop records, what consequences
+it predicts, and which assumptions stay visible for rejection. That ordering is
+deliberate. It is tempting to begin Architecture 2.0 by asking which model, agent
+framework, or optimization method to use. But a method can only act on what the
+loop can represent. *If the relevant state is invisible, a more capable model may simply move faster in the wrong direction.*
 
 > **Agent framework:** A software structure that defines how autonomous systems perceive their environment, reason, and take actions to achieve goals.
 
@@ -106,7 +107,7 @@ constraints. @tbl-web-vs-arch-data makes the contrast explicit.
 | Feedback Cost | Cheap (e.g., fast automated grading or immediate user correction). | Expensive (hours/days of cycle-level simulation or physical synthesis). |
 | Cost of Failure | Low (a poor chat response is easily ignored). | High (a poor design choice wastes compute budgets or fails timing). |
 
-: **Architecture data breaks the web-data assumptions:** Internet-scale recipes fail in architecture because the data regime differs fundamentally in scale, structure, cost, and visibility. {#tbl-web-vs-arch-data tbl-colwidths="[20,40,40]"}
+: **Architecture data violates common web-corpus assumptions:** Recipes built for abundant public corpora and cheap proxy feedback transfer poorly when treated as sufficient for architecture loops, because architecture evidence is sparse, tool-bound, costly, and often private. {#tbl-web-vs-arch-data tbl-colwidths="[20,40,40]"}
 
 The right response is not despair. It is representation design.
 Make the state explicit enough that methods can act within the boundaries of
@@ -122,11 +123,12 @@ model that predicts what acting on it will do.
 
 This representation records what the loop knows, but the loop also needs a mechanism to predict the outcome of its actions.
 
-> **Architecture world model.** An architecture world model is a *predictive design-space surrogate* that estimates physical reality. It embodies the loop's
-> belief about what will happen when an architecture action is taken: what a
-> simulator, surrogate, rule system, or constraint model
-> predicts, permits, rejects, or leaves uncertain. Human review is not part of the
-> world model; it is an external rejection authority that acts on the model's output.
+> **Architecture world model.** An architecture world model is a scoped belief
+> model for a bounded design loop. It estimates or constrains what a candidate
+> action would change, through a simulator, surrogate, rule system, or constraint
+> model, and reports uncertainty and invalid-action conditions. Human review is
+> not part of the world model; it is an external rejection authority that acts on
+> the model's output.
 
 The boundary test in @tbl-representation-world-model-boundary is simple. A
 representation records the state a loop can read and replay. A world model
@@ -290,6 +292,11 @@ compute-subsystem design loop needs not only domain terms, but also executable
 tool state, workload provenance, constraints, multi-fidelity feedback, rejected
 alternatives, and decision authority. A paper corpus can bootstrap knowledge;
 it cannot by itself represent the design loop.
+
+These are adjacent tool-facing cases, not claims that EDA scripting or macro
+placement is itself the architectural decision. They matter here because
+architecture loops must carry EDA and software feedback when those flows
+constrain a candidate.
 
 > **Domain adaptation:** A machine learning technique where a model trained on one data distribution is adjusted to perform well on a different, specific target domain [@PanYang2010TransferLearning].
 
@@ -647,14 +654,16 @@ than the proxy's known error band, so the escalation trigger from
 @tbl-xr-world-model-sketch fires. A calibrated simulator then shows the
 candidate misses the frame deadline on the real XRBench slice, and the architect
 records the rejection with its fidelity level and reason. The prediction, the
-escalation, and the rejection are all part of the world model, and each is
-auditable. An automated optimizer acted on the belief, and a human could see why it was
-overturned.
+escalation trigger, and the resulting evidence are auditable, but they belong to
+different parts of the loop. The prediction and escalation trigger belong to the
+world model; the recorded rejection belongs to execution history and the
+evidence ledger, with the architect as rejection authority. An automated
+optimizer acted on the belief, and a human could see why it was overturned.
 
 > **Distribution shift:** A situation where the data a model encounters during deployment differs significantly from the data it was trained on, often degrading performance [@QuinoneroCandelaEtAl2009DatasetShift].
 
 ::: {.callout-architect-checkpoint title="Escalate or Reject"}
-When the world model proposes a candidate whose margin of safety is smaller than the model's known error band, the loop must pause. The architect decides whether to escalate to a higher-fidelity tool (e.g., a cycle-level simulator) or reject the candidate outright based on risk. This gate ensures the optimizer does not commit to decisions based on uncalibrated proxy estimates.
+When an optimizer, acting through a world model, proposes a candidate whose margin of safety is smaller than the model's known error band, the loop must pause. The architect decides whether to escalate to a higher-fidelity tool (e.g., a cycle-level simulator) or reject the candidate outright based on risk. This gate prevents the optimizer from treating an uncalibrated proxy estimate as commitment evidence.
 :::
 
 ## Provenance, Coverage, and Negative Traces {#sec-provenance-coverage-and-negative-traces}
@@ -708,7 +717,7 @@ traces become a pile of anecdotes. With them, they become architecture data.
 
 ## When a Representation Becomes Actionable
 
-Collecting this architecture data (from high-fidelity negative traces to structured constraints and world-model escalation triggers) ultimately serves a single goal, enabling automation. A representation becomes actionable when it can safely support loop operations.
+Collecting this architecture data (from high-fidelity negative traces to structured constraints and world-model escalation triggers) ultimately serves a narrower goal: making bounded automated action reviewable, rejectable, and replayable. A representation becomes actionable when it can safely support loop operations.
 It should define valid actions, expose relevant observations, carry constraints
 and objectives, record provenance, support replay, preserve uncertainty,
 separate feedback from evidence, and record what rejects a candidate. It should

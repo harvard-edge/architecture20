@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Lord Kelvin, the pioneering British mathematician and physicist, emphasized that measurement is the prerequisite for improvement. For our purposes, whether using search, reinforcement learning, or optimization, this means that no AI method can work without a measurable objective function to provide a rigorous reward signal.
+**Author's Note:** Lord Kelvin, the pioneering British mathematician and physicist, emphasized that measurement is the prerequisite for improvement. For our purposes, any AI-assisted method that influences an architecture decision needs observable feedback. Search and reinforcement learning need measurable objectives or rewards; critique, repair, and explanation need evidence that can reject or bound their outputs.
 :::
 
 ```{=latex}
@@ -40,7 +40,8 @@ valuable than a generator when the urgent problem is exposing missing workload
 evidence, not proposing more candidates.
 
 Architecture 2.0 therefore treats methods as roles in a compound design
-system. These roles collapse into the classic components of a closed-loop controller, mapping directly to our five-part execution state:
+system. These roles can be read through a closed-loop-control lens and related
+to the five-part execution state:
 
 1. **Generators (Actuation):** Propose candidate implementations, hypotheses, or repairs (*actions allowed*).
 2. **Predictors (State Estimation):** Evaluate candidate properties, checking constraints and estimating performance (*state seen* and *evidence*).
@@ -50,6 +51,9 @@ To make these three core roles usable inside AI-assisted loops, the loop can
 expand them with five supporting roles: *critique* (finding flaws), *repair*
 (fixing broken artifacts), *verification* (independent sign-off),
 *explanation* (making decisions legible), and *coordination* (routing tasks).
+Here, verification is only a method-selection role; @sec-feedback-verification-trust
+treats verification more broadly as the rejection machinery that turns feedback
+into evidence.
 
 The unifying schema across these roles is the trust envelope: what state they can see, what boundaries they may push, and what evidence forces them to stop or escalate. The method question is therefore not "Which AI system is best?" It is "Which role is needed, what feedback can support it, and what evidence would make its output credible?"
 
@@ -168,14 +172,15 @@ still be unaware of the architectural consequences of those terms.
 > **Hardware awareness.** In this chapter, hardware awareness means that a
 > method or AI-assisted system can represent hardware-relevant constraints, act within a valid
 > hardware/software design space, obtain feedback from appropriate tools or
-> measurements, and expose evidence that can reject its own output.
+> measurements, and expose evidence that makes its output rejectable by the loop.
 
 This definition matters because Architecture 2.0 methods will often generate
 or revise artifacts near the hardware/software boundary: kernels, compiler
 settings, accelerator configurations, RTL fragments, memory-system choices,
 placement constraints, or design reports. Hardware-aware neural architecture
-search already shows the value of putting latency, energy, memory footprint,
-and target-device cost into the search problem
+search, in the ML model-design sense rather than computer architecture proper,
+already shows the value of putting latency, energy, memory footprint, and
+target-device cost into the search problem
 [@BenmezianeEtAl2021HardwareAwareNAS]. Architecture 2.0 uses a broader
 version of the same discipline. The question is not whether an artifact sounds
 hardware-aware, but what level of hardware-aware action and evidence the loop
@@ -238,7 +243,7 @@ feedback supports that change, and what authority can reject it.
 | Evidence and calibration | Confidence, evidence strength, and escalation recommendations. | Multi-fidelity comparison, uncertainty, provenance, and negative traces. | Proxy mismatch, weak provenance, or fidelity failure. |
 | Commitment boundary | Recommend, explain, or escalate within stated limits. | Evidence ledger, rollback cost, risk, and review context. | Human architect or independent verification refuses commitment. |
 
-: **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and reject its own output. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
+: **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and make its output rejectable by the loop. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
 
 However, the previous table is still too abstract unless each level has a falsifiable test.
 @tbl-hardware-awareness-tests provides a practical reviewer version. A method should not
@@ -411,7 +416,7 @@ stronger the calibration and fidelity requirement.
 ## Optimization: Learning the Design Space
 
 Once candidates are generated and their behavior predicted, the loop must decide what to evaluate next. Optimization is often framed as search, finding the best point under an
-objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are typically discrete, non-differentiable, and highly constrained. This makes gradient descent impossible and rewards methods that handle sparse, expensive feedback. The useful goal is to
+objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are often discrete, non-differentiable, and highly constrained. This makes plain gradient descent a poor default and rewards methods that handle sparse, expensive feedback and hard validity constraints. The useful goal is to
 learn the design space well enough to make a defensible decision under
 limited feedback. That may mean finding a Pareto region, identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
@@ -462,13 +467,14 @@ tensor-program optimizers such as AutoTVM and Ansor, share a loop structure
 worth naming: a learned cost model proposes promising candidates, the loop
 compiles and measures the strongest of them on real hardware, and those
 measurements correct the cost model for the next round
-[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. That is an active-learning loop
-running in production. The cheap proxy is never trusted alone, because
-high-fidelity feedback continually re-grounds it. These systems are not
-identical to microarchitecture design, but they are lighthouse facets rather
-than unrelated detours. Floorplanning stresses high-commitment physical feedback; autotuning
-stresses the compiler/runtime path that makes specialization usable. Both
-illustrate a durable pattern. A method is
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The cheap proxy is never trusted
+alone, because measured hardware feedback continually re-grounds it. These
+systems are not microarchitecture design claims. They are useful boundary cases
+because they exercise the compiler/runtime path: legal schedules, measured
+hardware feedback, cost-model updates, failed variants, and a clear limit on
+what those measurements prove. Floorplanning stresses high-commitment physical
+feedback; autotuning stresses the compiler/runtime path that makes
+specialization usable. Both illustrate a durable pattern. A method is
 powerful when it is embedded in an environment that exposes legal actions,
 measures feedback, updates a cost model, and records results.
 For Architecture 2.0, the transferable pattern is the record: candidate

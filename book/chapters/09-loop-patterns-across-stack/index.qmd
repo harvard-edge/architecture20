@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. For us, this is a reminder that there is no monolithic AI solution for the entire computing stack; instead, different layers (from compiler to RTL to SoC) require entirely different loop patterns.
+**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. For us, this is a reminder that there is no monolithic AI solution for the entire computing stack; different layers, from compiler to RTL to SoC, often need different feedback budgets, rejection gates, and commitment boundaries.
 :::
 
 ```{=latex}
@@ -19,9 +19,10 @@ How should the AI's role and the loop contract change as feedback gets more
 expensive and commitments get harder to reverse across the stack?
 :::
 
-The previous chapters built the components of an Architecture 2.0 loop, and
-@sec-running-the-loop ran one bounded turn of it on the lighthouse prompt. We have seen one loop turn. Now we will map the five-part execution state onto vastly different timescales, from cheap, fast-feedback loops to slow, high-commitment ones. If the framework only describes one
-kind of design-space-exploration loop,
+The previous chapter ran one bounded turn of the lighthouse prompt and showed
+the receipt it leaves behind. This chapter asks whether the same card can read
+other loops across the stack, from cheap software feedback to high-commitment
+physical evidence. If the framework only describes one kind of design-space-exploration loop,
 it is too narrow. If it describes everything in the same way, it is too vague.
 The useful middle ground is a set of loop patterns.
 
@@ -147,9 +148,9 @@ evidence. {#tbl-loop-pattern-decision tbl-colwidths="[26,18,30,16]"}
 ## AI-Assisted Loop Postures
 
 Before traversing the stack layer by layer, it helps to classify AI-assisted architecture loops by structural shape. Despite operating on different parts of the stack, these loops share structural DNA, and they fall into three branches based on how the method interacts with the environment and the rejection authority:
-1. **The Surrogate Prediction Loop:** The loop structure where the AI's job is to replace a brutally slow Environment (like a 3-day EDA physical design run or full-system simulation) with a fast, differentiable proxy. The failure mode here is *proxy mismatch*, where the surrogate's predictions diverge from the true physical constraints (such as predicting routing congestion, which is highly non-local and non-linear).
-2. **The Constrained Optimization Loop:** The loop structure where the AI acts as the agent exploring a massively complex state space, heavily governed by a strict Rejection Authority. The environment itself is usually too complex to fully map, so the agent (often using Reinforcement Learning^[A machine learning method where an agent learns to make decisions by performing actions and receiving rewards or penalties.]) must discover paths that clear physics or timing gates.
-3. **The Generator-Critic Repair Loop:** The loop structure where a weak generator (like an LLM^[Large Language Model, a neural network trained on vast amounts of text to understand and generate human-like language.]) proposes an artifact, fails a formal check, and uses the exact error trace as the next prompt. The rejection authority is absolute (e.g., a compiler or Verilator), and the loop iterates until the artifact parses or synthesizes correctly.
+1. **The Surrogate Prediction Loop:** The loop uses a fast proxy to approximate or triage expensive feedback, such as full-system simulation or physical-design exploration. The failure mode here is *proxy mismatch*, where the surrogate's predictions diverge from the relevant architecture or physical constraints.
+2. **The Constrained Optimization Loop:** The loop searches within legal actions under explicit rejection gates. Reinforcement learning^[A machine learning method where an agent learns to make decisions by performing actions and receiving rewards or penalties.] or another optimizer may help explore the space, but the environment contract decides which paths are legal and which evidence can reject them.
+3. **The Generator-Critic Repair Loop:** A generator, such as an LLM^[Large Language Model, a neural network trained on vast amounts of text to understand and generate human-like language.], proposes a bounded artifact, a compiler, simulator, formal tool, or synthesis check rejects it, and the loop uses the error trace to repair the next candidate.
 
 The chapter now walks the stack layer by layer. Each loop pattern below is an instance of one or more of these three branches, though what follows is organized by position in the stack rather than by branch.
 
@@ -181,7 +182,7 @@ MLPerf is the standing example; @sec-design-loop-no-longer-scales treated it as
 maintained community infrastructure with versions, rules, and submission
 practices [@MattsonEtAl2020MLPerf]. The point to carry into a loop pattern is not another benchmark history. The
 loop-pattern lesson is that a benchmark is a living agreement about what evidence should
-count. In the ML domain, workload drift is hyper-aggressive (e.g., shifting from dense Transformers to Mixture-of-Experts^[A neural network architecture where different parts of the model (experts) are activated conditionally based on the input, increasing capacity without a proportional increase in compute.] in months). A static benchmark quickly becomes a liability; an Architecture 2.0 loop must constantly ingest new computational graphs and trace data. A workload loop should therefore record benchmark version, workload
+count. In active ML-serving domains, workload drift can be rapid, for example shifts from dense Transformers to Mixture-of-Experts^[A neural network architecture where different parts of the model (experts) are activated conditionally based on the input, increasing capacity without a proportional increase in compute.] in months. A static benchmark can become a liability, so an Architecture 2.0 loop needs an explicit refresh path for new graphs, traces, and coverage claims. A workload loop should therefore record benchmark version, workload
 source, coverage claims, known gaps, leakage risks, and the conditions under
 which a result should not generalize.
 
@@ -536,13 +537,24 @@ a local speedup, and reject the AI's candidate until a compiler-generated,
 end-to-end measurement survives.
 :::
 
-**Progressive lowering as the architecture loop.** Treating the compiler merely as a "rejection gate" (a static wall the hardware bounces against) is an Architecture 1.0 mindset. In an Architecture 2.0 loop, the compiler is not a wall; it is the co-design engine. If the AI loop is exploring a reconfigurable spatial array or a custom vector accelerator, the instruction set is not static. The AI must synthesize the hardware *and* the compiler pass to target it simultaneously. The software contract isn't a fixed boundary; it is a co-optimized variable.
+**Progressive lowering as the architecture loop.** In some domain-specific or
+reconfigurable loops, the compiler is not merely a downstream rejection gate; it
+becomes part of the represented design state. The loop may co-evolve hardware
+constraints and lowering rules, but only within an explicit software contract
+and independent verification path.
 
-This process is *Progressive Lowering*. When the AI agent decides to add a custom compute unit, it does not just output Verilog. It outputs *Intermediate Representation (IR) dialects*. It generates the new software dialect, the lowering rules to map high-level math into it, and the hardware dialect (using frameworks like CIRCT (Circuit IR Compilers and Tools) or MLIR) that implements it in silicon. The rejection authority is no longer just a simulator failing dynamically; it is the MLIR verifier proving statically that the lowering from software IR to hardware IR is semantically invalid (see @lst-mlir-co-generation).
+This process is *Progressive Lowering*. When the loop proposes a custom compute
+unit, it may also propose Intermediate Representation (IR) dialects, lowering
+rules that map high-level math into them, and a hardware dialect using
+frameworks like CIRCT (Circuit IR Compilers and Tools) or MLIR. The rejection
+authority may include MLIR/CIRCT verifier checks, compiler legality checks,
+simulation, equivalence tests, and synthesis feedback. Passing the verifier is
+an early gate, not proof that the architecture is semantically or physically
+valid (see @lst-mlir-co-generation).
 
-```mlir {#lst-mlir-co-generation lst-cap="**Co-generated hardware and software IR:** In an Architecture 2.0 loop the same step emits the hardware dialect and the lowering strategy that targets it."}
-// Architecture 2.0 AI Loop Output: Co-generated HW and SW
-// The agent writes the MLIR dialect and the lowering strategy simultaneously.
+```mlir {#lst-mlir-co-generation lst-cap="**Schematic co-generated hardware and software IR:** Pseudo-MLIR showing the loop record, not executable CIRCT/MLIR."}
+// Schematic Architecture 2.0 loop record: co-generated HW and SW.
+// The loop proposes a hardware dialect and lowering strategy for evaluation.
 
 // 1. The AI defines the hardware intent using CIRCT (Hardware IR)
 hw.module @CustomXR_SystolicArray(in %clk: i1, in %act: tensor<16x16xf16>, out %res: tensor<16x16xf16>) {
@@ -728,7 +740,9 @@ rollback trigger, and human owner that can stop it.
 
 The rejection authority is often operational. A service-level objective, a
 canary guard, an alert, a safety policy, a privacy constraint, or a human
-operator can stop a rollout. Crucially, in a modern datacenter, this fleet-level rejection authority must tightly govern network congestion and tail latency SLAs, not merely average throughput or node-level power limits. This makes systems loops different from pure
+operator can stop a rollout. For datacenter-scale architecture claims, the
+rejection authority often has to include network congestion and tail-latency
+SLOs, not only average throughput or node-level power limits. This makes systems loops different from pure
 software loops. They may be reversible, but reversibility is not free. A bad
 policy can waste power, violate latency targets, create interference, or
 damage user experience before it is rolled back.
@@ -997,12 +1011,13 @@ rather than asserting it.
 
 ## What Transfers Across Loops
 
-Across all of these loops, the same ontology and the same bound transfer. Each
-loop has a task, a representation, an environment, method roles, feedback,
-evidence, rejection, and human decision. Each loop can preserve negative traces.
-Each loop can be reviewed with the design-loop card. Each loop can fail by hiding
-assumptions, optimizing a proxy, omitting provenance, or letting an output become
-a decision too early.
+Across the loop families in this chapter, the same ontology transfers, and the
+rejection-bound form gives a useful way to compare many of them. Each loop has a
+task, a representation, an environment, method roles, feedback, evidence,
+rejection, and human decision. Each loop can preserve negative traces. Each loop
+can be reviewed with the design-loop card. Each loop can fail by hiding
+assumptions, optimizing a proxy, omitting provenance, or letting an output
+become a decision too early.
 
 What changes is the operating regime, which the rejection-bound relation gives
 a compact way to name using the value of $f$, the cost ratio between cheap and
@@ -1039,9 +1054,9 @@ As hardware targets and compiler intermediate representations co-evolve, early p
 
 This chapter asked how the AI's role and the loop contract should change as
 feedback gets more expensive and commitments get harder to reverse across the
-stack. The ontology holds everywhere, from a millisecond software tuner to a
-months-long fleet decision. What differs is the operating regime, not the
-anatomy.
+stack. Across these examples, the ontology holds from a millisecond software
+tuner to a months-long fleet decision. What differs is the operating regime, not
+the anatomy.
 
 Reading any real project comes down to a few honest questions. Which loop
 pattern is this, what feedback can it afford, what can reject its result, and

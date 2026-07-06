@@ -7,12 +7,12 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** John Culkin, an influential American media scholar, observed that our tools ultimately reshape our own behavior. In Architecture 2.0, Culkin's "us" expands beyond the human architect; by wrapping existing EDA tools into programmatic environments for AI agents, we are fundamentally reshaping both the automated loop itself and what is possible to build.
+**Author's Note:** John Culkin, an influential American media scholar, observed that our tools ultimately reshape our own behavior. In Architecture 2.0, any tool placed inside an AI-assisted architecture loop has to be treated as part of the loop contract. The wrapper shapes what actions are legal, what evidence is visible, and what can be rejected.
 :::
 
 
 ```{=latex}
-\abstract*{Architecture 2.0 requires tools to become environments for AI-assisted architecture loops, the tool-facing part of the loop contract made executable. This chapter treats ISA boundaries, compiler IRs, memory models, simulator APIs, profilers, RTL flows, EDA handoffs, runtimes, benchmarks, and telemetry systems as explicit places where automated systems and human reviewers can take design actions, observe feedback, log costs and constraints, and reject invalid or unsupported candidates.}
+\abstract*{Architecture 2.0 requires tools placed inside AI-assisted architecture loops to become environments, the tool-facing part of the loop contract made executable. This chapter treats ISA boundaries, compiler IRs, memory models, simulator APIs, profilers, RTL flows, EDA handoffs, runtimes, benchmarks, and telemetry systems as explicit places where automated systems and human reviewers can take design actions, observe feedback, log costs and constraints, and reject invalid or unsupported candidates.}
 ```
 
 ::: {.callout-crux}
@@ -24,8 +24,8 @@ reviewer can trust?
 asks where the loop acts. In Architecture 1.0, tools often sit behind the
 architect: simulators, scripts, compilers, profilers, spreadsheets, RTL flows,
 EDA tools, dashboards, and deployment logs are the means by which a human
-expert gathers evidence. In Architecture 2.0, those same tools must become
-explicit environments when they sit inside AI-assisted design loops. They
+expert gathers evidence. In Architecture 2.0, those same tools should be treated
+as explicit environments when they sit inside AI-assisted design loops. They
 define what actions are legal, what observations are returned, how expensive
 feedback is, which assumptions are baked in, what state is logged, what can
 reject a candidate, and what commitment the environment can support before the
@@ -48,10 +48,10 @@ impossible. A weak environment can make a strong method look useful by hiding
 the hard cases. A disciplined environment can make a modest method valuable by
 making the task bounded, repeatable, and rejectable.
 
-The same contract is what makes comparison meaningful. Two AI-assisted methods
-can be compared only when they act under compatible workload definitions, action
-schemas, feedback budgets, invalid-action rules, provenance records, and
-commitment boundaries. Otherwise a result may compare private worlds rather than
+The same contract is what makes comparison meaningful. Fair method comparisons
+require compatible, or explicitly mapped, workload definitions, action schemas,
+feedback budgets, invalid-action rules, provenance records, and commitment
+boundaries. Otherwise a result may compare private worlds rather than
 architecture methods.
 
 The lighthouse prompt makes the point concrete. "Design a low-power,
@@ -118,7 +118,7 @@ software.
 For Architecture 2.0, that statement has an operational meaning. Interfaces
 are where actions become legal or illegal, observations become meaningful or
 misleading, and evidence becomes portable or trapped inside one tool script.
-An ISA, compiler IR, Domain-Specific Language (DSL) like SLICC for cache coherence, memory model, accelerator runtime, simulator API, benchmark harness, EDA handoff, or telemetry schema is not just a convenience for implementation. It defines what a loop can change and what can reject the change. AI agents must therefore interface with these DSLs; emitting monolithic C++ or raw RTL defeats the modularity required for a human architect to review and maintain the logic.
+An ISA, compiler IR, Domain-Specific Language (DSL) like SLICC for cache coherence, memory model, accelerator runtime, simulator API, benchmark harness, EDA handoff, or telemetry schema is not just a convenience for implementation. It defines what a loop can change and what can reject the change. When the claim depends on coherence, scheduling, memory semantics, or physical constraints, the loop should act through the interface or schema that owns those semantics. Unstructured C++ or RTL becomes a review risk when it bypasses modular contracts, not because it is invalid by default.
 
 This is why tool interfaces belong in the architecture argument rather than in
 an appendix. A generator that emits a schedule must know the schedule
@@ -274,7 +274,7 @@ feedback it returns, and the rejection authority attached to that feedback. That
 is why two projects can use the same simulator but define different architecture
 environments.
 
-Fundamentally, this abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. The environment does not compute a scalar reinforcement-learning reward. It emits raw observations and cost telemetry, such as cycle counts, gate area, and test failures. The loop's rejection authority evaluates this multi-dimensional telemetry against our claims. If we let tools compute a scalar reward directly, we invite reward hacking^[Reward hacking occurs when an AI agent finds an unintended shortcut to maximize its reward signal without solving the underlying problem.] where the loop optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
+Fundamentally, this abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking^[Reward hacking occurs when an AI agent finds an unintended shortcut to maximize its reward signal without solving the underlying problem.], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
 
 | **Field** | **What it defines** | **Question it answers** |
 | --- | --- | --- |
@@ -328,9 +328,10 @@ community can ask which task was defined, which action space was exposed, what
 feedback was available, what workloads were used, and which tools or methods
 were compared under the same conditions. That makes method claims less
 anecdotal.
-The comparison is credible only when every AI-assisted system acts against the same
-represented state, receives the same feedback records, and accepts the same
-invalid-action, escalation, and human-review rules, which @tbl-archgym-mini-contract reads as an ArchGym-style mini-contract.
+The comparison is credible only when every AI-assisted system acts against
+compatible, or explicitly mapped, represented state, feedback records,
+invalid-action rules, escalation policy, and human-review rules, which
+@tbl-archgym-mini-contract reads as an ArchGym-style mini-contract.
 
 | **Contract field** | **ArchGym-style instance** |
 | --- | --- |
@@ -556,8 +557,9 @@ The environment should therefore expose feedback budget as a first-class
 object. A result should report which fidelity level produced a comparison and
 at what cost, not only that candidate A beat candidate B. When that feedback is
 strong enough to count as evidence, and what provenance, uncertainty, and human
-decision that requires, is the bridge from this chapter to
-@sec-feedback-verification-trust, which treats it in full.
+decision that requires, foreshadows @sec-feedback-verification-trust. First,
+@sec-methods-generation-prediction-optimization uses the same feedback budget to
+decide which method roles belong inside the loop.
 
 ```{=latex}
 \FloatBarrier
@@ -609,7 +611,7 @@ The clearest illustration comes from the field that named the failure.
 ::: {.callout-field-note title="The boat that won by crashing"}
 In a boat-racing game used to study reinforcement learning, an agent rewarded on game score stopped racing and looped in a lagoon to harvest respawning targets, catching fire and never finishing the race while out-scoring the average human player by about 20 percent [@ClarkAmodei2016FaultyReward]. Nothing malfunctioned. The loop optimized exactly the number it was given, and that number was a proxy for "win the race" that the race never actually checked.
 
-**Lesson:** An architecture environment that hands a tool a scalar reward invites the same move on a simulator's blind spots, so the environment, not the optimizer, must own the invalid-action and baseline checks that keep the proxy honest.
+**Lesson:** An architecture environment may expose a scalar objective, but it must also preserve the observations, invalid-action checks, baselines, and stronger rejection gates that keep the proxy from becoming the architecture claim.
 :::
 
 Environment design should therefore include red-team checks^[Red-teaming involves intentionally attacking a system to expose vulnerabilities, flaws, and failure modes before deployment.] for the feedback
