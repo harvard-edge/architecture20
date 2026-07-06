@@ -9,9 +9,11 @@
     ["Docs", item.docs_url],
     ["Artifact", item.artifact_url],
   ].filter((entry) => entry[1]); %>
+  <% const loopRole = item.loop_role || item.example_loop; %>
   <% const creditParts = []; %>
   <% if (item.authors) { creditParts.push(item.authors); } %>
   <% if (item.institution) { creditParts.push(item.institution); } %>
+  <% if (item.submitted_by) { creditParts.push(`submitted by ${item.submitted_by}`); } %>
   <article class="tool-card" <%= metadataAttrs(item) %>>
     <div class="tool-card-link">
       <a class="tool-card-hitarea" href="<%= primaryUrl %>" target="_blank" rel="noopener" aria-label="Open <%= item.title %>"></a>
@@ -20,6 +22,9 @@
         <span class="tool-card-arrow" aria-hidden="true">&nearr;</span>
       </div>
       <p class="listing-description"><%= item.description %></p>
+      <% if (loopRole) { %>
+      <p class="tool-card-loop"><span>Loop role</span><%= loopRole %></p>
+      <% } %>
       <% if (links.length) { %>
       <div class="tool-card-links" aria-label="Links for <%= item.title %>">
         <% for (const [label, href] of links) { %>

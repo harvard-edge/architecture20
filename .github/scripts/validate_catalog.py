@@ -19,6 +19,7 @@ from catalog_common import (
     ALLOWED_STATUSES,
     CATALOG_DIR,
     DESCRIPTION_MAX_CHARS,
+    LOOP_ROLE_MAX_CHARS,
     OPTIONAL_URL_FIELDS,
     TRIAGE_CATEGORY,
     is_http_url,
@@ -26,7 +27,7 @@ from catalog_common import (
     tag_errors,
 )
 
-REQUIRED = ("title", "url", "description", "categories")
+REQUIRED = ("title", "url", "description", "loop_role", "categories")
 
 
 def main() -> int:
@@ -66,6 +67,13 @@ def main() -> int:
             errors.append(
                 f"{where}: description is {len(description)} chars; "
                 f"maximum is {DESCRIPTION_MAX_CHARS}"
+            )
+
+        loop_role = one_line(tool.get("loop_role", "") or "")
+        if loop_role and len(loop_role) > LOOP_ROLE_MAX_CHARS:
+            errors.append(
+                f"{where}: loop_role is {len(loop_role)} chars; "
+                f"maximum is {LOOP_ROLE_MAX_CHARS}"
             )
 
         status = tool.get("status", "") or ""

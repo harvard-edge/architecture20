@@ -73,7 +73,7 @@ research community.
 | Surface | Role |
 | --- | --- |
 | **Synthesis lecture** | A compact framework for auditable AI-assisted architecture loops. |
-| **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, datasets, and data representations. |
+| **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, datasets, and data representations, each tied to a role in an architecture design loop. |
 | **Reading list** | A curated path through papers, SIGARCH posts, talks, datasets, and workshop writeups. |
 | **Workshop tracker** | A community-maintained list of relevant venues and calls for participation. |
 | **Artifact hub** | A coming-soon Hugging Face collection for datasets, models, examples, and reusable loop artifacts with clear attribution. |
