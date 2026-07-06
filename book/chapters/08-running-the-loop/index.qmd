@@ -24,17 +24,12 @@ have not yet shown one turn. This chapter does that. It takes the lighthouse
 prompt, bounds it to a task small enough to run, and walks the loop through
 candidate instantiation, prediction, escalation, rejection, and commitment.
 Every number here is illustrative and generated in code, not measured; the
-lesson is the shape of the loop, not the values. The numbers are constructed to
-be inspectable, not XRBench measurements, gem5 results, or synthesis estimates;
-replace them with local source receipts before using this pattern for an
-empirical claim. A real, measured instance of the same discipline comes in
-@sec-loop-patterns-across-stack, a production fleet migration whose
-generate, reject, escalate, and commit spine runs with instrument-held rejection
-authority on live services. That case is a software build-and-test repair loop,
-not a hardware design loop; it shares the loop contract but not the
-proxy-to-simulation fidelity ladder this chapter walks, so read it as evidence
-that the discipline holds at deployment scale, not that this exact four-round
-sequence has been run on silicon. Here the goal is to make the shape itself legible.
+lesson is the shape of the loop, not the values. Replace them with local source
+receipts before using this pattern for an empirical claim. A real, measured
+instance of the same discipline comes in @sec-loop-patterns-across-stack, a
+production fleet migration and a software repair loop, so read it as
+discipline-at-scale, not that this exact hardware sequence ran on silicon. Here
+the goal is to make the shape itself legible.
 
 Bounding the task comes first. "Design a low-power XR compute subsystem" is not
 a loop; it is a wish. This chapter narrows the task to one XRBench-class
@@ -53,7 +48,7 @@ residue it must leave for a human owner.
 
 > **XRBench-class:** XRBench is a mobile and extended-reality benchmark suite [@KwonEtAl2023XRBench]. This chapter uses "XRBench-class" to mean a workload slice modeled on that benchmark family, not measured XRBench results.
 
-To ground this trace, @tbl-active-lighthouse-slice states the active slice of the lighthouse prompt.
+The active slice of the lighthouse prompt grounds this trace (@tbl-active-lighthouse-slice).
 Everything outside the slice is not ignored; it is explicitly deferred to the
 next evidence stage.
 
@@ -100,9 +95,8 @@ prompt, generator version, candidate IDs, invalid candidates, and selection
 rule as part of the receipt.
 
 Regardless of how candidates are generated, a proxy result is low-fidelity feedback that becomes evidence only for the
-narrow action of deciding what to escalate. The proxy is not evidence for an implementation commitment until stronger feedback confirms the gate. Proxy
-deadline or power concerns are warnings until stronger feedback confirms them.
-The AI-assisted loop records the proxy ranking and escalates. *The loop escalated because it lacks the evidence to support a claim, and therefore lacks the authority to reject alternatives on performance or power constraints.*
+narrow action of deciding what to escalate.
+The AI-assisted loop records the proxy ranking and escalates.
 
 ::: {.callout-architect-checkpoint title="The Escalation Gate"}
 The automation's role: Rank candidates using the cheap proxy to prioritize the search space.
@@ -181,11 +175,11 @@ loses most of its lead. The shared-memory SoC block absorbs the same charge
 with little damage because its traffic stays inside the tightly-coupled on-chip hierarchy it
 shares with the CPU, so the proxy's blind spot was never subsidizing it. The
 vector extension, which also keeps data local, fails instead on raw throughput
-against the deadline. This is proxy mismatch made concrete, similar to the phenomenon in ML systems where optimizing for raw FLOPs starves memory bandwidth (as seen in the Roofline model [@WilliamsWatermanPatterson2009Roofline]). The loop was
+against the deadline. This is proxy mismatch made concrete (@fig-proxy-mirage), similar to the phenomenon in ML systems where optimizing for raw FLOPs starves memory bandwidth (as seen in the Roofline model [@WilliamsWatermanPatterson2009Roofline]). The loop was
 optimizing the *measurement* it could see (arithmetic), not the *objective* it cared about (end-to-end latency and energy). The true simulation-stage rejection gate correctly prices communication. The
 failed candidate is not deleted. It is recorded as a negative trace, with the
 fidelity level at which the proxy win disappeared, so a later loop does not
-rediscover it. As illustrated in @fig-proxy-mirage, the seemingly optimal proxy ranking is overturned once a simulation-stage estimate charges the data movement overhead, demonstrating the danger of proxy mismatch.
+rediscover it.
 
 ```{python}
 #| label: fig-proxy-mirage
@@ -278,10 +272,7 @@ Beyond simply reordering candidates, the simulation-stage estimate also exposes 
 accelerator does not merely lose on energy; in this constructed diagnosis, its
 symptoms point to one cause the next evidence stage would have to verify.
 Reaching the accelerator means moving data across an *interface* to off-chip or
-distant memory, and that *traffic* is expensive on every axis at once. In that diagnosis it
-stalls the datapath, so the illustrative latency estimate misses the 8\ ms
-deadline; it pays off-chip access energy, so per-frame energy climbs above every
-alternative. That charge is not arbitrary. At a representative off-chip cost on the order of a hundred picojoules per byte, moving roughly a hundred megabytes of activations and weights per frame across that interface adds about 16\ mJ, which is what separates the proxy's 12\ mJ reading from the 28\ mJ the simulation stage estimates. Furthermore, it keeps the memory subsystem continuously busy, so its conservative average-power screen crosses the 3\ W budget. That is enough to reject it at this stage and to flag it for the sustained-thermal and peak-power (TDP) signoff the loop has not yet run. These are hard *constraints*, not just soft metrics, so no
+distant memory, and that *traffic* is expensive on every axis at once. That charge is not arbitrary. At a representative off-chip cost on the order of a hundred picojoules per byte, moving roughly a hundred megabytes of activations and weights per frame across that interface adds about 16\ mJ, which is what separates the proxy's 12\ mJ reading from the 28\ mJ the simulation stage estimates. Furthermore, it keeps the memory subsystem continuously busy, so its conservative average-power screen crosses the 3\ W budget. That is enough to reject it at this stage and to flag it for the sustained-thermal and peak-power (TDP) signoff the loop has not yet run. These are hard *constraints*, not just soft metrics, so no
 local proxy advantage rescues it. The rejection is the commitment rule from the
 trust chapter doing its work. A candidate advances only if it is valid, its
 evidence clears the threshold for the stage, and its residual physical risk is
@@ -292,10 +283,10 @@ The automation's role: Test candidates against the simulation-stage constraints 
 The human architect's role: Ensure the automation's rejection criteria match the physical and product constraints, and accept the negative traces produced.
 :::
 
-This rejection gate forces us to confront the true integration cost of a proposed design, tying directly back to the constraints outlined in the lighthouse prompt.
-
 ::: {.callout-lighthouse title="Price the interface before believing the proposed accelerator"}
-**Context.** This worked AI-assisted loop deliberately includes a loosely coupled
+**Context.** The rejection gate forces us to confront the true integration cost
+of a proposed design, tying back to the constraints in the lighthouse prompt.
+This worked AI-assisted loop deliberately includes a loosely coupled
 accelerator as a stressed integration variant, even though the full prompt also
 allows a tighter accelerator path.
 
@@ -342,7 +333,7 @@ On August 1, 2012, a trading firm deployed new order-routing code, but the updat
 **Lesson:** Running an AI-assisted loop to a commitment is only safe if the commit step itself is gated, because a deployment that cannot verify what it shipped, and cannot reject and roll back, turns one unreviewed change into an irreversible loss.
 :::
 
-Halting the loop here, rather than allowing an AI generator to extrapolate beyond its authorized evidence boundary, is a fundamental rule of engineering discipline.
+Halting the loop here keeps the AI generator from extrapolating past its authorized evidence boundary.
 
 ::: {#pri-honest-evidence .callout-design-principle title="Stop at an honest evidence level"}
 An AI-assisted loop should report what its evidence supports, what it rejected, and what would
@@ -350,7 +341,7 @@ overturn the decision, then stop there. The honest commitment level, not the
 most optimistic one a generative model might claim, is the result.
 :::
 
-To capture this commitment, @tbl-worked-loop-card records that residue as a filled design-loop card. The
+That commitment residue becomes a filled design-loop card (@tbl-worked-loop-card). The
 entries are intentionally terse. A real project would attach logs, scripts,
 trace identifiers, and power-model receipts, but the first test is whether the
 loop can state what it did and what would reject it.
@@ -395,7 +386,7 @@ need to be rerun. @tbl-loop-replay-receipt gives the minimum shape.
 only the winning candidate but the runnable or reviewable residue that explains
 inputs, candidates, runs, evidence, failures, and decisions. {#tbl-loop-replay-receipt tbl-colwidths="[24,64]"}
 
-To emphasize that a winning claim cannot exist in a vacuum, @fig-loop-receipt-bundle visualizes this receipt as a cohesive directory bundle. The winning architecture only matters because the surrounding artifacts explicitly record what evidence supported it, what alternatives failed, and what human decisions govern its deployment.
+This receipt, visualized as a cohesive directory bundle (@fig-loop-receipt-bundle), shows that a winning claim cannot exist in a vacuum. The winning architecture only matters because the surrounding artifacts explicitly record what evidence supported it, what alternatives failed, and what human decisions govern its deployment.
 
 ![**A loop receipt is the reviewable residue of one turn:** The reusable artifact is not the winning candidate alone, but the task boundary, inputs, candidate records, proxy and stronger runs, evidence ledger, and decision record that let another architect continue or reject the loop.](images/F9c-loop-receipt-bundle){#fig-loop-receipt-bundle width="100%" fig-alt="Directory-style diagram showing a loop receipt bundle with README, inputs, candidates, proxy runs, simulation runs, evidence, and decisions."}
 
