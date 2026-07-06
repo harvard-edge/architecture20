@@ -56,8 +56,8 @@ You can also help by contributing:
 | Contribution | Submit |
 | --- | --- |
 | Tool, dataset, benchmark, model, or workflow | [Submit an artifact](https://arch2.mlsysbook.ai/submit.html) |
-| Paper, post, talk, dataset, or reference | [Submit a resource](https://github.com/harvard-edge/arch2/issues/new?template=submit_resource.yml) |
-| Workshop, tutorial, CFP, or venue | [Submit a workshop](https://github.com/harvard-edge/arch2/issues/new?template=submit_workshop.yml) |
+| Paper, post, talk, dataset, or reference | [Submit a resource](https://arch2.mlsysbook.ai/submit-resource.html) |
+| Workshop, tutorial, CFP, or venue | [Submit a workshop](https://arch2.mlsysbook.ai/submit-workshop.html) |
 | Book correction or clarification | [Suggest a correction](https://github.com/harvard-edge/arch2/issues/new?template=suggest_book_correction.yml) |
 | Broken link | [Report a link](https://github.com/harvard-edge/arch2/issues/new?template=report_broken_link.yml) |
 
