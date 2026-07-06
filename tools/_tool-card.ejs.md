@@ -3,8 +3,10 @@
 <% for (const item of items) { %>
   <% const primaryUrl = item.url || item.href || item.path || "#"; %>
   <% const categories = Array.isArray(item.categories) ? item.categories : []; %>
+  <% const primaryCategory = categories[0] || ""; %>
+  <% const primarySlug = String(primaryCategory).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); %>
   <% const tags = Array.isArray(item.tags) ? item.tags : []; %>
-  <article class="tool-card" <%= metadataAttrs(item) %>>
+  <article class="tool-card <%= primarySlug ? `tool-card-${primarySlug}` : "" %>" <%= metadataAttrs(item) %>>
     <div class="tool-card-link">
       <a class="tool-card-hitarea" href="<%= primaryUrl %>" target="_blank" rel="noopener" aria-label="Open <%= item.title %>"></a>
       <div class="tool-card-top">
