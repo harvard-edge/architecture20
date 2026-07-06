@@ -40,7 +40,7 @@ observations return, what costs and failures mean, and what evidence is logged.
 A *harness* is the maintained runnable object around that contract: workloads,
 versions, scripts, provenance, invalid-action records, and review state.
 
-This shift from simple wrappers to formal environment contracts is easy to understate. A tool wrapper is not plumbing. It is a
+A tool wrapper is not plumbing. It is a
 research claim about the architecture problem. It decides which parts of the
 design space are visible, which constraints are enforceable, which metrics are
 trusted, which failures are recorded, and which actions are silently
@@ -107,9 +107,7 @@ useful action and enough constraints for safe rejection.
 
 The right question is therefore not, "Which tool did the paper use?" The
 better question is, "What environment did the loop define?" That question
-forces the paper or project to name its workload distribution, action schema,
-observation schema, feedback latency, validity constraints, cost model,
-provenance record, and rejection authority. Once those are visible, method claims
+forces the paper or project to name the contract fields. Once those are visible, method claims
 become easier to compare.
 
 ## Interfaces Are Action Boundaries
@@ -120,7 +118,7 @@ software.
 For Architecture 2.0, that statement has an operational meaning. Interfaces
 are where actions become legal or illegal, observations become meaningful or
 misleading, and evidence becomes portable or trapped inside one tool script.
-An ISA, compiler IR, Domain-Specific Language (DSL) like SLICC for cache coherence, memory model, accelerator runtime, simulator API, benchmark harness, EDA handoff, or telemetry schema is not just a convenience for implementation. It defines what a loop can change and what can reject the change. AI agents must therefore interface with these DSLs; emitting monolithic C++ or raw RTL defeats the modularity required for a human architect to review and maintain the logic. However, an AI agent mutating a concurrency DSL like SLICC cannot rely on a cycle-level simulator as its sole rejection authority. The design loop must explicitly integrate formal model checking (e.g., Murphi) or state-space exploration to catch latent race conditions, livelocks, and deadlocks before commitment.
+An ISA, compiler IR, Domain-Specific Language (DSL) like SLICC for cache coherence, memory model, accelerator runtime, simulator API, benchmark harness, EDA handoff, or telemetry schema is not just a convenience for implementation. It defines what a loop can change and what can reject the change. AI agents must therefore interface with these DSLs; emitting monolithic C++ or raw RTL defeats the modularity required for a human architect to review and maintain the logic.
 
 This is why tool interfaces belong in the architecture argument rather than in
 an appendix. A generator that emits a schedule must know the schedule
@@ -192,8 +190,7 @@ candidates.
 In practice, concrete tools instantiate this bundle of interfaces at different fidelity levels. The point
 is not that Architecture 2.0 requires one canonical simulator or one vendor
 flow. The point is that a loop must say which environment it is acting in, what
-that environment can observe, and what authority its feedback has.
-@tbl-environment-instances gives a compact set of examples.
+that environment can observe, and what authority its feedback has (@tbl-environment-instances).
 
 | **Environment instance** | **Action boundary** | **Feedback and evidence** | **Loop lesson** |
 | --- | --- | --- | --- |
@@ -214,9 +211,8 @@ RISC-V systems-on-chip, wraps a configuration system, Chisel-based RTL
 generators such as the Rocket and BOOM cores, and a FIRRTL compiler path
 together with the simulation, synthesis, and FPGA-emulation
 backends the table lists, so one configuration can be carried reproducibly from a
-generated design to each evaluation path [@chipyard].
-@fig-chipyard-framework shows that integration.
-For an AI-assisted loop, the useful property is not the framework name but where the
+generated design to each evaluation path (@fig-chipyard-framework) [@chipyard].
+For an AI-assisted loop, the useful property is where the
 loop actually runs. The automated optimizer acts at the configuration boundary, editing one
 configuration under a set of legal actions; each backend, whether simulation,
 synthesis, or FPGA emulation, returns a receipt; and those receipts, together
@@ -278,8 +274,7 @@ feedback it returns, and the rejection authority attached to that feedback. That
 is why two projects can use the same simulator but define different architecture
 environments.
 
-Fundamentally, this abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. The environment does not compute a scalar reinforcement-learning reward. It emits raw observations and cost telemetry—such as cycle counts, gate area, and test failures. The loop's rejection authority evaluates this multi-dimensional telemetry against our claims. If we let tools compute a scalar reward directly, we invite reward hacking^[Reward hacking occurs when an AI agent finds an unintended shortcut to maximize its reward signal without solving the underlying problem.] where the loop optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit. @tbl-environment-contract
-lists the main fields.
+Fundamentally, this abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. The environment does not compute a scalar reinforcement-learning reward. It emits raw observations and cost telemetry, such as cycle counts, gate area, and test failures. The loop's rejection authority evaluates this multi-dimensional telemetry against our claims. If we let tools compute a scalar reward directly, we invite reward hacking^[Reward hacking occurs when an AI agent finds an unintended shortcut to maximize its reward signal without solving the underlying problem.] where the loop optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
 
 | **Field** | **What it defines** | **Question it answers** |
 | --- | --- | --- |
@@ -335,10 +330,7 @@ were compared under the same conditions. That makes method claims less
 anecdotal.
 The comparison is credible only when every AI-assisted system acts against the same
 represented state, receives the same feedback records, and accepts the same
-invalid-action, escalation, and human-review rules.
-
-@tbl-archgym-mini-contract reads an ArchGym-style environment as a
-mini-contract.
+invalid-action, escalation, and human-review rules, which @tbl-archgym-mini-contract reads as an ArchGym-style mini-contract.
 
 | **Contract field** | **ArchGym-style instance** |
 | --- | --- |
@@ -397,10 +389,7 @@ compared.
 Keeping those contracts valid after the first paper is the operating discipline
 @sec-archops-operating-discipline develops.
 
-This transition from single-use wrappers to shared community infrastructure is why our opening vocabulary reserved the word harness. A
-wrapper calls a tool. A harness preserves the contract around the tool: task,
-workload, action schema, observation schema, cost, provenance, invalid-action
-semantics, negative traces, and review status. A multi-participant harness adds role
+This transition from single-use wrappers to shared community infrastructure is why our opening vocabulary reserved the word harness. A multi-participant harness adds role
 boundaries: which component may propose, which may execute, which may critique,
 which may verify, and which human decision is required before escalation. The
 distinction matters because a wrapper can automate one experiment, but a
@@ -584,8 +573,8 @@ state, cache initialization, interconnect models, and sampling choices. A
 method that searches aggressively can discover weaknesses in those assumptions
 just as easily as it can discover a good architecture candidate.
 
-When the proxy is a simulator, *proxy mismatch*, the divergence between what a
-cheap stand-in metric rewards and what the true objective needs, takes a
+When the proxy is a simulator, *proxy mismatch* is the divergence between what a
+cheap stand-in metric rewards and what the true objective needs. Here it takes a
 specific form, a gap
 between the behavior an environment reports and the behavior that would matter at
 the next stronger fidelity level, such as a more detailed simulator, synthesis,
@@ -664,7 +653,7 @@ versions, workload revisions, and scripts have changed? If the answer is no,
 the project may still contain a useful wrapper, but it has not yet produced a
 durable Architecture 2.0 environment.
 
-This eight-step recipe is intentionally more operational than inspirational. It is what
+The eight-step recipe is what
 keeps Architecture 2.0 from becoming prompt-to-chip rhetoric. The first useful
 environment for a new subfield is often narrow: a bounded workload, a small
 action space, a clear simulator wrapper, and a disciplined log of failures.
@@ -681,9 +670,9 @@ synthesis-backed claims. That is a real Architecture 2.0 environment even if
 it is far from a complete architecture design system.
 
 The same abstraction scales down as readily as it scales up. A single hardware
-prefetcher makes a perfectly good environment: the actions are prefetch depth
-and pattern, the cheap feedback is cache hit rate and memory bandwidth from a
-cycle-level simulator, and the rejection rule is any configuration that breaches
+prefetcher makes a perfectly good environment. Its actions are prefetch depth
+and pattern, its cheap feedback is cache hit rate and memory bandwidth from a
+cycle-level simulator, and its rejection rule is any configuration that breaches
 a bandwidth or correctness bound. The environment idea is not tied to the size
 of the artifact; it is tied to having legal actions, observable feedback, and
 something that can say no.
@@ -725,9 +714,7 @@ Before trusting an environment's verdict on an AI-generated candidate, confirm:
 - another team could deploy an automated optimizer in this harness without private knowledge.
 :::
 
-Operating discipline, the architecture counterpart of MLOps, is the practice of maintaining those layers over time.
-Workloads drift. Tool versions change. Compiler behavior changes. Benchmarks
-gain new rules. Models learn stale assumptions. A one-time environment can
+Operating discipline, the architecture counterpart of MLOps, is the practice of maintaining those layers over time. A one-time environment can
 support a paper; a maintained environment can support a field. That is why the
 environment should record versions, assumptions, invalid actions, rejected
 candidates, and changes in the workload distribution.
@@ -741,10 +728,6 @@ the loop valid by versioning workloads and tools, preserving provenance and
 negative traces, monitoring drift, and maintaining architect-owned rejection
 gates.
 :::
-
-This distinction between building and maintaining matters because a one-time environment and a maintained
-one look identical on the first run and diverge completely by the tenth; the
-maintenance burden is what turns a one-off script into shared infrastructure.
 
 @tbl-archops-operating-discipline states the maintenance work in operational
 terms. The table is intentionally prosaic because the discipline succeeds only when
