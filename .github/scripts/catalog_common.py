@@ -26,6 +26,16 @@ ALLOWED_CATEGORIES = [
 
 SUBMISSION_CATEGORIES = ALLOWED_CATEGORIES + [SUGGESTED_CATEGORY_OPTION]
 
+ALLOWED_ARTIFACT_TYPES = [
+    "Tool",
+    "Dataset",
+    "Benchmark",
+    "Evaluation Harness",
+    "Design Loop",
+    "Tutorial or Example",
+    "Other",
+]
+
 ALLOWED_STATUSES = [
     "Active project",
     "Published artifact",

@@ -15,6 +15,7 @@ from pathlib import Path
 import yaml
 
 from catalog_common import (
+    ALLOWED_ARTIFACT_TYPES,
     ALLOWED_CATEGORIES,
     ALLOWED_STATUSES,
     CATALOG_DIR,
@@ -27,7 +28,7 @@ from catalog_common import (
     tag_errors,
 )
 
-REQUIRED = ("title", "url", "description", "fit_note", "categories")
+REQUIRED = ("title", "url", "artifact_type", "description", "fit_note", "categories")
 
 
 def main() -> int:
@@ -56,6 +57,13 @@ def main() -> int:
         url = tool.get("url", "") or ""
         if url and not is_http_url(url):
             errors.append(f"{where}: url must start with http:// or https://")
+
+        artifact_type = tool.get("artifact_type", "") or ""
+        if artifact_type and artifact_type not in ALLOWED_ARTIFACT_TYPES:
+            errors.append(
+                f"{where}: artifact_type '{artifact_type}' not in allowed set "
+                f"({', '.join(ALLOWED_ARTIFACT_TYPES)})"
+            )
 
         for field in OPTIONAL_URL_FIELDS:
             value = tool.get(field, "") or ""

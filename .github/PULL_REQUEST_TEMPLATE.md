@@ -12,6 +12,7 @@
 | Submission type | Tool / resource / workshop / book correction / other |
 | Public title |  |
 | Primary URL |  |
+| Artifact type | Tool / dataset / benchmark / evaluation harness / design loop / tutorial / other |
 | Short public summary |  |
 | Architecture 2.0 fit |  |
 | Author(s) or organizer(s) |  |
@@ -20,6 +21,8 @@
 | Primary category |  |
 | Tags |  |
 | Paper / docs / artifact links |  |
+| License / citation |  |
+| Inputs / outputs / evidence |  |
 
 ## Checklist
 - [ ] I have read the [CONTRIBUTING.md](CONTRIBUTING.md) guide.
@@ -27,6 +30,7 @@
 - [ ] The generated index was rebuilt when a registry source changed.
 - [ ] The short public summary is concise enough to fit on a card.
 - [ ] Tool entries explain why they belong in the Architecture 2.0 registry.
+- [ ] Artifact metadata is sufficient for future reuse, citation, or export.
 - [ ] Categories and tags are useful to readers, not just keywords.
 - [ ] Links resolve and point to the intended project, paper, documentation, CFP, or artifact.
 - [ ] I rendered or validated the affected site surface locally.

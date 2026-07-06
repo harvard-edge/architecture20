@@ -40,6 +40,7 @@ open learning and community resources.
 | Find tools, simulators, benchmarks, datasets, and loop infrastructure | [Tool registry](https://arch2.mlsysbook.ai/tools/) |
 | Orient yourself with papers, posts, talks, and datasets | [Reading list](https://arch2.mlsysbook.ai/readings.html) |
 | Find venues where this work is being discussed | [Workshops](https://arch2.mlsysbook.ai/workshops.html) |
+| Submit a tool, dataset, benchmark, or artifact | [Submit](https://arch2.mlsysbook.ai/submit.html) |
 | Ask questions or propose ideas | [GitHub Discussions](https://github.com/harvard-edge/arch2/discussions) |
 | Track future shared artifacts | [🤗 Hugging Face plan](https://arch2.mlsysbook.ai/huggingface.html) |
 
@@ -54,7 +55,7 @@ You can also help by contributing:
 
 | Contribution | Submit |
 | --- | --- |
-| Tool, benchmark, model, or workflow | [Submit a tool](https://github.com/harvard-edge/arch2/issues/new?template=submit_tool.yml) |
+| Tool, dataset, benchmark, model, or workflow | [Submit an artifact](https://arch2.mlsysbook.ai/submit.html) |
 | Paper, post, talk, dataset, or reference | [Submit a resource](https://github.com/harvard-edge/arch2/issues/new?template=submit_resource.yml) |
 | Workshop, tutorial, CFP, or venue | [Submit a workshop](https://github.com/harvard-edge/arch2/issues/new?template=submit_workshop.yml) |
 | Book correction or clarification | [Suggest a correction](https://github.com/harvard-edge/arch2/issues/new?template=suggest_book_correction.yml) |
