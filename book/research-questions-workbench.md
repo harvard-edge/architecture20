@@ -1532,198 +1532,198 @@ grounding notes for later integration.
 
 #### Chapter 1. Field Wave and Review Norms
 
-1. **What makes AI-assisted architecture work an architecture contribution?**  
+1. **What makes AI-assisted architecture work an architecture contribution?**
    Grounding. "Ask What AI Can Do for Architecture," "From Architecture 1.0 to
    Architecture 2.0," and "Boundaries of the Argument."
-2. **How should venues review AI-assisted design-loop claims?**  
+2. **How should venues review AI-assisted design-loop claims?**
    Grounding. "The Architecture Moonshot," the AlphaChip comparison, "Ask What
    AI Can Do for Architecture," and the preface's venue guidance.
-3. **When do rejected alternatives count as architecture evidence?**  
+3. **When do rejected alternatives count as architecture evidence?**
    Grounding. "From Architecture 1.0 to Architecture 2.0," "Why the Prompt
    Spans the Stack," and "Efficiency Claims Need Rejectable Loops."
-4. **What shared artifacts make loop-level progress comparable?**  
+4. **What shared artifacts make loop-level progress comparable?**
    Grounding. "The Architecture Moonshot," the lighthouse prompt decomposition,
    the AlphaChip comparison problem, and the MLPerf discussion.
-5. **What should a field-shaping architecture moonshot leave behind?**  
+5. **What should a field-shaping architecture moonshot leave behind?**
    Grounding. "The Architecture Moonshot," especially the Apollo, Human Genome
    Project, DARPA Grand Challenge, AlphaFold, Mead-Conway, RISC, and AlphaChip
    framing.
 
 #### Chapter 2. Pressure Diagnosis and AI Entry Points
 
-1. **What measurements reveal a strained architecture loop?**  
+1. **What measurements reveal a strained architecture loop?**
    Grounding. The scissors-gap framing, "Classical Loops Already Use Feedback,"
    "Engineering Cost Creates the Scissors Gap," and "Feedback and Verification
    Become the Bottleneck."
-2. **Where should AI enter a specialization and chiplet loop?**  
+2. **Where should AI enter a specialization and chiplet loop?**
    Grounding. "Architecture Levers Add State," "Specialization and Chiplets
    Expand Search," "Specialized Hardware Needs a Software Loop," and "AI Helps
    Only When the Loop Is Designed."
-3. **Which physical signals should triage expensive validation?**  
+3. **Which physical signals should triage expensive validation?**
    Grounding. "Physical Constraints Move Into Architecture," the waterbed and
    data-movement examples, and "Engineering Cost Creates the Scissors Gap."
-4. **When does workload drift expire architecture evidence?**  
+4. **When does workload drift expire architecture evidence?**
    Grounding. "Software Changes Faster Than Silicon," the workload-packet
    discussion, and the benchmark-governance material.
-5. **When do multiobjective tradeoffs overwhelm manual evaluation?**  
+5. **When do multiobjective tradeoffs overwhelm manual evaluation?**
    Grounding. "Architecture Levers Add State," "Specialization and Chiplets
    Expand Search," "Engineering Cost Creates the Scissors Gap," and
    "Architecture Violates Generic AI Assumptions."
 
 #### Chapter 3. Ontology and Reviewable Claims
 
-1. **What minimum claim schema makes AI-assisted architecture work reviewable?**  
+1. **What minimum claim schema makes AI-assisted architecture work reviewable?**
    Grounding. "The Architectural Claim Is the Unit of Review," "The Compact
    Framework," and "The Design-Loop Card."
-2. **What workload and baseline characterization makes a claim credible?**  
+2. **What workload and baseline characterization makes a claim credible?**
    Grounding. "The Architectural Claim Is the Unit of Review," "The Design Loop
    Is the Unit of Analysis," "Intent Defines the Task," and "Feedback Becomes
    Evidence."
-3. **How can benchmark construction and holdout evaluation limit loop overfit?**  
+3. **How can benchmark construction and holdout evaluation limit loop overfit?**
    Grounding. "Representations and World Models," "Tools Become Environments,"
    "Feedback Becomes Evidence," and "The Design-Loop Card."
-4. **How can rejected alternatives become auditable design-space evidence?**  
+4. **How can rejected alternatives become auditable design-space evidence?**
    Grounding. "Design Spaces Make Claims Meaningful," "The Compact Framework,"
    "Feedback Becomes Evidence," and "The Design-Loop Card."
-5. **What parts of a design-loop card can be checked before execution?**  
+5. **What parts of a design-loop card can be checked before execution?**
    Grounding. "The Design Loop Is the Unit of Analysis," "The Compact
    Framework," "Autonomy Is Earned, Not Declared," and "The Design-Loop Card."
 
 #### Chapter 4. Representations and World Models
 
-1. **What semantics make architecture proposals replayable and rejectable?**  
+1. **What semantics make architecture proposals replayable and rejectable?**
    Grounding. "Architecture Descriptions as Boundary Objects," "Unstructured
    Design Data and Its Cost," and "When a Representation Becomes Actionable."
-2. **What should costly architecture samples record?**  
+2. **What should costly architecture samples record?**
    Grounding. "Sample Cost Is Architecture Data," "QuArch as a Stress Test,"
    and "Provenance, Coverage, and Negative Traces."
-3. **When has an architecture world model left calibrated support?**  
+3. **When has an architecture world model left calibrated support?**
    Grounding. "Toward Architecture World Models" and "Sample Cost Is
    Architecture Data."
-4. **What coverage record bounds architectural generalization?**  
+4. **What coverage record bounds architectural generalization?**
    Grounding. "Sample Cost Is Architecture Data," "Toward Architecture World
    Models," and "Provenance, Coverage, and Negative Traces."
-5. **How should representations learn from negative traces?**  
+5. **How should representations learn from negative traces?**
    Grounding. "Provenance, Coverage, and Negative Traces" and "When a
    Representation Becomes Actionable."
 
 #### Chapter 5. Environments and Tool Contracts
 
-1. **What must an architecture environment contract expose before a loop can act?**  
+1. **What must an architecture environment contract expose before a loop can act?**
    Grounding. "The Architecture Environment Abstraction" and
    `@tbl-environment-contract`.
-2. **How can legacy tool traces become environment contracts?**  
+2. **How can legacy tool traces become environment contracts?**
    Grounding. "Interfaces Are Action Boundaries," the EDA handoff discussion,
    "The Architecture Environment Abstraction," and "ArchGym as a Worked
    Example."
-3. **How should environments define invalid actions and rejection paths?**  
+3. **How should environments define invalid actions and rejection paths?**
    Grounding. "Interfaces Are Action Boundaries," `@tbl-environment-contract`,
    and "Building Environments for New Subfields."
-4. **How can negative evidence transfer across simulated and physical tool flows?**  
+4. **How can negative evidence transfer across simulated and physical tool flows?**
    Grounding. "Feedback Latency and Fidelity," "Proxy Gaming and the Simulator
    Case," `@tbl-eda-stage-contract`, and "Building Environments for New
    Subfields."
-5. **How do architecture environments stay valid as tools and workloads drift?**  
+5. **How do architecture environments stay valid as tools and workloads drift?**
    Grounding. "Environment Validity and Operating Discipline" and
    `@tbl-archops-operating-discipline`.
 
 #### Chapter 6. Method Roles and Feedback Allocation
 
-1. **What role contracts keep AI methods from becoming decision makers?**  
+1. **What role contracts keep AI methods from becoming decision makers?**
    Grounding. "Match the Method to the Architecture Task," the method-role
    tables, "Choosing a Method Under Constraints," and the multi-participant
    role-contract discussion.
-2. **How should loops spend scarce feedback across method roles?**  
+2. **How should loops spend scarce feedback across method roles?**
    Grounding. "Sample Efficiency Under Expensive Feedback," "Choosing a Method
    Under Constraints," and the lighthouse method-selection callout.
-3. **How can optimizers learn from negative traces without losing fidelity labels?**  
+3. **How can optimizers learn from negative traces without losing fidelity labels?**
    Grounding. "Sample Efficiency Under Expensive Feedback," the negative-trace
    discussion, the fidelity ladder, and the sample-value heuristic.
-4. **What bounded rejection suites test hardware-aware generators?**  
+4. **What bounded rejection suites test hardware-aware generators?**
    Grounding. "Hardware Awareness as Staged Capability," the hardware-awareness
    assessment and reviewer-test tables, and the generation section on proposing
    candidates and artifacts.
-5. **How should loops reassign method roles as uncertainty changes?**  
+5. **How should loops reassign method roles as uncertainty changes?**
    Grounding. "Sample Efficiency Under Expensive Feedback," "Critique, Repair,
    and Explanation," "Choosing a Method Under Constraints," and the coordination
    role material.
 
 #### Chapter 7. Evidence and Trust
 
-1. **How should multi-fidelity evidence ledgers bind claims to commitment levels?**  
+1. **How should multi-fidelity evidence ledgers bind claims to commitment levels?**
    Grounding. "Feedback Budget Ledger and Feedback Economics," "Fidelity
    Ladders and Evidence Ledgers," and "Commitment Levels and Reversibility."
-2. **What benchmarks expose proxy exploitation before commitment?**  
+2. **What benchmarks expose proxy exploitation before commitment?**
    Grounding. "Proxy Mismatch, Metric Gaming, and Calibration," the AlphaChip
    proxy dispute callout, "Rejection Authority," and "Evidence Disputes and the
    Trust Checklist."
-3. **How can rejection authorities be tested for independence?**  
+3. **How can rejection authorities be tested for independence?**
    Grounding. The verification-authorities table, "Rejection Authority," the
    AI-assisted verification discussion, and the trust checklist.
-4. **How should loops stress-test compromised evidence sources?**  
+4. **How should loops stress-test compromised evidence sources?**
    Grounding. "Evidence Disputes and the Trust Checklist," "Proxy Mismatch,
    Metric Gaming, and Calibration," "Security, IP, and Confidentiality
    Boundaries," and "Rejection Authority."
-5. **How can confidential evidence remain auditable?**  
+5. **How can confidential evidence remain auditable?**
    Grounding. "Security, IP, and Confidentiality Boundaries," the trust
    checklist confidentiality row, and the evidence-dispute material on private
    evidence.
 
 #### Chapter 8. Executing One Loop
 
-1. **How can architectural intent become one rejectable loop turn?**  
+1. **How can architectural intent become one rejectable loop turn?**
    Grounding. The opening crux, the active lighthouse slice table, and Round
    One's bounded candidate schema.
-2. **What signals should trigger escalation beyond a proxy?**  
+2. **What signals should trigger escalation beyond a proxy?**
    Grounding. Round One's escalation gate, Round Two's simulation-stage
    estimate, and the worked-loop ledger.
-3. **How can proxy workloads expose data-movement mirages?**  
+3. **How can proxy workloads expose data-movement mirages?**
    Grounding. Round Two, the proxy-mirage figure, and Round Three's
    interface-cost explanation.
-4. **What receipt metadata makes rejected candidates reusable?**  
+4. **What receipt metadata makes rejected candidates reusable?**
    Grounding. Round Four, the worked-loop card, the replay receipt table, and
    the evidence packet paragraph.
-5. **When should a recorded rejection be reopened?**  
+5. **When should a recorded rejection be reopened?**
    Grounding. The worked-loop card, the replay receipt table, and the
    carry-forward discussion around rejected candidates.
 
 #### Chapter 9. Cross-Stack Loop Patterns
 
-1. **What transfers safely across loop patterns?**  
+1. **What transfers safely across loop patterns?**
    Grounding. "A Template for Reading the Cases," "Workload Characterization and
    Benchmark Construction," and "What Transfers Across Loops."
-2. **What error bounds make cheap cross-layer rejectors usable?**  
+2. **What error bounds make cheap cross-layer rejectors usable?**
    Grounding. "The Loop Is Rejection-Bound," "Architecture Loops," "Co-Design
    Loops," and "High-Commitment Loops."
-3. **When should loops change method posture across feedback regimes?**  
+3. **When should loops change method posture across feedback regimes?**
    Grounding. "AI-Assisted Loop Postures," "Fast Software Loops,"
    "High-Commitment Loops," and "What Transfers Across Loops."
-4. **How can loops detect single-layer wins that fail system objectives?**  
+4. **How can loops detect single-layer wins that fail system objectives?**
    Grounding. "Domain-Specific Architecture and Code Generation" and
    "Co-Design Loops."
-5. **How should loops track evidence half-life across co-evolving stacks?**  
+5. **How should loops track evidence half-life across co-evolving stacks?**
    Grounding. "Workload Characterization and Benchmark Construction,"
    "Co-Design Loops," "Deployment-Facing Loops," and "What Transfers Across
    Loops."
 
 #### Chapter 10. Ownership and Community Infrastructure
 
-1. **How can redacted loop ledgers be audited?**  
+1. **How can redacted loop ledgers be audited?**
    Grounding. "Community Infrastructure for Architecture 2.0," the redacted
    negative-trace example, the public evidence ledger table, "From Capability to
    Standard," and "Loop Invariants as Review Checks."
-2. **How can negative traces become shared infrastructure?**  
+2. **How can negative traces become shared infrastructure?**
    Grounding. "Community Infrastructure for Architecture 2.0," "Long-Horizon
    Challenge Tasks," the negative-trace corpus row, and the final carry-forward.
-3. **How can tacit knowledge become loop state?**  
+3. **How can tacit knowledge become loop state?**
    Grounding. "Extracting and Codifying Tacit Knowledge," "Nondelegable
    Architectural Responsibilities," "The Architect Owns the Loop," and the
    strongest-objections discussion.
-4. **How can human stop authority survive multi-agent loops?**  
+4. **How can human stop authority survive multi-agent loops?**
    Grounding. "Nondelegable Architectural Responsibilities," the Multi-Agent
    Authority Gate, the Ownership Test, "Beyond the Current Loop," and "The
    Architect's Standing Obligation."
-5. **What makes Architecture 2.0 infrastructure durable?**  
+5. **What makes Architecture 2.0 infrastructure durable?**
    Grounding. "Community Infrastructure for Architecture 2.0," "From Capability
    to Standard," "Long-Horizon Challenge Tasks," "Loop Invariants as Review
    Checks," and the final carry-forward.
