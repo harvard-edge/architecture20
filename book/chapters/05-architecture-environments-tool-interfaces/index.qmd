@@ -274,7 +274,9 @@ feedback it returns, and the rejection authority attached to that feedback. That
 is why two projects can use the same simulator but define different architecture
 environments.
 
-This abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking^[Reward hacking occurs when an AI agent finds an unintended shortcut to maximize its reward signal without solving the underlying problem.], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
+This abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking[^fn-ml-reward-hacking], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
+
+[^fn-ml-reward-hacking]: Reward hacking occurs when an AI method finds an unintended shortcut that maximizes its reward signal without solving the underlying problem. Inside an architecture environment that shortcut usually means exploiting a simulator or proxy bug instead of improving the hardware, so the contract keeps raw observations and rejection checks rather than collapsing to a lone scalar.
 
 | **Field** | **What it defines** | **Question it answers** |
 | --- | --- | --- |
@@ -357,14 +359,14 @@ invalid-action rules, escalation policy, and human-review rules, which
 
 ArchGym also shows why the environment chapter cannot be collapsed into the
 methods chapter. Once an environment is defined, many methods can interact
-with it: Bayesian optimization, reinforcement learning, evolutionary search,
-surrogate-guided exploration, random search, heuristic search, or a human
+with it: Bayesian optimization, reinforcement learning, evolutionary search[^fn-ml-evolutionary-search],
+surrogate-guided exploration[^fn-ml-surrogate-guided], random search, heuristic search, or a human
 designer using the environment as an instrumented assistant. The environment
 is the common ground on which method comparisons become meaningful.
 
-> **Evolutionary search:** In this chapter, a way to propose candidate actions by mutation, crossover, and selection, useful only when the environment can reject invalid or weak candidates.
+[^fn-ml-evolutionary-search]: In this chapter, a way to propose candidate actions by mutation, crossover, and selection, useful only when the environment can reject invalid or weak candidates.
 
-> **Surrogate-guided exploration:** In this chapter, using a fast predictor to screen candidate actions while preserving the stronger feedback needed to reject proxy wins.
+[^fn-ml-surrogate-guided]: In this chapter, using a fast predictor to screen candidate actions while preserving the stronger feedback needed to reject proxy wins.
 
 At the same time, ArchGym should not be treated as if it solves the whole
 Architecture 2.0 problem. A gym can still use simplified simulators. It may
@@ -471,12 +473,12 @@ includes setup, queueing, fabrication, rollout, and commitment delay.
 This economy is the multi-fidelity setting studied across computational
 science, where cheap, lower-fidelity models are combined with scarce,
 high-fidelity ones to keep optimization, inference, and uncertainty
-quantification affordable [@PeherstorferWillcoxGunzburger2018Multifidelity].
+quantification[^fn-stats-uncertainty-quantification] affordable [@PeherstorferWillcoxGunzburger2018Multifidelity].
 Architecture 2.0 inherits that economy and adds two architecture-specific
 requirements: each fidelity level must carry its own rejection authority, and a
 move to a higher level crosses a commitment boundary, not merely a more accurate number.
 
-> **Uncertainty quantification:** In this chapter, recording where an environment's feedback is uncertain enough to force escalation rather than commitment.
+[^fn-stats-uncertainty-quantification]: In this chapter, recording where an environment's feedback is uncertain enough to force escalation rather than commitment.
 
 ```{python}
 #| label: fig-fidelity-cost-confidence
@@ -555,12 +557,12 @@ generate a credible path to use it.
 
 This fidelity regime structure therefore drives method choice. If feedback is cheap, broad search
 or online adaptation may be reasonable. If feedback is expensive, the loop
-needs sample efficiency, priors, surrogates, active learning, staged gates, or
+needs sample efficiency, priors, surrogates, active learning[^fn-ml-active-learning], staged gates, or
 stronger human filtering. If feedback is high commitment, the loop should
 become more conservative. Use AI to organize evidence, critique assumptions,
 and narrow the search, not to make unsupported final decisions.
 
-> **Active learning:** In this chapter, a policy for choosing which scarce simulator, synthesis, human, or deployment feedback event to spend next, with the choice logged as part of the evidence ledger [@Settles2009ActiveLearning].
+[^fn-ml-active-learning]: In this chapter, a policy for choosing which scarce simulator, synthesis, human, or deployment feedback event to spend next, with the choice logged as part of the evidence ledger [@Settles2009ActiveLearning].
 
 The environment should therefore expose feedback budget as a first-class
 object. A result should report which fidelity level produced a comparison and
@@ -623,7 +625,7 @@ In a boat-racing game used to study reinforcement learning, an agent rewarded on
 **Lesson:** An architecture environment may expose a scalar objective, but it must also preserve the observations, invalid-action checks, baselines, and stronger rejection gates that keep the proxy from becoming the architecture claim.
 :::
 
-Environment design should therefore include red-team checks^[Red-teaming involves intentionally attacking a system to expose vulnerabilities, flaws, and failure modes before deployment.] for the feedback
+Environment design should therefore include red-team checks[^fn-ml-red-teaming] for the feedback
 source itself. A simulator-backed loop should record warm-up policy, execution-
 versus trace-driven mode, random seeds, sampled regions, versioned workloads,
 configuration files, and unsupported states. It should also include rejection
@@ -632,6 +634,8 @@ constraints on bandwidth and latency, sensitivity studies, invalid-action
 logs, baseline replay, and escalation to stronger fidelity when the result is
 surprising or high commitment. The goal is not to distrust simulation. The
 goal is to make the simulator's authority explicit.
+
+[^fn-ml-red-teaming]: Red-teaming involves intentionally attacking a system to expose vulnerabilities, flaws, and failure modes before deployment. Here the target is the environment's own feedback source, so the loop probes a simulator or proxy for gameable corners and unsupported states before it trusts a result.
 
 ## Building Environments for New Subfields
 
@@ -723,12 +727,12 @@ Before trusting an environment's verdict on an AI-generated candidate, confirm:
 - another team could deploy an automated optimizer in this harness without private knowledge.
 :::
 
-Operating discipline, the architecture counterpart of MLOps, is the practice of maintaining those layers over time. A one-time environment can
+Operating discipline, the architecture counterpart of MLOps[^fn-systems-mlops], is the practice of maintaining those layers over time. A one-time environment can
 support a paper; a maintained environment can support a field. That is why the
 environment should record versions, assumptions, invalid actions, rejected
 candidates, and changes in the workload distribution.
 
-> **MLOps:** In this chapter, the operating discipline for deployed learning systems that motivates similar versioning, monitoring, drift, rollback, and ownership records in Architecture 2.0 loops.
+[^fn-systems-mlops]: In this chapter, the operating discipline for deployed learning systems that motivates similar versioning, monitoring, drift, rollback, and ownership records in Architecture 2.0 loops.
 
 ::: {#pri-maintain-environment .callout-design-principle title="Maintain the environment, don't just build it"}
 A design-loop environment is not built once; it is maintained. Workloads drift,
