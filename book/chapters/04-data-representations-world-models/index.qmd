@@ -65,6 +65,14 @@ result is outside its calibrated regime, the memory of why a workload slice was
 excluded, or the experience that a supposedly local change will become a
 verification problem later.
 
+ImageNet is the useful foil. Its value was not that images happened to exist on
+the web. The challenge made a large public image collection comparable through
+curation, labels, tasks, splits, and shared evaluation rules
+[@RussakovskyEtAl2015ImageNet]. Architecture does have public text and some
+public artifacts, but it rarely has the matching record of design intent, tool
+state, failed candidates, and review decisions that would let a loop learn what
+an architect actually learned.
+
 The missing state matters. Workload traces may be proprietary or too large to
 share. Simulator configurations may live in scripts rather than in the paper.
 EDA reports may be confidential or tied to licensed process assumptions.
@@ -75,6 +83,13 @@ answer in a question-answering task may be corrected immediately. A weak
 architecture proposal can consume weeks of simulation, mislead a design
 review, or push effort toward a candidate that cannot survive synthesis,
 timing, power, or software integration.
+
+Benchmark practice shows what partial disclosure can buy. Standardized
+benchmark suites such as SPEC CPU and MLPerf make a number meaningful only
+because workload versions, run rules, system configuration, and reporting
+conventions travel with the score [@SPEC2017CPU; @MattsonEtAl2020MLPerf].
+Architecture loop data needs the same habit for candidate provenance, simulator
+settings, excluded workloads, and rejected alternatives.
 
 ::: {.callout-lighthouse title="The AI prompt is not the loop state"}
 **Context.** This chapter's representation question is visible in the first noun
@@ -675,6 +690,13 @@ proxy win that fails at higher fidelity, abandoned floorplan, or
 unsupported-software path is not merely noise. It shows the loop where the
 boundary lies.
 
+Other engineering communities already treat some failures this way. A compiler
+bug that becomes a regression test, or a security failure that becomes a
+standing check, is no longer only a past mistake. It is a reusable boundary that
+keeps later automation from rediscovering the same invalid region. Architecture
+loops need the same habit, with enough provenance to know when the old failure
+still applies.
+
 [^fn-systems-negative-results-venues]: The wider computing-systems community has begun building places to publish exactly these records, where a rigorous experiment that failed to confirm its hypothesis still enters the shared record instead of being discarded. The field needs more of them so that failed runs, rejected candidates, and the assumptions behind them accumulate as shared evidence instead of being discarded before publication.
 
 > **Negative traces.** Negative traces are recorded failed, rejected, invalid,
@@ -752,25 +774,60 @@ the loop cannot see, it cannot reason about, and what the human architect cannot
 
 ## Open Research Questions
 
-The gap between public architecture knowledge and actionable loop state is significant. The questions here focus on representations, not yet on full tool environments or governance. Each one asks what data structure, learning problem, or benchmark would make architecture state more usable inside an AI-assisted loop.
+The gap between public architecture knowledge and actionable loop state is
+significant. The questions here focus on representations and world models, not
+yet on full tool environments or governance. Each question asks what structure,
+learning problem, or benchmark would make architecture state replayable,
+rejectable, and useful inside an AI-assisted loop.
 
-1. **What are the formal semantics of an auditable architecture proposal?**
-Representations must act as boundary objects between human intent and tool execution (see @sec-architecture-descriptions-as-boundary-objects), yet optimizer proposals are still described informally. A thesis-level contribution would define a machine-readable proposal language with operational semantics for task intent, design-space boundaries, evidence, and rejection. The evaluation should show that proposals can be replayed, checked, compared, and safely rejected using their attached provenance rather than private author memory.
+1. **What semantics make architecture proposals replayable and rejectable?**
+Representations must act as boundary objects between human intent and tool
+execution, as discussed in @sec-architecture-descriptions-as-boundary-objects.
+Yet optimizer proposals are still often described informally. A thesis-level
+contribution would define a machine-readable proposal language with operational
+semantics for task intent, design-space boundaries, evidence, and rejection.
+The evaluation should show that proposals can be replayed, checked, compared,
+and safely rejected using attached provenance rather than private author
+memory.
 
-2. **Can world models discover and navigate fidelity frontiers?**
-The world model sketch (@tbl-xr-world-model-sketch) uses explicit escalation triggers, but a stronger research result would learn where those triggers should be. A concrete paper could build a calibration-boundary model that predicts when a proxy is leaving its support region and should route a candidate to cycle-level simulation or physical synthesis. The success metric is not only prediction accuracy. It is lower evidence cost at the same false-accept risk, or lower false-accept risk at the same evidence cost.
+2. **What should costly architecture samples record?**
+Every simulation, synthesis run, trace collection, or physical-flow check is a
+scarce measurement of the design space. The needed artifact is a sample record
+that preserves workload provenance, tool versions, fidelity, assumptions,
+coverage labels, uncertainty, and negative outcomes. Its value should be tested
+by whether it improves later prediction, prevents invalid transfer, or lets
+reviewers understand why a claim is or is not supported. The question treats
+sample cost as architecture data in the sense developed in
+@sec-sample-cost-is-architecture-data.
 
-3. **What is the information-theoretic limit of generalization in AI-driven design?**
-Sample cost and workload provenance are architecture data (see @sec-sample-cost-is-architecture-data), but the field lacks rigorous methods for detecting when an optimizer has overfit to a phase, trace slice, or synthetic input distribution. A strong paper would define a shifted-workload benchmark plus generalization bounds[^fn-stats-generalization-bounds] or empirical tests for architecture agents. The point is to tell reviewers when a claimed design-space lesson transfers, when it weakens, and when it should be rejected (see @sec-toward-architecture-world-models).
+3. **When is an architecture world model outside calibrated support?**
+The world model sketch in @tbl-xr-world-model-sketch uses explicit escalation
+triggers, but a stronger research result would learn or verify where those
+triggers should be. A concrete paper could build a calibration-boundary model
+that predicts when a proxy has left its support region and should route a
+candidate to cycle-level simulation or physical synthesis. The success metric
+is not prediction accuracy alone. It is lower evidence cost at the same
+false-accept risk, or lower false-accept risk at the same evidence cost.
 
-4. **How do we formulate representation learning over negative architecture traces?**
-Rejected candidates, missed timing constraints, and invalid parameters define much of the design-space boundary (@tbl-negative-traces), but most generative systems still learn mainly from successful artifacts. A paper-quality question would introduce a negative-trace dataset or task suite, then test loss functions[^fn-ml-loss-function] or preference-optimization pipelines[^fn-ml-preference-optimization] that teach a model what not to propose. The evaluation should measure avoided repeated failures, transfer to nearby design spaces, and the risk of overgeneralizing one failure into a false universal rule (see @sec-provenance-coverage-and-negative-traces).
+4. **What coverage record tells reviewers when a result generalizes?**
+Architecture loops need records that describe which workloads, phases, trace
+slices, objectives, constraints, and failure modes a representation has
+actually seen. The research artifact is a coverage record for architecture
+agents, tested on shifted-workload benchmarks. The goal is to tell reviewers
+when a claimed design-space lesson transfers, when it weakens, and when it
+should be rejected. This extends the generalization problem raised in
+@sec-toward-architecture-world-models.
 
-[^fn-stats-generalization-bounds]: Theoretical limits on how well a model's performance on its training data will carry over to new samples drawn from the same distribution, under stated assumptions. The chapter wants such bounds for architecture agents so a reviewer can tell when a claimed design-space lesson transfers to a new workload and when it should be rejected.
-
-[^fn-ml-loss-function]: A mathematical function that measures the gap between a model's predicted output and the intended target, which training seeks to minimize. The open question here is whether a loss can be shaped over negative traces so a generative model learns what not to propose, not only which artifacts succeeded.
-
-[^fn-ml-preference-optimization]: Techniques such as Reinforcement Learning from Human Feedback (RLHF) or Direct Preference Optimization (DPO) that align a model's outputs with human preferences. This chapter asks whether the same pipelines, trained on rejected candidates, could teach an architecture model to avoid proposing moves the loop has already ruled out.
+5. **How should representations preserve negative traces?**
+Rejected candidates, missed timing constraints, invalid parameters, and proxy
+mismatches define much of the design-space boundary, but many learned
+representations keep mainly successful artifacts. A paper-quality result would
+introduce a negative-trace dataset or task suite and test whether models learn
+to avoid repeated failures without overgeneralizing one failure into a false
+universal rule. The provenance discussion in
+@sec-provenance-coverage-and-negative-traces and the examples in
+@tbl-negative-traces define the evidence such representations would need to
+preserve.
 
 ## Conclusion
 

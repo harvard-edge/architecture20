@@ -61,6 +61,14 @@ into evidence.
 
 The unifying schema across these roles is the trust envelope: what state they can see, what boundaries they may push, and what evidence forces them to stop or escalate. The method question is therefore not "Which AI system is best?" It is "Which role is needed, what feedback can support it, and what evidence would make its output credible?"
 
+Tensor-program autotuning gives a small version of this role split. AutoTVM and
+Ansor, two TVM tensor-program autotuners, generate candidate schedules, predict
+or rank promising regions, spend measured hardware feedback selectively, and
+reject candidates that fail correctness or performance checks
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The method is useful because the
+loop assigns roles and gates, not because search alone is an architectural
+claim.
+
 Machine learning for architecture did not begin with recent generative methods. Architecture has always relied on quantitative evaluation; a useful historical shorthand for ML's entry into the field is prediction, optimization, and generation. Prediction
 appears in regression models, learned surrogates, and calibrated performance
 or power estimators. Optimization appears in Bayesian optimization, autotuning,
@@ -776,21 +784,57 @@ standards; a method earns trust only through the role the loop needs.
 
 ## Open Research Questions
 
-The discipline of assigning specific roles to AI methods exposes several unsettled research directions. At this point in the progression, the question is not whether a model can generate, predict, or optimize in isolation. The research problem is whether a method performs its assigned role inside a bounded, evidence-constrained architecture loop.
+The discipline of assigning roles to AI methods exposes several unsettled
+research directions. At this point in the progression, the question is not
+whether a model can generate, predict, or optimize in isolation. The research
+problem is whether a method performs its assigned role inside a bounded,
+evidence-constrained architecture loop.
 
-1. **What formalisms can rigorously enforce and audit AI role contracts across heterogeneous execution environments?**
-The decision matrix for method selection (@sec-choosing-a-method-under-constraints) assigns generators, predictors, critics, and optimizers to different obligations, but runtime enforcement remains weak. A strong contribution would define a role-contract language plus a monitor that detects when a method silently escalates its authority, such as a predictor acting as a decision maker. The evaluation should use public loop traces or synthetic environments to measure role-violation detection, false alarms, and the cost of preserving the commitment boundary.
+1. **What role contracts keep AI methods from becoming decision makers?**
+The decision matrix for method selection in
+@sec-choosing-a-method-under-constraints assigns generators, predictors,
+critics, and optimizers to different obligations, but runtime enforcement
+remains weak. The useful artifact is a role-contract language plus a monitor
+that detects when a method silently escalates its authority, such as a predictor
+acting as a decision maker. Public loop traces or synthetic environments should
+measure role-violation detection, false alarms, and the cost of preserving the
+commitment boundary.
 
-2. **How can active learning models mathematically synthesize heterogeneous negative traces?**
-Sample efficiency under expensive feedback (@sec-sample-efficiency-under-expensive-feedback) depends on learning from a non-i.i.d. mixture of cheap warnings, proxy mismatches, synthesis timeouts, and rare silicon failures. A thesis-level paper would introduce acquisition functions that ingest heterogeneous negative traces while preserving their fidelity labels. The result should be tested on a design-space exploration task where the method improves sample efficiency without allowing cheap negative evidence to masquerade as high-fidelity rejection.
+2. **How should loops spend scarce feedback across method roles?**
+Generation, prediction, critique, repair, and optimization all consume
+feedback, but they do not consume it with the same value. The core problem is a
+feedback-allocation model across method roles under simulator-hour, validation,
+latency, and human-review budgets. The model should show when a loop should
+generate another candidate, refine a predictor, ask a critic to search for
+missing evidence, or escalate to stronger feedback. The decision-value framing
+in @sec-sample-efficiency-under-expensive-feedback supplies the budget model.
 
-3. **Can we build bounded rejection oracles for hardware-aware generative models?**
-The architecture community lacks standardized adversarial tests designed to falsify unsupported predictions or trap invalid generative actions. The right target is not a definitive oracle for all hardware awareness. A stronger paper would build a bounded rejection suite for a named environment and state the maximum commitment that passing the suite can authorize. The evaluation should include intentionally invalid candidates, near-miss candidates, and valid candidates, so the oracle's false-pass and false-reject behavior is visible.
+3. **How can optimizers use negative traces without losing fidelity labels?**
+Sample efficiency under expensive feedback depends on learning from a mixture
+of cheap warnings, proxy mismatches, synthesis timeouts, and rare high-fidelity
+failures. A thesis-level paper would introduce acquisition functions or
+training objectives that ingest heterogeneous negative traces while preserving
+their fidelity labels. The result should be tested on a design-space
+exploration task where the method improves sample efficiency without allowing
+cheap negative evidence to masquerade as high-fidelity rejection.
 
-4. **What control-theoretic mechanisms should govern the dynamic reallocation of method roles?**
-The decision-value heuristic for expensive feedback (@sec-sample-efficiency-under-expensive-feedback) assumes a mostly static policy for invoking the next method role. A compelling thesis direction is a meta-controller, perhaps based on optimal control or meta-reinforcement learning[^fn-rl-meta-reinforcement-learning], that reallocates effort among generation, prediction, critique, and repair. The paper should report whether the controller improves evidence use under a fixed budget while obeying the role contracts and commitment boundaries defined earlier in the chapter.
+4. **What bounded rejection suites test hardware-aware generators?**
+The architecture community lacks standardized adversarial tests designed to
+falsify unsupported predictions or trap invalid generative actions. The right
+target is not a definitive oracle for all hardware awareness. A bounded
+rejection suite for a named environment should state the maximum commitment that
+passing the suite can authorize. It should include intentionally invalid
+candidates, near-miss candidates, and valid candidates, so false-pass and
+false-reject behavior is visible.
 
-[^fn-rl-meta-reinforcement-learning]: Meta-reinforcement learning is a paradigm in which an agent learns to learn, adapting rapidly to new tasks by leveraging past experience. The open question raises it as a candidate meta-controller that could reallocate effort among generation, prediction, critique, and repair while still obeying the chapter's role contracts and commitment boundaries.
+5. **When should a loop hand off between method roles?**
+The method role that is useful at the start of a loop may become the wrong one
+after uncertainty changes. A compelling thesis direction is a controller that
+hands off among generation, prediction, critique, repair, and optimization
+based on feedback cost, uncertainty, and commitment level. The paper should
+report whether the controller improves evidence use under a fixed budget while
+obeying the role contracts and commitment boundaries defined earlier in the
+chapter.
 
 ## Conclusion
 
