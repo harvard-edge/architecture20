@@ -184,6 +184,22 @@ run-to-run variance, warnings and waivers, and a hash of the report the number
 came from. Two "identical" runs that differ on any of these are not comparable,
 and a loop that hides the difference will trust a result it should have rejected.
 
+That realism limits what Architecture 2.0 should try to standardize. The field
+does not need a universal vendor API or an open substitute for every foundry
+rule. It needs stable contract surfaces that let reviewers see what was changed,
+what was observed, what stayed confidential, and what could reject the claim.
+@tbl-standardizable-proprietary-contract states that split explicitly.
+
+| **Contract layer** | **Can be standardized** | **Usually remains proprietary** |
+| --- | --- | --- |
+| **Action schema** | Task identifiers, legal edit classes, invalid-action categories, and stage labels. | Vendor command syntax, internal scripts, and product-specific flow recipes. |
+| **Observation schema** | Metric names, fidelity labels, report hashes, warning classes, and failure categories. | Full report bodies, foundry rule details, and confidential workload traces. |
+| **Feedback receipt** | Tool/version hashes, seed records, queue or license state, elapsed time, and artifact pointers. | License-server behavior, internal tool telemetry, and nonpublic debug artifacts. |
+| **Rejection authority** | Gate type, reviewer role, escalation condition, waiver status, and commitment level blocked. | Product review details, customer commitments, waiver rationale, and named approvers. |
+| **Disclosure boundary** | Redaction reason, disclosure tier, reviewer authority, and attestation handle. | Raw PDK contents, proprietary RTL, private baselines, and customer data. |
+
+: **Closed flows can still expose review contracts:** Architecture 2.0 should standardize receipts, field names, and review semantics around commercial EDA and foundry flows without pretending that vendor internals or protected design state become public. {#tbl-standardizable-proprietary-contract tbl-colwidths="[18,34,38]"}
+
 ::: {.callout-lighthouse title="One prompt, many interfaces"}
 **Context.** The lighthouse request crosses multiple interfaces at once, so no
 single simulator API or wrapper is the environment.
@@ -303,6 +319,7 @@ This abstraction can be described as a contract. The environment is the maintain
 | **Constraints and validity** | Type checks, feasibility rules, physical/manufacturing limits, software ecosystem compatibility, and invalid-action handling. | What makes a candidate illegal before performance is considered? |
 | **Feedback budget** | Cost, latency, fidelity, determinism, parallel scalability, and sample limits for each source of feedback. | How much evidence can the loop afford? |
 | **Provenance record** | Tool versions, seeds, inputs, configuration files, assumptions, and artifact hashes. | Could a human replay or audit the result? |
+| **Supply-chain and integrity record** | Dependency, dataset, model, prompt, tool-binary, receipt, and attestation identifiers. | Can the loop tell whether the evidence source changed or was tampered with? |
 | **Rejection authority** | Conditions that stop, revise, or escalate a candidate. | What can say no? |
 
 : **An environment contract makes tool use auditable:** The loop should state its action schema, observations, costs, failures, provenance, and human-review boundaries before methods operate inside it. {#tbl-environment-contract tbl-colwidths="[22,32,34]"}
@@ -644,6 +661,12 @@ through invalid-action checks, baseline replay, sensitivity tests, and
 escalation to a stronger feedback source. @sec-feedback-verification-trust
 treats proxy mismatch and its calibration defenses in full.
 
+The adversarial version is sharper. A loop may be pressured through prompt
+injection, poisoned traces, compromised baselines, dependency updates, tampered
+receipts, or tool outputs that are syntactically plausible but semantically
+misleading. Environment design therefore includes integrity checks for prompts,
+dependencies, artifacts, baselines, and logs, not only better proxy metrics.
+
 The clearest illustration comes from the field that named the failure.
 
 ::: {.callout-field-note title="The boat that won by crashing"}
@@ -781,7 +804,7 @@ ordinary drift becomes visible before it invalidates evidence.
 | **Drift source** | **What to record** | **Failure if ignored** | **Operating response** |
 | --- | --- | --- | --- |
 | Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
-| Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, seed, and configuration versions. | Results become incomparable across runs without a clear cause. | Treat version changes as evidence events and preserve old receipts. |
+| Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, dependency, seed, configuration, and attestation versions. | Results become incomparable across runs without a clear cause, or a changed dependency silently alters the evidence source. | Treat version changes as evidence events and preserve old receipts. |
 | Action-space changes | New knobs, deprecated knobs, invalid combinations, and permission boundaries. | A method proposes actions the environment no longer supports. | Update validity checks and record invalid-action traces. |
 | Evidence and rejection rules | Fidelity labels, escalation thresholds, signoff gates, waivers, and reviewer decisions. | A proxy keeps authority after the commitment level has risen. | Recalibrate evidence levels and require higher-fidelity review. |
 | Human ownership | Decision owner, review date, redaction boundary, and escalation path. | Accountability disappears into scripts, tools, or automated systems. | Keep commitment decisions explicit and auditable. |
@@ -800,9 +823,10 @@ and rejection authorities for architecture work.
 1. **What must an architecture environment contract expose before a loop can act?**
 An environment contract should name the task boundary, legal actions,
 observations, constraints, feedback types, invalid-action semantics, provenance,
-redaction boundary, and rejection authority. A strong contribution would define
-this contract for a simulator, compiler, EDA flow, or deployment setting and
-test whether another method can act in the same harness without private
+integrity record, redaction boundary, and rejection authority. A strong
+contribution would define this contract for a simulator, compiler, commercial
+EDA flow, or deployment setting and test whether another method can act in the
+same harness without private
 knowledge from the original author. The fields in @tbl-environment-contract
 give the concrete starting point.
 

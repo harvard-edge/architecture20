@@ -151,7 +151,7 @@ signoff report (@tbl-feedback-budget-ledger).
 
 | **Budget item** | **What to record** | **Why it matters** |
 | --- | --- | --- |
-| Latency and cost | Runtime, queue time, dollar cost, tool hours, license limits, and human review time. | Determines whether the loop should search broadly, sample carefully, or mostly critique. |
+| Latency and cost | Runtime, queue time, dollar cost, tool hours, license limits, model calls, GPU-hours, energy or carbon exposure, and human review time. | Determines whether the loop should search broadly, sample carefully, or mostly critique. |
 | Signal quality | Fidelity level, metric definition, noise, determinism, coverage, and uncertainty. | Separates raw feedback from decision-grade evidence. |
 | Sample budget | Number of possible runs at each fidelity, including failed runs and invalid candidates. | Forces sample-efficient methods and preserves negative traces. |
 | Reversibility | Whether the action can be undone cheaply, re-run, patched, or rolled back. | Connects autonomy to risk. Reversible actions can tolerate weaker evidence than irreversible commitments. |
@@ -230,9 +230,12 @@ claim, support, uncertainty, rejected alternatives, and escalation boundary. It
 records the candidate (*actions allowed*), the feedback and fidelity (*state
 seen*), the provenance and uncertainty (*evidence*), what could block the claim
 (*alternatives rejected*), and the required escalation boundary (*ownership*).
+It is also a decision-rights record. The ledger should show which rejection
+events, waivers, redactions, and human authorities allowed a candidate to move
+forward, stop, or reopen later.
 Naming the lineage helps, because that field already catalogs how such
-arguments fail: unstated
-assumptions, evidence that does not support the claimed scope, and confidence
+arguments fail, through unstated assumptions, evidence that does not support the
+claimed scope, and confidence
 that outruns the proof.
 
 [^fn-safety-gsn]: Goal Structuring Notation (GSN) is a graphical argumentation notation used in safety-critical engineering to document the elements of an assurance case, making each inference and its supporting evidence explicit and reviewable [@Kelly2004GSN]. The evidence ledger borrows this discipline so a design claim carries its support, assumptions, and rejected alternatives rather than a bare score.
@@ -546,9 +549,18 @@ whether the method is accurate. It is whether the loop preserves the
 constraints under which architecture work actually happens.
 The failure mode is not only leakage; it is a generative method producing a claim from
 evidence it cannot expose, audit, or legally reuse.
+For generated designs, the boundary also includes license provenance, ownership
+of generated artifacts, export or release classification, disclosure authority,
+and the reviewer role allowed to inspect redacted evidence. These are commitment
+boundaries for the loop, not a substitute for legal review.
 
-::: {.callout-architect-checkpoint title="The Confidentiality Boundary Check"}
-Can the AI model's evidence be audited without violating security or IP boundaries? If a generative method produces a claim using confidential data that cannot be exposed to the rejection authority, the loop cannot trust the claim. The architect must explicitly define which AI tools can access which data classes, and how private evidence can be verified.
+::: {.callout-architect-checkpoint title="The Policy Boundary Check"}
+Can the AI model's evidence be audited without violating security, IP, license,
+or disclosure boundaries? If a generative method produces a claim using
+confidential or restricted data that cannot be exposed to the rejection
+authority, the loop cannot trust the claim. The architect must explicitly define
+which AI tools can access which data classes, how private evidence can be
+verified, and who can authorize redaction or release.
 :::
 
 This requirement also defines the bounds of microarchitectural security. A loop
@@ -611,11 +623,12 @@ That record should include a data-access and evidence-scope field: what private
 state was used, what public proxy cannot support, which generative methods or tools may
 access each artifact, and who owns disclosure exceptions.
 
-The practical rule for AI-assisted systems is therefore simple. Do not make confidentiality invisible. If a
-claim depends on private data, say what class of data supports it, what
-auditing is possible, what cannot be disclosed, and what public proxy would be
-insufficient. That is more honest than pretending every architecture loop can
-be reproduced from public web data.
+The practical rule for AI-assisted systems is therefore simple. Do not make
+confidentiality or policy invisible. If a claim depends on private, licensed, or
+restricted data, say what class of data supports it, what auditing is possible,
+what cannot be disclosed, who may inspect the redacted evidence, and what public
+proxy would be insufficient. That is more honest than pretending every
+architecture loop can be reproduced from public web data.
 
 ## Evidence Disputes and the Trust Checklist {#sec-evidence-disputes-and-the-trust-checklist}
 
@@ -674,7 +687,7 @@ expensive commitment.
 | What feedback supports it? | Metrics, tool outputs, logs, reviews, and negative traces tied to a feedback budget. | Only the winning score is shown. |
 | What is the fidelity? | Proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level stated explicitly. | Treating all measurements as equivalent. |
 | What is the provenance? | Workload and exact tool versions, tech nodes, configs, deterministic seeds, constraints, assumptions, and baselines for replay. | Hidden scripts, unstated defaults, or non-deterministic environments. |
-| What is the security or confidentiality boundary? | Data classes, access rules, redaction limits, public proxy limits, and an audit path. | Private evidence is treated as invisible or unverifiable. |
+| What is the security, confidentiality, or policy boundary? | Data classes, access rules, redaction limits, license or disclosure class, public proxy limits, authorized reviewer role, and an audit path. | Private or restricted evidence is treated as invisible or unverifiable. |
 | What can reject it? | Tests, formal checks, simulators, signoff rules, deployment signals, or expert review. | No independent authority can say no. |
 | Who commits? | A named human or process accepts, rejects, escalates, or revises the artifact. | The loop silently turns output into decision. |
 
@@ -698,11 +711,12 @@ stress-tested, and how confidential evidence can remain reviewable.
 Fidelity ladders, evidence ledgers, commitment levels, and reversibility all
 assume that evidence remains attached to the claim it supports. A fundamental
 systems challenge is to design a ledger format and checker that bind proxy
-traces, simulation runs, synthesis results, human waivers, and rejection events
-into a unified audit object. Its value would be measured by tamper detection,
-replayability, and whether the checker prevents a candidate from exceeding the
-commitment level supported by its evidence. The fidelity-ladder and commitment
-sections, @sec-fidelity-ladders-and-evidence-ledgers and @sec-commitment-levels-and-reversibility, define the evidence boundary this
+traces, simulation runs, synthesis results, human waivers, rejection events,
+redactions, and reopening conditions into a unified audit object. Its value
+would be measured by tamper detection, replayability, and whether the checker
+prevents a candidate from exceeding the commitment level supported by its
+evidence. The fidelity-ladder and commitment sections,
+@sec-fidelity-ladders-and-evidence-ledgers and @sec-commitment-levels-and-reversibility, define the evidence boundary this
 checker must enforce.
 
 2. **What benchmarks expose proxy exploitation before commitment?**
@@ -727,19 +741,22 @@ the loop.
 The trust checklist in @sec-evidence-disputes-and-the-trust-checklist audits a
 single claim, but the field also needs methodology for whole closed-loop
 systems under pressure. A useful stress-test harness would inject hidden
-workload drift, compromised baselines, stale tool versions,
-side-channel-sensitive metrics, or deceptive proxies into the design process.
+workload drift, prompt injection, poisoned traces, compromised baselines,
+tampered receipts, stale tool versions, side-channel-sensitive metrics, or
+deceptive proxies into the design process.
 The report should state false commitment rates, escalation cost, and whether
 human rejection authority remains effective when the loop's evidence sources
 become unreliable.
 
 5. **How can confidential evidence remain auditable?**
 Architecture evidence often depends on proprietary workloads, physical design
-flows, internal baselines, or deployment data that cannot be shared directly.
+flows, licensed reports, PDK-bound evidence, internal baselines, or deployment
+data that cannot be shared directly.
 The contribution is an audit protocol that exposes fidelity, provenance,
 rejection, and commitment boundaries while redacting protected design state. It
-should state what a reviewer can verify, what remains private, and what kinds of
-claims are too dependent on confidential evidence to support public commitment.
+should state what a reviewer can verify, what remains private, who is authorized
+to inspect the redacted evidence, and what kinds of claims are too dependent on
+confidential or restricted evidence to support public commitment.
 
 ## Conclusion
 
@@ -749,7 +766,7 @@ to the loop. It is earned, one claim at a time, by the machinery the architect
 builds around the result. A feedback budget records what the check cost. An
 evidence ledger states what was measured and under which assumptions. A fidelity
 level is named honestly rather than implied. An independent authority can say
-no. A confidentiality boundary keeps private evidence auditable. And a
+no. A policy boundary keeps private or restricted evidence auditable. A
 commitment boundary matches the cost of being wrong.
 
 Read together, these are not six separate safeguards but one discipline. Trust

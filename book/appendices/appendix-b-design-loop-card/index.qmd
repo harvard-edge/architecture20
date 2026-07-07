@@ -103,8 +103,8 @@ ordered to match the ontology used throughout the book.
 | **Representation** | What does the loop know, read, write, or assume? What state, dynamics, objectives, constraints, costs, and uncertainties are represented? |
 | **Environment** | What can the loop act on, observe, and measure? Which actions are invalid, expensive, nondeterministic, or irreversible? |
 | **Method role** | Is the method generating, predicting, optimizing, critiquing, verifying, planning, calling tools, coordinating, or combining several roles? |
-| **Feedback budget** | How many evaluations are available, at what latency, cost, fidelity, and sample efficiency requirement? |
-| **Evidence** | What supports the claim, and against which baseline is it measured? Sources can include baseline replay, proxy metrics, simulation, synthesis, verification, deployment telemetry, silicon data, expert review, or sensitivity analysis. |
+| **Feedback budget** | How many evaluations are available, at what latency, cost, fidelity, model-side expense, human attention, and sample efficiency requirement? |
+| **Evidence** | What supports the claim, and against which baseline is it measured? Sources can include baseline replay, proxy metrics, simulation, synthesis, verification, telemetry packets, silicon data, expert review, integrity manifests, or sensitivity analysis. |
 | **Negative traces** | What failed, was rejected, violated constraints, crashed tools, disappeared at higher fidelity, or was ruled out by human judgment? |
 | **Rejection authority** | What can say no? Examples include type checks, simulator segfaults, CDC/RDC errors, routing congestion, compiler fusion failure, tests, formal tools, signoff, cross-tool disagreement, deployment signals, or expert review. |
 | **Commitment boundary / would overturn** | What claim level does the evidence support, what stronger claim is not yet authorized, and what evidence would overturn the decision? |
@@ -196,10 +196,17 @@ design_loop_card:
                       verify, plan, tool_call, coordinate] } ]
     actor_map: [ { actor_id, role, reads, writes, authority } ]
   feedback_budget: { evaluations, latency, cost, fidelity }
+  model_budget: { model_calls, gpu_hours, energy_or_carbon, human_review }
   evidence:
     baseline_id: string        # what the claim is measured against
     records: [ { evidence_id, kind, workload_id, seed, provenance } ]
+    telemetry_packet: { hardware_stepping, software_stack, cohort,
+                        sampling_policy, privacy_filter, rollback_trigger }
+    integrity_manifest: { dependencies, model_ids, prompt_ids,
+                          artifact_hashes, attestations }
   negative_traces: [ { candidate_id, reason, stage, gate } ]
+  disclosure_boundary: { data_classes, redactions, reviewer_roles,
+                         release_or_export_class }
   rejection_authority: { gates, independent_of_producer,
                          independence_basis }
   commitment_boundary:
@@ -218,6 +225,10 @@ Level 1 adds `representation`, `environment`, `method_role`,
 Level 2 adds the stable IDs and provenance; Level 3 adds
 `rejection_authority` (independent of the producer), `commitment_boundary`,
 and `human_decision`.  The `independence_basis` field captures *why* the rejection authority is independent (e.g., a separate reporting chain or a formal verification tool). A validator checks a card against the level it claims.
+The `model_budget`, `telemetry_packet`, `integrity_manifest`, and
+`disclosure_boundary` fields are optional extensions that become necessary when
+the claim depends on large-model cost, field evidence, supply-chain integrity,
+or protected design state.
 The stable IDs (`card_id`, `workload_id`, `evidence_id`, `candidate_id`, and
 the other `*_id` fields) are what let one loop's ledger
 reference another's, so a rejected candidate, a workload packet, or a baseline
