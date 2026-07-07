@@ -169,7 +169,7 @@ When splitting an architecture task across multiple automated participants, trac
 Other high-stakes fields have already learned, at real cost, where that authority has to sit.
 
 ::: {.callout-field-note title="The reviewers who could say no, too late"}
-In clinical genomics, published predictors claimed to match cancer patients to the chemotherapy they would respond to, and were used to enroll real patients in trials. Two outside statisticians who tried to reproduce the analysis found it built on mislabeled, shifted data, and the predictors were worthless [@BaggerlyCoombes2009]. The authority to reject on that evidence existed, but it sat outside the loop, with reviewers never given a seat before commitment. By the time the objection was heard, 117 patients had been enrolled.
+In clinical genomics, published predictors claimed to match cancer patients to the chemotherapy they would respond to, and were used to enroll real patients in trials. Two outside statisticians who tried to reproduce the analysis found it built on mislabeled, shifted data, and the predictors were worthless [@BaggerlyCoombes2009]. The authority to reject on that evidence existed, but it sat outside the loop, with reviewers never given a seat before commitment. The objection arrived only after 117 patients had been enrolled.
 
 **Lesson:** When a loop delegates work across tools, the authority to halt on independent evidence must be seated before the commit, not discovered after the tapeout.
 :::
@@ -354,17 +354,28 @@ result did you get?" but also "What loop produced it? What feedback did it use?
 What did it reject? What evidence supports the decision?"
 
 Providing a useful answer to those questions does not require raw design
-disclosure. If the only way an AI can learn is by reading proprietary physical EDA failure logs, Architecture 2.0 risks becoming a closed oligopoly. One open mechanism would be a shared evidence-exchange format for redacted negative traces. The ISA analogy is useful only in a limited sense: the format would separate proprietary implementation details from the architecture lesson a reviewer can inspect.
+disclosure. If AI-assisted architecture can only learn from proprietary physical
+EDA failure logs, the field will depend too heavily on private evidence that
+outsiders cannot inspect. One possible research direction is a shared
+evidence-exchange format for redacted negative traces. The ISA analogy is useful
+only in a limited sense: the format would separate proprietary implementation
+details from the architecture lesson a reviewer can inspect.
 
-The community could explore this mechanism through *Projected Proxies and Redacted Traces*. When a corporate AI loop rejects a candidate due to a proprietary NDA constraint (e.g., TSMC 3nm wire congestion), the loop might map that failure to an open-source proxy (e.g., ASAP7 or FreePDK45). A projected proxy could publish a relative failure when the projection preserves the rejection condition; it should not be treated as equivalent to the proprietary physical-design result.
+The community could explore this mechanism through *projected proxies and
+redacted traces*. When an industrial AI loop rejects a candidate because of a
+proprietary physical-design constraint, the loop might map the failure to an
+open or synthetic proxy that preserves the lesson without exposing the design
+rule. A projected proxy could publish a relative failure when the projection
+preserves the rejection condition; it should not be treated as equivalent to the
+proprietary physical-design result.
 
-```{.yaml #lst-redacted-trace lst-cap="**Redacted Negative Trace:** A YAML schema for sharing rejected design paths without disclosing proprietary physical design rules."}
-# Example: A Redacted Negative Trace (RNT) shared to the open-source commons
+```{.yaml #lst-redacted-trace lst-cap="**Redacted Negative Trace:** An illustrative YAML sketch for sharing rejected design paths without disclosing proprietary physical design rules."}
+# Illustrative sketch: a redacted negative trace (RNT)
 schema_version: "Arch2.0-RNT-v1"
 context:
   workload_class: "XRBench-mobile-vision"
   baseline_architecture: "urn:riscv:microarch:rocket:default"
-  proxy_environment: "Chipyard + ASAP7 (Open PDK)" # The open projection
+  proxy_environment: "open_or_synthetic_physical_proxy"
 action:
   type: "microarch_parameter_sweep"
   delta:
@@ -374,7 +385,7 @@ action:
       changed_to: 16
 evaluation:
   status: "REJECTED"
-  rejection_authority: "PhysicalDesign_Oracle"
+  rejection_authority: "PhysicalDesign_ReviewGate"
   redacted_reason:
     category: "PHYSICAL_VIOLATION"
     sub_category: "ROUTING_CONGESTION"
@@ -388,7 +399,10 @@ lessons_learned:
     negates IPC gains in XR workloads.
 ```
 
-This projected proxy pattern (@lst-redacted-trace) captures the essential context of the architectural exploration while strictly redacting the absolute cell dimensions and proprietary design rules that triggered the rejection. This redacted evidence ledger acts as a small public record that
+This projected proxy pattern (@lst-redacted-trace) sketches how a loop could
+capture the essential context of an architectural exploration while redacting
+absolute dimensions and proprietary design rules. The redacted evidence ledger
+acts as a small public record that
 names the loop well enough for another group to
 understand what was attempted, what was observed, what was rejected, and what
 kind of commitment the evidence can support. @tbl-public-evidence-ledger gives
@@ -424,13 +438,12 @@ The common test is whether an AI-mediated architecture claim can show what
 state it used, what it changed, what feedback it received, what failed, and who
 owned the commitment.
 
-This apparatus has a specific case in mind. The AlphaChip war story that has run
-alongside the lighthouse throughout this book stayed open because the designs the
-method trained on were never released, for the legitimate reason that they are
-Google's own chips, so the strongest form of the claim could be neither
-reproduced nor refuted in public. A redacted negative trace and a public
-evidence ledger (@lst-redacted-trace, @tbl-public-evidence-ledger) are what could
-let a future result like it share its loop without sharing its chips. Such
+This apparatus has a specific case in mind. The AlphaChip war story returns here
+because the designs the method trained on were never released, for the legitimate
+reason that they are Google's own chips, so the strongest public claim boundary
+remained hard to reconstruct from public artifacts. A redacted negative trace and
+a public evidence ledger (@lst-redacted-trace, @tbl-public-evidence-ledger) could
+let a future result share more of its loop without sharing its chips. Such
 records would bound public auditability rather than fully settling proprietary
 claims. The point is not to reopen that case, but to give the field a way to keep
 the next one from staying open.
@@ -449,172 +462,30 @@ records, and review artifacts that make credible loop design discussable.
 That is how Architecture 2.0 can become a research area rather than a set of
 private demos.
 
-## Open Research Questions
+## Field Agenda
 
-Building shared infrastructure and navigating the transition to AI-assisted
-architecture leaves several unsettled research directions. At the end of the
-book, the questions return to ownership and community infrastructure. The
-technical challenge is to make loop integrity, shared failures, evidence gates,
-and human accountability durable enough for field-scale practice.
-
-1. **How can redacted loop ledgers be audited without revealing design state?**
-The public evidence ledger in @tbl-public-evidence-ledger assumes that some
-fields can be shared while others remain proprietary. A thesis-level systems
-contribution would define a redacted audit protocol that verifies constraints,
-proxy runs, evidence levels, rejection events, and escalation decisions without
-exposing physical-design IP. Cryptographic commitments may be part of the
-answer, but the paper should be judged by whether reviewers can detect missing
-or inconsistent evidence across organizational boundaries.
-
-2. **How can negative traces become shared infrastructure?**
-This chapter argues for treating rejected alternatives as first-class evidence,
-but learning from design failure at discipline scale remains unsolved. A strong
-paper would define schemas, redaction rules, review norms, and reuse tests for
-negative traces across organizations. The evaluation should ask whether future
-loops avoid known failure modes, reopen stale failures correctly, and preserve
-the boundary between local evidence and general architectural knowledge.
-
-3. **How can tacit physical and integration constraints become loop state?**
-Many architecture decisions depend on physical-design judgment, integration
-experience, workload context, and review instincts that are rarely captured in
-machine-readable form. A major research contribution would turn selected tacit
-constraints into loop state without pretending that all expertise can be
-automated. The evaluation should ask whether the representation improves
-rejection, review, or escalation while keeping ownership with the architect.
-The relevant artifacts are summarized in @tbl-architect-owned-artifacts.
-
-4. **How can human stop authority survive long-horizon multi-agent loops?**
-Long-horizon architecture tasks require decisions to survive workload changes,
-compiler updates, surrogate-model drift, and personnel changes. A concrete
-thesis could define a commitment ledger with ownership transfer, expiration,
-revalidation triggers, and human stop authority for asynchronous multi-agent
-loops. The evaluation should ask whether a later reviewer can identify who owns
-a stale claim, what evidence still supports it, and what event should force
-re-approval when the original decision maker is unavailable.
-
-5. **What makes Architecture 2.0 infrastructure durable?**
-Loop cards, evidence ledgers, environment contracts, and negative-trace corpora
-will not become field infrastructure unless the community rewards maintenance,
-retirement, and reuse as much as first publication. A durability standard should
-define acceptance criteria, versioning expectations, stale-record retirement,
-owner transfer, maintenance obligations, and minimum evidence packets. The
-evaluation should measure whether a maintained artifact still supports
-independent review after tools, workloads, models, and owners change, and
-whether artifact committees can distinguish durable infrastructure from a
-one-time demonstration.
-
-## Long-Horizon Challenge Tasks
-
-To answer these open questions, the field needs realistic evaluations. Short
-demonstrations are useful for tool development, but they are too small
-to define the field. A model that writes a plausible RTL fragment, proposes a
-cache configuration, or summarizes a paper may be helpful without changing the
-architecture loop. The harder question is whether an AI-mediated system can
-participate in architecture work over the time scale on which architecture
-decisions actually mature: days, weeks, months, tool versions, workload
-updates, rejected alternatives, and design reviews.
-
-> **Long-horizon architecture task.** A long-horizon architecture task is a
-> challenge in which a method or AI-assisted system must maintain design state across
-> multiple steps, act through valid tools or interfaces, gather feedback at
-> appropriate fidelities, preserve rejected alternatives, expose uncertainty, and
-> support a human architectural commitment over an extended design interval.
-
-These benchmarks share a target shape (@fig-long-horizon-task-timeline). The task is defined as long horizon
-because the state, actions, evidence, rejections, and human commitment have to
-survive across revisions, not because the prompt is longer.
-
-![**Long-horizon architecture tasks test the loop across time:** A credible challenge preserves design state, acts through valid interfaces, gathers feedback at appropriate fidelity, records rejection or repair, and leaves a human able to accept, reject, or escalate the next commitment.](images/F11b-long-horizon-task-timeline){#fig-long-horizon-task-timeline width="100%" fig-alt="Timeline diagram showing a task slice, state memory, valid action, feedback, reject or repair step, and human commitment connected across a persistent loop record."}
-
-This framing changes what the community should ask for. The canonical
-challenge is not prompt-to-chip. It is prompt-to-loop. @tbl-long-horizon-challenges sketches a starting set of tasks.
-The success criterion is whether the loop leaves a named human able to accept,
-reject, or escalate that next commitment.
-Each row names the paper object: a corpus or task source, the loop
-representation or environment to build, the evidence and rejection gate to test,
-and the commitment boundary the task may authorize.
-
-| **Challenge task** | **Corpus or task source** | **Representation / environment** | **Evidence and rejection gate** | **Commitment boundary** |
-| --- | --- | --- | --- | --- |
-| Design-loop memory | Multi-step DSE traces, notebooks, and review decisions. | Replayable candidate records with assumptions, tool outputs, failures, decisions, and timestamps. | Reviewer reconstructs why each candidate advanced, changed, or was rejected. | Supports the next exploration decision, not implementation readiness. |
-| Workload drift tracking | Benchmark or trace-family versions plus affected conclusions. | Workload-version monitor with coverage, stale assumptions, and revalidation actions. | Drift detector weakens or invalidates claims whose workload support changed. | Maintains or withdraws a bounded workload claim. |
-| Evidence-aware generation | Candidate proposals paired with predicted benefit and feedback costs. | Generator constrained by an evidence-gate policy and escalation rule. | Cheapest independent rejection test catches unsupported proposals before expensive checks. | Suggests next evidence to spend, not final design commitment. |
-| Paper-to-loop reproduction | Published claims, missing artifacts, assumed settings, and negative traces. | Paper-to-loop reproduction packet with task, environment, evidence, and falsification needs. | Independent reviewer states what would reproduce, weaken, or refute the claim. | Makes the paper auditable, not automatically reproducible. |
-| Simulator trust calibration | Proxy and higher-fidelity runs across workload slices and tool versions. | Proxy-calibration record with support region, observed errors, and invalidation cases. | Escalation gate rejects proxy wins outside calibrated support. | Authorizes proxy screening inside the support region only. |
-| Cross-stack co-design | Workload, compiler, mapping, memory, accelerator, runtime, and deployment changes. | Co-design card with layer owners, interface contracts, and changed assumptions. | Interface and system-objective gates reject local wins that break another layer. | Supports a bounded cross-layer claim with named owners. |
-| Negative-trace corpus | Failed mappings, invalid RTL, bad floorplans, stale benchmarks, and misleading proxy wins. | Redacted failure corpus with trigger, evidence, rejected fix, redaction boundary, and reusable lesson. | Reuse test shows whether a new loop avoids or reopens the old failure correctly. | Treats rejected alternatives as evidence, not universal design rules. |
-| Design-review assistant | Design-review notes, risks, missing evidence, sensitivity checks, and rejected alternatives. | Review packet organized by design-loop card fields and human decision owner. | Human veto and evidence-gap checks reject unsupported recommendations. | Improves review judgment without owning the commitment. |
-
-: **Long-horizon challenges should test architecture loops, not single prompts:** The field needs tasks that reward memory, valid action, feedback, rejection, evidence, and architect-owned commitment across time. {#tbl-long-horizon-challenges tbl-colwidths="[15,21,22,23,19]"}
-
-These challenges also give Architecture 2.0 a way to remain architecture
-centric. A generic AI benchmark can reward answer fluency. A long-horizon
-architecture challenge should reward state, interfaces, feedback economics,
-evidence quality, and rejection. That is where the computer architecture
-community has something specific to contribute.
-
-## From Capability to Standard
-
-Building those capabilities is one thing; turning one into a shared field
-standard is another, and that path is gradual. The standard is not a governance
-process for its own sake; it is a shared loop contract. Automated systems need comparable
-action spaces, feedback contracts, workload/data boundaries, rejection logs,
-leakage controls, and named human commitment owners so that a claim can be
-inspected across labs without pretending every lab uses the same tools.
-
-That progression should not be rushed. Premature standardization can freeze
-weak tasks, reward narrow metrics, and encourage benchmark gaming. But the
-opposite failure is also real. If every project defines its own task, wrapper,
-metric, and evidence standard, the field cannot accumulate knowledge. The
-right target is not a single universal benchmark. It is a family of
-interfaces, cards, tasks, and evidence conventions that make claims reviewable and
-contrastable without pretending all architecture work is the same. Full
-comparability, in MLPerf's sense, is a stronger and later goal. It needs a fixed
-task, workload, metric, and submission rules, and a neutral referee that can
-reject a published claim, none of which a self-attested card supplies on its own. A credible standard should make visible the same fields the public evidence
-ledger already names (@tbl-public-evidence-ledger), from task and workload state
-through to the accountable human or gate that can stop or accept a commitment.
-
-SPEC CPU and MLPerf show one maturation path from local measurements to shared
-benchmark practice. They did not make every result identical, but they did make
-a class of claims harder to state without versions, rules, measurements, and
-reviewable reporting [@SPEC2017CPU; @MattsonEtAl2020MLPerf]. Architecture 2.0
-needs analogous field infrastructure for loop-level evidence packets before it
-can support stronger cross-paper comparability.
-
-Architecture 2.0 will likely mature unevenly. Fast software loops may
-standardize earlier than RTL and physical-design loops. Workload and benchmark
-loops may become more public than industrial signoff loops. That unevenness is
-acceptable. What matters is that the field learns how to name the loop and
-state its evidence burden.
-
-Different communities can start at different leverage points. Each group can
-contribute a first useful artifact without waiting for a complete field standard
-(@tbl-role-agenda).
-
-| **Community** | **First useful artifact** | **Evidence or rejection obligation** | **First shared task** |
-| --- | --- | --- | --- |
-| Practicing architects | A design-loop card attached to a design review or DSE report. | Name the workload, exposed design space, evidence stages, rejected alternatives, and decision owner. | Compare two candidate loops for the same design question. |
-| ML researchers | A method report that states action space, observation space, training data, leakage risks, and failure cases. | Show what the method can reject, not only what it can generate. | Reproduce or stress-test an architecture claim with explicit missing evidence. |
-| EDA and tool researchers | An environment contract for a simulator, compiler, or physical-design flow. | State legal actions, feedback latency, fidelity limits, provenance, and invalid actions. | Build a benchmark where proxy wins must survive a stronger tool check. |
-| Systems researchers | A workload and deployment evidence ledger. | Track software stack, runtime policy, operating point, and drift. | Show when a local optimization stops supporting the end-to-end claim. |
-| Authors and reviewers | An Architecture Claim Card attached to a paper claim. | Separate generated candidates from supported decisions. | Convert a result into task, representation, environment, method role, evidence, rejection, and commitment fields. |
-
-: **Architecture 2.0 needs role-specific starting points:** The field can mature through small artifacts that make loops reviewable before any single benchmark becomes canonical. {#tbl-role-agenda tbl-colwidths="[18,28,30,24]"}
+The ownership argument does leave a field agenda, but the agenda should not hide
+the book's simpler close. Architecture 2.0 does not need a complete standard
+before it can be useful. It needs small artifacts that make one architecture
+decision easier to inspect, reject, and improve.
 
 For a team that wants to start immediately, the minimum useful target is one
-credible loop packet, not a process program. That packet turns the field agenda
-into three artifacts a reviewer can inspect (@tbl-minimum-credible-loop-packet).
+credible loop packet. Attach a design-loop card to one design review, DSE result,
+or paper discussion. Wrap one tool path as an environment contract with logged
+successful and failed runs. Preserve one evidence ledger or negative-trace record
+for a recurring decision. If a second person can tell what was tried, what
+failed, what evidence supports the survivor, and who owns the commitment, the
+packet is already doing useful Architecture 2.0 work.
 
-| **Packet component** | **What to attach** | **Evidence that it worked** |
-| --- | --- | --- |
-| Claim packet | A design-loop card for one active design review, DSE result, or paper discussion. | The team can name the task, exposed design space, evidence, rejected alternatives, commitment boundary, and decision owner. |
-| Environment packet | One tool path wrapped as an environment contract with logged runs and invalid-action records. | A second person can replay or audit at least one successful run and one failed run. |
-| Evidence packet | One shared evidence ledger or negative-trace format for a recurring architecture decision. | Future reviews reuse prior failures instead of rediscovering them, and claims state their commitment level. |
-
-: **Architecture 2.0 adoption starts with one credible loop packet:** The first
-goal is a repeatable artifact that makes one architecture decision easier to
-inspect, reject, and improve. {#tbl-minimum-credible-loop-packet tbl-colwidths="[20,42,28]"}
+The larger research questions remain, but they are extensions of this packet
+rather than a new framework: how to audit redacted loop ledgers without revealing
+design state, how to make negative traces reusable without turning local failures
+into universal rules, how to represent selected tacit constraints without
+pretending all judgment can be automated, how to preserve human stop authority in
+long-horizon multi-agent loops, and how to maintain these artifacts after tools,
+workloads, models, and owners change. @sec-appendix-c-architecture-20-resources
+points to the live resource registry and missing infrastructure that can support
+that agenda.
 
 ## Loop Invariants as Review Checks
 
@@ -726,10 +597,9 @@ generate an entire XR subsystem from a text description, it may have sounded
 like a prediction that the human architect's job was ending. The framework
 developed across these chapters argues the exact opposite.
 
-The tools, models, and automated systems driving this shift are changing at
-breakneck speed, and any catalog of today's capabilities will quickly become
-obsolete. Because this transition is a massive work in progress, the one durable
-anchor is engineering discipline. We are crossing the threshold from *artifact
+The tools, models, and automated systems driving this shift will keep changing,
+so any catalog of today's capabilities will quickly become obsolete. The one
+durable anchor is engineering discipline. We are crossing the threshold from *artifact
 scarcity* to *commitment scarcity*. When generating a plausible accelerator or
 floorplan becomes fast and cheap, the bottleneck shifts to the loop that
 produced it. In that regime, the field becomes rejection-bound. Progress depends

@@ -84,7 +84,19 @@ turn and read the receipt it leaves. That means you can:
 
 ## Round One: Generate and Screen on a Proxy
 
-The four rounds that follow are not four turns. As illustrated in @fig-loop-beat, they make up a single complete design-loop turn and realize its five beats, grouped into four rounds because generation and proxy screening share the first. First, a generative method[^fn-ml-generative-method] or heuristic search explores the allowed action space to propose candidate designs. Second, these candidates are quickly screened against a low-fidelity proxy, giving the loop its first observation of the design's state. Third, because the proxy's authority is limited, surviving candidates must escalate to stronger architecture-feedback tools, such as calibrated simulation and later synthesis checks, that test declared constraints with higher fidelity. Fourth, any options that violate these hard constraints are pruned and rejected, leaving a trail of negative traces. Finally, the human architect steps in to review the gathered evidence and make a bounded, documented commitment.
+The four rounds that follow are not four turns. As illustrated in
+@fig-loop-beat, they make up a single complete design-loop turn and realize its
+five beats, grouped into four rounds because generation and proxy screening
+share the first. First, a generative method[^fn-ml-generative-method] or
+heuristic search explores the allowed action space to propose candidate designs.
+Second, these candidates are quickly screened against a low-fidelity proxy,
+giving the loop its first observation of the design's state. Third, because the
+proxy's authority is limited, surviving candidates must escalate to stronger
+architecture-feedback tools, such as calibrated simulation and later synthesis
+checks, that test declared constraints with higher fidelity. Fourth, any options
+that violate these hard constraints are pruned and rejected, leaving a trail of
+negative traces. Finally, the human architect reviews the gathered evidence and
+makes a bounded, documented commitment.
 
 [^fn-ml-generative-method]: A generative method or model is an AI system trained to generate new data samples, such as hardware configurations, from a learned distribution. Here it plays the method role that seeds the three candidate organizations the proxy then screens.
 
@@ -113,11 +125,21 @@ The human architect's role: Verify that proxy results only guide escalation and 
 
 ## Round Two: Escalate to a Simulation-Stage Estimate
 
-To advance beyond the proxy's blind spots, an illustrative simulation-stage estimate is the first stage that charges memory
-*traffic*. The exact tool is not the lesson. This stage is a stronger environment
-contract. It prices *data movement*, returns latency, energy, and power
-observations with provenance and cost, and has authority to overturn proxy
-rankings before commitment. Its power column is frame energy divided by the candidate's active compute time, a conservative average-power screen against the 3\ W budget. It is a screen, not a signoff TDP verdict; peak and transient power (di/dt, IR drop) and sustained thermal behavior are deferred to later stages. This toy stage is not a claim that Timeloop, Aladdin, gem5, or FireSim was run here. Those tools are examples of the stronger model class it stands in for, including dataflow analysis [@ParasharEtAl2019Timeloop], calibrated pre-RTL estimation coupled to a full-system model [@ShaoEtAl2014Aladdin; @ShaoEtAl2016Gem5Aladdin], cycle-accurate simulation [@BinkertEtAl2011Gem5], and FPGA-accelerated simulation [@KarandikarEtAl2018FireSim].
+To advance beyond the proxy's blind spots, an illustrative simulation-stage
+estimate is the first stage that charges memory *traffic*. The exact tool is not
+the lesson. This stage is a stronger environment contract. It prices *data
+movement*, returns latency, energy, and power observations with provenance and
+cost, and has authority to overturn proxy rankings before commitment. Its power
+column is frame energy divided by the candidate's active compute time, a simple
+active-window power screen against the 3\ W budget. It is a screen, not a
+signoff TDP verdict. Peak and transient power (di/dt, IR drop) and sustained
+thermal behavior are deferred to later stages. This toy stage is not a claim
+that Timeloop, Aladdin, gem5, or FireSim was run here. Those tools are examples
+of the stronger model class it stands in for, including dataflow analysis
+[@ParasharEtAl2019Timeloop], calibrated pre-RTL estimation coupled to a
+full-system model [@ShaoEtAl2014Aladdin; @ShaoEtAl2016Gem5Aladdin],
+cycle-accurate simulation [@BinkertEtAl2011Gem5], and FPGA-accelerated
+simulation [@KarandikarEtAl2018FireSim].
 
 It is
 slower and scarcer than the proxy. In this toy turn all three candidates are
@@ -136,7 +158,7 @@ candidates = [
     {"name": "Shared-memory SoC block",     "proxy_lat": 6.0, "proxy_e": 16, "sim_lat": 6.5, "sim_e": 18},
 ]
 for c in candidates:
-    # average power over the active compute window (a conservative screen):
+    # active-window power screen:
     # energy (mJ) / active latency (ms) = W
     c["power"] = c["sim_e"] / c["sim_lat"]
 deadline_ms = 8.0
@@ -167,11 +189,11 @@ for c in candidates:
     )
 lines.append("")
 lines.append(
-    ": **One loop turning on the lighthouse prompt:** the lowest-energy candidate "
+    ": **One illustrative loop turn on the lighthouse prompt:** the lowest-energy candidate "
     f"at proxy fidelity is the {proxy_pick.lower()}, but an illustrative simulation-stage estimate and the "
     f"{deadline_ms:.0f} ms / {power_budget_w:.0f} W gates reject it, and the {survivor.lower()} is the only "
     f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
-    "envelope. Values are illustrative and computed in the chunk; average power is frame energy over active compute time, a conservative screen rather than a signoff TDP verdict. {#tbl-worked-loop}"
+    "envelope. Values are illustrative and computed in the chunk; active-window power is frame energy over active compute time, a screen rather than a signoff TDP verdict. {#tbl-worked-loop}"
 )
 print("\n".join(lines))
 ```
@@ -281,7 +303,16 @@ Beyond simply reordering candidates, the simulation-stage estimate also exposes 
 accelerator does not merely lose on energy; in this constructed setting, its
 symptoms point to one possible cause the next evidence stage would have to verify.
 Reaching the accelerator means moving data across an *interface* to off-chip or
-distant memory, and that *traffic* is expensive on every axis at once. That charge is not arbitrary. At roughly 100-160 pJ/byte, moving on the order of 100 MB per frame lands in the 10-20 mJ range, enough to explain a 16 mJ illustrative swing in this estimate. Furthermore, it keeps the memory subsystem continuously busy, so its conservative average-power screen crosses the 3\ W budget. That is enough to reject it at this stage and to flag it for the sustained-thermal and peak-power (TDP) signoff the loop has not yet run. These are hard *constraints*, not just soft metrics, so no
+distant memory, and that *traffic* is expensive on every axis at once. In this
+illustrative off-chip or distant-memory assumption, a 100-160 pJ/byte movement
+cost makes roughly 100 MB per frame land in the 10-20 mJ range, enough to
+explain a 16 mJ swing in the toy estimate; the scale is consistent with the
+order-of-magnitude data-movement costs discussed in @sec-physical-constraints-move-into-architecture
+[@Horowitz2014Energy]. It also keeps the memory subsystem
+continuously busy, so its active-window power screen crosses the 3\ W budget.
+That is enough to reject it at this stage and to flag it for the
+sustained-thermal and peak-power signoff the loop has not yet run. These are
+hard *constraints*, not just soft metrics, so no
 local proxy advantage rescues it. The rejection is the commitment rule from the
 trust chapter doing its work. A candidate advances only if it is valid, its
 evidence clears the threshold for the stage, and its residual physical risk is
@@ -322,7 +353,17 @@ architectural estimate standing in for cycle-level and power feedback. This supp
 experimental commitment, not an implementation or a tapeout. The architect's
 decision is therefore bounded. Advance the surviving organization to an RTL
 study where logic synthesis, place-and-route, exact timing closure, and a stronger physical power estimate can confirm or
-reject it. Because the survivor is a shared-memory block, it owes two formal obligations a cycle-level simulator cannot discharge, and neither is settled by the RTL timing study: its coherence protocol needs explicit-state model checking (the SLICC-to-Murphi path of @sec-architecture-environments-tool-interfaces [@Dill1996Murphi]), and its consistency model needs litmus tests escalated to formal memory-model verification (@sec-feedback-verification-trust [@NagarajanEtAl2020MemoryPrimer]), since litmus tests show the presence of ordering bugs, not their absence. It won partly by keeping traffic on-chip, trading the interface data-movement cost that sank the accelerator for on-chip coherence traffic the proxy never charged, so both gates stay open beyond this turn. The other two candidates are held as recorded negative traces.
+reject it. Because the survivor is a shared-memory block, it also owes formal
+obligations this toy loop did not discharge. Its coherence protocol would need
+explicit-state model checking, such as the SLICC-to-Murphi path discussed in
+@sec-architecture-environments-tool-interfaces [@Dill1996Murphi]. Its
+consistency model would need litmus tests escalated to formal memory-model
+verification (@sec-feedback-verification-trust
+[@NagarajanEtAl2020MemoryPrimer]), since litmus tests show the presence of
+ordering bugs, not their absence. It won partly by keeping traffic on-chip,
+trading the interface data-movement cost that sank the accelerator for on-chip
+coherence traffic the proxy never charged, so both gates stay open beyond this
+turn. The other two candidates are held as recorded negative traces.
 
 Stopping at this honest boundary is the difference between an answer and a defensible AI-assisted loop turn. The result
 is a replay receipt: the surviving state, the evidence that supports it, the
@@ -381,12 +422,11 @@ loop. {#tbl-worked-loop-card tbl-colwidths="[22,66]"}
 Alongside the summary card, a real version of the same loop should also leave a replay receipt. The receipt
 does not have to expose proprietary data, but it should preserve enough
 structure that a reviewer can tell what was run, what failed, what is redacted,
-what remains non-public, and what can be independently tested. This is the
-public-audit structure the AlphaChip war story needed. A widely reported
-placement result whose proprietary pretraining inputs and full replay path were
-not released left no complete public residue a reviewer could replay, so the
-strongest run could not be reconstructed in public and the dispute never fully
-closed [@ChengEtAl2023MacroPlacement; @GoldieEtAl2024ThatChipHasSailed]. The
+what remains non-public, and what can be independently tested. This is the kind
+of public-audit structure that would have helped the AlphaChip war story. Its
+public artifacts did not allow independent reconstruction of every disputed run,
+especially the private pretraining and production context behind the strongest
+claim [@ChengEtAl2023MacroPlacement; @GoldieEtAl2024ThatChipHasSailed]. A
 receipt would not make proprietary inputs public. It would show which parts of
 the loop another team could rerun, which parts were redacted, and which claims
 therefore had to remain bounded. @tbl-loop-replay-receipt gives the minimum

@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Richard Hamming, a pioneer in computer science, famously emphasized that computing should yield insight rather than just raw data. For us, this quote anchors the book's core premise: AI-assisted architecture isn't about blindly generating billions of candidate designs, but about accelerating our understanding of the design space.
+**Author's Note:** Richard Hamming, a pioneer in computer science, famously emphasized that computing should yield insight rather than just raw data. For this chapter, the quote anchors the book's core premise: AI-assisted architecture should improve how architects understand, test, and reject design-space claims, not merely expand the number of plausible candidates.
 :::
 
 ```{=latex}
@@ -19,7 +19,7 @@ What would it take for AI to help architects turn intent into a system design
 that others can check, compare, and reject, not just a plausible answer?
 :::
 
-This shift, from designing artifacts to designing the loops that produce them, is easiest to state as a rule. A prompt is not yet an architecture claim. It becomes one only when the loop explicitly defines its five-part execution state: what state it saw, what actions it allowed, what alternatives it rejected, what evidence supports the result, and who owns the commitment if the claim is wrong. When plausible artifacts are cheap, that burden of proof, not the artifact, becomes the scarce work. Without treating this loop rigorously, we risk wasting massive computational resources on unoptimized, unstructured generative runs.
+This shift, from designing artifacts to designing the loops that produce them, is easiest to state as a rule. A prompt is not yet an architecture claim. It becomes one only when the loop explicitly defines its five-part execution state: what state it saw, what actions it allowed, what alternatives it rejected, what evidence supports the result, and who owns the commitment if the claim is wrong. When plausible artifacts are cheap, that burden of proof, not the artifact, becomes the scarce work. Without treating this loop rigorously, we risk building long queues of unreviewed candidates rather than useful architectural evidence.
 
 The moonshot therefore starts with rejection capacity, not generation capacity.
 A system that can propose a thousand accelerators but cannot explain which ones
@@ -27,6 +27,11 @@ failed, why they failed, and what evidence would overturn the survivor has not
 advanced architecture very far. It has enlarged the queue in front of the same
 trust bottleneck. A useful AI-assisted loop can welcome cheap candidates only if
 it also makes unsupported candidates cheap to reject.
+
+The book's running prompt makes that pressure concrete:
+
+> **Lighthouse Prompt:** Design a low-power, 64-bit RISC-V-based compute subsystem for an
+> XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, accelerator, or SoC block under a 3\ W TDP target in a 3\ nm-class LP mobile process, and return a design-space report with evidence and rejected alternatives.
 
 Computer architecture is the discipline of turning workload intent,
 technology constraints, software assumptions, physical limits, and evidence
@@ -276,17 +281,15 @@ or a chip artifact.
 > rejection authority and final accountability for the committed design. AI
 > methods act inside the loop; the architect owns it.
 
-With those terms fixed, we ground the Architecture 2.0 framework in a running prompt sequence, building toward the lighthouse prompt this book traces throughout.
+With those terms fixed, we can read the lighthouse prompt as more than a compact design request. A smaller sandbox prompt is still useful for learning to code an agentic loop locally:
 
 > **Sandbox Prompt:** Design a matrix multiplication systolic array in Chisel and integrate it into a full SoC via a standard NoC (e.g., TileLink or AXI) with DMA engines. Verify its correctness against a software model, sweep its dimensions to map the system-level tradeoff among latency, area, and memory stalls for a $16\times16$ workload, and produce a reviewable evidence ledger explaining why unsupported variants were rejected.
 
-While a sandbox prompt is excellent for learning to code an agentic loop locally (and we encourage students to start there), evaluating the full scale of Architecture 2.0 requires a moonshot. Our primary running example pushes the limit. It asks for a compute subsystem
-serving real-time mobile extended reality (XR), under a thermal-design-power
-(TDP) budget in a low-power (LP) mobile process class, and it asks for a report
-rather than a chip:
-
-> **Lighthouse Prompt:** Design a low-power, 64-bit RISC-V-based compute subsystem for an
-> XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, accelerator, or SoC block under a 3\ W TDP target in a 3\ nm-class LP mobile process, and return a design-space report with evidence and rejected alternatives.
+Evaluating the full scale of Architecture 2.0 requires the moonshot already
+stated at the start of this chapter. It asks for a compute subsystem serving
+real-time mobile extended reality (XR), under a thermal-design-power (TDP)
+budget in a low-power (LP) mobile process class, and it asks for a report rather
+than a chip.
 
 The accelerator option spans fixed-function, reconfigurable-spatial (CGRA), and
 processing-in-memory (PIM) realizations, and a full program would also have to
@@ -294,9 +297,9 @@ decide chiplet scale-out (die-to-die PHY, core-disable yield binning). The
 running example defers those so that one canonical sentence can travel through
 the book verbatim.
 
-This sentence is quoted, fragment by fragment, throughout the book, so it is
-worth reading once in full. @fig-moonshot-prompt keeps it visible as an object of
-analysis. The top panel restates the prompt; the middle panel names the
+The sentence introduced at the start of the chapter is quoted, fragment by
+fragment throughout the book. @fig-moonshot-prompt keeps it visible as an object
+of analysis. The top panel restates the prompt; the middle panel names the
 architectural obligations embedded in that request; and the bottom panel shows
 the loop turn that would be needed before an AI system's answer deserved
 architectural trust: represent the task, act through bounded tools and methods,
@@ -331,13 +334,23 @@ cannot say what it represents, what it may change, what evidence it records,
 what it rejects, and who decides, it has not yet answered the prompt.
 :::
 
-Finally, while our examples primarily trace the mobile XR prompt to keep node-level concepts concrete, modern architecture is distributed hardware-software co-design. The most extreme version of our lighthouse prompt scales to the datacenter:
+While the rest of the book primarily traces the mobile XR prompt to keep
+node-level concepts concrete, modern architecture is distributed
+hardware-software co-design. A scale variant of the same lighthouse pressure
+would move to the datacenter:
 
 > **Datacenter-Scale Lighthouse Prompt:** Design a scale-out TPU supercomputer topology for training 10T-parameter mixture-of-experts[^fn-ml-mixture-of-experts] models. Ensure the tensor compiler (XLA/MLIR) can discover an efficient mapping, bound tail latency across 10,000 optical links, co-design network topology with deadlock-free adaptive routing and virtual channels, define recovery targets and rejection gates for synchronous faults, and tolerate cloud multi-tenancy overheads (cold starts, cache pollution, memory disaggregation latencies). The loop must also explicitly measure and enforce software ecosystem preservation, rejecting any topology or ISA change that breaks compatibility with the dominant TPU software stack (XLA, JAX and PyTorch/XLA, and the collective-communication libraries).
 
 [^fn-ml-mixture-of-experts]: A mixture-of-experts (MoE) model selectively routes each input to a small, specialized subset of its neural-network weights, reducing compute cost per token while keeping a large total parameter count. That routing sparsity is what makes the datacenter prompt an architecture problem, because the loop must then represent how the tensor compiler maps experts to devices and how the interconnect survives the resulting all-to-all traffic.
 
-Just like the mobile XR prompt, this datacenter prompt forces an AI-assisted loop to carry specific architectural state across memory capacity and bandwidth, the tensor-compiler software contract, deadlock-free routing and virtual channels, and cloud multi-tenancy overheads. Treating ecosystem compatibility as a first-class rejection condition keeps the loop tied to a deployable datacenter platform, not only to a topology that is attractive under an abstract network objective. The evidence ledger for this prompt must record not just the winning topology, but why alternative routing schemes or fault-tolerance mechanisms failed under scale.
+Like the mobile XR prompt, this datacenter variant forces an AI-assisted loop to
+carry specific architectural state across memory capacity and bandwidth, the
+tensor-compiler software contract, deadlock-free routing and virtual channels,
+and cloud multi-tenancy overheads. Treating ecosystem compatibility as a
+first-class rejection condition keeps the loop tied to a deployable datacenter
+platform, not only to a topology that is attractive under an abstract network
+objective. The evidence ledger would need to record the winning topology and why
+alternative routing schemes or fault-tolerance mechanisms failed under scale.
 
 The prompt is deliberately extreme, as the mobile one is in miniature. No
 architect, and no model, can turn that
@@ -455,9 +468,9 @@ them [@SPEC2017CPU; @BinkertEtAl2011Gem5; @KarandikarEtAl2018FireSim;
 
 The broader run of AI moonshots makes the same point from the other direction. AlphaGo [@SilverEtAl2016AlphaGo], AlphaFold [@JumperEtAl2021AlphaFold], GraphCast [@LamEtAl2023GraphCast], Med-PaLM [@SinghalEtAl2023MedPaLM], and AlphaProteo [@ZambaldiEtAl2024AlphaProteo] each cleared a bar the field thought was years away, and each is remembered as a singular result more than as a repeatable practice. A flagship is not yet a discipline. You cannot produce results like these on demand the way a mature field turns out bridges or compilers. The moonshot that matters next is not a bigger model. It is the engineering layer of measurement, standards, shared artifacts, and trained people that makes results reproducible, comparable, and composable. AI for architecture does not yet have that layer.
 
-Our own field has a flagship of exactly this kind, and it is this book's second running example. Where the lighthouse is a synthetic ideal, this one is real. AlphaChip, a learning method that placed a chip's macro blocks [@MirhoseiniEtAl2021GraphPlacement] and, Google said, was used in designing its tensor processing units, is a genuine landmark. It is also, five years on, one of the most contested results in the field [@ChengEtAl2023AssessmentRL; @Markov2023FalseDawn], because the public record around it did not fully expose the evidence trail, agreed baselines, and shared authority to say no. The strongest public version of the result still has not been independently confirmed, and a celebrated achievement became a stress test for the field infrastructure this chapter argues for.
+Our own field has a flagship of exactly this kind, and it is this book's second running example. Where the lighthouse is a synthetic ideal, this one is real. AlphaChip, a learning method that placed a chip's macro blocks [@MirhoseiniEtAl2021GraphPlacement] and, Google said, was used in designing its tensor processing units, is a genuine landmark. It is also one of the field's most public evidence disputes [@ChengEtAl2023AssessmentRL; @Markov2023FalseDawn], because the public record around it did not fully expose the evidence trail, agreed baselines, and shared authority to say no. As of this release, the public record still does not provide an independent reproduction of the strongest deployment and pretraining claim. A celebrated achievement became a stress test for the field infrastructure this chapter argues for.
 
-We carry AlphaChip through the book as a war story at the stage each chapter is about. It is not a takedown. AlphaChip is the most visible architecture result for AI-designed hardware, and we use it as a stress test because it is influential, reported as deployed, and genuinely contested, not because it is uniquely suspect. Where the lighthouse shows the architecture we could have, the war story shows the architecture we have. The contrast runs the length of the book.
+AlphaChip returns through the book as a war story at key checkpoints. It is not a takedown. AlphaChip is the most visible architecture result for AI-designed hardware, and we use it as a stress test because it is influential, reported as deployed, and genuinely contested, not because it is uniquely suspect. Where the lighthouse shows the architecture we could have, the war story shows the architecture we have. The contrast runs through the book.
 
 ::: {.callout-war-story title="A flagship, not yet a discipline"}
 **The claim.** In 2021 a Google team reported a reinforcement-learning method that generates a chip's macro placement in under six hours, at quality comparable to or better than human experts on key power, performance, and area metrics [@MirhoseiniEtAl2021GraphPlacement]. It was named AlphaChip in a 2024 Nature addendum [@GoldieEtAl2024AlphaChipAddendum] and, Google later said, used across several TPU generations [@GoogleDeepMind2024AlphaChip].
@@ -468,9 +481,9 @@ We carry AlphaChip through the book as a war story at the stage each chapter is 
 
 **The response.** The original authors argued the critics did not run the method as published. They skipped the pretraining that is central to the method, did not train to convergence, used far less compute, and tested on designs the authors considered unrepresentative [@GoldieEtAl2024ThatChipHasSailed].
 
-**Why it stays open.** The proprietary designs used for pretraining were never released, for a legitimate reason. They are Google's own chips. Google later released code and a pretrained checkpoint, but not those training inputs, so the strongest form of the claim cannot be independently reproduced in public. In September 2024 Nature removed an earlier editor's note, said the concerns were resolved to its satisfaction, and published a clarifying addendum. That closed the journal's process. It did not produce an independent public reproduction of the strongest deployment and pretraining claims.
+**Why it stays open.** The proprietary designs used for pretraining were never released, for a legitimate reason. They are Google's own chips. Google later released code and a pretrained checkpoint, but not those training inputs, so the strongest form of the claim has not been independently reproduced from public artifacts. In September 2024 Nature removed an earlier editor's note, said the concerns were resolved to its satisfaction, and published a clarifying addendum. That closed the journal's process. It did not produce an independent public reproduction of the strongest deployment and pretraining claims.
 
-**Status (2026).** Contested. Reported as deployed and apparently usable, but with no public, independent, apples-to-apples benchmark that settles whether it beats the strong classical baselines. This book takes no side on who is right. The point is that the field had no shared way to release, replay, and adjudicate the claim, and closing that gap is what Architecture 2.0 is for.
+**Status for this release.** Publicly contested. Google reports deployment across TPU generations, while the public record still lacks an independent, apples-to-apples benchmark that settles whether the full method beats strong classical baselines under the same conditions. This book takes no side on who is right. The point is that the field had no shared way to release, replay, and adjudicate the claim, and closing that gap is what Architecture 2.0 is for.
 :::
 
 Returning to the lighthouse prompt, each fragment sets a specific constraint. XRBench, a benchmark suite for mobile XR workloads, gives the prompt a workload anchor rather than a vague application
