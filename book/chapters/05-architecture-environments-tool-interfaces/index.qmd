@@ -32,7 +32,9 @@ reject a candidate, and what commitment the environment can support before the
 loop spends more effort.
 
 > **Architecture environment.** An architecture environment is the tool-facing
-> part of the loop contract made executable. It maps the five-part execution state directly to the toolchain: it specifies the legal actions (*actions allowed*), observations and feedback costs (*state seen*), logged state and provenance (*evidence*), rejection authority (*alternatives rejected*), and commitment boundaries (*ownership*) for the tools a design loop acts through.
+> part of the loop contract made executable. It specifies the legal actions,
+> observations and feedback costs, logged state and provenance, rejection
+> authority, and commitment boundaries for the tools a design loop acts through.
 
 To keep these boundaries clear, we must use the tool vocabulary carefully. A *tool* performs an operation. A *wrapper*
 calls that tool. An *environment contract* states what actions are legal, what
@@ -252,7 +254,7 @@ reject.
 | Clock, routing, and power closure | Routed timing, clock behavior, congestion, design-rule checks, power integrity, and closure failures. | Candidates whose physical effects invalidate earlier architecture estimates. | Product commitment without verification, workload coverage, and architecture review. |
 | Signoff and review | Tool signoff reports, waivers, residual risks, review decisions, and ownership records. | Unsupported claims, unacceptable waived warnings, and evidence gaps before commitment. | Generality beyond the stated workload, process, tool version, and design context. |
 
-: EDA feedback has stage-specific authority: From logic synthesis through
+: **EDA feedback has stage-specific authority:** From logic synthesis through
 signoff, each physical-design stage returns different evidence and should be
 allowed to reject different claims. {#tbl-eda-stage-contract tbl-colwidths="[18,26,25,21]"}
 
@@ -283,7 +285,7 @@ feedback it returns, and the rejection authority attached to that feedback. That
 is why two projects can use the same simulator but define different architecture
 environments.
 
-This abstraction can be described as a contract. The environment is literal. It is the toolchain exposed as an executable sandbox. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking[^fn-ml-reward-hacking], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
+This abstraction can be described as a contract. The environment is the maintained interface around tool calls, legal actions, observations, failures, costs, provenance, and rejection paths. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking[^fn-ml-reward-hacking], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
 
 [^fn-ml-reward-hacking]: Reward hacking occurs when an AI method finds an unintended shortcut that maximizes its reward signal without solving the underlying problem. Inside an architecture environment that shortcut usually means exploiting a simulator or proxy bug instead of improving the hardware, so the contract keeps raw observations and rejection checks rather than collapsing to a lone scalar.
 
@@ -350,7 +352,7 @@ anecdotal.
 ::: {.callout-war-story title="Two teams, two private setups"}
 **The claim.** The AlphaChip dispute is, at bottom, a story about missing shared conditions. The original team and its critics did not disagree only about a number. They ran the method in different setups, on different testcases, with different baselines and compute budgets, and each read the result through its own script [@ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed].
 
-**The gap.** When two parties compare under private, non-shared setups, there is no way to separate a real difference from a difference in conditions. The authors could argue the critics had not run the method as published, and the critics could argue the method did not beat a strong baseline, and both could be right about their own environment. The environment, not the algorithm, was the ambiguity.
+**The gap.** When two parties compare under private, non-shared setups, there is no way to separate a real difference from a difference in conditions. Workload IDs, action schemas, tool versions, seeds, compute budgets, baseline harnesses, and post-route checks all become part of the claim. The authors could argue the critics had not run the method as published, and the critics could argue the method did not beat a strong baseline, and both could be right about their own environment. The environment, not the algorithm, was the ambiguity.
 
 **The lesson.** Fix and share those conditions, and the comparison becomes a question about the method rather than the setup. That is what a shared environment buys. A claim is only as credible as the conditions under which it can be replayed.
 :::
@@ -748,7 +750,12 @@ support a paper; a maintained environment can support a field. That is why the
 environment should record versions, assumptions, invalid actions, rejected
 candidates, and changes in the workload distribution.
 
-[^fn-systems-mlops]: In this chapter, the operating discipline for deployed learning systems that motivates similar versioning, monitoring, drift, rollback, and ownership records in Architecture 2.0 loops.
+[^fn-systems-mlops]: MLOps is the operating discipline for deployed learning systems, including versioning, monitoring, drift detection, rollback, and ownership records [@SculleyEtAl2015Hidden; @BeyerEtAl2016SRE]. This chapter borrows that discipline for architecture loops, where workloads, tools, evidence, and rejection gates also have to be maintained after the first run.
+
+> **ArchOps.** ArchOps is the operating discipline for Architecture 2.0
+> environments. It versions workloads, tools, action schemas, evidence rules,
+> negative traces, and decision owners so drift does not silently change what a
+> loop result means.
 
 ::: {#pri-maintain-environment .callout-design-principle title="Maintain the environment, don't just build it"}
 A design-loop environment is not built once; it is maintained. Workloads drift,
@@ -770,7 +777,7 @@ ordinary drift becomes visible before it invalidates evidence.
 | Evidence and rejection rules | Fidelity labels, escalation thresholds, signoff gates, waivers, and reviewer decisions. | A proxy keeps authority after the commitment level has risen. | Recalibrate evidence levels and require higher-fidelity review. |
 | Human ownership | Decision owner, review date, redaction boundary, and escalation path. | Accountability disappears into scripts, tools, or automated systems. | Keep commitment decisions explicit and auditable. |
 
-: Maintaining the environment preserves loop validity over time: The operating discipline is to
+: **Maintaining the environment preserves loop validity over time:** The operating discipline is to
 version workloads, tools, actions, evidence rules, and ownership so that drift
 does not silently change what a loop result means. {#tbl-archops-operating-discipline tbl-colwidths="[18,25,25,22]"}
 
@@ -850,15 +857,14 @@ rejection, before an environment's verdict is worth believing.
 The second, easily missed half is maintenance. Workloads drift, tools change,
 benchmarks gain rules, and models learn stale assumptions, so a one-time
 environment and a maintained one look identical on the first run and diverge
-completely by the tenth. Operating discipline, the architecture counterpart of
-MLOps, is what versions workloads and tools, preserves provenance and negative
-traces, monitors drift, and keeps architect-owned rejection gates alive.
+completely by the tenth. This architecture-specific operating discipline is what
+versions workloads and tools, preserves provenance and negative traces, monitors
+drift, and keeps architect-owned rejection gates alive.
 Building the environment earns a paper. Maintaining it is what lets a loop, and
 a field, keep trusting the evidence.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** An environment is a contract, the legal actions, the feedback they return, and what can reject a result, so another method can act in the same harness.
+- **Carry forward:** An environment is a contract over legal actions, returned feedback, and rejection conditions. That contract lets another method act in the same harness.
 - **Reader test:** Could another method act in the same harness without private knowledge from the original author, judged by loop conditions rather than fashion?
 - **Up next:** Once the environment defines what action and feedback mean, the discussion of methods for generation, prediction, and optimization (see the discussion on "Method Roles: Generate, Predict, Optimize" in @sec-methods-generation-prediction-optimization) can ask which methods belong inside the loop.
 :::
-

@@ -63,16 +63,3 @@ Initial public sources consulted on 2026-06-20.
   https://vijay.seas.harvard.edu/
 - Google Scholar profile:
   https://scholar.google.com/citations?hl=en&user=gy4UVGcAAAAJ
-
-## Agent Workflow Tooling
-
-- Codex subagents:
-  https://developers.openai.com/codex/subagents
-- Codex AGENTS.md:
-  https://developers.openai.com/codex/guides/agents-md
-- Codex skills:
-  https://developers.openai.com/codex/skills
-- Google Antigravity CLI overview:
-  https://antigravity.google/docs/cli-overview
-- Google Antigravity CLI product page:
-  https://antigravity.google/product/antigravity-cli

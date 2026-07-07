@@ -64,7 +64,7 @@ next evidence stage.
 | Workload | One XRBench-class mobile-XR slice with a real-time frame deadline; a real loop would also record workload ID, input schema, scenario labels, coverage limits, distribution assumptions, provenance, and validity checks. |
 | Baseline | A bounded comparison among three compute organizations, not a full product baseline. |
 | ISA/software assumption | All candidates must preserve the existing 64-bit RISC-V software ecosystem to avoid rewriting the full stack from scratch; full compiler/runtime feasibility is deferred to a later stage. |
-| Design space | Vector CPU extension, deliberately loose accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator, CGRA, or processing-in-memory (PIM) search yet. PIM is the natural low-data-movement contender, deferred to a later turn. |
+| Design space | Vector CPU extension, intentionally separated accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator, CGRA, or processing-in-memory (PIM) search yet. PIM is the natural low-data-movement contender, deferred to a later turn. |
 | Legal actions | Instantiate the three candidate organization records with prompt, generator/search version, candidate IDs, invalid-action records, and selection rule; run the proxy screen, escalate all candidates to the simulation-stage estimate because the proxy has no final rejection authority, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
 | Physical envelope | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | Excluded evidence | No RTL, timing, area, thermal, physical-design, deployment, silicon, carbon-footprint, or memory-consistency/coherence evidence. |
@@ -116,7 +116,7 @@ To advance beyond the proxy's blind spots, an illustrative simulation-stage esti
 *traffic*. The exact tool is not the lesson. This stage is a stronger environment
 contract. It prices *data movement*, returns latency, energy, and power
 observations with provenance and cost, and has authority to overturn proxy
-rankings before commitment. Its power column is frame energy divided by the candidate's active compute time, a conservative average-power screen against the 3\ W budget. It is a screen, not a signoff TDP verdict; peak and transient power (di/dt, IR drop) and sustained thermal behavior are deferred to later stages. It stands in for this class of model: a dataflow analysis like Timeloop [@ParasharEtAl2019Timeloop], a calibrated pre-RTL estimator such as Aladdin [@ShaoEtAl2014Aladdin] coupled to a full-system model [@ShaoEtAl2016Gem5Aladdin] so interface and off-chip traffic are priced rather than idealized, or a cycle-accurate simulator such as gem5 [@BinkertEtAl2011Gem5] or FPGA-accelerated FireSim [@KarandikarEtAl2018FireSim].
+rankings before commitment. Its power column is frame energy divided by the candidate's active compute time, a conservative average-power screen against the 3\ W budget. It is a screen, not a signoff TDP verdict; peak and transient power (di/dt, IR drop) and sustained thermal behavior are deferred to later stages. This toy stage is not a claim that Timeloop, Aladdin, gem5, or FireSim was run here. Those tools are examples of the stronger model class it stands in for, including dataflow analysis [@ParasharEtAl2019Timeloop], calibrated pre-RTL estimation coupled to a full-system model [@ShaoEtAl2014Aladdin; @ShaoEtAl2016Gem5Aladdin], cycle-accurate simulation [@BinkertEtAl2011Gem5], and FPGA-accelerated simulation [@KarandikarEtAl2018FireSim].
 
 It is
 slower and scarcer than the proxy. In this toy turn all three candidates are
@@ -175,8 +175,8 @@ lines.append(
 print("\n".join(lines))
 ```
 
-As the quantitative results show, in this chosen three-candidate slice, the
-deliberately loose accelerator stress case that won on the proxy fails under the
+In this illustrative three-candidate slice, the
+intentionally separated accelerator stress case that won on the proxy fails under the
 simulation-stage estimate. Once data
 movement across the system interconnect (e.g., a Network-on-Chip or AXI bus) is charged, its energy rises above every alternative and its latency
 loses most of its lead. The shared-memory SoC block absorbs the same charge
@@ -192,7 +192,7 @@ rediscover it.
 ```{python}
 #| label: fig-proxy-mirage
 #| fig-cap: |
-#|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the deliberately loose accelerator stress case, becomes worst within this candidate set once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
+#|   **The proxy ranking is a mirage:** the candidate with the lowest proxy energy, the intentionally separated accelerator stress case, becomes worst within this candidate set once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
 #| out-width: "82%"
 #| fig-alt: "Grouped comparison plot showing that proxy energy ranking reverses when an illustrative simulation-stage estimate and power constraints are applied."
 
@@ -361,7 +361,7 @@ loop can state what it did and what would reject it.
 | --- | --- |
 | Intent | Explore a low-power mobile-XR compute organization that can meet a real-time deadline under a 3\ W envelope. |
 | Task | Compare three bounded compute organizations for one XRBench-class workload slice. |
-| Design space | Choose among vector CPU extension, deliberately loose accelerator stress case, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, full tightly coupled accelerator search, and RTL edits outside this turn. |
+| Design space | Choose among vector CPU extension, intentionally separated accelerator stress case, and shared-memory SoC block; leave cache, voltage, chiplet, compiler-policy, full tightly coupled accelerator search, and RTL edits outside this turn. |
 | Representation | Candidate ID, candidate record, legal action taken, workload slice ID/coverage label, proxy and simulation observations, uncertainty/provenance limits, deadline, power envelope, and verdict. |
 | Environment | Analytic proxy followed by an illustrative simulation-stage estimate standing in for cycle-level feedback and a simple power-envelope check. |
 | Method role | Seed candidates, predict cheap proxy scores, escalate all candidates because the proxy has no final rejection authority, and critique proxy wins against stronger feedback. |
@@ -379,15 +379,17 @@ loop. {#tbl-worked-loop-card tbl-colwidths="[22,66]"}
 
 Alongside the summary card, a real version of the same loop should also leave a replay receipt. The receipt
 does not have to expose proprietary data, but it should preserve enough
-structure that a reviewer can tell what was run, what failed, and what would
-need to be rerun. This is the exact structure the AlphaChip war story lacked. A
-widely reported placement result whose proprietary pretraining inputs and full
-replay path were not released left no complete residue a reviewer could replay,
-so the strongest run could not be reconstructed in public and the dispute never
-closed [@ChengEtAl2023MacroPlacement;
-@GoldieEtAl2024ThatChipHasSailed]. The receipt is what would have let another
-team rerun the loop instead of arguing about it. @tbl-loop-replay-receipt gives
-the minimum shape.
+structure that a reviewer can tell what was run, what failed, what is redacted,
+what remains non-public, and what can be independently tested. This is the
+public-audit structure the AlphaChip war story needed. A widely reported
+placement result whose proprietary pretraining inputs and full replay path were
+not released left no complete public residue a reviewer could replay, so the
+strongest run could not be reconstructed in public and the dispute never fully
+closed [@ChengEtAl2023MacroPlacement; @GoldieEtAl2024ThatChipHasSailed]. The
+receipt would not make proprietary inputs public. It would show which parts of
+the loop another team could rerun, which parts were redacted, and which claims
+therefore had to remain bounded. @tbl-loop-replay-receipt gives the minimum
+shape.
 
 | **Receipt item** | **Example contents for this loop** |
 | --- | --- |
