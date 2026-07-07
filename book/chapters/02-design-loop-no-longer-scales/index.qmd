@@ -7,25 +7,26 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Norbert Wiener, the founding father of cybernetics, established that true control requires feedback. In our context, this means that computer architecture is fundamentally a feedback loop, and our current crisis is simply that manual loops have become too slow to function effectively.
+**Author's Note:** Norbert Wiener, the founding father of cybernetics, established that true control requires feedback. In this chapter, the pressure is that trusted feedback and rejection no longer keep pace with the number and complexity of architectural choices.
 :::
 
 ```{=latex}
-\abstract*{Architecture 2.0 is motivated by pressure inside computer architecture, not by enthusiasm for AI. The classical architecture loop remains valuable, but it strains when two walls converge: the Physical Wall (specialization, heterogeneous integration, memory movement, physical constraints) and the Verification Wall (software velocity, verification burden). The central bottleneck is not idea generation. It is trusted feedback, the ability to evaluate, reject, revise, and commit design choices at the speed and fidelity the problem now requires. That bottleneck makes AI-assisted architecture a loop-design problem because generative models can increase proposal volume faster than they increase trusted rejection capacity.}
+\abstract*{Architecture 2.0 is motivated by pressure inside computer architecture, not by enthusiasm for AI. The classical architecture loop remains valuable, but it strains as specialization, heterogeneous integration, memory movement, physical constraints, software velocity, and verification burden converge. The central bottleneck is not idea generation. It is trusted feedback, the ability to evaluate, reject, revise, and commit design choices at the speed and fidelity the problem now requires. That bottleneck makes AI-assisted architecture a loop-design problem because generative models can increase proposal volume faster than they increase trusted rejection capacity.}
 ```
-
-To understand how to design that loop, we must first make the pressure it faces explicit.
 
 ::: {.callout-crux}
 When architecture choices grow faster than trusted feedback, what must the loop
 record so AI helps rather than just adding more candidates?
 :::
 
-@sec-moonshot named Architecture 2.0 as a discipline for designing the design loop
-itself. It then made the claim concrete with a compact lighthouse prompt:
-design a low-power, RISC-V-based compute subsystem for real-time mobile XR
-under a 3\ W, 3\ nm-class mobile envelope, and return a design-space
-report with evidence and rejected alternatives. The prompt is intentionally
+The loop in that question is the design loop, the working cycle every
+architecture project already runs. It proposes a candidate, evaluates it against
+workloads and tools, rejects or revises it on the evidence, and commits only
+what the evidence supports. @sec-moonshot named Architecture 2.0 as the
+discipline of designing that loop itself, and made the claim concrete with a
+compact lighthouse prompt. It asks for a low-power, RISC-V-based compute
+subsystem for real-time mobile XR under a 3\ W, 3\ nm-class mobile envelope,
+returned as a design-space report with evidence and rejected alternatives. The prompt is intentionally
 small. The architecture state it implies is not.
 
 This chapter explains why that state cannot be handled by merely asking a
@@ -54,6 +55,17 @@ For automation, the scissors gap sets the safe operating boundary. The loop can
 delegate only as much search, prediction, and synthesis as it can review and
 reject.
 
+::: {.callout-war-story title="Generation outran rejection"}
+**The claim.** In AlphaChip, learned placement was reported to compress a months-long floorplanning loop to hours, and generating strong-looking placements only got faster [@MirhoseiniEtAl2021GraphPlacement]. That is the half of the story everyone remembers.
+
+**The gap.** What did not keep pace was trusted, independent rejection. A candidate that looked excellent on the method's fast proxy still had to be checked against the metrics that decide a real chip, and an independent reassessment that tried to run that check reported baselines the result had not cleared in that setup [@ChengEtAl2023AssessmentRL]. The generation side sped up while the accountable rejection side did not, and the space between them is where the dispute lives.
+
+**The lesson.** This is the scissors gap in a single result. A loop is rejection-bound, not generation-bound, and faster generation without matching rejection capacity widens the gap rather than closing it. A loop earns trust through what it can independently reject, not through how much it can produce.
+:::
+
+The delegation rule follows directly from that story. Automation is safe only
+where rejection capacity has been designed first.
+
 ::: {.callout-architect-checkpoint title="The Delegation Gate"}
 An automated method can only be delegated tasks where the loop has explicit, trusted rejection checks. If you cannot reject a bad candidate, you cannot safely delegate its generation.
 :::
@@ -75,11 +87,17 @@ symptom, needs a different record to confirm, and calls for a different first fi
 
 : **A diagnostic for which part of the loop cannot keep up:** each bound shows a different symptom, needs a different record to confirm, and has a different first fix. {#tbl-loop-bottleneck-diagnostic tbl-colwidths="[15,25,26,16,18]"}
 
+The five bounds are working labels here, sharpened in
+@sec-architecture-20-ontology into fields of the design-loop card.
 @sec-the-rejection-bound turns the rejection bound into a quantitative limit,
 but the pressure starts here. A loop that can generate faster than it can
-reject only widens the gap.
+reject only widens the gap. Generation has become cheap while rejection remains
+expensive. Once that becomes true, the
+architecture problem is no longer how many candidates an AI system can imagine,
+but how many unsupported claims the loop can dispose of before they consume
+scarce evidence or human commitment.
 
-Because this failure mode is the central problem, the remainder of this chapter is not a general technology-trend survey. The pressures collapse into two fundamental limits: the Physical Wall (specialization, chiplets, memory movement, EDA) and the Verification Wall (software velocity, verification burden). They matter here specifically because they create that common failure mode. The fundamental economic logic of the loop is: generate cheap, reject expensive. The architecture team can imagine more candidates than it can evaluate, reject, and justify. Architecture 2.0 begins by making that failure mode explicit.
+Because this failure mode is the central problem, the remainder of this chapter is not a general technology-trend survey. The pressures matter here because they create one common failure mode. The architecture team can imagine more candidates than it can evaluate, reject, and justify.
 
 Read each section as a pressure test on one part of the loop. Cadence exposes
 gates and commitment policy. Architecture levers expand the state the loop must
@@ -87,8 +105,8 @@ carry. Specialization and chiplets (multiple smaller dies integrated in one pack
 the workload contract. Physical constraints create early rejection conditions.
 Engineering cost makes feedback scarce. Generic AI assumptions fail because
 architecture work is not a cheap-label pipeline. Together, those pressures
-explain why the loop becomes a first-class architectural object alongside the
-artifact.
+explain why the loop itself, not just the artifact, becomes an object of
+design.
 
 ::: {.callout-learning-objectives}
 After this chapter you can use the scissors gap to audit whether an
@@ -138,7 +156,7 @@ rejection, and decision authority become too large to remain mostly implicit.
 
 For the lighthouse prompt, the difference is not that Architecture 2.0 invents
 review discipline. The difference is what the loop must record before a result
-can be trusted. @tbl-classical-vs-arch2-review summarizes that delta.
+can be trusted (@tbl-classical-vs-arch2-review).
 
 | **Classical review might record** | **Architecture 2.0 additionally requires** |
 | --- | --- |
@@ -175,14 +193,9 @@ processes to maintain product cadence [@Intel2015Form10K].
 That history is useful for Architecture 2.0 because it shows that a design
 loop is not only a sequence of tools. It is also a policy for what is allowed
 to change, which evidence is strong enough to advance commitment, and how the
-organization reacts when feedback latency changes. Tick-tock separated process
-risk from microarchitecture risk. Process-architecture-optimization added an
-explicit optimization phase when process shrinks no longer arrived on the old
-schedule. Instead of every generation requiring both a new process step and a
-new architecture step, the loop could spend another cycle improving products,
-libraries, physical implementation, frequency, power, and yield on a known
-process. In other words, the cadence changed because the feedback and
-commitment costs of the physical process changed.
+organization reacts when feedback latency changes. In other words, the cadence
+changed because the feedback and commitment costs of the physical process
+changed.
 Architecture 2.0 generalizes the same lesson. If AI methods increase the rate
 at which candidates are proposed, the loop must become stricter about change
 scope, evidence gates, rejection authority, and what kind of optimization is
@@ -190,7 +203,7 @@ being performed.
 
 Adjacent systems practices offer compatible lessons. EDA timing closure shows
 that a late tool can reject an early abstraction. The source-backed examples
-later in this chapter make the pattern concrete. Autotuning treats measurements
+later in this chapter make the pattern concrete. Autotuning[^fn-eda-autotuning] treats measurements
 as samples from a costly space, and benchmark governance depends on maintained
 rules and comparability contracts. A loop without observability, a decision
 policy, and escalation gates is not a credible loop. These analogies should
@@ -198,7 +211,7 @@ not displace computer architecture. They help name the reusable loop properties
 architects already care about: cadence, state, feedback, gates, rejection, and
 commitment.
 
-> **Autotuning:** The process of automatically searching for optimal program or system parameters.
+[^fn-eda-autotuning]: Autotuning is the process of automatically searching for optimal program or system parameters. It belongs in this loop discussion because it treats every measurement as a costly sample, the same feedback-scarcity discipline the design loop needs when it decides which candidates are worth evaluating and which to reject on cheaper evidence.
 
 This is not the first time architecture has had to redesign its loop. Read the
 historical rows in @tbl-historical-loop-transformations as examples of explicit action schemas, environment access,
@@ -221,10 +234,9 @@ evidence gate, or the software path.
 
 : **Architecture progress often comes from redesigning the loop:** Historical shifts became durable when they exposed a representation, interface, tool path, benchmark, or evidence gate that let the community coordinate work. {#tbl-historical-loop-transformations tbl-colwidths="[22,39,28]"}
 
-These examples should make the Architecture 2.0 claim less exotic. The field
-has repeatedly advanced by turning tacit craft into explicit loop structure.
-The new challenge is that AI methods can propose, search, summarize, and
-optimize at a scale that makes the loop state itself the bottleneck.
+These examples should make the Architecture 2.0 claim less exotic. The new
+challenge is that AI methods can propose, search, summarize, and optimize at a
+scale that makes the loop state itself the bottleneck.
 
 ## Architecture Levers Add State
 
@@ -248,10 +260,10 @@ and scaling beyond a monolithic die, but they add partitioning, die-to-die
 interfaces, package-level constraints, test, yield, thermal coupling, and
 supply-chain questions.
 
-@fig-architecture-levers summarizes the first part of the point. The field
-keeps adding levers because efficiency still matters. But the same moves that
-recover efficiency also increase the burden of representing the design state
-and producing trusted feedback.
+The field keeps adding levers because efficiency still matters
+(@fig-architecture-levers). But the same moves that recover efficiency also
+increase the burden of representing the design state and producing trusted
+feedback.
 
 ![**Architecture levers add state:** Scaling, microarchitecture, optimization, specialization, and composition create new opportunities for efficiency, but each also adds constraints, interfaces, tool feedback, rejected alternatives, and evidence that the loop must carry.](images/F2-architecture-levers){#fig-architecture-levers width="100%" fig-alt="Horizontal chain of architecture levers from scaling through composition, showing that each efficiency lever adds new loop state and evidence obligations."}
 
@@ -263,7 +275,18 @@ co-design, open architectures, and agile hardware development
 [@HennessyPatterson2019GoldenAge]. Architecture 2.0 should be read in that
 lineage, but with an explicit connection to the RISC revolution that preceded it. RISC was not just a simplified instruction set; it was the realization that making an architectural claim required a compiler, a benchmark, and a simulator. Architecture 1.0 gave us the tools to measure IPC and execution time, anchoring the field to the Iron Law of Performance ($\text{Time} = \frac{\text{Instructions}}{\text{Program}} \times \frac{\text{Cycles}}{\text{Instruction}} \times \frac{\text{Time}}{\text{Cycle}}$).
 
-Architecture 2.0 does not break the Iron Law; it uses the AI loop as an active co-designer to negotiate across the hardware-software boundary (compiler, ISA, microarchitecture), much like the early RISC teams did. The loop-level analogue is not the Iron Law but Amdahl's. @sec-loop-patterns-across-stack shows that a design loop's throughput is set by how cheaply it can reject, not by how many candidates it proposes, and derives that as a re-coordinatization of Amdahl's law with trusted rejection as the serial fraction. Architecture 2.0 elevates the quantitative method from comparing candidate artifacts to designing the data, feedback, and evidence loops that make a larger, more coupled design space tractable. In that sense, the loop becomes a first-class architecture object: something to represent, instrument, test, reject, and improve.
+Architecture 2.0 does not break the Iron Law. It treats AI-assisted search,
+prediction, and critique as bounded method roles inside a loop that still
+negotiates the hardware-software contract through compiler, ISA,
+microarchitectural, and evidence constraints. The loop-level analogue is not the
+Iron Law but Amdahl's. @sec-loop-patterns-across-stack shows that a design
+loop's throughput is set by how cheaply it can reject, not by how many
+candidates it proposes, and casts that bottleneck as an Amdahl-like bound with
+trusted rejection as the serial fraction. Architecture 2.0 elevates the
+quantitative method from comparing candidate artifacts to designing the data,
+feedback, and evidence loops that make a larger, more coupled design space
+tractable. In that sense, the loop becomes a first-class architecture object:
+something to represent, instrument, test, reject, and improve.
 
 That is the architectural consequence for Architecture 2.0. The new golden age
 gives the field more architectural levers; Architecture 2.0 asks how to govern
@@ -297,7 +320,7 @@ coupling, test, repair, physical constraints, and business boundaries. Open
 standards such as Universal Chiplet Interconnect Express (UCIe) aim to make die-to-die integration more composable by
 standardizing interface layers, protocols, software models, and compliance
 expectations [@UCIeConsortium2026Spec]. That standardization is valuable,
-but it also makes the architecture question more explicit: what should be
+but it also makes the architecture question more explicit. What should be
 partitioned, through which interface, under which evidence standard?
 
 The combinatorics are easy to understate. The following arithmetic is
@@ -420,10 +443,13 @@ rejection gate waiting to fire.
 - **Commitment owner:** the architects who signed the tapeout.
 
 The rejecting evidence was gatherable before commit by building the compiler,
-running real control flow, and measuring the ILP it actually extracts. Evaluated
-that way, the gate fires early and the bet is rejected in favor of a narrower or
-out-of-order organization. Instead the loop committed silicon on the assumed
-capability, and the part underdelivered against simpler rivals for a decade.
+running real control flow, and measuring the ILP it actually extracts. A loop
+with that gate would have forced compiler-achieved ILP into the commitment
+review before tapeout. If measured ILP stayed far below the issue width on
+representative workloads, the gate would require narrowing scope, changing the
+organization, or explicitly accepting the risk. Instead the loop committed
+silicon on the assumed capability, and the part underdelivered against simpler
+rivals for a decade.
 Intel's Larrabee made the same shape of bet a decade later, that software
 rasterization on many x86 cores would match fixed-function GPUs
 [@SeilerEtAl2008Larrabee], and Transmeta's Crusoe bet that code-morphing
@@ -433,7 +459,7 @@ rested on a software capability asserted rather than measured.
 That is the whole difference. Architecture 1.0 can name this failure in
 hindsight.
 
-**Takeaway.** Architecture 2.0 makes the compiler-ILP evidence a gate the bet must clear before commit, so an architecture can no longer be committed on a software capability that was asserted rather than measured.
+**Lesson:** Architecture 2.0 makes the compiler-ILP evidence a gate the bet must clear before commit, so an architecture can no longer be committed on a software capability that was asserted rather than measured.
 :::
 
 For the lighthouse prompt, this means that a "64-bit RISC-V compute subsystem"
@@ -443,8 +469,6 @@ loop must also represent how code reaches that mechanism, what compiler or
 runtime assumptions are required, which libraries or kernels use it, and which
 tests reject a design that is efficient only in a hand-written kernel. The
 software path is not downstream polish. It is part of the architectural claim.
-For an AI assistant, a hardware candidate is incomplete unless it also names
-the software contract and the tests that can reject unsupported semantics.
 
 ::: {.callout-lighthouse title="RISC-V is a software contract"}
 **Context.** The ISA phrase fixes more than an instruction encoding. It names
@@ -463,16 +487,18 @@ subsystem can actually be used, not a label on the hardware box.
 ## Software Changes Faster Than Silicon {#sec-software-changes-faster-than-silicon}
 
 Even when that software contract is perfectly specified, specialization still depends on stable enough targets. But modern software stacks
-move quickly. AI models change. Precision formats (e.g., FP8, INT4, block-scale formats^[Block-scale formats share a single exponent across a block of low-precision mantissas to maintain dynamic range with minimal memory footprint.]) and sparsity patterns (the structured or unstructured zeros in weights or activations that hardware can skip) mutate wildly, meaning the hardware must place bets on data types years in advance. Compiler passes change. Kernel libraries
+move quickly. AI models change. Precision formats (e.g., FP8, INT4, block-scale formats[^fn-hw-block-scale-formats]) and sparsity patterns (the structured or unstructured zeros in weights or activations that hardware can skip) mutate wildly, meaning the hardware must place bets on data types years in advance. Compiler passes change. Kernel libraries
 change. Runtimes, serving systems, quantization formats, batching strategies,
 fleet policies, and benchmark versions change. The hardware design cycle does
 not move at the same pace.
 
-Generative AI sharpens this mismatch rather than easing it. As models lower the
-marginal cost of producing code, the volume and churn of software rise rather
-than fall, a software-era instance of Jevons' paradox. The
-shift is already visible in practice. By the mid-2020s, AI coding assistants had
-been adopted at scale. The 2024 Stack Overflow Developer Survey reported that a
+[^fn-hw-block-scale-formats]: Block-scale formats share a single exponent across a block of low-precision mantissas to maintain dynamic range with minimal memory footprint. They are one of the fast-drifting numeric targets a silicon program must commit its datapaths to years ahead, so betting hardware on them is exactly the workload-stability wager this section warns the loop to make only with evidence.
+
+Generative AI can sharpen this mismatch rather than easing it. If models lower
+the marginal cost of producing code, a Jevons-like effect[^fn-econ-jevons-paradox] can increase software
+volume and churn rather than simply making the same workload cheaper. The
+shift is already visible in practice. AI coding assistants had been adopted at
+scale by the mid-2020s. The 2024 Stack Overflow Developer Survey reported that a
 majority of professional developers were already using AI tools in their
 workflow [@StackOverflow2024DeveloperSurvey].
 The
@@ -484,7 +510,7 @@ architect cannot answer this by demanding faster silicon alone, because the
 fabrication cycle and physical closure set a floor on how short the hardware loop
 can be.
 
-> **Jevons' paradox:** From nineteenth-century resource economics, the observation that making a resource cheaper to use can raise its total consumption instead of lowering it.
+[^fn-econ-jevons-paradox]: Jevons' paradox, from nineteenth-century resource economics, is the observation that making a resource cheaper to use can raise its total consumption instead of lowering it. Here it warns that cheaper AI-assisted code generation can swell software volume and churn rather than steadying the target, widening the workload drift the silicon loop must bet against and shortening the life of any specialization commitment.
 
 This forces a tradeoff the classical loop could often ignore. Peak efficiency
 comes from specialization, which is brittle when the workload drifts, while
@@ -629,9 +655,9 @@ can absorb, the design may optimize yesterday's workload.
 
 Drifting workloads are only one source of pressure, pushing down from the software stack; physical limits
 push up on the loop from below just as hard. Architecture does not sit above physical
-reality. It is the layer where
-software intent, hardware mechanisms, and physical constraints become one
-design problem.
+reality. It is the layer where software intent, hardware mechanisms, and
+physical constraints must be represented together before a commitment, without
+replacing the specialist EDA and implementation flows that verify them.
 
 For example, data-movement estimates serve as early physical constraints, providing cheap rejection evidence rather than merely confirming that
 memory is expensive. Moving data through the memory hierarchy often
@@ -661,10 +687,10 @@ Interconnect costs have the same character as memory movement. On-chip networks,
 interfaces, collectives, and host-device protocols define what a design can
 actually sustain. EDA and physical-design constraints also move upward. Timing,
 placement, routing, IR drop, thermal behavior, power delivery networks (PDN), leakage, signoff, and test are
-not late implementation details when they can overturn an architectural choice. Power and thermal density, for instance, can flag a dense accelerator mapping as risky early, and IR-drop and thermal signoff confirm or clear it later, once a placed netlist and current profile exist. Furthermore, because EDA tools rely on high-variance heuristics, a failed timing closure might just be a bad random seed, not a bad architecture.
+not late implementation details when they can overturn an architectural choice. Power and thermal density, for instance, can flag a dense accelerator mapping as risky early, and IR-drop and thermal signoff confirm or clear it later, once a placed netlist and current profile exist. Because physical-design tools use heuristic optimization, one failed closure attempt is not automatically an architecture rejection. The loop must record constraints, seeds, and repeated failure patterns before deciding whether the architectural assumption or the tool setup is at fault.
 For a design loop, this means that a simulator score or model prediction is
 not enough. The loop needs a path from low-fidelity estimates to stronger
-evidence, and it needs rules for when physical constraints—or tool limitations—reject an otherwise
+evidence, and it needs rules for when physical constraints or tool limitations reject an otherwise
 promising candidate.
 
 The Architecture 2.0 move is to make those physical assumptions inspectable
@@ -676,10 +702,9 @@ for a later physical-design step to reject. With that state, physical reality
 becomes an early design constraint, not a late surprise.
 
 The important consequence is not that every early idea needs signoff-quality
-evidence. It is that the loop must know which physical assumptions are being
-made, what evidence would overturn them, and when to escalate from a proxy to
-stronger feedback. Otherwise the apparent speedup from AI-generated candidates
-is paid back later as discarded work.
+evidence. It is that each commitment boundary needs evidence appropriate to its
+risk; otherwise the apparent speedup from AI-generated candidates is paid back
+later as discarded work.
 
 The order-of-magnitude spread in @fig-data-movement-energy-scale is not
 something to memorize or treat as a current-node prediction. The architectural
@@ -738,18 +763,11 @@ movement cannot support a power or efficiency commitment.
 ## Engineering Cost Creates the Scissors Gap
 
 Each of these pressures, physical reality included, lands on the same fault
-line, a scissors gap. On one blade are design choices,
-workload variants, tool outputs, cross-layer assumptions, simulator hours,
-verification cases, EDA reports, physical constraints, and deployment signals.
-On the other blade are human attention, expert review time, tool budget,
-schedule, and verification capacity. The first blade rises quickly. The second
-does not.
-
-@fig-scissors-gap makes the metaphor explicit. The upper blade is not only
-candidate count; it is the coupled burden of choices, constraints, evidence,
-software paths, and physical feasibility. The lower blade is not the ability
-to think; it is the slower-growing capacity to evaluate, review, reject, and
-commit with confidence.
+line, a scissors gap that @fig-scissors-gap makes explicit. On one blade is not
+only candidate count but the coupled burden of choices, constraints, evidence,
+software paths, and physical feasibility. On the other is not the ability to
+think but the slower-growing capacity to evaluate, review, reject, and commit
+with confidence. The first blade rises quickly. The second does not.
 
 ![**The scissors gap is a feedback gap:** Architecture pressure rises when design choices, constraints, and evidence demand grow faster than unaided manual coordination and verification capacity. The widening region is the gap that Architecture 2.0 tries to make explicit and manageable.](images/F2-scissors-gap){#fig-scissors-gap width="92%" fig-alt="Scissors-style diagram where rising choices, constraints, and evidence demand separate from slower manual verification capacity, creating a feedback gap."}
 
@@ -777,23 +795,20 @@ design engineers spent 49 percent of their time in verification in 2022
 [@Foster2022WilsonVerificationStudy]. A later 2024 Wilson Research Group
 IC/ASIC report makes the commitment risk visible from another angle. It
 reports first-silicon success at 14 percent, the lowest level in two decades
-[@Foster2025WilsonVerification2024]. This is why feedback and rejection
-are central to Architecture 2.0. Each invalid candidate consumes scarce
-engineering capacity and commitment risk, not just compute cycles.
-This is the economic reason rejection, not generation, must pace automated
-search. Generated candidates are cheap only until they consume scarce
-verification, tool, and review capacity.
+[@Foster2025WilsonVerification2024]. Each invalid candidate consumes scarce
+engineering capacity and commitment risk, not just compute cycles. This is the
+economic reason rejection, not generation, must pace automated search.
+Generated candidates are cheap only until they consume scarce verification,
+tool, and review capacity.
 ::: {.callout-field-note title="The bug five entries wide: Pentium FDIV"}
 The 1994 Pentium FDIV bug cost Intel roughly \$475M because five lookup-table
 entries were wrong, and no cheap check caught it before silicon.
 
-**Takeaway.** The missing rejection, an automated gate that could have caught the error early, not the missing entries, set the price.
+**Lesson:** The missing rejection, an automated gate that could have caught the error early, not the missing entries, set the price.
 :::
-@fig-leading-node-design-cost turns the public dollar estimates
-into a scale check. It should not be read as a universal cost curve. Different
-products, IP reuse strategies, node maturities, organizations, and accounting
-boundaries produce different numbers. The robust point is simpler. As the loop
-moves toward leading-edge implementation, feedback and commitment consume real
+The public dollar estimates become a scale check in
+@fig-leading-node-design-cost. The robust point is simpler. As the loop moves
+toward leading-edge implementation, feedback and commitment consume real
 engineering budgets, not only simulator cycles.
 
 ```{python}
@@ -858,16 +873,26 @@ proxy failures, assumptions, and the decision a human can responsibly commit to.
 Without that record, teams rerun old mistakes, rediscover invalid regions, and
 mistake more output for more architectural progress.
 
+## Feedback and Verification Become the Bottleneck {#sec-feedback-and-verification-become-the-bottleneck}
+
 This bottleneck is not only a diagnosis. It has a bound. The diagnostic table
 earlier in this chapter asked which part of one loop saturates first;
 @sec-loop-patterns-across-stack makes the stronger, loop-wide claim precise.
 Whichever part saturates, end-to-end throughput is set by how cheaply the loop
 can reject, not by how much it can generate. Generating proposals faster than
-trusted feedback cannot keep up widens the scissors gap rather than closing it. Just as Amdahl's Law dictates that sequential code bottlenecks multicore speedups, the Architecture 2.0 loop has its own Amdahl's Law. No matter how fast the generative AI proposes candidates, the throughput of the design loop is bounded by the serial fraction of trusted, independent rejection capacity (see @fig-rejection-bottleneck). That capacity has two parts, and they age differently. How *fast* the loop can reject is a throughput limit, and cheap, independent, increasingly automated rejectors keep raising it. Who is *accountable* for the commitment if a claim is wrong is not a speed limit at all; it is a governance floor that stays human even as verification gets faster. @sec-loop-patterns-across-stack makes the throughput bound precise and shows how much of it an automated rejector can discharge before it reaches what only accountable judgment can clear.
+trusted feedback can keep up widens the scissors gap rather than closing it.
+Amdahl's Law offers the useful analogy: a loop's speedup is limited by the part
+that cannot be parallelized or automated. Here, the limiting serial fraction is
+trusted, independent rejection capacity (see @fig-rejection-bottleneck). That
+capacity has two parts, and they age differently. How *fast* the loop can reject
+is a throughput limit, and cheap, independent, increasingly automated rejectors
+keep raising it. Who is *accountable* for the commitment if a claim is wrong is
+not a speed limit at all; it is a governance floor that stays human even as
+verification gets faster. @sec-loop-patterns-across-stack makes the throughput
+bound precise and shows how much of it an automated rejector can discharge
+before it reaches what only accountable judgment can clear.
 
 ![**The Rejection Bottleneck:** No matter how many candidates an AI loop can generate (millions) or how fast surrogate models can screen them (thousands), the total throughput of an architectural exploration loop is bottlenecked by the serial capacity of trusted, independent rejection, illustrated here by the human-review floor that only accountable judgment can clear.](images/F2-rejection-bottleneck){#fig-rejection-bottleneck width="100%" fig-alt="A funnel diagram showing 1,000,000 AI generated candidates hitting a bottleneck of 5 manual human reviews per day."}
-
-## Feedback and Verification Become the Bottleneck {#sec-feedback-and-verification-become-the-bottleneck}
 
 That human review and rejection capacity is so strictly bounded because architecture feedback has uneven cost and uneven authority. A spreadsheet
 model is cheap but weak. A simulator may be more informative but slow or
@@ -905,9 +930,8 @@ fast as human or automated rejection can keep up.
 
 ## Architecture Violates Generic AI Assumptions
 
-Designing a loop around the rate of trusted feedback is difficult exactly because architecture is not a standard machine-learning problem. Many successful AI systems are built in domains that generic machine-learning
-workflows take for granted, domains with abundant data, cheap feedback, stable
-labels, and clear losses. Those are exactly the conditions a design loop would
+Designing a loop around the rate of trusted feedback is difficult exactly because architecture is not a standard machine-learning problem. Introductory supervised-learning pipelines and many benchmarked AI tasks often assume
+abundant data, cheap feedback, stable labels, and clear losses. Those are exactly the conditions a design loop would
 want, and computer architecture violates them at almost every boundary. Data are often proprietary, incomplete,
 stale, or missing the rejected and failed candidates that explain why a design
 space has certain boundaries. @sec-data-representations-world-models gives
@@ -918,6 +942,13 @@ latency, cost, fidelity, and authority. The action space is also unusual. Many
 generated configurations are not merely low quality; they are illegal,
 unsupported by tools, unverifiable, or incompatible with software and physical
 constraints.
+
+The contrast is visible in familiar community benchmarks. SPEC CPU and MLPerf
+do not only provide inputs. They provide run rules, reporting conventions,
+versioned tasks, and a basis for comparing claims [@SPEC2017CPU;
+@MattsonEtAl2020MLPerf]. Architecture 2.0 needs that kind of discipline, but
+for loop state, feedback cost, invalid actions, rejected candidates, and human
+commitment, not only for final scores.
 
 The result is not a simple lack of data. It is a mismatch between generic AI
 assumptions and architecture-loop requirements. Architecture loops need
@@ -931,20 +962,9 @@ often learn a pipeline that runs from data collection to preprocessing,
 training, validation, deployment, and monitoring. @fig-ai-workflow-mismatch
 keeps that familiar picture but shows why the architecture version cannot be a
 simple pipeline. Every step must carry validity constraints, tool costs,
-provenance, drift, rejected alternatives, and a commitment boundary.
+provenance, drift, rejected alternatives, and a commitment boundary. @tbl-ai-assumptions-architecture-violations gives the checklist version of this mismatch.
 
 ![**Architecture turns the ML pipeline into a constrained loop:** A generic ML workflow can be taught as data, preprocessing, training, validation, and deployment. In architecture, the corresponding workflow must also represent constraints, legal actions, expensive tool feedback, an evidence ledger, failed and rejected candidates, drift, rejection authority, and a commitment boundary.](images/F2c-ai-workflow-mismatch){#fig-ai-workflow-mismatch width="100%" fig-alt="Comparison diagram showing a generic machine-learning pipeline transformed into an architecture loop with constraints, tool feedback, evidence ledgers, rejection, and commitment boundaries."}
-
-The mismatch has several concrete forms. Data are not just examples; they are
-design artifacts with permissions, tool versions, and missing failures.
-Feedback is not just a label; it spans regimes such as proxies, simulation,
-synthesis, physical design, expert review, emulation, and silicon. Actions are
-not just tokens; they are edits to configuration spaces, software interfaces,
-RTL, constraints, and deployment policies, many of which can be invalid. Losses
-are not just scalar rewards; they are multiobjective efficiency claims under
-performance, power, area, cost, reliability, sustainability, and verification
-burden. @tbl-ai-assumptions-architecture-violations gives the
-checklist version of that argument.
 
 | **Common AI assumption** | **Architecture violation** | **Loop implication** |
 | --- | --- | --- |
@@ -970,7 +990,7 @@ can say no.
 
 ## AI Helps Only When the Loop Is Designed
 
-If the environment can enforce those boundaries, AI becomes profoundly important because the classical loop is under pressure. It can help
+If the environment can enforce those boundaries, bounded AI roles become useful because the classical loop is under pressure. AI can help
 summarize tool outputs, propose candidates, search spaces, predict costs,
 construct tests, critique assumptions, retrieve prior designs, and coordinate
 subtasks. In domains with expensive feedback and large design spaces, even
@@ -989,16 +1009,75 @@ The right conclusion is therefore narrower and stronger than generic AI
 optimism. We should not merely search larger design spaces. We should design
 loops that learn, record, reject, and justify architecture work.
 
+## Open Research Questions
+
+The strain on classical design loops makes the AI question narrower than
+generic automation. The first research problem is to know when AI assistance is
+warranted, where it should enter the system, and what pressure signals should
+force stronger evidence before expensive validation or human commitment.
+
+1. **What measurements reveal a strained architecture loop?**
+A loop becomes strained when candidate volume, feedback cost, validation
+burden, software drift, and human review latency grow faster than the team's
+ability to reject and revise. A useful profile would predict wasted
+high-fidelity runs, missed invalid candidates, delayed decisions, or stale
+evidence. Useful measurements include invalid-action rates, feedback latency
+and cost, verification staffing, high-fidelity sample budgets, and decision
+turnaround. The profile should explain the scissors gap in @fig-scissors-gap
+and the cost pressure in @fig-leading-node-design-cost better than candidate
+count alone.
+
+2. **Where should AI enter specialized and chiplet design loops?**
+Specialization and chiplets expand the loop across workload selection,
+software paths, microarchitecture, integration, packaging, validation, and
+physical feasibility. AI should enter where the bottleneck is measurable, not
+where a model can produce more candidates. A strong study would compare entry
+points under the same validation budget and report invalid candidates avoided,
+missed software obligations, high-fidelity checks saved, and lost tradeoff
+quality. The expanding design spaces in @tbl-design-loop-scale-anchors and the
+discipline in "AI Helps Only When the Loop Is Designed" provide concrete
+testbeds.
+
+3. **Which physical signals should triage expensive validation?**
+Physical reality becomes an architecture concern when data movement, timing
+margin, congestion, power density, thermal behavior, or closure risk can
+overturn an early architectural win. A useful triage suite would compare early
+signals against later synthesis, floorplanning, placement, routing, static
+timing analysis, design-rule checking, layout-versus-schematic checking, EM/IR,
+and power outcomes. The evaluation should report false accepts, false rejects,
+inconclusive runs, and engineering effort saved. The goal is earlier routing
+toward rejection, revision, or stronger evidence, not signoff-quality
+prediction.
+
+4. **When does workload drift expire architecture evidence?**
+The software and workload pressure described in
+@sec-software-changes-faster-than-silicon means architecture evidence can become
+stale before a decision reaches deployment. A research contribution would attach
+validity horizons to claims, using workload versions, input-distribution
+summaries, compiler or runtime assumptions, and re-evaluation triggers. The
+evaluation could replay historical workload changes and ask when a claim should
+be maintained, weakened, or withdrawn. This turns workload characterization into
+part of the evidence record, not a setup detail.
+
+5. **When do multiobjective tradeoffs overwhelm manual evaluation?**
+Modern efficiency combines performance, energy, power delivery, reliability,
+sustainability, cost, and time to evidence. Manual review breaks down when the
+Pareto surface changes faster than the team can inspect tradeoffs at the needed
+fidelity. A strong paper would define pressure metrics for objective count,
+constraint coupling, feedback cost, and reviewer latency, then show when a
+bounded AI role improves triage without authorizing unsupported commitments.
+This keeps the question centered on where AI should help, not on using AI
+because it is available.
+
 ## Conclusion
 
 This chapter asked what the loop must record, when architecture choices grow
 faster than trusted feedback, for AI to help rather than merely add candidates.
-The pressure is structural, not a matter of taste. Two walls converge on the
-classical loop. One is physical, built from specialization, heterogeneous
-integration, and data movement. The other is verification, built from software
-velocity and validation burden. Between them opens a scissors gap, in which
-generative methods raise the rate of plausible proposals far faster than any
-tool raises the rate of trusted rejection.
+The pressure is structural, not a matter of taste. Specialization,
+heterogeneous integration, data movement, software velocity, and validation
+burden converge on the classical loop. Between them opens a scissors gap, in
+which generative methods raise the rate of plausible proposals far faster than
+any tool raises the rate of trusted rejection.
 
 That reframes the problem. The scarce resource in modern architecture is not
 ideas but trusted feedback, the ability to evaluate, reject, revise, and commit
@@ -1013,18 +1092,8 @@ can say no, and keeps a human accountable for each commitment. The goal is not a
 larger search space but a loop disciplined enough that more proposals become
 more progress instead of more noise.
 
-## Open Research Questions
-
-The strain on classical design loops reveals that AI in architecture is not merely a generation problem, but a systems-design challenge. The following open questions highlight the research needed to make AI-assisted architecture reliable, verifiable, and capable of handling exploding design spaces.
-
-For the strained-loop regime:
-
-1. **The Minimum Inspectable Loop-State:** How can we formally define the minimal state record—spanning task intent, action schemas, candidate provenance, and rejected alternatives—required to make an AI-generated architecture fully reviewable? As the scissors gap widens, this challenges the community to standardize the "black box" of AI generation so that human architects can securely audit and commit to designs even when high-fidelity samples are prohibitively scarce.
-2. **Representing Failure and Uncertainty as Reusable Evidence:** In the absence of abundant, open-source architectural data, how can a design loop safely internalize proprietary constraints, failed candidates, and tool-version drift? This requires pioneering new data representations that treat rejected designs and physical constraint violations (see the discussion on "Physical Constraints Move Into Architecture" in @sec-physical-constraints-move-into-architecture) not as wasted effort, but as mathematically rigorous negative evidence that prevents generative models from repeatedly exploring invalid regions.
-3. **Provable Rejection Authority in the Scissors Gap:** How can we construct a hierarchy of cheap, high-confidence rejection proxies that filter invalid AI-generated candidates before they consume validation cycles? Because feedback and validation are the ultimate limits on throughput (see the discussion on "Feedback and Verification Become the Bottleneck" in @sec-feedback-and-verification-become-the-bottleneck), discovering provably safe triage rules that minimize both false acceptances (which waste time) and false rejections (which discard optimal designs) is critical to scaling automated exploration.
-4. **Versioning the Validity Horizon Against Software Drift:** How must architectural claims be packaged to support reproducibility when software, models, and workloads mutate faster than the silicon design cycle (@sec-software-changes-faster-than-silicon)? This invites the creation of dynamic, versioned workload snapshots and automated contracts between hardware commitments and software targets, so an AI-specialized architecture can trigger re-evaluation before a deployment bet becomes obsolete.
-
 ::: {.callout-carry-forward}
+- **Carry forward:** When plausible candidates are cheap, trusted rejection, not generation, is what bounds the design loop.
 - **Reader test:** When candidate scale and feedback cost grow together, can you say why trusted feedback, not idea generation, is the bottleneck, and what loop state the scissors gap demands?
-- **Up next:** AI helps only when the loop records state, failures, evidence, rejection authority, and each commitment's human owner; the discussion on "Architectural Claims and Design Loops" (@sec-architecture-20-ontology) names the minimum loop state that makes that pressure inspectable.
+- **Up next:** AI helps only when the loop records state, failures, evidence, rejection authority, and each commitment's human owner; @sec-architecture-20-ontology names the minimum loop state that makes that pressure inspectable.
 :::

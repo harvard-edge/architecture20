@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Edsger W. Dijkstra, a Turing Award-winning pioneer in algorithm design, highlighted the fundamental limitation of testing. For us, this frames the role of verification gates. We use tests not to definitively prove an AI-generated design is perfect, but to aggressively reject the bad ones in a "red-teaming" approach.
+**Author's Note:** Edsger W. Dijkstra, a Turing Award-winning pioneer in algorithm design, highlighted the fundamental limitation of testing. For this chapter, the quote frames verification gates. Tests and checks do not prove an architecture claim complete; they give simulators, constraints, regressions, security screens, and reviewers authority to reject unsupported candidates before commitment.
 :::
 
 ```{=latex}
@@ -28,13 +28,13 @@ the cost of being wrong.
 
 This distinction between generated output and verified evidence is central to the book. A model can generate a plausible
 architecture description. A search method can find a strong proxy score. A
-surrogate can rank candidates. A tool-using agent can call simulators and
+surrogate can rank candidates. A tool-using agent[^fn-ml-tool-using-agent] can call simulators and
 summarize results. None of those actions creates trust by itself. Trust
 begins when the loop records what was measured, why it was relevant, how much
 it cost, what assumptions it used, where the feedback is weak, which
 alternatives failed, and what can say no.
 
-> **Tool-using agent:** an AI system that can programmatically invoke external software tools or APIs to solve tasks.
+[^fn-ml-tool-using-agent]: A tool-using agent is an AI system that can programmatically invoke external software tools or APIs, such as simulators or synthesis flows, to carry out a task. In this chapter it is one of the actors whose outputs count as feedback rather than trust, since the loop still has to record provenance and give an independent check the authority to reject what the agent reports.
 
 The lighthouse prompt makes this need for evidence concrete. A proposed low-power 64-bit RISC-V
 compute subsystem for XRBench under a 3\ W, 3\ nm-class low-power mobile
@@ -55,10 +55,14 @@ broadly than its usual formal-methods sense.
 > the method's output.
 
 Verification is therefore a family of rejection authorities, not a single tool
-category. @tbl-verification-authorities details a taxonomy of these checks and what they can reject.
-Inside AI-assisted loops, these authorities are not generic quality checks; they
+category (@tbl-verification-authorities). Inside AI-assisted loops, these authorities are not generic quality checks; they
 define which generated state transitions may continue, be revised, or be
 blocked.
+
+The familiar examples are prosaic for a reason. A parser rejects malformed IR,
+a protocol checker rejects an illegal transaction, and a regression test blocks
+a change that breaks expected behavior. Each is valuable because it can stop
+the artifact from moving to the next state, not because it comments on quality.
 
 | **Verification authority** | **Typical evidence** | **What it can reject** |
 | --- | --- | --- |
@@ -69,7 +73,7 @@ blocked.
 | Operational checks | SLOs, canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
 | Expert review | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
 
-: Verification names who or what can say no: A credible claim should state
+: **Verification names who or what can say no:** A credible claim should state
 which independent authority can reject syntax, function, model support,
 implementation feasibility, deployment behavior, or final commitment. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
 
@@ -92,7 +96,7 @@ trust checklist against gamed metrics and hidden evidence.
 | Rejection authority | Names the independent check that can say no. | What can stop a plausible but unsupported result? |
 | Trust checklist | Combines claim, feedback, fidelity, provenance, confidentiality, rejection, and decision ownership. | Is the loop asking for a level of belief it has earned? |
 
-: Trust review uses a family of records: The feedback budget ledger, evidence
+: **Trust review uses a family of records:** The feedback budget ledger, evidence
 ledger, commitment ladder, rejection authority, and trust checklist are not
 separate paperwork. They are views of one question: whether a loop has enough
 evidence and independent rejection to support the commitment it asks for.
@@ -131,15 +135,19 @@ evaluations, measurements, tool runs, human reviews, and deployment signals are
 available, what they cost, how long they take, how reversible they are, and
 what level of decision they can support. The ledger is not
 accounting bureaucracy. It is the object that tells the method what kind of
-learning is possible. A Bayesian optimizer^[A Bayesian optimizer builds a probabilistic model of an objective function to efficiently find its optimal parameters with few evaluations.], reinforcement-learning policy,
-surrogate model^[A surrogate model is a cheaper, learned approximation of a complex, expensive simulation.], critic, or tool-using agent should behave differently when a
+learning is possible. A Bayesian optimizer[^fn-ml-bayesian-optimizer-budget], reinforcement-learning policy[^fn-rl-policy],
+surrogate model[^fn-ml-surrogate-proxy-feedback], critic[^fn-rl-critic], or tool-using agent should behave differently when a
 feedback source takes milliseconds versus days, when a failed action is
 reversible versus costly, and when the signal is a rough proxy versus a
-signoff report. @tbl-feedback-budget-ledger materializes these constraints into a structured working form.
+signoff report (@tbl-feedback-budget-ledger).
 
-> **Policy:** in reinforcement learning, a function that maps an agent's state to a chosen action.
+[^fn-ml-bayesian-optimizer-budget]: The feedback-budget issue is how aggressively the optimizer may sample. A cheap proxy budget supports broad search; a costly synthesis budget demands selective acquisition and explicit evidence of each evaluation's fidelity.
 
-> **Critic:** in this book, the critique method role of @sec-methods-generation-prediction-optimization, a component that challenges assumptions, evidence, or claims inside the loop; reinforcement learning uses the same word more narrowly for a learned estimator of expected future returns.
+[^fn-rl-policy]: In reinforcement learning, a policy is a function that maps an agent's observed state to a chosen action. Treated here as a method inside the loop, it earns trust the same way any other generator does, through the evidence its actions leave and the gates that can reject them.
+
+[^fn-ml-surrogate-proxy-feedback]: For this surrogate use, authority is the issue. A surrogate's ranking can guide exploration, but it should remain proxy feedback until an independent, higher-fidelity check can reject a proxy win.
+
+[^fn-rl-critic]: In this book, a critic is the critique method role of @sec-methods-generation-prediction-optimization, a component that challenges assumptions, evidence, or claims inside the loop; reinforcement learning uses the same word more narrowly for a learned estimator of expected future returns. Its job here is to strengthen rejection, though it adds real authority only when it can fail in a way the generator cannot explain away.
 
 | **Budget item** | **What to record** | **Why it matters** |
 | --- | --- | --- |
@@ -181,7 +189,7 @@ form of the sample-value rule from
 decision-relevance labels are often more honest than unjustified numeric
 confidence.
 
-Just as the quantitative approach historically weighed performance gains against silicon area and power, Architecture 2.0 weighs confidence gains against computational and human costs. For example, spending 100 CPU-hours ($c_i$) on a cycle-accurate simulation to gain a modest reduction in PPA uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. The notation is a question the loop designer must answer before
+Architecture 2.0 weighs confidence gains against computational and human costs, much as the quantitative tradition weighed performance against area and power. For example, spending 100 CPU-hours ($c_i$) on a cycle-accurate simulation to gain a modest reduction in PPA uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. The notation is a question the loop designer must answer before
 each stage. Will another simulation, synthesis run, expert review, or
 deployment experiment change a decision enough to justify its cost? @sec-running-the-loop
 makes the question concrete, spending the proxy budget freely, the cycle-level
@@ -201,9 +209,9 @@ recorded. A synthesis report is feedback. It becomes evidence when the
 technology assumptions, constraints, tool versions, warnings, and comparison
 baseline are explicit.
 
-> **Feedback regime.** A feedback regime is a class of checks at a particular
-> fidelity, cost, and commitment level, from cheap proxies to high-commitment
-> verification, deployment, or silicon evidence.
+As used in @sec-architecture-environments-tool-interfaces, feedback regimes
+classify checks by fidelity, cost, and commitment level. This chapter reuses the
+term for trust.
 
 To structure this transition from feedback to evidence, each rung of the fidelity ladder from
 @sec-methods-generation-prediction-optimization is a feedback regime: the
@@ -214,14 +222,20 @@ which entry.
 This idea of tracking evidence across regimes is not new to engineering. Safety-critical fields formalize it as an
 *assurance case*, a structured argument that links a top-level claim to
 sub-claims, assumptions, and supporting evidence, often written in Goal
-Structuring Notation so that each inference and the evidence under it are
-explicit and reviewable [@Kelly2004GSN]. An Architecture 2.0 evidence ledger is
-an assurance case for a design decision that moves across feedback regimes. It is the five-part execution state materialized as an audit trail. It records the candidate (*actions allowed*), the feedback and fidelity (*state seen*), the provenance and uncertainty (*evidence*), what could block the claim (*alternatives rejected*), and the required escalation boundary (*ownership*). Naming the lineage helps, because that field already catalogs how such
+Structuring Notation[^fn-safety-gsn] so that each inference and the evidence under it are
+explicit and reviewable. An Architecture 2.0 evidence ledger
+borrows this discipline for design decisions that move across feedback regimes.
+It is not necessarily a full assurance case; it is the loop's audit trail for
+claim, support, uncertainty, rejected alternatives, and escalation boundary. It
+records the candidate (*actions allowed*), the feedback and fidelity (*state
+seen*), the provenance and uncertainty (*evidence*), what could block the claim
+(*alternatives rejected*), and the required escalation boundary (*ownership*).
+Naming the lineage helps, because that field already catalogs how such
 arguments fail: unstated
 assumptions, evidence that does not support the claimed scope, and confidence
 that outruns the proof.
 
-> **Goal Structuring Notation (GSN):** a graphical argumentation notation used in safety-critical engineering to formally document the elements of an assurance case.
+[^fn-safety-gsn]: Goal Structuring Notation (GSN) is a graphical argumentation notation used in safety-critical engineering to document the elements of an assurance case, making each inference and its supporting evidence explicit and reviewable [@Kelly2004GSN]. The evidence ledger borrows this discipline so a design claim carries its support, assumptions, and rejected alternatives rather than a bare score.
 
 For Architecture 2.0, @fig-evidence-chain-rejection-gates illustrates this working model. Rather than treating all feedback as equal, a
 claim must move through a chain of increasingly costly feedback sources,
@@ -229,10 +243,8 @@ recording a rejection gate and evidence ledger entry at each stage.
 
 ![**Evidence ledgers turn feedback into trust:** A claim becomes more credible only as it moves through staged feedback sources, records provenance and uncertainty, and gives each stage authority to reject, revise, or escalate the result before the commitment boundary rises.](images/F9-evidence-chain-rejection-gates){#fig-evidence-chain-rejection-gates width="100%" fig-alt="Staged evidence ledger diagram showing feedback sources, provenance, uncertainty, rejection gates, revision, escalation, and rising commitment boundaries."}
 
-Crucially, the figure changes the meaning of trust. Trust is not a model property or a
-single score. It is a staged loop property. A claim becomes more credible only
-when each feedback regime records what it saw, what it cannot support, what
-would reject it, and what commitment boundary it is allowed to cross.
+The figure changes the meaning of trust. Trust is not a model property or a
+single score. It is a staged loop property.
 
 However, moving up the fidelity ladder is not a simple ranking from false to true. Higher fidelity is not
 automatically truth if the wrong workload, objective, constraints, or baseline
@@ -268,7 +280,7 @@ involved. The difference is rollback cost, blast radius (how far a wrong change
 can propagate), and who bears the
 consequence when the loop is wrong.
 
-@tbl-commitment-ladder gives a commitment-level view. The exact
+The exact
 ordering will vary across organizations, but the pattern is stable.
 Reversible exploration can use lighter evidence, while irreversible or
 high-blast-radius decisions require stronger evidence, independent rejection,
@@ -319,11 +331,7 @@ independent the check must be to overrule the generator's confidence.
 ## Rejection Authority
 
 If commitment levels determine the cost of being wrong, rejection authority is
-the mechanism that pays that cost. The verification authorities in @tbl-verification-authorities are its operational catalog; a compact way to remember *why* a candidate is rejected is the *4 P's of Rejection*:
-1. **Proxy Mismatches:** Rejection occurs because the system was optimizing a surrogate model instead of the true metric.
-2. **Protocol Violations:** Rejection occurs because the candidate breaks the ISA, hardware/software contract, or memory consistency model (which requires formal litmus testing as a first-class rejection gate).
-3. **Physical Limits:** Rejection occurs because the candidate fails timing closure, violates power envelopes, exceeds area budgets during physical synthesis, or fails Design Rule Checks (DRC).
-4. **Policy Boundaries:** Rejection occurs because the candidate fails fast structural checks (e.g., FIRRTL compilation passes), breaks interface contracts, or violates information-flow/timing-channel security boundaries (e.g., GLIFT).
+the mechanism that pays that cost. The verification authorities in @tbl-verification-authorities are its operational catalog.
 
 The first rule of Architecture 2.0 is that a credible loop needs
 something with authority to say no. The rejecting
@@ -331,6 +339,14 @@ authority might be a type checker, parser, simulator, formal tool, regression
 test, synthesis flow, cross-tool comparison, signoff rule, deployment signal,
 security policy, benchmark governance rule, or expert reviewer. What matters
 is that rejection is part of the loop interface, not an afterthought.
+
+A compact way to remember *why* a candidate is rejected is the *4 P's of
+Rejection*:
+
+1. **Proxy Mismatches:** Rejection occurs because the system was optimizing a surrogate model instead of the true metric.
+2. **Protocol Violations:** Rejection occurs because the candidate breaks the ISA, hardware/software contract, or memory consistency model.
+3. **Physical Limits:** Rejection occurs because the candidate fails timing closure, violates power envelopes, exceeds area budgets during physical synthesis, or fails Design Rule Checks (DRC).
+4. **Policy Boundaries:** Rejection occurs because the candidate fails fast structural checks, breaks interface contracts, or violates information-flow/timing-channel security boundaries.
 
 Beyond preventing errors, rejection authority is also the lever that controls loop speed. A loop speeds
 up only as cheap, independent rejectors discharge a larger fraction of
@@ -340,7 +356,7 @@ therefore not a safeguard bolted onto a loop that already works. It is the
 resource that sets how fast the loop can run.
 
 ::: {.callout-architect-checkpoint title="The Rejection Authority Check"}
-When a generative model or optimizer proposes a "winning" candidate, does the loop name at least one independent authority that can say no? Trusting an AI-assisted loop requires proving the generator cannot grade its own work. The loop must expose a simulator, constraint checker, or formal tool with the authority to reject a candidate before treating it as an architectural commitment.
+When a generative model or optimizer proposes a "winning" candidate, does the loop name at least one independent authority that can say no? Trusting an AI-assisted architecture loop requires showing that the generator is not the sole grader of its own work. The loop must expose a simulator, constraint checker, formal tool, benchmark rule, or expert review path with the authority to reject a candidate before treating it as an architectural commitment.
 :::
 
 To function effectively, this rejection authority has three parts. First, the loop must know which check is
@@ -453,7 +469,7 @@ improve while synthesis exposes timing or power problems. A benchmark result
 may improve while the real workload distribution changes. A Pareto frontier
 may look convincing because all points were evaluated under the same flawed
 proxy. An automated optimizer may appear capable because it overfits the evaluation loop,
-not because it understands the architecture problem. In the machine learning literature, this active exploitation of a flawed metric is known as *reward hacking* or *Goodhart's Law*.
+not because it understands the architecture problem. In the machine learning literature, this active exploitation of a flawed metric is known as *reward hacking* [@AmodeiEtAl2016ConcreteProblems] or *Goodhart's Law* [@Strathern1997Goodhart].
 
 Two distinct failure modes hide within this proxy mismatch, and they need different cures. First, a proxy can simply be
 miscalibrated or too narrow, mis-estimating the objective even when nothing is
@@ -470,19 +486,18 @@ reason. A search method may happily continue. A compound system may even
 produce a persuasive narrative for a proxy win unless the loop asks for
 calibration and counterevidence.
 
-::: {.callout-failure-mode title="The AI-generated win that vanished at signoff"}
-An AI-generated configuration leads the design-space study for weeks on a cycle-level model:
-better IPC, lower modeled energy, a clean Pareto point. At synthesis the lead
-evaporates, because the model never charged for the timing and congestion the
-winning structure creates. The automated optimizer exploited a gap in the proxy. The cheap fix is a rule written
-before the search starts. An AI-generated cycle-level win is a reason to escalate, never a
-reason to commit.
+::: {.callout-war-story title="A proxy under dispute"}
+**The claim.** AlphaChip is one of the field's clearest recent disputes over whether a cheap proxy rewarded the wrong thing. Its loop optimized a fast proxy cost, a stand-in for the metrics that actually decide a chip.
+
+**The gap.** An independent 2023 reassessment found that proxy had weak correlation with the post-route chip-quality metrics that decide a real chip, and little useful correlation with timing [@ChengEtAl2023AssessmentRL]. A candidate could look excellent on the proxy the loop trusted and only ordinary once a full flow charged what the proxy ignored.
+
+**The lesson.** For this chapter, the useful part of the dispute is proxy mismatch at full-flow scale. Trust is a staged property earned up a fidelity ladder, not a single score. An unverified proxy win is a reason to escalate, never a reason to commit. The broader dispute also involved pretraining, compute, implementation, and testcase choices, but the proxy question shows why evidence must mean what everyone assumes before the loop can ask for commitment.
 :::
 
-To prevent this vanishing win, calibration acts as an escalation contract. It defines where a generative method may
+To prevent this kind of vanishing win, calibration acts as an escalation contract. It defines where a generative method may
 use a proxy to rank candidates, where it must escalate, and what stronger
 evidence can reject a proxy win. Prediction models used in
-architecture have long needed validation against held-out data, higher-fidelity
+architecture have long needed validation against held-out data[^fn-ml-held-out-data], higher-fidelity
 measurements, or carefully designed experiments
 [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. The same
 principle applies to AI-assisted loops. If a loop claims a candidate satisfies the
@@ -490,7 +505,7 @@ principle applies to AI-assisted loops. If a loop claims a candidate satisfies t
 calibrated, what workload region it covers, what uncertainty remains, and what
 higher-fidelity result could overturn the claim.
 
-> **Held-out data:** a subset of a dataset reserved during model training, used exclusively to test the model's ability to generalize to unseen inputs.
+[^fn-ml-held-out-data]: Held-out data is a subset of a dataset reserved during training and used only to test whether a model generalizes to unseen inputs. Here it is one way a proxy earns calibrated trust, since a prediction validated against held-out cases carries more evidence than one fitted and reported on the same data.
 
 ::: {.callout-architect-checkpoint title="The Calibration Gate Check"}
 Does the loop know when a generator's proxy is no longer trustworthy? A proxy win is only evidence if the loop can prove the AI-generated candidate falls within the proxy's calibrated support region. If it falls outside, the loop must escalate to a higher-fidelity check rather than trusting the uncalibrated prediction.
@@ -509,8 +524,9 @@ story.
 
 ## Security, IP, and Confidentiality Boundaries
 
-Calibration, provenance, and benchmark governance make a claim accurate, but a
-claim whose evidence cannot be exposed cannot be fully believed. Confidentiality
+Calibration, provenance, and benchmark governance make a claim assessable, but
+they do not settle trust if the evidence cannot be audited by the relevant
+rejection authority. Confidentiality
 is therefore part of the same machinery of graded belief and rejection as
 fidelity and provenance, not a separate compliance concern. Evidence that must
 stay private still has to be auditable enough to grade the claim and to reject
@@ -535,18 +551,32 @@ evidence it cannot expose, audit, or legally reuse.
 Can the AI model's evidence be audited without violating security or IP boundaries? If a generative method produces a claim using confidential data that cannot be exposed to the rejection authority, the loop cannot trust the claim. The architect must explicitly define which AI tools can access which data classes, and how private evidence can be verified.
 :::
 
-This requirement also defines the bounds of microarchitectural security. If an unconstrained generative AI strictly maximizes Instructions Per Cycle (IPC), it acts as an *accidental adversary*. It will aggressively share microarchitectural state—branch predictors, translation lookaside buffers, or cache hierarchies—to squeeze out performance, silently inventing new side-channels by trading isolation for speed. The proxy mismatch here is that IPC is visible to the AI, but side-channel leakage is not. Architecture 2.0 requires a non-interference screen, a cheap structural check that a generated layout does not silently share state across trust boundaries. It is necessary but not sufficient, since it misses contention, transient-execution, and SMT channels, so passing it only earns escalation to formal side-channel verification, not commitment. A complete security screen also covers memory-integrity and disturbance faults, not only information-flow side channels. A design that trims DRAM refresh to meet a power budget can open a RowHammer path, so read-disturbance is a rejection gate in its own right.
+This requirement also defines the bounds of microarchitectural security. A loop
+that optimizes Instructions Per Cycle (IPC) without an isolation constraint can
+behave like an accidental adversary. It may propose structures that improve
+visible performance by sharing predictors, translation lookaside buffers (TLBs),
+caches, or buffers across trust boundaries, while the proxy leaves side-channel
+risk unpriced. Architecture 2.0 requires an early isolation screen, a cheap
+structural check that a generated layout does not silently share state across
+trust boundaries. It is necessary but not sufficient, since it misses
+contention, transient-execution, and simultaneous multithreading (SMT) channels.
+A higher-fidelity security gate must still include formal non-interference or
+side-channel verification where the commitment requires it. A complete security
+screen also covers memory-integrity and disturbance faults, not only
+information-flow side channels. A design that trims DRAM refresh to meet a power
+budget can open a RowHammer path, so read-disturbance is a rejection gate in its
+own right.
 
 ::: {.callout-field-note title="When the missing gate shipped: Spectre and Meltdown"}
 For two decades, microarchitecture optimized one visible number, instructions per
 cycle, by speculating ever more aggressively and sharing predictors, caches, and
-buffers. Every functional test passed; speculation computed the correct
-architectural results. In 2018 that same optimization pressure was shown to have
+buffers. Ordinary functional tests could pass because speculation computed the
+correct architectural results. In 2018 that same optimization pressure was shown to have
 built a class of side channels that leak across privilege boundaries
 [@KocherEtAl2019Spectre]. No cheap check caught it because the objective the loop
 could see, IPC, and the leakage it could not, were different quantities.
 
-**Takeaway.** The missing rejection gate, non-interference, not any single bug, was the price, a whole verification dimension left outside the loop and run at industry scale for twenty years.
+**Lesson:** Spectre and Meltdown are a reminder that functional correctness is not the same as security. If non-interference and timing-channel evidence sit outside the loop, performance wins can accumulate risk that ordinary correctness tests never see.
 :::
 
 ```{.python #lst-side-channel lst-cap="**Security Gate Check:** An illustrative Python snippet rejecting RTL candidates that share state across trust boundaries."}
@@ -565,10 +595,10 @@ def check_side_channel_interference(rtl_candidate, isolation_policy):
                         "state across trust boundaries."),
                 action="Partition the structure or flush on context switch."
             )
-    return Authorize()
+    return EscalateToSecurityVerification()
 ```
 
-Listing \ref{lst-side-channel} shows an example of how an automated environment might implement this requirement. It scans the candidate design for shared structures—like branch predictors or caches—and checks them against the system's isolation policy. If a shared structure crosses a trust boundary, the loop rejects the candidate and suggests a remediation action. Codified as an explicit screen, this check catches the most obvious performance-for-isolation trades early. It does not by itself prove isolation, so a surviving candidate must still escalate to formal non-interference or side-channel verification (for example, information-flow tracking) before commitment.
+Codified as the explicit screen in @lst-side-channel, this check catches the most obvious performance-for-isolation trades early. Passing it authorizes only the next security-verification rung, not the design itself. A surviving candidate must still escalate to formal non-interference or side-channel verification (for example, information-flow tracking) before commitment.
 
 For shared community infrastructure, this means the field should distinguish between
 public artifacts and private state. Public benchmarks, datasets, papers, and
@@ -589,7 +619,7 @@ be reproduced from public web data.
 
 ## Evidence Disputes and the Trust Checklist {#sec-evidence-disputes-and-the-trust-checklist}
 
-Once accuracy and confidentiality are both handled, trust still has to survive
+Even after accuracy and confidentiality boundaries are stated, trust still has to survive
 disagreement, and evidence disputes are inevitable. One group may claim that a learning-based
 method improves a design flow. Another may argue that the baseline, workload,
 constraint set, tool version, or evaluation protocol was incomplete. A company
@@ -609,7 +639,7 @@ packet can support, weaken, reject, or escalate the claim.
 
 ![**Evidence disputes become tractable when the review axes are explicit:** A contested architecture claim should expose its feedback, fidelity, provenance, baselines, counterevidence, rejection authority, and human decision path before it asks readers to trust the result.](images/F9b-evidence-dispute-anatomy){#fig-evidence-dispute-anatomy width="100%" fig-alt="Flow diagram showing a contested claim feeding an evidence packet with feedback, fidelity, provenance, counterevidence, and rejection authority, then ending in accept, reject, or escalate decisions."}
 
-In recent years, learned chip placement has become the field's most public worked example of this
+The same learned-placement dispute returns here as a full evidence-dispute
 anatomy. A 2021 result reported that a reinforcement-learning method produced
 floorplans competitive with human experts in far less time
 [@MirhoseiniEtAl2021GraphPlacement]. Independent groups then disputed the claim
@@ -620,13 +650,16 @@ about whether the model ran; it was about provenance, baselines, and what
 evidence could reject the result. One constructive response
 has been to build reproducible, end-to-end benchmarks that score placement by
 final power, performance, and area rather than an intermediate proxy
-[@WangEtAl2025ChiPBench]. That is the anatomy doing its work. A contested claim
-becomes tractable once the loop's evidence, baselines, and rejection authority are
-made explicit.
+[@WangEtAl2025ChiPBench]. That is the kind of infrastructure the anatomy asks for.
+A contested claim becomes more tractable once the loop's evidence, baselines, and
+rejection authority are made explicit.
 For Architecture 2.0, the reusable lesson is not the controversy itself; it is
 that a loop claiming placement quality must expose represented floorplan state,
 legal move/action space, workload and PPA records, baseline receipts, rejected
-alternatives, and the independent authority that can block commitment. Furthermore, because AI-assisted EDA is highly sensitive to initial conditions, true reproducibility requires exposing exact toolchain versions, environment constraints, and deterministic seeds, not just model weights.
+alternatives, and the independent authority that can block commitment. For
+placement-style AI-assisted EDA, reproducibility often depends on exact
+toolchain versions, environment constraints, seeds, legal action spaces, and
+baseline receipts, not just model weights.
 
 To make this dispute anatomy practical, @tbl-trust-checklist turns it into a checklist. It is
 intended for reading papers, reviewing internal tools, evaluating student
@@ -653,6 +686,61 @@ does need to say where it sits in the loop, what evidence it produces, what it
 cannot prove, and what can reject it. That is how Architecture 2.0 can remain
 ambitious without becoming credulous.
 
+## Open Research Questions
+
+The mechanisms of trust and verification presented in this chapter establish a
+foundation, but robust automation still needs concrete artifacts. The questions
+here ask how evidence is bound, how proxy exploitation is detected, how
+rejection authority is tested, how compromised evidence sources can be
+stress-tested, and how confidential evidence can remain reviewable.
+
+1. **How should evidence ledgers limit commitment?**
+Fidelity ladders, evidence ledgers, commitment levels, and reversibility all
+assume that evidence remains attached to the claim it supports. A fundamental
+systems challenge is to design a ledger format and checker that bind proxy
+traces, simulation runs, synthesis results, human waivers, and rejection events
+into a unified audit object. Its value would be measured by tamper detection,
+replayability, and whether the checker prevents a candidate from exceeding the
+commitment level supported by its evidence. The fidelity-ladder and commitment
+sections, @sec-fidelity-ladders-and-evidence-ledgers and @sec-commitment-levels-and-reversibility, define the evidence boundary this
+checker must enforce.
+
+2. **What benchmarks expose proxy exploitation before commitment?**
+Proxy mismatch, metric gaming, and calibration failures become more severe when
+generators learn to exploit cheap architectural models. A thesis-level
+contribution would build adversarial proxy benchmarks that include misleading
+wins, support-boundary violations, and candidates that need stronger evidence.
+The evaluation should report how often a loop escalates before accepting a
+misleading candidate, plus the false-reject and evidence-cost tradeoffs of that
+escalation. The motivation comes directly from @sec-proxy-mismatch-metric-gaming-and-calibration.
+
+3. **How can rejection authorities be tested for independence?**
+The rejection authority is only useful if it is not captured by the method,
+proxy, dataset, or objective that produced the candidate. The research artifact
+is an independence test for rejection authorities, using withheld workloads,
+independently configured tools, human review protocols, or orthogonal checks.
+The test should measure whether the authority catches failure modes that the
+generating method cannot see and whether it resists being optimized around by
+the loop.
+
+4. **How should loops stress-test compromised evidence sources?**
+The trust checklist in @sec-evidence-disputes-and-the-trust-checklist audits a
+single claim, but the field also needs methodology for whole closed-loop
+systems under pressure. A useful stress-test harness would inject hidden
+workload drift, compromised baselines, stale tool versions,
+side-channel-sensitive metrics, or deceptive proxies into the design process.
+The report should state false commitment rates, escalation cost, and whether
+human rejection authority remains effective when the loop's evidence sources
+become unreliable.
+
+5. **How can confidential evidence remain auditable?**
+Architecture evidence often depends on proprietary workloads, physical design
+flows, internal baselines, or deployment data that cannot be shared directly.
+The contribution is an audit protocol that exposes fidelity, provenance,
+rejection, and commitment boundaries while redacting protected design state. It
+should state what a reviewer can verify, what remains private, and what kinds of
+claims are too dependent on confidential evidence to support public commitment.
+
 ## Conclusion
 
 This chapter asked how much an architect should believe a loop's AI-assisted
@@ -673,27 +761,17 @@ rejection authorities rather than a single tool, and why the fidelity ladder and
 evidence ledger exist at all. They let a claim carry, wherever it stops
 climbing, an honest account of what it has shown and what it still cannot.
 
-The durable move is to escalate with commitment. Cheap feedback screens,
-expensive feedback commits, and the loop should climb the fidelity ladder only
-as far as a decision's reversibility demands before stopping at an honest level,
-rather than dressing a proxy win as silicon-grade proof. A result that cannot
+The durable move is to escalate with commitment. Cheap feedback screens, and
+stronger feedback can support higher commitment, but only when the evidence
+ledger names the gate, the uncertainty, and the authority that can still say no.
+The loop should climb the fidelity ladder only as far as a decision's
+reversibility demands before stopping at an honest level, rather than dressing a
+proxy win as silicon-grade proof. A result that cannot
 name what would overturn it, or who holds the authority to reject it, has not yet
 met the bar this chapter sets, however plausible it looks.
 
-## Open Research Questions
-
-The mechanisms of trust and verification presented in this chapter establish a foundation, but turning them into robust, automated systems exposes several unsettled research directions.
-
-1. **Cryptographic and Formal Binding of Multi-Fidelity Evidence Ledgers.**
-Building on the frameworks of fidelity ladders and evidence ledgers (see the discussion on "Fidelity Ladders and Evidence Ledgers" in @sec-fidelity-ladders-and-evidence-ledgers) as well as commitment levels and reversibility (see the discussion on "Commitment Levels and Reversibility" in @sec-commitment-levels-and-reversibility), tracking provenance across fragmented simulators and proprietary physical design tools is currently an informal, error-prone process. A fundamental systems challenge is designing cryptographic or formally checked evidence ledgers that bind disparate multi-fidelity traces into a unified, auditable claim. Can we construct a verification architecture where an AI-generated architecture candidate carries, when available, checkable evidence for its performance, timing, and power, helping prevent the loop from exceeding its authorized commitment boundary even under adversarial or buggy toolchains?
-
-2. **Autonomous Detection and Mitigation of Proxy Exploitation.**
-As highlighted in the discussion on proxy mismatch, metric gaming, and calibration (see the discussion on "Proxy Mismatch, Metric Gaming, and Calibration" in @sec-proxy-mismatch-metric-gaming-and-calibration), AI-assisted generators can overfit and exploit the blind spots of cheap architectural proxies. Because identifying when a candidate drifts outside a simulator's calibrated support is largely manual, generative loops are fragile. A thesis-level challenge is to develop algorithms that dynamically map the epistemic uncertainty^[Epistemic uncertainty refers to uncertainty in a model's predictions caused by a lack of training data in that region, which can be reduced by gathering more data.] of architectural surrogates in high-dimensional design spaces, triggering high-fidelity checks, such as RTL synthesis, when proxy trust bounds are violated. How can we design compound AI agents^[Compound AI agents are systems composed of multiple interacting AI models, tools, and logical components working together to solve a complex task.] that co-optimize performance and calibration while making escalation likely before a loop commits to an adversarial proxy win?
-
-3. **Adversarial Red-Teaming^[Red-teaming in AI refers to proactively testing a system using adversarial techniques to identify vulnerabilities or unintended behaviors.] and the Quantification of Trust Machinery.**
-While the trust checklist for resolving evidence disputes (see the discussion on "Evidence Disputes and the Trust Checklist" in @sec-evidence-disputes-and-the-trust-checklist) shows how to audit a single claim, we lack the experimental methodology to measure the robustness of an entire closed-loop generative system. The community must establish adversarial environments that systematically inject hidden workload drift, compromised baselines, microarchitectural side-channels, and deceptive proxies into the design process. This seeds a new class of evaluation methodology. How do we quantitatively stress-test the trust machinery itself to measure false commitment rates, bound the cost of escalation, and formally verify the efficacy of human rejection authority at scale?
-
 ::: {.callout-carry-forward}
+- **Carry forward:** A claim is trustworthy only when you can name the evidence that would overturn it and the authority that can reject it.
 - **Reader test:** What evidence would overturn the AI model's result, and who or what has authority to reject it?
 - **Up next:** Once trust can be evaluated for an AI-assisted claim, the next step is to run a complete loop and inspect the residue it leaves behind.
 :::

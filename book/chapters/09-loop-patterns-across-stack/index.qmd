@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. For us, this is a reminder that there is no monolithic AI solution for the entire computing stack; instead, different layers—from compiler to RTL to SoC—require entirely different loop patterns.
+**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. For us, this is a reminder that there is no monolithic AI solution for the entire computing stack; different layers, from compiler to RTL to SoC, often need different feedback budgets, rejection gates, and commitment boundaries.
 :::
 
 ```{=latex}
@@ -19,9 +19,10 @@ How should the AI's role and the loop contract change as feedback gets more
 expensive and commitments get harder to reverse across the stack?
 :::
 
-The previous chapters built the components of an Architecture 2.0 loop, and
-@sec-running-the-loop ran one bounded turn of it on the lighthouse prompt. We have seen one loop turn. Now we will map the five-part execution state onto three vastly different timescales: Software-defined (milliseconds), RTL/Simulation (hours), and Fleet (months). If the framework only describes one
-kind of design-space-exploration loop,
+The previous chapter ran one bounded turn of the lighthouse prompt and showed
+the receipt it leaves behind. This chapter asks whether the same card can read
+other loops across the stack, from cheap software feedback to high-commitment
+physical evidence. If the framework only describes one kind of design-space-exploration loop,
 it is too narrow. If it describes everything in the same way, it is too vague.
 The useful middle ground is a set of loop patterns.
 
@@ -30,13 +31,13 @@ The useful middle ground is a set of loop patterns.
 > a characteristic feedback budget, evidence burden, rejection authority, and
 > commitment level.
 
-Workload characterization has one pattern. Fast compiler and runtime tuning
-has another. Accelerator, memory, interconnect, and chiplet exploration has
-another. Domain-specific architecture and code generation has another because
-local hardware efficiency only matters if the software path can reach it.
-Co-design across compute, memory, network, and power has another. Fleet and
-serving systems have another. RTL, physical design, and signoff have another.
-The ontology is the same, but the evidence burden changes.
+Workload characterization is one pattern. Fast compiler and runtime tuning is
+another, as are accelerator, memory, interconnect, and chiplet exploration;
+domain-specific architecture and code generation, because local hardware
+efficiency only matters if the software path can reach it; co-design across
+compute, memory, network, and power; fleet and serving systems; and RTL,
+physical design, and signoff. The ontology is the same, but the evidence burden
+changes.
 
 This distinction protects the book from two mistakes. The first mistake is to
 pretend that every architecture task can be automated like a fast software
@@ -68,8 +69,9 @@ lighthouse prompt remains the spine.
 When a separate benchmark, tool, or paper appears, it is used as a controlled
 slice of the prompt (workload coverage, code generation, architecture search,
 deployment feedback, or high-commitment physical evidence), not as a competing
-running example. The co-design pattern also carries the measured
-fleet-migration demonstration promised in @sec-running-the-loop.
+running example. This chapter also carries the measured deployment-facing
+fleet-migration example promised in @sec-running-the-loop; it is not presented as
+a measured hardware co-design loop.
 
 Keep one rule in view as the cases become more technical. A loop does not scale
 because it can produce more candidates. It scales when the card can name a cheap,
@@ -84,13 +86,13 @@ workload loops. They are different operating regimes for the same ontology.
 
 ![**Loop patterns share an ontology but not a commitment level:** Feedback latency, commitment cost, rejection authority, and acceptable autonomy change across loop patterns.](images/F10-loop-pattern-spectrum){#fig-loop-pattern-spectrum width="100%" fig-alt="Spectrum diagram comparing loop patterns across the stack by feedback latency, commitment cost, rejection authority, and acceptable autonomy."}
 
-The figure should be read horizontally, not as a maturity ladder. A fast
+The figure should be read horizontally. A fast
 software loop may allow more automation because feedback is cheap and rollback
 is easy. A silicon-facing loop may use the same ontology but demands stronger
 evidence, independent rejection, and a tighter commitment boundary.
 
-@tbl-loop-patterns provides the compact comparison across these regimes. The purpose is not to
-classify every paper perfectly. It is to force an Architecture 2.0 project to
+The compact comparison across these regimes (@tbl-loop-patterns) exists not to
+classify every paper perfectly, but to force an Architecture 2.0 project to
 name its operating regime before choosing methods or making trust claims.
 Read the method column as an agency contract: what an assistant, optimizer,
 critic, or repair tool may do before independent evidence or a human owner can
@@ -123,11 +125,12 @@ The rejection gate can also carry a blind spot that only scale reveals.
 ::: {.callout-field-note title="The cores that quietly did the math wrong"}
 At fleet scale, Google and Meta independently found that a small number of CPU cores silently miscompute, returning wrong results with no crash and no error flag, and that these mercurial cores slip through manufacturing test and surface only across millions of machines [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. Meta traced a real corruption to missing files from one bad core, at a rate on the order of one in a thousand devices. The gate everyone trusted, the manufacturing test, never covered a failure that is silent by definition, so nothing rejected it until scale made it visible.
 
-**Takeaway.** A rejection gate is only as good as the failure class it can see. At fleet scale the loop needs continuous, cross-checking rejection, because even the axiom every higher layer assumed, that the hardware computes correctly, is a claim that has to be verified.
+**Lesson:** A rejection gate is only as good as the failure class it can see. At fleet scale the loop needs continuous, cross-checking rejection, because even the axiom every higher layer assumed, that the hardware computes correctly, is a claim that has to be verified.
 :::
 
-For a new project, choose the loop pattern before choosing the method.
-@tbl-loop-pattern-decision outlines the decision procedure for mapping a bottleneck to its corresponding loop pattern.
+For a new project, choose the loop pattern before choosing the method, mapping
+the bottleneck to its loop pattern through the decision procedure in
+@tbl-loop-pattern-decision.
 
 | **If the bottleneck is...** | **Start with this loop pattern** | **First loop artifact or evidence ledger to build** | **Do not claim yet** |
 | --- | --- | --- | --- |
@@ -139,18 +142,22 @@ For a new project, choose the loop pattern before choosing the method.
 | Live or deployment-like behavior, SLOs, canaries, or drift. | Systems and fleet. | Guarded telemetry packet with rollback and policy constraints. | Clean causal evidence without controls. |
 | RTL, generators, physical design, signoff, or silicon-facing decisions. | RTL and physical. | Evidence ledger with tool-stage gates, waivers, and accountable review. | Autonomous commitment. |
 
-: Choose the loop pattern before choosing the method: The first loop artifact
+: **Choose the loop pattern before choosing the method:** The first loop artifact
 should match the bottleneck and prevent the loop from overclaiming beyond its
 evidence. {#tbl-loop-pattern-decision tbl-colwidths="[26,18,30,16]"}
 
 ## AI-Assisted Loop Postures
 
 Before traversing the stack layer by layer, it helps to classify AI-assisted architecture loops by structural shape. Despite operating on different parts of the stack, these loops share structural DNA, and they fall into three branches based on how the method interacts with the environment and the rejection authority:
-1. **The Surrogate Prediction Loop:** The loop structure where the AI’s job is to replace a brutally slow Environment (like a 3-day EDA physical design run or full-system simulation) with a fast, differentiable proxy. The failure mode here is *proxy mismatch*, where the surrogate's predictions diverge from the true physical constraints (such as predicting routing congestion, which is highly non-local and non-linear).
-2. **The Constrained Optimization Loop:** The loop structure where the AI acts as the agent exploring a massively complex state space, heavily governed by a strict Rejection Authority. The environment itself is usually too complex to fully map, so the agent (often using Reinforcement Learning^[A machine learning method where an agent learns to make decisions by performing actions and receiving rewards or penalties.]) must discover paths that clear physics or timing gates.
-3. **The Generator-Critic Repair Loop:** The loop structure where a weak generator (like an LLM^[Large Language Model, a neural network trained on vast amounts of text to understand and generate human-like language.]) proposes an artifact, fails a formal check, and uses the exact error trace as the next prompt. The rejection authority is absolute (e.g., a compiler or Verilator), and the loop iterates until the artifact parses or synthesizes correctly.
+1. **The Surrogate Prediction Loop:** The loop uses a fast proxy to approximate or triage expensive feedback, such as full-system simulation or physical-design exploration. The failure mode here is *proxy mismatch*, where the surrogate's predictions diverge from the relevant architecture or physical constraints.
+2. **The Constrained Optimization Loop:** The loop searches within legal actions under explicit rejection gates. Reinforcement learning[^fn-rl-environment-contract] or another optimizer may help explore the space, but the environment contract decides which paths are legal and which evidence can reject them.
+3. **The Generator-Critic Repair Loop:** A generator, such as an LLM[^fn-ml-llm-generator-critic], proposes a bounded artifact, a compiler, simulator, formal tool, or synthesis check rejects it, and the loop uses the error trace to repair the next candidate.
 
-The chapter now walks the stack layer by layer. Each loop pattern below is an instance of one or more of these three branches, so when a new result appears, the useful question is not only which layer of the stack it touches but which branch of the loop taxonomy it is.
+[^fn-rl-environment-contract]: In a constrained optimization loop, a reward signal can guide search only inside legal actions; the environment contract decides which moves are invalid and which evidence can reject a candidate.
+
+[^fn-ml-llm-generator-critic]: In this loop posture, the LLM is only the generator. The architecture value comes from the repair loop around it, where compiler, simulator, formal, or synthesis feedback rejects bounded artifacts and returns traces for the next attempt.
+
+The chapter now walks the stack layer by layer. Each loop pattern below is an instance of one or more of these three branches, though what follows is organized by position in the stack rather than by branch.
 
 ## Workload Characterization and Benchmark Construction
 
@@ -180,11 +187,14 @@ MLPerf is the standing example; @sec-design-loop-no-longer-scales treated it as
 maintained community infrastructure with versions, rules, and submission
 practices [@MattsonEtAl2020MLPerf]. The point to carry into a loop pattern is not another benchmark history. The
 loop-pattern lesson is that a benchmark is a living agreement about what evidence should
-count. In the ML domain, workload drift is hyper-aggressive (e.g., shifting from dense Transformers to Mixture-of-Experts^[A neural network architecture where different parts of the model (experts) are activated conditionally based on the input, increasing capacity without a proportional increase in compute.] in months). A static benchmark quickly becomes a liability; an Architecture 2.0 loop must constantly ingest new computational graphs and trace data. A workload loop should therefore record benchmark version, workload
+count. In active ML-serving domains, workload drift can be rapid, for example shifts from dense Transformers to Mixture-of-Experts[^fn-ml-moe-workload-drift] in months. A static benchmark can become a liability, so an Architecture 2.0 loop needs an explicit refresh path for new graphs, traces, and coverage claims. A workload loop should therefore record benchmark version, workload
 source, coverage claims, known gaps, leakage risks, and the conditions under
 which a result should not generalize.
 
-@tbl-workload-characterization-20 makes this reframe explicit, contrasting traditional tasks with their Architecture 2.0 equivalents. The
+[^fn-ml-moe-workload-drift]: The MoE point here is workload drift. A model-family shift can change communication, memory, and scheduling pressure fast enough that a static benchmark needs an explicit refresh path.
+
+The reframe becomes explicit when traditional tasks are set against their
+Architecture 2.0 equivalents (@tbl-workload-characterization-20). The
 left column is still necessary: representative workloads, profiles, benchmark
 construction, and performance comparison remain central to architecture. The
 right columns state what changes when an automated optimizer is allowed to act
@@ -203,11 +213,8 @@ leaky workload slice.
 
 : **Workload characterization becomes represented loop state:** Classic profiling and benchmark construction remain necessary, but an Architecture 2.0 loop must also record versions, provenance, coverage, rejection conditions, and failure traces. {#tbl-workload-characterization-20 tbl-colwidths="[20,26,25,20]"}
 
-The method roles in this loop are often not glamorous. A useful tool might
-cluster traces, generate candidate benchmark questions, identify missing
-coverage, compare workload versions, or critique whether a paper's workload
-supports its claim. Those roles are valuable because they improve the question
-the architecture loop is answering.
+The method roles in this loop are often not glamorous. Those roles are valuable
+because they improve the question the architecture loop is answering.
 
 Read as a loop card, the pattern is compact: the task is workload definition;
 the representation is versioned traces, metadata, and coverage notes; the
@@ -223,19 +230,19 @@ Moving from workload definition to code generation, fast software loops sit near
 flags, kernels, library implementations, runtime policies, configuration
 settings, and small code repairs can often be evaluated quickly and rolled
 back. Feedback may come from unit tests, microbenchmarks, integration tests,
-profilers, telemetry, or canary deployment.
+profilers, telemetry, or canary deployment[^fn-systems-canary-deployment].
 
-> **Canary deployment:** a controlled, partial rollout used to detect regressions before a system-wide release.
+[^fn-systems-canary-deployment]: A canary deployment is a controlled, partial rollout that exposes a change to a small slice of traffic to catch regressions before a system-wide release. It is one of the cheap, reversible rejectors that let a fast software loop iterate quickly, since a bad change can be caught and rolled back before it becomes a wider commitment.
 
 This is the regime where stronger automation is often plausible. Autotuning
-systems and learned tensor-program optimizers show how search spaces, cost
+systems and learned tensor-program optimizers[^fn-ml-tensor-program-optimizers] show how search spaces, cost
 models, measurements, and scheduling can be combined to improve software
 performance across targets
 [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. An Architecture 2.0 loop can
 learn from that pattern without pretending that all hardware design is equally
 reversible.
 
-> **Tensor-program optimizers:** methods that automate the search for efficient execution schedules of tensor operations on target hardware.
+[^fn-ml-tensor-program-optimizers]: Tensor-program optimizers automate the search for efficient execution schedules of tensor operations on a target, using cost models and on-device measurements to steer the search. They are a template a fast software loop can borrow, since their feedback is cheap enough to support aggressive automated search without treating every hardware decision as equally reversible.
 
 Kernel-generation benchmarks make the same point in a current form.
 KernelBench evaluates whether models can produce GPU kernels that are both
@@ -345,7 +352,7 @@ libraries and tools. The golden-age argument for specialization
 question. Which part of the domain is stable enough to specialize, and which
 part must remain programmable?
 
-Use Amdahl here as a loop-contract check, not as an architecture refresher. The
+Use Amdahl here as a loop-contract check. The
 represented state is end-to-end workload fraction and offload granularity, the
 legal action is a specialization/interface choice, and the rejection rule is
 that a local speedup fails unless measured interface and software overheads
@@ -537,15 +544,24 @@ a local speedup, and reject the AI's candidate until a compiler-generated,
 end-to-end measurement survives.
 :::
 
-### Progressive Lowering as the Architecture Loop
+**Progressive lowering as the architecture loop.** In some domain-specific or
+reconfigurable loops, the compiler is not merely a downstream rejection gate; it
+becomes part of the represented design state. The loop may co-evolve hardware
+constraints and lowering rules, but only within an explicit software contract
+and independent verification path.
 
-Treating the compiler merely as a "rejection gate"—a static wall the hardware bounces against—is an Architecture 1.0 mindset. In an Architecture 2.0 loop, the compiler is not a wall; it is the co-design engine. If the AI loop is exploring a reconfigurable spatial array or a custom vector accelerator, the instruction set is not static. The AI must synthesize the hardware *and* the compiler pass to target it simultaneously. The software contract isn't a fixed boundary; it is a co-optimized variable.
+This process is *Progressive Lowering*. When the loop proposes a custom compute
+unit, it may also propose Intermediate Representation (IR) dialects, lowering
+rules that map high-level math into them, and a hardware dialect using
+frameworks like CIRCT (Circuit IR Compilers and Tools) or MLIR. The rejection
+authority may include MLIR/CIRCT verifier checks, compiler legality checks,
+simulation, equivalence tests, and synthesis feedback. Passing the verifier is
+an early gate, not proof that the architecture is semantically or physically
+valid (see @lst-mlir-co-generation).
 
-This process is *Progressive Lowering*. When the AI agent decides to add a custom compute unit, it does not just output Verilog. It outputs *Intermediate Representation (IR) dialects*. It generates the new software dialect, the lowering rules to map high-level math into it, and the hardware dialect (using frameworks like CIRCT—Circuit IR Compilers and Tools—or MLIR) that implements it in silicon. The rejection authority is no longer just a simulator failing dynamically; it is the MLIR verifier proving statically that the lowering from software IR to hardware IR is semantically invalid (see @lst-mlir-co-generation).
-
-```mlir {#lst-mlir-co-generation lst-cap="**Co-generated hardware and software IR:** In an Architecture 2.0 loop the same step emits the hardware dialect and the lowering strategy that targets it."}
-// Architecture 2.0 AI Loop Output: Co-generated HW and SW
-// The agent writes the MLIR dialect and the lowering strategy simultaneously.
+```mlir {#lst-mlir-co-generation lst-cap="**Schematic co-generated hardware and software IR:** Pseudo-MLIR showing the loop record, not executable CIRCT/MLIR."}
+// Schematic Architecture 2.0 loop record: co-generated HW and SW.
+// The loop proposes a hardware dialect and lowering strategy for evaluation.
 
 // 1. The AI defines the hardware intent using CIRCT (Hardware IR)
 hw.module @CustomXR_SystolicArray(in %clk: i1, in %act: tensor<16x16xf16>, out %res: tensor<16x16xf16>) {
@@ -625,13 +641,11 @@ software feedback can become part of architecture evidence when the loop keeps
 the hardware target, code path, tests, performance counters, rejected variants,
 and decision owner tied together. Without that record, a strong generated
 kernel or library path may only prove that one software artifact matched one
-hardware snapshot.
-
-To manage this co-evolution, @fig-hardware-software-coevolution illustrates the rigorous loop discipline required to keep evidence aligned. Because the
-hardware side and software side may both change, so the evidence ledger must
-record the versions, measurements, failures, and rejected variants that connect
-them. Otherwise, the loop cannot say whether the architecture improved or only
-whether one generated path happened to work.
+hardware snapshot. Because the hardware side and software side may both change, the evidence ledger
+must record the versions, measurements, failures, and rejected variants that
+connect them (@fig-hardware-software-coevolution). Otherwise, the loop cannot say
+whether the architecture improved or only whether one generated path happened to
+work.
 
 ![**Hardware and software co-evolve through shared evidence:** Early architecture work often changes the hardware target and the software path at the same time. The loop becomes credible when the hardware snapshot, software artifact, tests, metrics, rejected variants, and decision owner are recorded together.](images/F10c-hardware-software-coevolution){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware target state and software path state evolving together through a shared evidence ledger, rejection gate, and architect decision path."}
 
@@ -640,8 +654,8 @@ this discipline [@ChristopherEtAl2025ISAMigration]. It is not a hardware
 co-design loop. The target ISA is fixed, and the loop repairs software to meet
 it. But moving a production fleet of core services onto a new instruction set is
 a fleet-scale software-repair loop in which tens of thousands of
-applications must follow, and it is the book's one measured exemplar; no measured
-cross-layer hardware co-design loop is offered. The reported effort analyzed more than 38,000
+applications must follow, and it is the book's measured deployment-facing
+exemplar; no measured cross-layer hardware co-design loop is offered. The reported effort analyzed more than 38,000
 migration commits and wrapped part of the software change in an AI-assisted
 build-and-test repair loop, accepting a candidate fix only when the build and
 the test suite pass, and letting a fleet monitor automatically evict jobs that
@@ -655,7 +669,7 @@ who know the code. The model behind the loop will age; the structure, a
 represented migration loop with instrument-held rejection authority and
 human-owned exceptions, is the part worth keeping.
 
-When read through the same card, the migration case is not primarily an Arm story; it is a loop-contract story. @tbl-isa-migration-loop-card summarizes the reusable fields that structure this contract.
+When read through the same card, the migration case is not primarily an Arm story but a loop-contract story, its reusable fields laid out in @tbl-isa-migration-loop-card.
 
 | **Card field** | **Migration reading** |
 | --- | --- |
@@ -666,7 +680,7 @@ When read through the same card, the migration case is not primarily an Arm stor
 | Cheap independent rejector | Build failures, test failures, sanitizer failures, crash loops, slow jobs, and monitor-triggered evictions. |
 | Commitment boundary | Automated repair can clear only the failures its instruments settle; application owners keep the exceptions. |
 
-: ISA migration as a loop card: The reusable lesson is the structure of the
+: **ISA migration as a loop card:** The reusable lesson is the structure of the
 migration loop, which requires represented state, independent rejection, preserved failures, and
 human-owned exceptions. {#tbl-isa-migration-loop-card tbl-colwidths="[24,66]"}
 
@@ -698,7 +712,7 @@ software actually survives the contract and what remains a human-owned
 exception.
 :::
 
-## Deployment-Facing Architecture Loops: Runtime, Serving, and Datacenter Policy
+## Deployment-Facing Loops
 
 Moving from design and migration to active operation, deployment-facing
 architecture loops evaluate architecture choices in deployed or deployment-like
@@ -717,7 +731,7 @@ provenance, canary labels, privacy filters, drift detectors, rollback triggers,
 and preserved failure traces define what the loop may trust.
 
 The design-loop card changes accordingly. The representation must include
-operational state, workload drift, service-level objectives, resource
+operational state, workload drift, service-level objectives[^fn-systems-slo], resource
 contention, customer or user constraints, and rollback mechanisms. The
 environment may be a simulator, test cluster, replay harness, staging system,
 or production system with guardrails. The method may adapt policy, detect
@@ -727,11 +741,13 @@ a scheduler weight, proposing a canary, changing an admission threshold, or
 selecting a replay cohort, and every action should name the telemetry feedback,
 rollback trigger, and human owner that can stop it.
 
-> **Service-level objectives (SLOs):** target values for system reliability and performance, commonly used to manage operational tradeoffs [@BeyerEtAl2016SRE].
+[^fn-systems-slo]: Service-level objectives (SLOs) are target values for system reliability and performance that teams use to manage operational tradeoffs [@BeyerEtAl2016SRE]. In a deployment-facing loop they act as an operational rejection authority, since a proposed policy change that would breach an SLO can be stopped before it commits.
 
 The rejection authority is often operational. A service-level objective, a
 canary guard, an alert, a safety policy, a privacy constraint, or a human
-operator can stop a rollout. Crucially, in a modern datacenter, this fleet-level rejection authority must tightly govern network congestion and tail latency SLAs, not merely average throughput or node-level power limits. This makes systems loops different from pure
+operator can stop a rollout. For datacenter-scale architecture claims, the
+rejection authority often has to include network congestion and tail-latency
+SLOs, not only average throughput or node-level power limits. This makes systems loops different from pure
 software loops. They may be reversible, but reversibility is not free. A bad
 policy can waste power, violate latency targets, create interference, or
 damage user experience before it is rolled back.
@@ -818,6 +834,14 @@ rules, signoff flows, integration review, and expert judgment. A candidate
 that fails here is not a near miss to be explained away. It is evidence that
 the loop must revise its representation, action space, method, or claim.
 
+::: {.callout-war-story title="Strong gates, none of them shared"}
+**The claim.** This regime has strong rejection authorities, and the AlphaChip story is not a case of missing gates. Both the original team and its critics had serious ones: synthesis, timing, power, layout rules, and expert review. Each side could reject a candidate inside its own flow with real authority [@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023AssessmentRL].
+
+**The gap.** What the field lacked was a rejection authority both sides accepted. A candidate that failed in the critics' flow was not evidence to the original authors, who could answer that the method had not been run as published, and a candidate that passed in the authors' flow was not evidence to the critics, who ran different baselines and test cases [@GoldieEtAl2024ThatChipHasSailed]. Strong private gates on both sides still could not settle a public claim, because rejection authority that is not shared cannot adjudicate a disagreement.
+
+**The lesson.** This is the war story at its highest commitment, a silicon-facing result where the gates were strong but not common, so the loop could not close in public. It is the high-commitment version of the missing field the book has been building toward, a shared way to release, replay, and reject an architectural claim.
+:::
+
 Read as a loop card, the task is bounded RTL, generator, or physical-design
 improvement; the representation is implementation state, constraints, tests,
 tool reports, waivers, and review decisions; the environment is a staged tool
@@ -833,11 +857,12 @@ the same reason. Architects instinctively treat a slow design loop as
 *generation-bound*, as if the fix were to propose more candidates faster. It is
 not. Just as a kernel can be memory-bound rather than compute-bound [@WilliamsWatermanPatterson2009Roofline], a design
 loop is *rejection-bound*. Its throughput is set by how fast trusted, independent
-rejection can be applied, not by how fast candidates can be produced. That reason
-can be written down. The interface speedup form
+rejection can be applied, not by how fast candidates can be produced. That is the
+compact limit this book has been building toward, the point where the preceding
+vocabulary becomes measurable rather than only descriptive. The interface speedup form
 used earlier for accelerators lifts cleanly from one block to the whole loop.
 There it priced the cost of reaching an accelerator. Lifted one level, it prices
-the cost of reaching a decision. The resulting bound measures the loop's speedup—how much useful
+the cost of reaching a decision. The resulting bound measures the loop's speedup, how much useful
 design progress the loop makes per commitment once the cost of trusted feedback
 is paid.
 
@@ -892,14 +917,19 @@ decided; the bound is honest only under a bounded rate of both errors, read at a
 fixed design quality so the comparison holds the answer fixed the way Amdahl's
 does.
 
+Software testing gives the intuition. A fast unit test that misses bugs later
+caught by integration tests cannot earn a cheap clear just because it is cheap,
+and a flaky test that discards good patches does not make the pipeline more
+reliable. Cheap architecture rejectors need the same calibration against
+stronger checks before their clears can count.
+
 The form is Amdahl's law as LogCA prices it
 [@Amdahl1967ValiditySingleProcessor; @AltafWood2017LogCA]. The cheap rejection
 authority's local speedup is just $c_{\mathrm{hi}}/c_{\mathrm{cheap}}$, so the
 middle term is exactly Amdahl's $f/s$, and escalation overhead plays the role
 the interface cost played for the accelerator. The form is borrowed and
-credited. It is a re-coordinatization of Amdahl's law, not a new law; what is new
-is what the variables name, what they rule out, and the protocol that would
-falsify them.
+credited. It is an Amdahl-like lens, not a new law. What is new is what the
+variables name, what they rule out, and the protocol that would falsify them.
 
 What they rule out is the thing most easily mistaken for progress. Candidate
 count does not appear in the bound. That much is nearly a tautology, since
@@ -926,13 +956,6 @@ because a generator that proposes only obviously-good or obviously-rejectable
 candidates makes the cheap check decisive more often. Either way, throughput moves
 through $f$, not through raw candidate count.
 
-A paper that tests the bound would need loop-turn traces, not only faster
-generators. Each candidate commitment would be labeled rejected, cleared, or
-escalated; cheap-check and high-fidelity costs would be measured; independence
-between generator and rejection authority would be tested; and false-pass or
-false-reject rates would bound the strongest claim the cheap authority can
-support. Without those labels, $f$ is only rhetoric.
-
 ::: {.callout-engineer-move title="Measuring the rejection bound"}
 To estimate $f$ for a real AI-assisted loop rather than assert it, fix a protocol before the run.
 
@@ -953,32 +976,27 @@ To estimate $f$ for a real AI-assisted loop rather than assert it, fix a protoco
 Without this protocol, $f$ is a story about the AI-assisted loop, not a measurement of it.
 :::
 
-Recognizing this fundamental limit reshapes our approach to scaling architectural exploration.
-
 ::: {#pri-rejection-bound .callout-design-principle title="The loop is rejection-bound, not generation-bound"}
-An AI-assisted design loop's throughput is bounded by its rejection capacity, not the AI's
-generation capacity. AI candidate count is absent from the bound. The loop speeds up
-only when a cheap, independent, trusted rejector discharges a larger fraction of
-AI-proposed commitments, when trusted feedback gets cheaper relative to high-fidelity
+For a fixed commitment target, an AI-assisted design loop's throughput is
+bounded by its rejection capacity, not the AI's generation capacity. AI
+candidate count is absent from the bound. The loop speeds up only when a cheap,
+independent, trusted rejector discharges a larger fraction of AI-proposed
+commitments, when trusted feedback gets cheaper relative to high-fidelity
 evidence, or when escalation gets cheaper. The loop scales as far as its
 cheapest independent rejector, and no further.
 :::
 
-Three readings follow, and each was argued qualitatively in an earlier chapter.
-First, generation is not the constraint. Cheap generation raises the candidate
-count, which the bound ignores, and it does not raise $f$. This is
-@sec-methods-generation-prediction-optimization restated as algebra, where a
-generated artifact is a proposal and the loop speeds up only when something can
-cheaply and independently reject it. Second, independence is load-bearing, not
-decorative. Only a rejector that does not share the generator's blind spots
-counts toward $f$. A cheap check coupled to the generator inflates the apparent
-$f$ while real escapes survive, which is the failure
-@sec-feedback-verification-trust warns against when a learned judge and a learned
-generator quietly become the same witness. The honest $f$ counts only what a
-cheap, independent, trusted instrument settles on its own. Third, $(1-f)$ is a floor. The
-commitments that only silicon, deployment, or a human can settle set a ceiling on
-loop throughput that no amount of cheap, abundant generation removes. It is
-Amdahl's serial fraction, written for the design loop.
+Three readings follow, each argued qualitatively in an earlier chapter. First,
+generation is not the constraint. Cheap generation raises the candidate count the
+bound ignores, not $f$, which is @sec-methods-generation-prediction-optimization
+restated as algebra. Second, independence is load-bearing, not decorative. Only a
+rejector that does not share the generator's blind spots counts toward $f$, so a
+cheap check coupled to the generator inflates the apparent $f$ while real escapes
+survive, the failure @sec-feedback-verification-trust warns against when a learned
+judge and a learned generator quietly become the same witness. Third, $(1-f)$ is a
+floor. The commitments that only silicon, deployment, or a human can settle set a
+ceiling that no amount of cheap, abundant generation removes. It is Amdahl's
+serial fraction, written for the design loop.
 
 The bound is not only a way to talk; its variables are estimable on a real loop.
 The fleet ISA migration earlier in this chapter gives one reading. Turned on the
@@ -1012,12 +1030,13 @@ rather than asserting it.
 
 ## What Transfers Across Loops
 
-Across all of these loops, the same ontology and the same bound transfer. Each
-loop has a task, a representation, an environment, method roles, feedback,
-evidence, rejection, and human decision. Each loop can preserve negative traces.
-Each loop can be reviewed with the design-loop card. Each loop can fail by hiding
-assumptions, optimizing a proxy, omitting provenance, or letting an output become
-a decision too early.
+Across the loop families in this chapter, the same ontology transfers, and the
+rejection-bound form gives a useful way to compare many of them. Each loop has a
+task, a representation, an environment, method roles, feedback, evidence,
+rejection, and human decision. Each loop can preserve negative traces. Each loop
+can be reviewed with the design-loop card. Each loop can fail by hiding
+assumptions, optimizing a proxy, omitting provenance, or letting an output
+become a decision too early.
 
 What changes is the operating regime, which the rejection-bound relation gives
 a compact way to name using the value of $f$, the cost ratio between cheap and
@@ -1034,51 +1053,71 @@ system-wide, shift the AI-assisted loop toward critique, evidence organization, 
 and human approval.
 :::
 
+## Open Research Questions
+
+The loop patterns outlined in this chapter define operating regimes across the
+stack. The questions here push beyond classification. They ask how evidence,
+rejection, and method posture survive when software, compilers, runtimes,
+hardware, and physical constraints interact.
+
+1. **What transfers safely across loop patterns?**
+The same ontology transfers across loops, but not every workload assumption,
+baseline, objective vector, or negative trace carries the same authority in a
+new regime. A strong research contribution would define transfer rules for
+loop artifacts and evaluate them across software tuning, design-space
+exploration, co-design, fleet systems, and silicon-facing loops. The evaluation
+should measure safe reuse and harmful transfer, not only whether an artifact can
+be parsed by another tool.
+
+2. **What error bounds make cheap cross-layer rejectors usable?**
+The rejection bound in @sec-the-rejection-bound makes cheap rejection
+authorities central to loop throughput, but the field needs to know when those
+authorities silently pass system-breaking bugs or discard good candidates. A
+top-tier systems paper could develop stress tests, bounded formal subsets, or
+calibrated empirical protocols that estimate false-pass and false-reject
+behavior for a named rejection authority. The result should state the maximum
+commitment that authority can support before a stronger check is required.
+
+3. **When should loops change posture across stack regimes?**
+Static method roles map to fixed loop patterns, but real loops may need to
+change posture as feedback cost, rollback cost, proxy mismatch, or blast radius
+changes. A major architecture or systems paper could demonstrate a controller
+that tracks false-pass rates and escalation overhead, then recommends shifting
+from generator to critic, from proxy screening to simulation, or from
+exploration to repair. The key evaluation is whether the controller improves
+loop outcomes while keeping posture changes inside human-defined bounds.
+
+4. **How can loops detect single-layer wins that fail system objectives?**
+Co-design loops are vulnerable to local improvements that violate a cross-layer
+objective, such as a compiler win that increases accelerator energy or a
+hardware shortcut that breaks runtime assumptions. A strong paper would build
+system-objective tests that catch these failures before a single-layer proxy
+becomes a claim. The evaluation should include examples where each layer looks
+locally better while the full system becomes worse.
+
+5. **How should loops track evidence half-life across co-evolving stacks?**
+Hardware targets, compiler intermediate representations, runtimes, and workload
+distributions co-evolve, so early evidence can decay before the architectural
+claim is used. A foundational contribution would define an evidence-transfer
+calculus that weakens or invalidates claims when dependencies drift. The
+evaluation could replay historical stack changes and ask whether the calculus
+catches stale or incompatible evidence before an optimizer composes it into a
+new claim.
+
 ## Conclusion
 
 This chapter asked how the AI's role and the loop contract should change as
 feedback gets more expensive and commitments get harder to reverse across the
-stack. The ontology holds everywhere. Every loop, from a millisecond software
-tuner to a months-long fleet decision, has a task, a representation, an
-environment, method roles, feedback, evidence, rejection, and a human decision,
-and every loop can fail the same ways, by hiding assumptions, optimizing a proxy,
-dropping provenance, or letting an output become a decision too early. What
-differs is the operating regime, not the anatomy.
+stack. Across these examples, the ontology holds from a millisecond software
+tuner to a months-long fleet decision. What differs is the operating regime, not
+the anatomy.
 
-That regime is what the rejection bound names compactly, through the cost ratio
-between cheap and high-fidelity feedback and the overhead of escalating. As
-feedback latency, reversibility, and the cost of being wrong rise, throughput
-stops being set by how fast candidates are generated and starts being set by how
-cheaply and confidently they can be rejected. The loop is rejection-bound, not
-generation-bound, and that is what makes the same framework read a fast compiler
-loop and an RTL signoff flow so differently.
-
-The consequence is a rule for autonomy. It is a property of the loop contract,
-not of the model. Let the optimizer act more freely only where feedback is
-cheap, rollback is easy, and an independent check can stop a bad action, and as
-commitments become expensive, irreversible, or system-wide, shift it toward
-critique, evidence organization, rejection, and human approval. Reading any real
-project then comes down to a few honest questions. Which loop pattern is this,
-what feedback can it afford, what can reject its result, and which decision must
-stay with the architect?
-
-## Open Research Questions
-
-The loop patterns outlined in this chapter define operating regimes, but operationalizing them across architecture research practice exposes several unsettled research directions within the Architecture 2.0 ontology. The following questions push beyond classifying loops to ask how their evidence and boundaries can be formalized at scale:
-
-1. **Can we formalize a cross-layer evidence ledger that is queryable within stated schemas and composable across tools?**
-Rather than simply constructing an evidence corpus, the challenge is establishing a formal semantic schema for negative traces and rejected variants that spans simulation, compilers, and physical-design tools. A strong PhD thesis here could define an open ledger format where a compiler-optimization agent can query the rejected chiplet-partitioning trials of a hardware agent to avoid repeating the same physical violations, reducing cross-loop data silos.
-
-2. **How can we mathematically or empirically certify the false-pass bounds of cheap rejection authorities?**
-As formalized by the concept of the rejection bound (see the discussion on "The Loop Is Rejection-Bound" in @sec-the-rejection-bound), an AI-assisted loop's throughput depends entirely on the fraction of commitments a cheap instrument can settle. A top-tier systems challenge is developing stress-testing methodologies or formal-verification subsets that certify exactly when a fast software loop or surrogate proxy will silently pass a system-breaking bug, bridging the gap between fast heuristics and high-commitment RTL signoff.
-
-3. **Can AI agents recommend posture changes based on real-time escalation cost and proxy mismatch?**
-While static method roles map to fixed loop patterns, the next leap is bounded meta-reasoning, models that monitor false-pass rates and feedback latencies to recommend posture changes, such as moving from generator to critic, under human-defined bounds. A major ASPLOS or ISCA paper could demonstrate a controller that continuously tracks the escalation overhead defined by the rejection bound (see the discussion on "The Loop Is Rejection-Bound" in @sec-the-rejection-bound), restricting the agent's action space as the fidelity of the environment or the cost of rollback changes.
-
-4. **Is it possible to formalize the causal decay of architectural evidence across co-evolving stack layers?**
-As hardware targets and compiler intermediate representations co-evolve, early performance evidence ages rapidly. A foundational research direction would introduce a formal evidence-transfer calculus that invalidates or degrades the confidence of an architectural claim when a downstream dependency, such as a workload distribution or a runtime policy, drifts, helping prevent generative optimizers from composing systems out of stale, incompatible evidence.
+Reading any real project comes down to a few honest questions. Which loop
+pattern is this, what feedback can it afford, what can reject its result, and
+which decision must stay with the architect?
 
 ::: {.callout-carry-forward}
+- **Carry forward:** Choose the loop pattern before the method, and match the rejection gate to the blast radius of the commitment.
 - **Reader test:** Which AI-assisted loop pattern are you in, and what cheap, independent check can actually reject the automated optimizer's result?
 - **Up next:** Once AI-assisted loop patterns can be compared, the next question is what the architect still owns across all of them when delegating to AI.
 :::

@@ -1,13 +1,13 @@
 # Method Roles: Generate, Predict, Optimize {#sec-methods-generation-prediction-optimization}
 
 ::: {.epigraph}
-> *"If you cannot measure it, you cannot improve it."*
+> *A method role is only useful when the loop can measure, reject, or bound its output.*
 >
-> — Lord Kelvin, *Popular Lectures and Addresses* (1891)
+> — Architecture 2.0
 :::
 
 ::: {.column-margin}
-**Author's Note:** Lord Kelvin, the pioneering British mathematician and physicist, emphasized that measurement is the prerequisite for improvement. For our purposes—whether using search, reinforcement learning, or optimization—this means that no AI method can work without a measurable objective function to provide a rigorous reward signal.
+**Author's Note:** Measurement is not enough, but observable feedback is the boundary between useful method roles and method claims that cannot be trusted. Search and reinforcement learning need measurable objectives or rewards; critique, repair, and explanation need evidence that can reject or bound their outputs.
 :::
 
 ```{=latex}
@@ -31,16 +31,21 @@ The distinction matters. A model that can generate plausible schedules,
 configuration files, code fragments, RTL snippets, or design prose may be
 useful for drafting alternatives, but weak for choosing among them. A
 surrogate may predict latency or energy well inside a calibrated accelerator
-design region, but fail outside the sampled space. Bayesian optimization^[A strategy for the global optimization of black-box functions that uses a probabilistic model to balance exploration and exploitation.] may
+design region, but fail outside the sampled space. Bayesian optimization[^fn-ml-bo-acquisition-policy] may
 spend scarce simulator or synthesis evaluations carefully, but only if the
-action space and objective are well formed. Reinforcement learning^[A machine learning paradigm where an agent learns to make sequential decisions by receiving rewards or penalties from its environment.] may be
+action space and objective are well formed. Reinforcement learning[^fn-rl-delayed-feedback] may be
 attractive for placement, scheduling, or adaptive control, but dangerous when
 invalid actions are common and feedback is delayed. A critic may be more
 valuable than a generator when the urgent problem is exposing missing workload
 evidence, not proposing more candidates.
 
+[^fn-ml-bo-acquisition-policy]: In this chapter, Bayesian optimization matters as the acquisition policy that chooses which scarce simulator or synthesis evaluation to spend next. Its value depends less on the method name than on a well-formed action space, objective, uncertainty model, and escalation rule.
+
+[^fn-rl-delayed-feedback]: For these method roles, the RL issue is delayed and invalid feedback. Placement, scheduling, and adaptive-control loops can make RL attractive, while illegal moves or late rewards make the loop's rejection gates decisive.
+
 Architecture 2.0 therefore treats methods as roles in a compound design
-system. These roles collapse into the classic components of a closed-loop controller, mapping directly to our five-part execution state:
+system. These roles can be read through a closed-loop-control lens and related
+to the five-part execution state:
 
 1. **Generators (Actuation):** Propose candidate implementations, hypotheses, or repairs (*actions allowed*).
 2. **Predictors (State Estimation):** Evaluate candidate properties, checking constraints and estimating performance (*state seen* and *evidence*).
@@ -50,8 +55,19 @@ To make these three core roles usable inside AI-assisted loops, the loop can
 expand them with five supporting roles: *critique* (finding flaws), *repair*
 (fixing broken artifacts), *verification* (independent sign-off),
 *explanation* (making decisions legible), and *coordination* (routing tasks).
+Here, verification is only a method-selection role; @sec-feedback-verification-trust
+treats verification more broadly as the rejection machinery that turns feedback
+into evidence.
 
-The unifying schema across these roles is the trust envelope: what state they can see, what boundaries they may push, and what evidence forces them to stop or escalate. The method question is therefore not "Which AI system is best?" It is "Which role is needed, what feedback can support it, and what evidence would make its output credible?"
+The unifying test across these roles is concrete. What state can the method see, what boundaries may it push, and what evidence forces it to stop or escalate? The method question is therefore not "Which AI system is best?" It is "Which role is needed, what feedback can support it, and what evidence would make its output credible?"
+
+Tensor-program autotuning gives a small version of this role split. AutoTVM and
+Ansor, two TVM tensor-program autotuners, generate candidate schedules, predict
+or rank promising regions, spend measured hardware feedback selectively, and
+reject candidates that fail correctness or performance checks
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The method is useful because the
+loop assigns roles and gates, not because search alone is an architectural
+claim.
 
 Machine learning for architecture did not begin with recent generative methods. Architecture has always relied on quantitative evaluation; a useful historical shorthand for ML's entry into the field is prediction, optimization, and generation. Prediction
 appears in regression models, learned surrogates, and calibrated performance
@@ -93,25 +109,24 @@ This is why environment work such as ArchGym, the worked example of
 comparisons meaningful by defining tasks, actions, observations, workloads,
 and feedback [@KrishnanEtAl2023ArchGym]. But even a shared environment
 does not decide which method role is appropriate. The role depends on what
-the loop is trying to accomplish.
-
-@fig-method-role-map establishes the chapter's working taxonomy of these roles. It demonstrates that a single
-architecture loop can concurrently host several distinct method archetypes—such as generators to propose novelty and predictors to estimate cost—but crucially, each role assumes a
-different claim and carries a different burden of evidence within the loop.
+the loop is trying to accomplish. A single architecture loop can concurrently host several distinct method
+archetypes, such as generators to propose novelty and predictors to estimate
+cost, but each role assumes a different claim and carries a different burden of
+evidence within the loop.
 
 ![**Method roles are useful only inside a represented loop:** Generation, prediction, optimization, critique, repair, verification, explanation, and coordination each need explicit state, feedback, and rejection.](images/F7-method-role-map){#fig-method-role-map width="100%" fig-alt="Role map showing generation, prediction, optimization, critique, repair, verification, explanation, and coordination as bounded method roles inside a represented architecture loop."}
 
-Read the figure as a role map, not as a claim that every loop needs every role.
-A loop can use generation for breadth, prediction for cheap ranking,
+Read @fig-method-role-map as a role map, not as a claim that every loop needs
+every role. A loop can use generation for breadth, prediction for cheap ranking,
 optimization for sample allocation, critique for missing assumptions, repair for
 invalid artifacts, verification for independent rejection, and explanation for
 reviewable evidence. Coordination is the routing role that keeps those actions
 attached to shared state and authority boundaries. The method selection question
 is which role the current loop can support with feedback.
 
-@tbl-method-role-discipline provides the checklist form of this map. Read each row as a
-rigorous review prompt: what is the specific role doing, what evidence supports its output, and what
-failure mode must the loop be prepared to reject? This checklist anchors AI capabilities to tangible architectural tasks.
+Read each row of @tbl-method-role-discipline as a rigorous review prompt: what
+is the specific role doing, what evidence supports its output, and what failure
+mode must the loop be prepared to reject?
 
 | **Role** | **Architecture use** | **Evidence needed** | **Failure mode** |
 | --- | --- | --- | --- |
@@ -125,11 +140,7 @@ failure mode must the loop be prepared to reject? This checklist anchors AI capa
 
 : **Each method role needs different evidence:** Generation, prediction, optimization, critique, repair, verification, explanation, and coordination make different claims and therefore require different rejection checks. {#tbl-method-role-discipline tbl-colwidths="[18,28,25,19]"}
 
-The discipline behind the table is simple. A method claim is incomplete until
-it names the architecture object being changed or estimated, the interface
-through which the action is legal, the feedback fidelity that supports the
-claim, the condition that can reject it, and the commitment level and decision
-owner the evidence can support.
+The discipline behind the table is simple.
 
 ::: {.callout-engineer-move title="State every AI method claim concretely"}
 Write the AI method claim as a sentence. This method's role acts on this architecture object
@@ -138,9 +149,9 @@ by this evidence, and supports only this commitment level owned by this named
 decision owner.
 :::
 
-@tbl-method-object-discipline gives concrete examples. The same
-method family can be reasonable or unreasonable depending on which object it
-touches and what can say no. A generator that proposes benchmark questions is
+The same method family can be reasonable or unreasonable depending on which
+object it touches and what can say no, as the concrete examples in
+@tbl-method-object-discipline show. A generator that proposes benchmark questions is
 different from one that proposes RTL. A predictor that ranks early simulator
 configurations is different from one that claims final power. An optimizer
 that chooses the next cheap proxy run is different from one that commits a
@@ -171,24 +182,25 @@ still be unaware of the architectural consequences of those terms.
 > **Hardware awareness.** In this chapter, hardware awareness means that a
 > method or AI-assisted system can represent hardware-relevant constraints, act within a valid
 > hardware/software design space, obtain feedback from appropriate tools or
-> measurements, and expose evidence that can reject its own output.
+> measurements, and expose evidence that makes its output rejectable by the loop.
 
 This definition matters because Architecture 2.0 methods will often generate
 or revise artifacts near the hardware/software boundary: kernels, compiler
 settings, accelerator configurations, RTL fragments, memory-system choices,
 placement constraints, or design reports. Hardware-aware neural architecture
-search already shows the value of putting latency, energy, memory footprint,
-and target-device cost into the search problem
+search[^fn-ml-nas], in the ML model-design sense rather than computer architecture proper,
+already shows the value of putting latency, energy, memory footprint, and
+target-device cost into the search problem
 [@BenmezianeEtAl2021HardwareAwareNAS]. Architecture 2.0 uses a broader
 version of the same discipline. The question is not whether an artifact sounds
 hardware-aware, but what level of hardware-aware action and evidence the loop
 can support.
 
-> **Neural architecture search (NAS):** In this chapter, a cautionary adjacent field where search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are recorded.
+[^fn-ml-nas]: Neural architecture search (NAS) automates the design of neural network architectures. This chapter treats it as a cautionary adjacent field, one whose search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are all recorded.
 
-@fig-hardware-awareness-ladder establishes the working capability map for evaluating these methods. The levels
-are cumulative as an assessment vocabulary, but they are not a claim that every
-system improves along one monotone axis. A tool wrapper may compile and profile
+The capability map for evaluating these methods, shown in
+@fig-hardware-awareness-ladder, stages the levels as a cumulative assessment
+vocabulary, not as a claim that every system improves along one monotone axis. A tool wrapper may compile and profile
 without having a strong performance model. A calibrated surrogate may estimate
 uncertainty without directly controlling a tool. The staging is useful because
 it forces the reader to ask which capability a method actually has, which
@@ -224,14 +236,13 @@ expert review must be able to reject it before performance claims matter.
 
 ![**Hardware awareness is a staged capability:** The assessment is not whether a method can mention hardware terms, but what it can safely change, what feedback supports the change, and what independent mechanism can reject it.](images/F7b-hardware-awareness-ladder){#fig-hardware-awareness-ladder width="100%" fig-alt="Stepped ladder of hardware awareness levels from vocabulary awareness to commitment-boundary awareness, with stronger evidence required at higher levels."}
 
-The ladder is deliberately behavioral. A method that only uses hardware words is
-at the vocabulary level. The assessment rises only when the loop can show valid
-actions, constraint handling, tool feedback, calibration evidence, and a clear
-architect-owned commitment boundary.
+The assessment rises only when the loop can show valid actions, constraint
+handling, tool feedback, calibration evidence, and a clear architect-owned
+commitment boundary.
 
-@tbl-hardware-awareness-assessment makes this assessment explicit.
-Each level should be judged by three concrete criteria: what the method is permitted to change, what feedback
-supports that change, and what authority can reject it. This provides a structural mechanism for auditing whether a method's claims match its actual capabilities.
+Each level should be judged by three concrete criteria, made explicit in
+@tbl-hardware-awareness-assessment: what the method is permitted to change, what
+feedback supports that change, and what authority can reject it.
 
 | **Capability** | **What it may change** | **Feedback needed** | **Rejection authority** |
 | --- | --- | --- | --- |
@@ -242,7 +253,7 @@ supports that change, and what authority can reject it. This provides a structur
 | Evidence and calibration | Confidence, evidence strength, and escalation recommendations. | Multi-fidelity comparison, uncertainty, provenance, and negative traces. | Proxy mismatch, weak provenance, or fidelity failure. |
 | Commitment boundary | Recommend, explain, or escalate within stated limits. | Evidence ledger, rollback cost, risk, and review context. | Human architect or independent verification refuses commitment. |
 
-: **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and reject its own output. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
+: **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and make its output rejectable by the loop. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
 
 However, the previous table is still too abstract unless each level has a falsifiable test.
 @tbl-hardware-awareness-tests provides a practical reviewer version. A method should not
@@ -258,7 +269,7 @@ the current loop. This ensures that hardware awareness remains an empirical prop
 | Evidence and calibration | Can it explain why one feedback source is strong enough for one claim and too weak for another? | Fidelity labels, proxy-mismatch examples, and escalation thresholds. |
 | Commitment boundary | Can it recommend or escalate without pretending to own the decision? | A shareable evidence ledger, review note, residual risk, and named decision owner. |
 
-: A hardware-awareness claim should be falsifiable: Reviewers should ask for
+: **A hardware-awareness claim should be falsifiable:** Reviewers should ask for
 observable tests, not only fluent hardware language. {#tbl-hardware-awareness-tests tbl-colwidths="[20,38,32]"}
 
 The level label is not the claim. The claim is the method-role view the loop
@@ -297,9 +308,10 @@ well formed. A generated RTL fragment that is syntactically valid might still
 fail to route or close timing during physical design. The loop still needs
 validity checks, tool execution, evidence, rejected alternatives, and human decision.
 
-A generated RTL fragment, parameter set, or benchmark question is a proposal.
-Generation earns its place only when it feeds a loop that can test, reject,
-compare, and revise. Furthermore, candidate generation extends beyond writing direct code; for hardware, searching the High-Level Synthesis (HLS) pragma space or mutating programmatic generator source code (e.g., Chisel/Scala templates) is often a richer, more verifiable generative target than static configuration sweeps or raw RTL synthesis. Similarly, for spatial architectures (like tensor accelerators), the AI loop must explicitly manipulate *dataflow*—the spatial and temporal unrolling of operations—as a primary structural contract, not just a scalar hyperparameter.
+Candidate generation also extends beyond writing direct code. For spatial
+architectures such as tensor accelerators, the AI loop must explicitly
+manipulate *dataflow*, the spatial and temporal unrolling of operations, as a
+primary structural contract rather than a scalar hyperparameter.
 
 ::: {.callout-failure-mode title="Treating AI generation as design"}
 It is tempting to treat a fluent AI-generated artifact, an RTL fragment, a config,
@@ -354,7 +366,7 @@ authority to reject.
 ## Prediction: Estimating Behavior Before Full Evaluation {#sec-prediction-estimating-behavior-before-full-evaluation}
 
 While generation supplies candidate breadth, prediction is central because architecture feedback is expensive. Long before
-recent foundation models^[Large-scale machine learning models trained on vast quantities of data that can be adapted to a wide range of downstream tasks.], architects used statistical and machine-learning
+recent foundation models[^fn-ml-foundation-models], architects used statistical and machine-learning
 models to reduce the cost of exploring large design spaces. Regression models
 for microarchitectural performance and power, and predictive modeling for
 large architectural design spaces, are part of this lineage
@@ -362,6 +374,8 @@ large architectural design spaces, are part of this lineage
 Architecture 2.0 uses that lineage only when the predictor exposes what an
 agentic loop needs: the support region, uncertainty, calibration source,
 escalation trigger, and decision owner.
+
+[^fn-ml-foundation-models]: Recent foundation models changed expectations about prediction, but architecture's regression models and learned surrogates for design-space exploration predate them; the loop should preserve that older calibration discipline.
 
 The prediction role is not limited to performance. A predictor might estimate
 energy, area, latency, reliability, queueing behavior, memory traffic,
@@ -373,26 +387,28 @@ without accounting for logic synthesis, place-and-route congestion, or timing
 closure often leads to severe proxy mismatches. Therefore, in an agentic loop,
 a predictor is not an oracle; it is a quantitative gate that decides
 whether the system may prune, defer, escalate, or ask for stronger feedback.
-
 Some of these targets are harder to pin down than others. A single-kernel
 latency can be a fairly clean estimate, while deployment impact compounds power,
 thermal behavior, and reliability over the life of a design, so it resists any
 single-point prediction.
 
 The key requirement is uncertainty. A point estimate is useful only if the
-loop understands where it is valid. Has the predictor seen similar workload
-regions? Does it extrapolate across a new memory behavior, vector width, or
-technology assumption? Does it report confidence? Is it calibrated against a
-higher-fidelity source? Does it preserve enough provenance to explain why a
-candidate was trusted?
+loop understands where it is valid. The predictor must show whether it has seen
+similar workload regions, whether it extrapolates across a new memory behavior,
+vector width, or technology assumption, whether it reports confidence, whether
+it is calibrated against a higher-fidelity source, and whether it preserves
+enough provenance to explain why a candidate was trusted.
 
 There is a rigorous way to make this concrete when the assumptions are
-appropriate. Conformal prediction^[A statistical technique that provides rigorous, distribution-free uncertainty bands for model predictions.] can wrap a surrogate, regardless of its
-internals, so that it emits calibrated prediction sets, intervals that contain
-the true value with a user-chosen probability under an exchangeability
-assumption [@AngelopoulosBates2021Conformal]. Architecture loops must audit
-that assumption because workloads, tools, and process corners are often not
-exchangeable. Still, the pattern is useful. It converts "report confidence"
+appropriate. Conformal prediction[^fn-stats-conformal-prediction] can wrap a surrogate so
+that it emits calibrated prediction sets, intervals with marginal coverage at a
+user-chosen probability under an exchangeability
+assumption[^fn-stats-exchangeability] and a valid calibration
+set/nonconformity score [@AngelopoulosBates2021Conformal]. Architecture loops
+must audit those assumptions because workloads, tools, and process corners are
+often not exchangeable. The guarantee is marginal, not a promise of conditional
+coverage in every workload region or design-space pocket. Still, the pattern is
+useful. It converts "report confidence"
 from a slogan into an operation. The predictor writes an interval, calibration
 receipt, and support-region label into the loop state; the environment may use
 that record only to prune, escalate, or defer, not to make an unowned
@@ -403,7 +419,9 @@ depends on the calibration assumption being meaningful; under distribution
 shift, the interval is a diagnostic that should trigger scrutiny rather than a
 promise that the proxy is safe.
 
-> **Exchangeability:** A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).
+[^fn-stats-conformal-prediction]: Conformal prediction is a statistical technique that wraps any model to produce prediction sets or intervals with finite-sample coverage guarantees under an exchangeability assumption. Here it turns a surrogate's point estimate into a calibrated interval the loop can act on, and only to prune, defer, or escalate, not to make an unowned commitment.
+
+[^fn-stats-exchangeability]: Exchangeability is a statistical property where the joint distribution of a sequence of random variables is invariant to their permutation, a weaker assumption than being independent and identically distributed (i.i.d.). The chapter stresses it because architecture workloads, tools, and process corners are often not exchangeable, so the conformal interval must be audited rather than trusted.
 
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
@@ -415,13 +433,13 @@ stronger the calibration and fidelity requirement.
 ## Optimization: Learning the Design Space
 
 Once candidates are generated and their behavior predicted, the loop must decide what to evaluate next. Optimization is often framed as search, finding the best point under an
-objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are typically discrete, non-differentiable, and highly constrained. This makes gradient descent impossible and rewards methods that handle sparse, expensive feedback. The useful goal is to
+objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are often discrete, non-differentiable, and highly constrained. This makes plain gradient descent a poor default and rewards methods that handle sparse, expensive feedback and hard validity constraints. The useful goal is to
 learn the design space well enough to make a defensible decision under
-limited feedback. That may mean finding a Pareto region, identifying a
+limited feedback. That may mean finding a Pareto region[^fn-math-pareto-region], identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
 candidates, or deciding which expensive experiment is worth running next.
 
-> **Pareto region:** The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.
+[^fn-math-pareto-region]: A Pareto region is the set of solutions in a multi-objective design space where no single objective can be improved without degrading at least one other. The chapter names it as one defensible target for architecture optimization under limited feedback, alongside a constraint boundary or a ruled-out class of candidates, rather than collapsing the search to a single best point.
 
 Optimization methods are useful here when they make the loop's sampling policy
 representable and rejectable. Bayesian optimization is attractive for
@@ -442,37 +460,51 @@ Reinforcement learning is attractive when the problem is sequential: placement
 decisions, scheduling policies, adaptive control, or multi-stage design flows.
 The chip-floorplanning literature gives a prominent, and contested, example of
 posing a chip design subproblem as a learning problem
-[@MirhoseiniEtAl2021GraphPlacement]. @sec-feedback-verification-trust discusses
-the later baseline and reproducibility challenge. The important lesson for this
+[@MirhoseiniEtAl2021GraphPlacement]. @sec-feedback-verification-trust returns to
+the trust consequences; here the same dispute tests method selection against
+baseline discipline. The important lesson for this
 chapter is not that every architecture task should become RL. It is that method
 choice depends on state, action, transition, feedback, and commitment structure.
 
 A narrower example shows what happens when the design space is bounded tightly
-enough that the environment can supply real rejection authority. PrefixRL casts the design of parallel-prefix
+enough that the environment can supply clearer rejection authority. PrefixRL casts the design of parallel-prefix
 arithmetic circuits, such as adders, as a reinforcement-learning problem with
 logic synthesis in the loop, so every proposed circuit is scored by an actual
 synthesis run rather than a hand-built proxy [@RoyEtAl2021PrefixRL]. The
-important receipt is that each candidate was a bounded circuit object,
-evaluated by a synthesis-backed environment, and rejected or advanced by
-evidence stronger than a hand-built proxy.
-The contrast with the placement dispute is the lesson, not the leaderboard. The
-same method family is contested when its reward is a fast proxy and defensible
-when a bounded action space lets a high-fidelity instrument reject every
-candidate. Method choice is inseparable from what the environment can verify.
+important receipt is narrower than a leaderboard. Each candidate was a bounded
+circuit object, evaluated by a synthesis-backed environment, and advanced or
+rejected by scoped evidence stronger than a hand-built proxy.
+The contrast with the placement dispute is the lesson. The same method family is
+harder to interpret when its reward is a fast proxy and easier to interpret when
+a bounded action space lets a higher-fidelity instrument reject each candidate.
+Method choice is inseparable from what the environment can verify.
 
-Autotuning and compiler optimization provide another useful precedent. For example, deep reinforcement learning has been successfully applied to discover faster sorting algorithms from assembly instructions [@MankowitzEtAl2023AlphaDev] and to navigate complex high-level synthesis phase orderings [@HajAliEtAl2020AutoPhase]. General
+::: {.callout-war-story title="A simpler baseline kept up"}
+**The claim.** AlphaChip is remembered as the reinforcement-learning result, and the learning is the part that drew the attention.
+
+**The gap.** The point this chapter needs is quieter. When independent researchers reran the comparison, a strong simulated-annealing baseline, a classical optimizer with no learning at all, matched or beat the learned method on its own proxy cost across most modern test cases [@ChengEtAl2023AssessmentRL]. That does not make reinforcement learning the wrong tool for sequential placement, but it means the learned method's advantage over a well-tuned classical baseline could not be shown in that public evaluation.
+
+**The lesson.** A method should be chosen for the loop bottleneck it relieves, not for how modern it sounds. A learned policy earns its added complexity only when the environment can verify it beats a simpler, well-tuned baseline. When it cannot, the honest move is to prefer that baseline for the public claim, or to narrow the learned-method claim until higher-fidelity evidence can adjudicate it.
+:::
+
+The same baseline discipline appears in autotuning and compiler optimization.
+For example, deep reinforcement learning has been successfully applied to
+discover faster sorting algorithms from assembly instructions
+[@MankowitzEtAl2023AlphaDev] and to navigate complex high-level synthesis phase
+orderings [@HajAliEtAl2020AutoPhase]. General
 program-autotuning frameworks such as OpenTuner [@AnselEtAl2014OpenTuner], and
 tensor-program optimizers such as AutoTVM and Ansor, share a loop structure
 worth naming: a learned cost model proposes promising candidates, the loop
 compiles and measures the strongest of them on real hardware, and those
 measurements correct the cost model for the next round
-[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. That is an active-learning loop
-running in production. The cheap proxy is never trusted alone, because
-high-fidelity feedback continually re-grounds it. These systems are not
-identical to microarchitecture design, but they are lighthouse facets rather
-than unrelated detours. Floorplanning stresses high-commitment physical feedback; autotuning
-stresses the compiler/runtime path that makes specialization usable. Both
-illustrate a durable pattern. A method is
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The cheap proxy is never trusted
+alone, because measured hardware feedback continually re-grounds it. These
+systems are not microarchitecture design claims. They are useful boundary cases
+because they exercise the compiler/runtime path: legal schedules, measured
+hardware feedback, cost-model updates, failed variants, and a clear limit on
+what those measurements prove. Floorplanning stresses high-commitment physical
+feedback; autotuning stresses the compiler/runtime path that makes
+specialization usable. Both illustrate a durable pattern. A method is
 powerful when it is embedded in an environment that exposes legal actions,
 measures feedback, updates a cost model, and records results.
 For Architecture 2.0, the transferable pattern is the record: candidate
@@ -490,23 +522,21 @@ number without improving architectural understanding.
 ## Sample Efficiency Under Expensive Feedback {#sec-sample-efficiency-under-expensive-feedback}
 
 Whether an optimizer spends its scarce high-fidelity evaluations carefully is
-itself the problem of sample efficiency, which is one of the reasons architecture is a hard AI domain.
+itself the problem of sample efficiency[^fn-ml-sample-efficiency], which is one of the reasons architecture is a hard AI domain.
 Many AI settings assume abundant feedback. Architecture often has the
 opposite shape: a small number of high-fidelity runs, a larger number of
 medium-fidelity simulations, many cheap proxies, and a long tail of hidden
 costs such as expert review, tool setup, debugging, and license availability.
 
-> **Sample efficiency:** In this chapter, the amount of decision-relevant evidence a loop gains per scarce feedback event, including failed runs and expert rejections, not just successful simulations.
+[^fn-ml-sample-efficiency]: In this chapter, sample efficiency is the amount of decision-relevant evidence a loop gains per scarce feedback event, counting failed runs and expert rejections, not just successful simulations. Framing it this way makes it a method-selection criterion, since the loop should spend feedback where decision value per unit cost is highest rather than maximize the raw number of runs.
 
-@fig-evidence-gap visualizes this fundamental mismatch on a logarithmic count scale, juxtaposing the combinatorial explosion of architecture design spaces against the severe constraints of real-world sample budgets. The upper
+The combinatorial explosion of architecture design spaces dwarfs the severe constraints of real-world sample budgets, a scale-pressure mismatch @fig-evidence-gap plots on a logarithmic count scale. The upper
 rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the
 12,960-state slice computed there, the accelerator DSE scale of MAESTRO, an analytic model for
 evaluating DNN dataflows, AutoTVM-style operator tuning spaces, and the core
 mapspace expression of Timeloop, a mapping and evaluation framework
 [@KwonEtAl2019MAESTRO; @ChenEtAl2018AutoTVM; @ParasharEtAl2019Timeloop]. The
-lower rows reuse the representative feedback budgets from @sec-architecture-environments-tool-interfaces. These
-counts are not identical scientific quantities. The point is the scale
-mismatch. High-fidelity architecture evidence can touch only a tiny slice of
+lower rows reuse the representative feedback budgets from @sec-architecture-environments-tool-interfaces. This is not a direct quantitative comparison between identical scientific quantities. It is scale intuition. High-fidelity architecture evidence can touch only a tiny slice of
 the plausible candidate space, so methods must decide what can be screened by
 proxies, what should be escalated, and what rejected regions must be recorded.
 
@@ -573,13 +603,13 @@ coverage, or evidence strength produced by that sample. Neither term is
 directly measurable; the relation is a way to rank candidate experiments by
 what they would resolve, not a number to compute and literally optimize.
 
-This heuristic has a rigorous counterpart. Bayesian optimization makes the
+This heuristic has a formal analogue in idealized settings. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
 each candidate next-sample) over a surrogate's posterior (its current
-probability estimate over outcomes), and GP-UCB^[An acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model.] (Gaussian Process Upper
-Confidence Bound) gives that choice a no-regret guarantee under stated
-assumptions, so the loop can defend why it sampled where it did rather than
-appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian^[An extension of Bayesian optimization that jointly selects which design to evaluate and at which level of fidelity, optimizing the tradeoff between information gain and computational cost.]
+probability estimate over outcomes), and GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper
+Confidence Bound) gives that choice a no-regret guarantee[^fn-ml-no-regret] under stated
+kernel, smoothness, and noise assumptions, so the loop can defend why it sampled where it did rather than
+appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian[^fn-ml-multi-fidelity-bo]
 optimization goes one step further and treats the fidelity level itself as a
 decision variable. It chooses not only which candidate to evaluate but whether
 to spend a cheap proxy or an expensive simulation on it, exactly the choice the
@@ -590,19 +620,23 @@ what threshold forced escalation. The loop still has to record the acquisition
 rule, fidelity choice, assumptions, rejected alternatives, and escalation
 threshold, or the optimizer becomes another opaque source of candidates.
 
-> **No-regret guarantee:** In this chapter, a formal promise about a sampling rule under stated assumptions; useful only when the loop records whether those assumptions apply.
+[^fn-ml-gp-ucb]: GP-UCB (Gaussian Process Upper Confidence Bound) is an acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model. Its value here is that the acquisition rule is auditable rather than ad hoc. The loop can record why uncertainty made a sample worth spending, then check the assumptions separately.
+
+[^fn-ml-multi-fidelity-bo]: Multi-fidelity Bayesian optimization jointly chooses which design to evaluate and at which fidelity level, trading information gain against cost. That is exactly the fidelity-ladder decision this section poses, whether to spend a cheap proxy or an expensive simulation on a candidate.
+
+[^fn-ml-no-regret]: In this chapter, a no-regret guarantee is a formal promise about a sampling rule under stated assumptions, such as a suitable kernel, bounded noise, and smoothness of the objective. It is useful only when the loop records whether those assumptions actually apply. It is what lets GP-UCB justify where the loop spent its scarce feedback rather than treating the choice as intuition.
 
 > **Fidelity ladder.** A fidelity ladder is the ordered set of feedback levels
 > a loop can climb, from cheap proxies through simulation, synthesis, physical
 > feedback, deployment, or silicon evidence, with higher levels usually costing
 > more but carrying stronger rejection authority.
 
-@tbl-sample-efficiency-regimes provides a simple way to conceptualize
-these operational regimes. The numbers are illustrative, not prescriptions. The core point is
+These operational regimes, laid out in @tbl-sample-efficiency-regimes, use
+illustrative numbers rather than prescriptions. The core point is
 that method choice must change fundamentally when feedback is measured in milliseconds,
 minutes, hours, weeks, or silicon cycles.
-The fidelity ladder is therefore a budget discipline: cheap levels buy breadth,
-and expensive levels buy rejection authority. Methods that ignore this distinction will either exhaust the budget or produce unverified claims.
+The fidelity ladder is therefore a budget discipline in which cheap levels buy
+breadth and expensive levels buy rejection authority. Methods that ignore this distinction will either exhaust the budget or produce unverified claims.
 
 | **Regime** | **Typical setting** | **Method implication** | **Evidence discipline** |
 | --- | --- | --- | --- |
@@ -618,7 +652,7 @@ Overfitting the cheap metric is not a hypothetical, and an adjacent field watche
 ::: {.callout-field-note title="The predictor that tracked winter, not flu"}
 Google Flu Trends estimated influenza prevalence from search queries and, for a time, tracked the official surveillance data closely. Then it drifted, over-predicting flu in 100 of 108 weeks, because the cheap proxy had quietly learned a seasonal winter signal rather than a flu signal, and Google's own changing search algorithm moved the ground under it [@LazerEtAl2014ParableFlu]. The proxy was never re-checked against the higher-fidelity surveillance data often enough to catch the drift before it was trusted.
 
-**Takeaway.** A cheap predictor is only as good as the proxy it optimizes, and a proxy that is never re-validated against the stronger signal will keep scoring well long after it has stopped measuring the thing you care about.
+**Lesson:** In an AI-assisted loop, a cheap predictor is only as good as the proxy it optimizes, and a proxy that is never re-validated against the stronger signal will keep scoring well long after it has stopped measuring the thing you care about.
 :::
 
 This is where negative traces matter. Failed simulations, invalid candidates,
@@ -664,10 +698,9 @@ claims are rejected safely.
 Repair is the constructive side of critique. A method can propose a corrected
 configuration, fix a malformed constraint or tool-syntax error, patch a test
 bench, regenerate a plot with the right workload metadata, or produce a clearer
-design-loop card. Repair addresses malformed artifacts; it must not relax a
-timing, power, interface, or signoff constraint the design actually violates,
-because that constraint is a rejection authority, not a broken input. Loosening
-one requires explicit architect review and a recorded waiver. Explanation then
+design-loop card. Repair addresses malformed artifacts. A timing, power,
+interface, or signoff constraint the design actually violates is a rejection
+authority, not a broken input. Explanation then
 becomes the interface to the architect: why a candidate was rejected, why
 evidence is insufficient, or why one region of the space is worth more expensive
 evaluation.
@@ -688,9 +721,9 @@ read and write? What environment does it act in? What feedback can it afford?
 What evidence would support its output? What can reject it? What happens if
 it is wrong?
 
-@tbl-method-selection-matrix provides a compact decision matrix for navigating these tradeoffs. It is
-not meant to produce an automatic answer, but rather to prevent method
-selection from being driven by algorithmic fashion. Each question forces the architect to confront the structural realities of their specific loop.
+The decision matrix in @tbl-method-selection-matrix is not meant to produce an
+automatic answer, but to prevent method selection from being driven by
+algorithmic fashion. Each question forces the architect to confront the structural realities of their specific loop.
 
 | **Question** | **If the answer is favorable** | **If the answer is unfavorable** |
 | --- | --- | --- |
@@ -755,18 +788,59 @@ explanation, and coordination are different jobs with different evidence
 standards; a method earns trust only through the role the loop needs.
 :::
 
-## Why No Single Algorithm Wins
+## Open Research Questions
 
-Architecture 2.0 should not age around one algorithm family. The field will
-continue to change: models will improve, automation frameworks will change, tools
-will expose new interfaces, and benchmarks will evolve. A durable book
-should therefore encourage method discipline rather than method fashion.
+The discipline of assigning roles to AI methods exposes several unsettled
+research directions. At this point in the progression, the question is not
+whether a model can generate, predict, or optimize in isolation. The research
+problem is whether a method performs its assigned role inside a bounded,
+evidence-constrained architecture loop.
 
-The stable idea is that methods earn trust by their role in the loop. They
-must match the task, representation, environment, feedback budget, fidelity
-ladder, evidence standard, and commitment level. They should preserve negative
-traces, expose uncertainty, and make rejection possible. They should help
-architects learn the design space, not merely search it harder.
+1. **What role contracts keep AI methods from becoming decision makers?**
+The decision matrix for method selection in
+@sec-choosing-a-method-under-constraints assigns generators, predictors,
+critics, and optimizers to different obligations, but runtime enforcement
+remains weak. The useful artifact is a role-contract language plus a monitor
+that detects when a method silently escalates its authority, such as a predictor
+acting as a decision maker. Public loop traces or synthetic environments should
+measure role-violation detection, false alarms, and the cost of preserving the
+commitment boundary.
+
+2. **How should loops spend scarce feedback across method roles?**
+Generation, prediction, critique, repair, and optimization all consume
+feedback, but they do not consume it with the same value. The core problem is a
+feedback-allocation model across method roles under simulator-hour, validation,
+latency, and human-review budgets. The model should show when a loop should
+generate another candidate, refine a predictor, ask a critic to search for
+missing evidence, or escalate to stronger feedback. The decision-value framing
+in @sec-sample-efficiency-under-expensive-feedback supplies the budget model.
+
+3. **How can optimizers use negative traces without losing fidelity labels?**
+Sample efficiency under expensive feedback depends on learning from a mixture
+of cheap warnings, proxy mismatches, synthesis timeouts, and rare high-fidelity
+failures. A thesis-level paper would introduce acquisition functions or
+training objectives that ingest heterogeneous negative traces while preserving
+their fidelity labels. The result should be tested on a design-space
+exploration task where the method improves sample efficiency without allowing
+cheap negative evidence to masquerade as high-fidelity rejection.
+
+4. **What bounded rejection suites test hardware-aware generators?**
+The architecture community lacks standardized adversarial tests designed to
+falsify unsupported predictions or trap invalid generative actions. The right
+target is not a definitive oracle for all hardware awareness. A bounded
+rejection suite for a named environment should state the maximum commitment that
+passing the suite can authorize. It should include intentionally invalid
+candidates, near-miss candidates, and valid candidates, so false-pass and
+false-reject behavior is visible.
+
+5. **When should a loop hand off between method roles?**
+The method role that is useful at the start of a loop may become the wrong one
+after uncertainty changes. A compelling thesis direction is a controller that
+hands off among generation, prediction, critique, repair, and optimization
+based on feedback cost, uncertainty, and commitment level. The paper should
+report whether the controller improves evidence use under a fixed budget while
+obeying the role contracts and commitment boundaries defined earlier in the
+chapter.
 
 ## Conclusion
 
@@ -788,22 +862,11 @@ evidence, spends the budget and buys nothing.
 This is why no single algorithm wins, and why the chapter argues for method
 discipline over method fashion. Models and frameworks will keep changing, but the
 durable rule holds. Match the method to the role, and let the loop, not the
-algorithm, be the thing that has to stay credible.
-
-## Open Research Questions
-
-The discipline of assigning specific roles to AI methods exposes several unsettled research directions. Resolving these challenges will require moving beyond static benchmarks to evaluate how AI-assisted systems perform inside dynamic, resource-constrained architecture loops.
-
-1. **What formalisms can rigorously enforce and audit AI role contracts across heterogeneous execution environments?**
-While guidelines for choosing a method under constraints (see the discussion on "Choosing a Method Under Constraints" in @sec-choosing-a-method-under-constraints) establish a decision matrix for method selection, enforcing these boundaries at runtime remains a critical open challenge. We need verifiable logging structures, public corpora of loop traces, and formal verification techniques that can mathematically or empirically prove a generator, predictor, or critic strictly adhered to its commitment boundary, rather than silently escalating its own authority. This requires new theoretical frameworks for defining and checking "role compliance" during autonomous design-space exploration.
-2. **How can active learning models mathematically synthesize heterogeneous negative traces?**
-Although discussions of sample efficiency under expensive feedback (see the discussion on "Sample Efficiency Under Expensive Feedback" in @sec-sample-efficiency-under-expensive-feedback) establish a fidelity ladder, it remains an open theoretical problem to continuously update probabilistic priors using a complex, non-i.i.d. mix of cheap tool warnings, proxy mismatches, synthesis timeouts, and rare silicon failures. Next-generation acquisition functions must rigorously ingest this diverse negative trace data to shape the search space, all without blurring the boundary between cheap screening proxies and high-fidelity evidence.
-3. **Can we construct definitive, automated rejection oracles for hardware-aware generative models?**
-Moving beyond qualitative capability assessments of hardware awareness, the architecture community lacks standardized, adversarial test suites explicitly designed to falsify an automated optimizer's unsupported predictions or trap invalid generative actions. A major systems challenge is developing rigorous, environment-agnostic rejection oracles that formally map the passing of a test suite to the maximum architectural commitment that the suite is empirically allowed to authorize.
-4. **What control-theoretic mechanisms should govern the dynamic reallocation of method roles?**
-The decision-value heuristic introduced for maximizing sample efficiency under expensive feedback (see the discussion on "Sample Efficiency Under Expensive Feedback" in @sec-sample-efficiency-under-expensive-feedback) assumes a static policy for invoking the next method role. A compelling thesis direction is the design of dynamic, meta-level coordinators—perhaps based on optimal control or meta-reinforcement learning^[A learning paradigm where an agent learns to learn, rapidly adapting to new tasks or environments by leveraging past experience.]—that automatically shift computational resources. Such coordinators would pivot seamlessly from broad generation to targeted critique and repair based on the remaining evidence budget, surrogate uncertainty, and the marginal cost of the next high-fidelity simulation.
+algorithm, be the thing that has to stay credible. The best methods help
+architects learn the design space, not merely search it harder.
 
 ::: {.callout-carry-forward}
-- **Reader test:** Can you write one sentence explaining why this AI method belongs in this role for this AI-assisted loop?
+- **Carry forward:** Method choice is a role-and-budget decision, not a leaderboard. A method earns trust from what the loop lets it mean and what feedback can reject it.
+- **Reader test:** For a given loop, can you name the role each method plays and the feedback budget that decides which one acts?
 - **Up next:** Once models and methods can act, the next question is whether their feedback becomes evidence strong enough to support trust.
 :::

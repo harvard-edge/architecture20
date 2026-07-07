@@ -14,7 +14,36 @@
 % \sidecaption, which the sidenotes package (loaded by Quarto's
 % reference-location: margin) then tries to redefine. Free the name first.
 \let\sidecaption\undefined
+% === arch2 layout auto-fix: automatic margin-note overflow control ===
+% With reference-location: margin, Quarto places footnotes as marginals. A
+% sidenote carrying no manual offset (the normal case) is routed through
+% \marginpar by the sidenotes package, so marginfix can manage it. marginfix
+% tracks the free vertical space in each margin and automatically shifts notes
+% (an automatic vertical offset) so they never run off the page bottom or
+% collide. This is the render-time counterpart to the layout audit's
+% footnote-overflow / physical-bleed checks, which detect the same failures.
+\usepackage{marginfix}
+% Route .column-margin asides (Quarto emits raw \marginnote) through the same
+% marginfix-managed \marginpar as the footnotes. This makes the asides (a) auto-
+% offset so they never run off the page or collide with footnotes, and (b) follow
+% the outer-margin alternation instead of always sitting on the right, which put
+% them on the inner margin of verso pages. Done \AtBeginDocument so it runs after
+% Quarto has loaded marginnote/sidenotes.
+\AtBeginDocument{\RenewDocumentCommand{\marginnote}{o +m o}{\marginpar{#2}}}
 \usepackage{xcolor}
+% Footnote margin-mark styling: a small top-left corner bracket (a little "L")
+% around just the sidenote number, which sits in its nook; the note text then
+% flows normally. A short top rule and a short left rule, both ~number height,
+% meet at the corner. Targets sidenote footnotes (\@sidenotes@placemarginal);
+% .column-margin asides route through the \marginnote redefinition and stay
+% unbracketed.
+\newcommand{\archsnframe}[1]{%
+  {\color{archtwoline}\rule[1.15ex]{5pt}{0.4pt}\hspace{-5pt}\rule[-0.15ex]{0.4pt}{1.35ex}}%
+  \hspace{2pt}#1%
+}
+\makeatletter
+\AtBeginDocument{\RenewDocumentCommand{\@sidenotes@placemarginal}{+m +m}{\marginpar{\archsnframe{#2}}}}
+\makeatother
 \usepackage{fontawesome5}
 \usepackage[most]{tcolorbox}
 \usepackage{tikz}
@@ -24,6 +53,12 @@
 \renewcommand{\ttdefault}{cmtt}
 
 \bibpunct{(}{)}{;}{a}{,}{,}
+\AtBeginDocument{%
+  \makeatletter
+  \def\bibsection{\subsection*{\refname}\markright{\refname}%
+    \csname biblst@rthook\endcsname\par}%
+  \makeatother
+}
 \SuppressSpringerImprint
 \SetArchTwoPreviewVersion{Preview v0.1.0}
 \newcommand{\ArchTwoSiteURL}{arch2.mlsysbook.ai}
@@ -43,6 +78,27 @@
 \definecolor{archtwoevidencefill}{HTML}{F4F1FA}
 \definecolor{archtwoodanger}{HTML}{C44E52}
 \definecolor{archtwoodangerfill}{HTML}{F8EAEA}
+
+% Hyperlinks: keep cross-references, citations, and URLs clickable, but render
+% them in black rather than the default blue. Deferred with \AtBeginDocument so it
+% overrides Quarto's own hyperref setup regardless of load order.
+\AtBeginDocument{\hypersetup{colorlinks=true,allcolors=black}}
+
+% Widen the TOC section/subsection number columns. The class sizes \tocsecnum for
+% "88.8" (two-digit chapter, one-digit section), so two-digit sections like 10.13
+% collide with the title. Bump the number widths and recompute the indents via the
+% class's own \calctocindent so the dotted leaders stay aligned.
+\makeatletter
+\tocsecnum=30\p@
+\tocsubsecnum=37\p@
+\calctocindent
+\makeatother
+
+% Wrap long code-listing lines so they never bleed past the right margin. Quarto
+% highlights code with base fancyvrb, whose Verbatim has no line breaking; load
+% fvextra (a drop-in extension) to get breaklines/breakanywhere.
+\usepackage{fvextra}
+\fvset{breaklines=true,breakanywhere=true}
 
 \newcommand{\ArchTwoRule}{%
   \vskip 3.2pt%
@@ -259,19 +315,6 @@
 % Table column headers are bolded in the Markdown source (| **Header** | ...),
 % so they render bold in both PDF and HTML. No header tint: the bold header text
 % plus the booktabs \toprule/\midrule rules carry the header on their own.
-
-% Quarto PDF callouts emit tcolorbox environments and these color names.
-% Keep the palette restrained so boxes read like manuscript aids, not slides.
-\definecolor{quarto-callout-note-color}{HTML}{2A5B84}
-\definecolor{quarto-callout-note-color-frame}{HTML}{7FA7C4}
-\definecolor{quarto-callout-tip-color}{HTML}{3B6B3D}
-\definecolor{quarto-callout-tip-color-frame}{HTML}{8DB98F}
-\definecolor{quarto-callout-important-color}{HTML}{6E4B8B}
-\definecolor{quarto-callout-important-color-frame}{HTML}{A993BF}
-\definecolor{quarto-callout-warning-color}{HTML}{9A5A00}
-\definecolor{quarto-callout-warning-color-frame}{HTML}{D6A64A}
-\definecolor{quarto-callout-caution-color}{HTML}{8A2D2D}
-\definecolor{quarto-callout-caution-color-frame}{HTML}{C78585}
 
 % Define epigraph environment and give it more breathing room and a subtle color
 \newenvironment{epigraph}{\vspace*{0.5em}\color{archtwomuted}\Large}{\vspace*{0.5em}}

@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** George E. P. Box, a British statistician who made major contributions to time-series analysis, famously noted that while all models are flawed, the good ones are practically useful. For us, this perfectly captures the role of proxies and surrogate models. While fast proxies are inherently inaccurate, they are absolutely essential for accelerating an AI agent's search.
+**Author's Note:** George E. P. Box, a British statistician who made major contributions to time-series analysis, famously noted that while all models are flawed, the good ones are practically useful. For architecture work, fast proxies and surrogate models are useful only when their scope, calibration, and failure modes are explicit; they can accelerate bounded exploration, but they do not by themselves justify commitment.
 :::
 
 ```{=latex}
@@ -27,14 +27,14 @@ large design spaces tractable. That quantitative tradition is central to
 modern architecture practice [@HennessyPatterson2017QuantitativeApproach].
 It also explains why Architecture 2.0 should not be framed as a sudden break
 from the past. The continuity is the *existence* of the loop; the field has always designed through loops of abstraction,
-measurement, feedback, and judgment. The discontinuity is its *automation*. Historically, humans drove this loop; in Architecture 2.0, AI systems can execute steps of it programmatically, acting inside the loop while the architect owns the commitment. That automation is why the failure mode changes from slow human drift to high-velocity, catastrophic failure when the verification and rejection mechanisms collapse.
+measurement, feedback, and judgment. The discontinuity is its *automation*. Historically, humans drove this loop; in Architecture 2.0, AI systems can execute steps of it programmatically, acting inside the loop while the architect owns the commitment. That automation can change the failure mode: when verification and rejection mechanisms collapse, plausible errors can propagate faster and reach higher commitment levels before humans catch them.
 
 What becomes first-class alongside the artifact is the loop that produces and
 tests claims about it. In Architecture 1.0, the architect uses tools to design
 artifacts: an ISA extension, a cache hierarchy, an accelerator, a memory
 system, a chiplet partition, a compiler policy, or a system configuration. But
-an artifact matters because it supports an architectural claim. These claims collapse into two orthogonal system axes: Pareto efficiency (optimizing latency, energy, correctness, and useful work along an existing frontier) and boundary expansion (shifting the frontier to make previously impossible systems possible under a workload and set of constraints). In Architecture 2.0, the architect must also design the
-loop that produces, tests, rejects, and revises those claims.
+an artifact matters because it supports an architectural claim. In Architecture 2.0, the architect must also design the
+loop that produces, tests, rejects, and revises that claim.
 The loop itself must be formalized as a five-part execution state: what state it saw, what actions it allowed, what alternatives it rejected, what evidence supports the result, and who owns the commitment if the claim is wrong
 [@ReddiYazdanbakhsh2025Architecture20]. Without those pieces, an AI
 system may still produce plausible text, code, or configurations, but it is not
@@ -73,14 +73,24 @@ Its test is whether it exposes enough state for a generative method to act withi
 and enough evidence for a human architect to reject or commit the result.
 
 The deeper reason we need such an ontology is that architecture reasoning still lacks a durable
-structured layer above RTL. Below RTL, design flows already have artifacts that
-tools can parse, transform, reject, and sign off. Above RTL, much of the
+claim-and-evidence layer above RTL. Below RTL, design flows already have artifacts that
+tools can parse, transform, reject, and sign off. Although HLS flows, modeling
+languages, compiler IRs, and EDA frameworks structure parts of the path to
+implementation, much of the
 reasoning that decides *what* should be built still lives in whiteboards,
 spreadsheets, scripts, slides, review memories, and natural-language specs. The
 design-loop card, loop contract, environment contract
 (@sec-architecture-environments-tool-interfaces), and evidence ledger are
 not paperwork around the real work. They are candidate structured abstractions
 for the part of architecture practice that has not yet been made inspectable.
+
+Compiler infrastructure gives a useful but limited analogy. MLIR, a compiler
+infrastructure for representing operations, types, dialects, and legality
+checks, made many compiler transformations inspectable
+[@LattnerEtAl2020MLIR]. Architecture 2.0 is not asking for one universal
+architecture IR. It is asking for a reviewable claim-and-evidence layer where
+design intent, workload scope, feedback, and rejection can be checked before an
+artifact is trusted.
 
 The hierarchy in this chapter is simple. The artifact is what may eventually be
 built. The architectural claim is what a reviewer accepts or rejects about that
@@ -91,8 +101,8 @@ compact record that makes the claim and loop reviewable. The loop contract from
 actions, feedback, evidence standard, and decision owner the loop promises to
 expose, and the card records how the loop kept that promise.
 
-@fig-structured-layer-above-rtl places that layer between tacit reasoning and
-implementation flows. Its purpose is not to add ceremony. It is to make the
+That layer sits between tacit reasoning and implementation flows
+(@fig-structured-layer-above-rtl). Its purpose is not to add ceremony. It is to make the
 part of architecture reasoning above RTL explicit enough that tools, automated participants,
 reviewers, and architects can all see the same loop state.
 
@@ -111,12 +121,14 @@ reviewable design-loop card. That means you can:
 
 ## The Architectural Claim Is the Unit of Review
 
-Asking whether a generative model^[A class of AI models designed to generate new data, such as text or configurations, that resembles its training data.] can design hardware is too coarse a framing. The more
+Asking whether a generative model[^fn-ml-generative-model] can design hardware is too coarse a framing. The more
 architecture-native approach focuses on identifying the specific claim being made and determining the evidence required to make that claim credible. Architects rarely accept an artifact by itself. They
 accept or reject a claim about that artifact relative to a workload, baseline,
 design space, objectives, constraints, and evidence. The definition below names
 that review object so the rest of the chapter can ask what state a loop must
 carry before an AI-assisted result can be accepted or rejected.
+
+[^fn-ml-generative-model]: A class of AI models designed to generate new data, such as text or configurations, that resembles its training data. In an architecture design loop such a model proposes candidate artifacts inside the legal design space, which is why the chapter insists its output still be tested as a claim rather than trusted as a result.
 
 > **Architectural claim.** An architectural claim is a statement that a
 > proposed artifact, method, or loop improves, preserves, or explains a
@@ -129,7 +141,7 @@ The clause "for a specified workload or scenario" is doing real work, and a neig
 ::: {.callout-field-note title="Valid for the last rocket, not this one"}
 The Ariane 5 rocket reused an inertial-reference software component that had flown correctly on Ariane 4. Its correctness claim was real, but it was a claim about Ariane 4's flight envelope. On Ariane 5's different, higher-velocity trajectory a value overflowed a conversion the older profile never reached, both channels shut down, and the vehicle self-destructed about forty seconds after launch [@Lions1996Ariane5]. The component was not broken. Its evidence simply did not cover the scenario it was now committed to.
 
-**Takeaway.** A claim carries the scenario it was verified under. Reusing a cheap, trusted component still means re-checking its evidence against the new workload, because the claim, not the code, is what has to hold.
+**Lesson:** A claim carries the scenario it was verified under, so an AI-assisted loop that reuses a cheap, trusted component still has to re-check its evidence against the new workload, because the claim, not the code, is what has to hold.
 :::
 
 A plain-language version might say, this candidate improves useful work for
@@ -174,6 +186,14 @@ trust.
 | **Human decision** | Who can accept, revise, escalate, or commit the claim? | The architect or review process that owns assumptions, evidence thresholds, risk, and final commitment. |
 
 : **An architectural claim needs more than an artifact:** The lighthouse prompt becomes reviewable only when the workload, baseline, design space, objectives, constraints, evidence, rejection authority, commitment boundary, and human decision are explicit. {#tbl-architectural-claim-schema tbl-colwidths="[18,33,39]"}
+
+::: {.callout-war-story title="A claim with missing review fields"}
+**The claim.** Read AlphaChip through these claim fields and the public review questions become clearer. The generation fields are strong. The intent and task are clear, and the method proposed macro placements at reported expert quality [@MirhoseiniEtAl2021GraphPlacement].
+
+**The gap.** The fields that decide public trust were disputed or unavailable. The baseline others could run was disputed, the environment and test cases were not shared, the public, independently runnable evidence did not carry the contested comparison through shared post-route metrics, and no public shared rejection authority could clear the result [@ChengEtAl2023AssessmentRL].
+
+**The lesson.** A claim with those gaps does not say the work is wrong. It says the public claim needs narrower wording or stronger shared evidence, including a shared baseline, a runnable environment, higher-fidelity evidence, and an owner who can reject. State the claim as a review object and the argument stops being about reputation and starts being about the missing fields.
+:::
 
 ```{=latex}
 \FloatBarrier
@@ -228,8 +248,7 @@ objectives and constraints: what counts as progress and what is not allowed.
 It has a feedback path: the measurement, simulation, synthesis report, trace,
 review, or deployment signal returned by the environment. It has stopping and
 escalation rules. It has decisions: accept, reject, revise, or request stronger
-evidence. It has artifacts: reports, configurations, design descriptions,
-plots, RTL fragments, benchmarks, or implementation plans.
+evidence.
 
 A compact way to write the loop is
 $$
@@ -241,14 +260,14 @@ action taken by the loop, $o_t$ is the observation returned by the
 environment, $e_t$ is the evidence ledger entry that makes the observation
 auditable, and $d_t$ is the human or policy decision to accept, reject,
 revise, or escalate. The equation is not claiming that every architecture
-loop is a Markov decision process. It is a bookkeeping discipline. If a loop
+loop is a Markov decision process[^fn-rl-mdp]. It is a bookkeeping discipline. If a loop
 cannot say how actions, feedback, evidence, and decisions update state, then
 it is not yet represented well enough for credible AI-mediated architecture
-work. @fig-architecture-tuple visualizes how these pieces form a unified design loop.
+work (@fig-design-loop).
 
-> **Markov decision process (MDP):** A mathematical framework for modeling decision-making where outcomes are partly random and partly under the control of a decision maker; it forms the foundation of reinforcement learning.
+[^fn-rl-mdp]: A mathematical framework for modeling decision-making where outcomes are partly random and partly under the control of a decision maker; it forms the foundation of reinforcement learning. The chapter borrows the loop's notation from this framework while cautioning that an architecture loop need not literally be one.
 
-![**The Architecture 2.0 loop tuple:** The design-loop update $s,a,o,e,d$ extends a generic reinforcement-learning loop's state, action, and observation with an evidence ledger and a human decision, replacing the scalar reward the environment must never compute.](images/F3-architecture-tuple){#fig-architecture-tuple width="100%" fig-alt="Block diagram: state to action to observation to an evidence ledger to a human decision, with a loop back to state. State, action, and observation are marked as shared with a generic reinforcement-learning or Gym loop; the evidence ledger and human decision are marked as the Architecture 2.0 extension that replaces a scalar reward."}
+![**The Architecture 2.0 design loop:** State, a bounded action, tool feedback, an evidence ledger, and a human commitment form one turn, with rejected candidates fed back as negative traces. The evidence ledger and human commitment are what a generic reinforcement-learning loop lacks. They replace a scalar reward, so a rejection authority, not a number, decides what advances. As fidelity, cost, and commitment rise, the autonomy the loop can safely grant narrows.](images/F3-design-loop){#fig-design-loop width="100%" fig-alt="A left-to-right Architecture 2.0 design loop with boxes for represented state, a bounded action, tool feedback, an evidence ledger, and a human commitment, and a dashed return path where rejected candidates become negative traces, above an axis showing that as fidelity, cost, and commitment rise, acceptable autonomy narrows."}
 
 Architecture 2.0 uses that loop as the unit of analysis. A model is one
 participant in the loop. It may generate candidates, summarize evidence,
@@ -306,7 +325,7 @@ architect must still decide.
 ## The Architecture 2.0 Ontology {#sec-arch2-ontology}
 
 A method label is not enough to review an architecture claim. A paper can say
-it uses an LLM, reinforcement learning, Bayesian optimization, or a surrogate
+it uses an LLM, reinforcement learning, Bayesian optimization[^fn-ml-bayesian-optimization], or a surrogate
 model and still leave the important state invisible: what task was bounded, what
 actions were legal, what feedback was used, what failed, and who accepted the
 commitment. A taxonomy groups things. It can list tasks, methods, benchmarks,
@@ -317,7 +336,7 @@ change. Method harnesses will change. Benchmarks will change. Electronic Design 
 simulator stacks will change. If the book is organized only around today's
 artifacts, it will age with them.
 
-> **Bayesian optimization:** A strategy for optimizing expensive black-box functions, where each candidate evaluation (such as a cycle-accurate simulation) is costly.
+[^fn-ml-bayesian-optimization]: A strategy for optimizing expensive black-box functions, where each candidate evaluation (such as a cycle-accurate simulation) is costly. The chapter names it as one method a paper might cite, and stresses that the label matters less than the loop state, feedback budget, and rejection rules the method operates under.
 
 > **Architecture 2.0 ontology.** The Architecture 2.0 ontology names the
 > entities and relationships that must exist for AI-mediated architecture work to
@@ -328,17 +347,23 @@ Two of those entities matter enough to name now, because the rest of the book
 leans on them: the world model the loop reasons with, and the evidence ledger it
 reasons from.
 
-> **World model.** A world model is the loop's belief about how architecture
-> actions change outcomes, whether that belief lives in a simulator, a learned
-> surrogate, a cost model, or design rules. This chapter uses the term only at
-> that working level; @sec-data-representations-world-models gives the canonical
-> definition and shows what such a model must encode, scope, and keep credible.
+> **World model.** Borrowing the AI/control term for a system's predictive model
+> of action consequences [@HaSchmidhuber2018WorldModels; @SuttonBarto2018ReinforcementLearning],
+> a world model is the loop's architecture-scoped belief about how actions change
+> outcomes, whether that belief lives in a simulator, a learned surrogate, a cost
+> model, or design rules. This chapter uses the term only at that working level;
+> @sec-data-representations-world-models gives the canonical definition and shows
+> what such a model must encode, scope, and keep credible.
 
-Both entities are critical, but while the world model focuses on prediction and belief, the evidence ledger serves as the historical record of truth.
-
-> **Evidence ledger.** An evidence ledger is the durable record that ties
-> a candidate to the feedback that evaluated it, the constraints it faced, and
-> the decision that accepted or rejected it. To flatten the learning curve, consider these terms as the automated equivalent of a scientific peer-review loop or a Design Space Exploration (DSE) review board: a *rejection gate* is analogous to a reviewer rejecting a paper for a methodological flaw, and an *evidence ledger* is a multidimensional record capturing the Pareto tradeoffs and justifying exactly *why* alternative architectures were rejected during exploration.
+Both entities are critical, but they do different work. The world model carries
+the loop's prediction about what an action will do. The evidence
+ledger records what was actually observed, under which assumptions and fidelity
+regime, and how the result was accepted, rejected, or escalated. In this
+chapter, the ledger's job is concrete. It ties a candidate to the feedback that
+evaluated it, the constraints it faced, and the decision that accepted or
+rejected it. A rejection gate is the mechanism that can stop the candidate; the
+evidence ledger is the record that explains why the gate fired, why it did not,
+or why the claim had to be narrowed.
 
 Read the chapter as a chain of loop obligations. The claim states what is at
 stake; the ontology names the state, action, feedback, evidence, and decision
@@ -359,19 +384,25 @@ budget. Feedback becomes evidence only when fidelity, provenance, uncertainty,
 and relevance are understood. Human decisions accept, reject, revise, or
 escalate the result.
 This is why ontology should precede taxonomy. Rather than immediately classifying whether
-a paper uses an LLM^[Large Language Model, a neural network trained on vast amounts of text to understand and generate human-like language.], reinforcement learning^[A machine learning training method based on rewarding desired behaviors and punishing negative ones.], Bayesian optimization, a surrogate
+a paper uses an LLM[^fn-ml-llm], reinforcement learning[^fn-rl-method-label], Bayesian optimization, a surrogate
 model, or a simulator wrapper, the analysis must first identify the exposed loop.
 The evaluator must determine the task, the represented state, the legal actions, the environment returning feedback, the feedback budget, the supporting evidence, the rejection conditions, and the remaining architectural decisions. Once those components are clear, a taxonomy of methods becomes
 useful. Before that, method labels can hide more than they reveal.
 
-The practical implication is not to build a chip-specific language model^[A statistical model trained to predict the next word or token in a sequence, forming the foundation of modern AI text generation.] first.
+[^fn-ml-llm]: Large Language Model, a neural network trained on vast amounts of text to understand and generate human-like language. Here it names one method label a paper might advertise, which the chapter argues reveals little until the exposed loop state is identified.
+
+[^fn-rl-method-label]: For Architecture 2.0, the label "reinforcement learning" still does not say what state the agent saw, which actions were legal, which reward proxied the objective, or which rejection conditions bounded the loop.
+
+The practical implication is not to build a chip-specific language model[^fn-ml-language-model] first.
 A field becomes AI-addressable only when its objects of work, legal actions,
 feedback, evidence, rejection rules, and commitment boundaries are represented
 well enough for methods to act and for experts to judge. For architecture,
 those objects are not only papers or text. They include workloads, design
 states, tool configurations, invalid actions, failure records, fidelity levels,
 and commitment decisions. That is why this book starts with an ontology of the
-design loop rather than a catalog of current models.
+design loop.
+
+[^fn-ml-language-model]: A statistical model trained to predict the next word or token in a sequence, forming the foundation of modern AI text generation. The chapter's point is that building such a domain-specific model is not the precondition for AI-addressable architecture; representing the loop's objects, actions, and evidence is.
 
 ## The Compact Framework
 
@@ -383,19 +414,19 @@ ledger plus human decision determine commitment.
 
 ![**The Architecture 2.0 ontology chain makes the loop explicit:** Intent, task, and design space define what work the loop is allowed to do; representation and world model define what the loop can know; tools and environments define valid action and feedback; compound methods act inside the loop; evidence and human decision determine whether an artifact is accepted, rejected, or used to revise the loop.](images/F4-ontology-chain){#fig-ontology-chain width="100%" fig-alt="Process diagram connecting intent, task, design space, representation, environment, methods, evidence, and human decision into an explicit Architecture 2.0 loop."}
 
-The change is that the loop, not the model, becomes the review object; missing
-links are reasons to withhold commitment rather than details to fill in later.
+The change is that the loop, not the model, becomes the review object.
 
 For practical use, this book compresses the ontology into *five framework
-elements*. They group the same twelve fields the design-loop card records: intent,
-task, design space, representation (which carries the world model), environment,
+elements*. They group the same twelve fields the design-loop card records:
+intent, task, design space, representation plus world model, environment,
 method role, feedback budget, evidence, negative traces, rejection authority,
-commitment boundary, and human decision. These elements name what a loop is *made
-of*, distinct from the *five-part execution state* of @sec-moonshot, which names
-what one turn *records*. There is one artifact, the twelve-field design-loop card;
-every other list in this book, the five framework elements, the five-part
-execution state, the nine-field claim tuple, and the seven-question loop contract,
-is a view of it (@sec-appendix-b-design-loop-card), not a competing schema.
+commitment boundary, and human decision. These elements name what a loop is
+*made of*, distinct from the *five-part execution state* of @sec-moonshot, which
+names what one turn *records*. There is one reader-facing artifact, the
+twelve-field design-loop card. Every other list in this book, the five framework
+elements, the five-part execution state, the nine-field claim tuple, and the
+seven-question loop contract, is a view of it
+(@sec-appendix-b-design-loop-card), not a competing schema.
 
 First, there is *task, intent, and design space*. Intent states what the
 architect or organization is trying to achieve, what constraints matter, what
@@ -431,17 +462,17 @@ provenance, fidelity, assumptions, uncertainty, coverage, rejection, and a
 decision. The decision is where the architect accepts, rejects, revises, or
 escalates the result.
 
-@tbl-compact-framework-checklist gives the checklist version. It is
-the question a reader should be able to ask of a paper, benchmark, tool, or
-internal loop before trusting an Architecture 2.0 claim.
+The checklist version is the question a reader should be able to ask of a
+paper, benchmark, tool, or internal loop before trusting an Architecture 2.0
+claim (@tbl-compact-framework-checklist).
 
 | **Framework piece** | **Reader question** | **Lighthouse instance** |
 | --- | --- | --- |
-| Task, intent, and design space | What architectural objective is being pursued, under what constraints, risk, and legal choices? | Improve mobile XR efficiency within a 3\ W, 3\ nm-class low-power mobile envelope while exploring legal RISC-V, vector, memory, accelerator, and software-stack choices. |
-| Representation and world model | What state is encoded, and what does the loop believe about how actions change outcomes? | Workload traces, parameters, compiler assumptions, power model, memory behavior, and constraints. |
-| Architecture environment | What actions are legal, what feedback is returned, and what failures are observable? | Simulator, cost model, workload harness, and invalid-configuration checks. |
-| Method roles | Which roles generate, predict, search, critique, verify, call tools, or coordinate? | Candidate generator, surrogate or search method, verifier, evidence writer, coordinator, and human reviewer. |
-| Feedback, evidence ledger, and human decision | What supports the claim, what can reject it, and what remains an architect-owned commitment? | Pareto evidence, sensitivity checks, failure records, rejection authority, and final architectural judgment. |
+| **Task, intent, and design space** | What architectural objective is being pursued, under what constraints, risk, and legal choices? | Improve mobile XR efficiency within a 3\ W, 3\ nm-class low-power mobile envelope while exploring legal RISC-V, vector, memory, accelerator, and software-stack choices. |
+| **Representation and world model** | What state is encoded, and what does the loop believe about how actions change outcomes? | Workload traces, parameters, compiler assumptions, power model, memory behavior, and constraints. |
+| **Architecture environment** | What actions are legal, what feedback is returned, and what failures are observable? | Simulator, cost model, workload harness, and invalid-configuration checks. |
+| **Method roles** | Which roles generate, predict, search, critique, verify, call tools, or coordinate? | Candidate generator, surrogate or search method, verifier, evidence writer, coordinator, and human reviewer. |
+| **Feedback, evidence ledger, and human decision** | What supports the claim, what can reject it, and what remains an architect-owned commitment? | Pareto evidence, sensitivity checks, failure records, rejection authority, and final architectural judgment. |
 
 : **The framework becomes a checklist when each loop state is explicit:** A project is easier to review when it names the task, representation, architecture environment, method roles, feedback, evidence ledger, rejection authority, and human decision before claiming autonomy or architectural progress. {#tbl-compact-framework-checklist tbl-colwidths="[20,36,34]"}
 
@@ -454,19 +485,17 @@ system can be a useful demonstration while still not being a credible
 Architecture 2.0 loop; unanswered rows identify where a method lacks action
 bounds, evidence standards, rejection authority, or a human commit gate.
 
-The practical artifact is the design-loop card introduced later in this chapter
-and expanded in @sec-appendix-b-design-loop-card. The card is not a new concept
-on top of the framework. It is the same framework compressed into a reusable
-review object, with the five framework pieces serving as grouped views of the
-card fields. @sec-appendix-b-design-loop-card also gives the card a
+The practical artifact is the design-loop card developed below and expanded in
+@sec-appendix-b-design-loop-card. The card is not a new concept
+on top of the framework. @sec-appendix-b-design-loop-card also gives the card a
 machine-checkable schema and four conformance levels, from context-only to an
 independently rejectable loop, so "we used the card" becomes a claim a tool and a
 reviewer can check rather than a gesture.
 
 Beyond structuring the review process, the checklist also keeps the vocabulary from drifting into generic AI
 language. Words such as state, action, observation, environment, reward, and
-critic are useful only after they are translated into architecture objects.
-@tbl-architecture-translation-matrix gives the translation rule.
+critic are useful only after they are translated into architecture objects
+(@tbl-architecture-translation-matrix).
 If a paper says an automated method acts in an environment, the reader should be able to
 name the architecture state it reads, the action it is allowed to take, the
 tool feedback it observes, and the authority that can reject the result.
@@ -717,8 +746,8 @@ say no.
 ::: {.callout-architect-checkpoint title="The Feedback vs. Evidence Gate"}
 Before committing a model-generated candidate, the architect must evaluate the decision gate:
 - Does the loop provide a durable evidence ledger, or just a feedback score?
-- What specific evidence would overturn this claim?
-- Who holds the authority to say no?
+- Which result or check would invalidate the candidate?
+- Who owns rejection authority at this gate?
 If these are undefined, the AI output cannot pass the commitment boundary.
 :::
 
@@ -744,7 +773,7 @@ hard to compare. A tool that produces designs but cannot say what rejects them
 is hard to trust. A benchmark that measures model accuracy but not
 architecture-relevant reasoning may be useful, but it should not be mistaken
 for a complete design-loop evaluation.
-Missing card fields are review outcomes, not formatting problems: ask for
+Missing card fields are review outcomes, not formatting problems. Ask for
 evidence, escalate fidelity, reject the claim, or narrow the commitment until
 the loop can support what it reports.
 
@@ -769,6 +798,58 @@ returns to the architect: what remains nondelegable, what the community must
 build, and what it would mean for Architecture 2.0 to become a discipline
 rather than a collection of demonstrations.
 
+## Open Research Questions
+
+The ontology turns the pressure from the previous chapter into a review object.
+The research questions here ask which fields make an AI-assisted architecture
+claim inspectable, which workload and baseline records make the claim credible,
+and which parts of the design-loop card can be checked before a loop is
+executable.
+
+1. **What minimum claim packet makes AI-assisted architecture work reviewable?**
+An AI-assisted architecture claim should expose its task, workload scope,
+baseline, represented state, environment, method roles, evidence ledger,
+rejection authority, and commitment boundary. A strong contribution would turn
+those fields into a claim packet that reviewers can inspect without sharing the
+author's full internal toolchain. The evaluation should measure whether
+independent reviewers identify missing evidence, unsupported commitments, and
+unreviewable loop transitions more consistently than they do from a normal
+paper artifact. The design-loop card in @sec-appendix-b-design-loop-card gives
+the starting point.
+
+2. **What workload and baseline records make a claim credible?**
+Workload characterization becomes reviewable when a paper records input
+distributions, benchmark construction, excluded cases, holdout workloads,
+software versions, baseline assumptions, and provenance. A paper-quality result
+would define a workload and baseline packet for AI-assisted architecture claims,
+then test whether reviewers can tell where a result generalizes and where it
+does not. This question sharpens the ontology by making workload scope part of
+the claim rather than background context.
+
+3. **How can holdout benchmarks expose loop overfitting?**
+An AI-assisted loop can overfit to a benchmark suite, a trace slice, a proxy
+model, or a reviewer-visible metric. A strong research artifact would define
+holdout construction methods for architecture loops and evaluate whether they
+catch design-space lessons that fail on shifted workloads, changed baselines,
+or stronger feedback. The result should tell reviewers when a loop has learned
+an architectural relationship and when it has learned the evaluation surface.
+
+4. **How can rejected alternatives become auditable design-space evidence?**
+Rejected candidates are part of the claim because they show which regions of
+the design space were considered and why they failed. A research contribution
+would define a record for rejected alternatives, invalid actions, failed
+timing closures, proxy mismatches, and repaired candidates, then test whether
+reviewers can reconstruct a design-space boundary from that record. This is the
+negative-evidence version of the ontology in @sec-arch2-ontology.
+
+5. **What can a design-loop card catch before execution?**
+A design-loop card should be useful before a loop runs, not only after a result
+exists. A strong paper would evaluate which card fields predict later failure
+modes such as missing baselines, invalid action spaces, unsupported evidence,
+or commitment boundaries that are too broad. The paper object could be a static
+checker, review protocol, or authoring tool that flags under-specified claims
+early while leaving architectural judgment with human reviewers.
+
 ## Conclusion
 
 This chapter asked what a design loop must make explicit before an AI output can
@@ -792,23 +873,8 @@ rejected, and decided, which is exactly why it can outlast whichever models and
 tools are current. A claim that cannot expose the loop that produced it is not
 yet an architectural claim, however good its numbers look.
 
-## Open Research Questions
-
-The ontology and framework proposed here map the known requirements for Architecture 2.0, but establishing them as standard practice exposes several unsettled research directions. The following open questions push beyond the current conceptualization to explore how these loops can be formalized, enforced, and scaled into rigorous, thesis-level challenges:
-
-1. **How can the design-loop card be elevated from a static review checklist into an executable, zero-knowledge verifiable schema for multi-organizational architecture verification?**
-While the design-loop card (@sec-appendix-b-design-loop-card) provides a structured review object, establishing it as a universal protocol requires mechanisms for automated systems to cryptographically prove that a candidate survived the exact claimed environment. A thesis-level challenge is designing executable schemas where constraints, baseline comparisons, and evidence ledgers can be independently verified without exposing proprietary RTL or toolchains.
-
-2. **What are the foundational limits of wrapping legacy, opaque simulation infrastructure into formal Architecture 2.0 environments?**
-Retrofitting decades of tacit, black-box EDA tools and simulators into formal environments (see the discussion on "Tools as Architecture Environments" in @sec-architecture-environments-tool-interfaces) exposes severe friction. Research must determine how to mathematically bound the invalid-action semantics of these legacy tools so that high-speed generative optimizers cannot silently exploit abstraction inaccuracies to fabricate false Pareto frontiers.
-
-3. **How can the "dark matter" of architectural exploration—rejected candidates, failed timing closures, and proxy-fidelity mismatches—be formalized into a causal world model?**
-Current AI methods often discard the failure traces that teach human architects the true boundaries of a design space. A major open question is how to continuously extract and encode these negative paths into a rigorous representation of architecture state (see the discussion on "The Architecture 2.0 Ontology" in @sec-arch2-ontology) that actively regularizes generative models against out-of-bounds hallucinations^[Instances where an AI model generates false, fabricated, or nonsensical information confidently.] and causal errors.
-
-4. **Can formal, mechanically-checked protocols enforce human-in-the-loop commitment boundaries in high-velocity autonomous design ecosystems?**
-As automated loops scale toward bounded autonomous ecosystems (@fig-autonomy-ladder-human-agent), policy-based rejection becomes insufficient. A critical systems challenge is engineering strict, verifiable commit-gate protocols that isolate generation from deployment, ensuring that no architectural claim can cross a fidelity boundary without unforgeable, explicit human authorization.
-
 ::: {.callout-carry-forward}
+- **Carry forward:** An architectural claim is reviewed through the loop that produced it, and the design-loop card is where that loop becomes inspectable.
 - **Reader test:** Can you review an AI-generated architectural claim through the loop that produced it: its environment, method roles, evidence ledger, rejection authority, and commitment boundary?
-- **Up next:** The next chapter asks what representations and world models must encode before an AI-assisted loop can synthesize systems credibly.
+- **Up next:** The next chapter asks what representations and world models must encode before an AI-assisted loop can act on architecture state credibly.
 :::
