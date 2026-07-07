@@ -14,7 +14,36 @@
 % \sidecaption, which the sidenotes package (loaded by Quarto's
 % reference-location: margin) then tries to redefine. Free the name first.
 \let\sidecaption\undefined
+% === arch2 layout auto-fix: automatic margin-note overflow control ===
+% With reference-location: margin, Quarto places footnotes as marginals. A
+% sidenote carrying no manual offset (the normal case) is routed through
+% \marginpar by the sidenotes package, so marginfix can manage it. marginfix
+% tracks the free vertical space in each margin and automatically shifts notes
+% (an automatic vertical offset) so they never run off the page bottom or
+% collide. This is the render-time counterpart to the layout audit's
+% footnote-overflow / physical-bleed checks, which detect the same failures.
+\usepackage{marginfix}
+% Route .column-margin asides (Quarto emits raw \marginnote) through the same
+% marginfix-managed \marginpar as the footnotes. This makes the asides (a) auto-
+% offset so they never run off the page or collide with footnotes, and (b) follow
+% the outer-margin alternation instead of always sitting on the right, which put
+% them on the inner margin of verso pages. Done \AtBeginDocument so it runs after
+% Quarto has loaded marginnote/sidenotes.
+\AtBeginDocument{\RenewDocumentCommand{\marginnote}{o +m o}{\marginpar{#2}}}
 \usepackage{xcolor}
+% Footnote margin-mark styling: a small top-left corner bracket (a little "L")
+% around just the sidenote number, which sits in its nook; the note text then
+% flows normally. A short top rule and a short left rule, both ~number height,
+% meet at the corner. Targets sidenote footnotes (\@sidenotes@placemarginal);
+% .column-margin asides route through the \marginnote redefinition and stay
+% unbracketed.
+\newcommand{\archsnframe}[1]{%
+  {\color{archtwoline}\rule[1.15ex]{5pt}{0.4pt}\hspace{-5pt}\rule[-0.15ex]{0.4pt}{1.35ex}}%
+  \hspace{2pt}#1%
+}
+\makeatletter
+\AtBeginDocument{\RenewDocumentCommand{\@sidenotes@placemarginal}{+m +m}{\marginpar{\archsnframe{#2}}}}
+\makeatother
 \usepackage{fontawesome5}
 \usepackage[most]{tcolorbox}
 \usepackage{tikz}
