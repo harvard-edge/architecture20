@@ -121,7 +121,7 @@ insertPreamble = function(doc, classDefs, fmt)
   -- =========================================================================
 
   -- Light mode opacity for background/title (subtle tint)
-  local LIGHT_BG_OPACITY = 0.04
+  local LIGHT_BG_OPACITY = 0.06
   -- Dark mode opacity (stronger tint for visibility on dark backgrounds)
   local DARK_BG_OPACITY = 0.12
 
