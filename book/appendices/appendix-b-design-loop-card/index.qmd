@@ -47,10 +47,11 @@ consequences in a lightweight form [@Nygard2011ADR]. Reproducibility programs
 and reporting checklists show that reviewer-facing fields matter only when they
 make omissions visible [@PineauEtAl2021Reproducibility; @PageEtAl2021PRISMA].
 Benchmarking and supply-chain records add two more lessons. Claims need
-scenario rules and versioned provenance, while machine-readable manifests such
-as SPDX (Software Package Data Exchange) and SLSA (Supply chain Levels for Software Artifacts) should be linked when they exist rather than
-recreated inside the card [@MattsonEtAl2020MLPerf; @SPDX2021Standard;
-@SLSA2026Framework].
+scenario rules and versioned provenance, while machine-readable software bills
+of materials such as SPDX (Software Package Data Exchange) and provenance or
+attestation records compatible with SLSA (Supply chain Levels for Software
+Artifacts) should be linked when they exist rather than recreated inside the card
+[@MattsonEtAl2020MLPerf; @SPDX2021Standard; @SLSA2026Framework].
 
 The design-loop card adapts that pattern to architecture work. It treats an
 architecture result as credible only once the loop behind it is on the record:
@@ -163,11 +164,10 @@ it is not yet a credible Architecture 2.0 loop.
 The card is a review artifact first, but it is meant to become a machine-checkable
 record so tools can validate it, ledgers can index it, and claims can be compared.
 The schema below names the required fields, gives stable IDs for the records a loop
-must preserve, reuses the commitment levels of the commitment ladder
-(@sec-feedback-verification-trust), and compresses the fidelity ladder of
-@sec-methods-generation-prediction-optimization into eight machine-checkable
-rungs. It is a minimum, not a standard to freeze; the point is that "we filled
-the card" becomes something a validator can check.
+must preserve, reuses the commitment levels of @tbl-commitment-ladder, and
+compresses the fidelity ladder of @sec-fidelity-ladders-and-evidence-ledgers
+into eight machine-checkable rungs. It is a minimum, not a standard to freeze;
+the point is that "we filled the card" becomes something a validator can check.
 The fidelity enum is illustrative. `synthesis_with_sdc` means synthesis with
 Synopsys Design Constraints, while `shadow_traffic`, `canary`, and
 `global_fleet` name deployment-exposure rungs rather than architecture signoff
@@ -178,40 +178,76 @@ design_loop_card:
   card_id: string
   conformance_level: { enum: [0, 1, 2, 3] }
   intent: { objective, constraints, non_goals }
-  task: { enum: [generation, prediction, optimization, critique,
-                 verification, characterization, benchmark, dse] }
+  task:
+    enum: [generation, prediction, optimization, critique,
+           verification, characterization, benchmark, dse]
   design_space: { legal, invalid, deferred }
-  representation: { state_schema_id, ir_level, reads, writes,
-                    uncertainties }
+  representation:
+    state_schema_id: string
+    ir_level: string
+    reads: [string]
+    writes: [string]
+    uncertainties: [string]
   environment:
     environment_id: string
     actions: [string]
     invalid_actions: [string]
     blast_radius_limit: string
     observations: [string]
-    fidelity: { enum: [proxy, simulation, rtl, synthesis_with_sdc,
-                       silicon, shadow_traffic, canary, global_fleet] }
+    fidelity:
+      enum: [proxy, simulation, rtl, synthesis_with_sdc,
+             silicon, shadow_traffic, canary, global_fleet]
   method_role:
-    roles: [ { enum: [generate, predict, optimize, critique,
-                      verify, plan, tool_call, coordinate] } ]
-    actor_map: [ { actor_id, role, reads, writes, authority } ]
-  feedback_budget: { evaluations, latency, cost, fidelity }
-  model_budget: { model_calls, gpu_hours, energy_or_carbon, human_review }
+    roles:
+      - enum: [generate, predict, optimize, critique,
+               verify, plan, tool_call, coordinate]
+    actor_map:
+      - { actor_id, role, reads, writes, authority }
+  feedback_budget:
+    evaluations: integer
+    latency: string
+    cost: string
+    fidelity: string
+    model_side_cost:        # optional
+      model_calls: integer
+      gpu_hours: number
+      energy_or_carbon: string
+      human_review: string
   evidence:
-    baseline_id: string        # what the claim is measured against
-    records: [ { evidence_id, kind, workload_id, seed, provenance } ]
-    telemetry_packet: { hardware_stepping, software_stack, cohort,
-                        sampling_policy, privacy_filter, rollback_trigger }
-    integrity_manifest: { dependencies, model_ids, prompt_ids,
-                          artifact_hashes, attestations }
-  negative_traces: [ { candidate_id, reason, stage, gate } ]
-  disclosure_boundary: { data_classes, redactions, reviewer_roles,
-                         release_or_export_class }
-  rejection_authority: { gates, independent_of_producer,
-                         independence_basis }
+    baseline_id: string        # comparison baseline
+    records:
+      - { evidence_id, kind, workload_id, seed, provenance }
+    telemetry_packet:       # optional
+      hardware_stepping: string
+      software_stack: string
+      deployment_version: string
+      cohort: string
+      sampling_policy: string
+      privacy_filter: string
+      canary_or_rollback_label: string
+      incident_context: string
+      decision_owner: string
+    integrity_manifest:     # optional
+      dependencies: [string]
+      model_ids: [string]
+      prompt_ids: [string]
+      artifact_hashes: [string]
+      attestations: [string]
+  negative_traces:
+    - { candidate_id, reason, stage, gate }
+  disclosure_boundary:      # optional
+    data_classes: [string]
+    redactions: [string]
+    reviewer_roles: [string]
+    release_boundary_or_compliance_review_id: string
+  rejection_authority:
+    gates: [string]
+    independent_of_producer: boolean
+    independence_basis: string
   commitment_boundary:
-    level: { enum: [exploratory, experimental, implementation,
-                    integration, irreversible] }
+    level:
+      enum: [exploratory, experimental, implementation,
+             integration, irreversible]
     strongest_supported_claim: string
     would_overturn: string
   human_decision: { owner, authorizes }
@@ -224,11 +260,16 @@ Level 1 adds `representation`, `environment`, `method_role`,
 `feedback_budget`, `evidence` (with a `baseline_id`), and `negative_traces`;
 Level 2 adds the stable IDs and provenance; Level 3 adds
 `rejection_authority` (independent of the producer), `commitment_boundary`,
-and `human_decision`.  The `independence_basis` field captures *why* the rejection authority is independent (e.g., a separate reporting chain or a formal verification tool). A validator checks a card against the level it claims.
-The `model_budget`, `telemetry_packet`, `integrity_manifest`, and
-`disclosure_boundary` fields are optional extensions that become necessary when
-the claim depends on large-model cost, field evidence, supply-chain integrity,
-or protected design state.
+and `human_decision`. The `independence_basis` field captures *why* the
+rejection authority is independent (e.g., a separate reporting chain or a formal
+verification tool). A validator checks a card against the level it claims.
+The optional extensions use full paths: `feedback_budget.model_side_cost`,
+`evidence.telemetry_packet`, `evidence.integrity_manifest`, and
+`disclosure_boundary`. They become necessary when the claim depends on
+large-model cost, field evidence, supply-chain integrity, or protected design
+state. The `release_boundary_or_compliance_review_id` field records the result
+or pointer to an authorized release, IP, or export-control review. The card does
+not perform that classification itself.
 The stable IDs (`card_id`, `workload_id`, `evidence_id`, `candidate_id`, and
 the other `*_id` fields) are what let one loop's ledger
 reference another's, so a rejected candidate, a workload packet, or a baseline
