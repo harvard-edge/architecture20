@@ -31,13 +31,17 @@ The distinction matters. A model that can generate plausible schedules,
 configuration files, code fragments, RTL snippets, or design prose may be
 useful for drafting alternatives, but weak for choosing among them. A
 surrogate may predict latency or energy well inside a calibrated accelerator
-design region, but fail outside the sampled space. Bayesian optimization^[A strategy for the global optimization of black-box functions that uses a probabilistic model to balance exploration and exploitation.] may
+design region, but fail outside the sampled space. Bayesian optimization[^fn-ml-bayesian-optimization] may
 spend scarce simulator or synthesis evaluations carefully, but only if the
-action space and objective are well formed. Reinforcement learning^[A machine learning paradigm where an agent learns to make sequential decisions by receiving rewards or penalties from its environment.] may be
+action space and objective are well formed. Reinforcement learning[^fn-rl-reinforcement-learning] may be
 attractive for placement, scheduling, or adaptive control, but dangerous when
 invalid actions are common and feedback is delayed. A critic may be more
 valuable than a generator when the urgent problem is exposing missing workload
 evidence, not proposing more candidates.
+
+[^fn-ml-bayesian-optimization]: Bayesian optimization is a strategy for the global optimization of expensive black-box functions that uses a probabilistic surrogate model to balance exploration and exploitation. In an architecture loop it serves as the acquisition policy that decides which scarce simulator or synthesis evaluation to spend next, so its value depends on a well-formed action space and objective.
+
+[^fn-rl-reinforcement-learning]: Reinforcement learning is a machine learning paradigm in which an agent learns to make sequential decisions by receiving rewards or penalties from its environment. It fits sequential architecture tasks such as placement, scheduling, and adaptive control, but the loop must treat it cautiously when invalid actions are common and reward feedback is delayed.
 
 Architecture 2.0 therefore treats methods as roles in a compound design
 system. These roles can be read through a closed-loop-control lens and related
@@ -176,7 +180,7 @@ This definition matters because Architecture 2.0 methods will often generate
 or revise artifacts near the hardware/software boundary: kernels, compiler
 settings, accelerator configurations, RTL fragments, memory-system choices,
 placement constraints, or design reports. Hardware-aware neural architecture
-search, in the ML model-design sense rather than computer architecture proper,
+search[^fn-ml-nas], in the ML model-design sense rather than computer architecture proper,
 already shows the value of putting latency, energy, memory footprint, and
 target-device cost into the search problem
 [@BenmezianeEtAl2021HardwareAwareNAS]. Architecture 2.0 uses a broader
@@ -184,7 +188,7 @@ version of the same discipline. The question is not whether an artifact sounds
 hardware-aware, but what level of hardware-aware action and evidence the loop
 can support.
 
-> **Neural architecture search (NAS):** In this chapter, a cautionary adjacent field where search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are recorded.
+[^fn-ml-nas]: Neural architecture search (NAS) automates the design of neural network architectures. This chapter treats it as a cautionary adjacent field, one whose search only becomes reusable when the search space, data, training budget, evaluation rule, and rejected alternatives are all recorded.
 
 The capability map for evaluating these methods, shown in
 @fig-hardware-awareness-ladder, stages the levels as a cumulative assessment
@@ -354,7 +358,7 @@ authority to reject.
 ## Prediction: Estimating Behavior Before Full Evaluation {#sec-prediction-estimating-behavior-before-full-evaluation}
 
 While generation supplies candidate breadth, prediction is central because architecture feedback is expensive. Long before
-recent foundation models^[Large-scale machine learning models trained on vast quantities of data that can be adapted to a wide range of downstream tasks.], architects used statistical and machine-learning
+recent foundation models[^fn-ml-foundation-models], architects used statistical and machine-learning
 models to reduce the cost of exploring large design spaces. Regression models
 for microarchitectural performance and power, and predictive modeling for
 large architectural design spaces, are part of this lineage
@@ -362,6 +366,8 @@ large architectural design spaces, are part of this lineage
 Architecture 2.0 uses that lineage only when the predictor exposes what an
 agentic loop needs: the support region, uncertainty, calibration source,
 escalation trigger, and decision owner.
+
+[^fn-ml-foundation-models]: Foundation models are large-scale machine learning models trained on vast quantities of data that can be adapted to a wide range of downstream tasks. The chapter invokes them only to date the prediction role, whose lineage of regression models and learned surrogates for architecture long predates them.
 
 The prediction role is not limited to performance. A predictor might estimate
 energy, area, latency, reliability, queueing behavior, memory traffic,
@@ -386,9 +392,9 @@ it is calibrated against a higher-fidelity source, and whether it preserves
 enough provenance to explain why a candidate was trusted.
 
 There is a rigorous way to make this concrete when the assumptions are
-appropriate. Conformal prediction^[A statistical technique that provides rigorous, distribution-free uncertainty bands for model predictions.] can wrap a surrogate, regardless of its
+appropriate. Conformal prediction[^fn-stats-conformal-prediction] can wrap a surrogate, regardless of its
 internals, so that it emits calibrated prediction sets, intervals that contain
-the true value with a user-chosen probability under an exchangeability
+the true value with a user-chosen probability under an exchangeability[^fn-stats-exchangeability]
 assumption [@AngelopoulosBates2021Conformal]. Architecture loops must audit
 that assumption because workloads, tools, and process corners are often not
 exchangeable. Still, the pattern is useful. It converts "report confidence"
@@ -402,7 +408,9 @@ depends on the calibration assumption being meaningful; under distribution
 shift, the interval is a diagnostic that should trigger scrutiny rather than a
 promise that the proxy is safe.
 
-> **Exchangeability:** A statistical property where the joint probability distribution of a sequence of random variables is invariant to their permutation; it is a weaker assumption than independent and identically distributed (i.i.d.).
+[^fn-stats-conformal-prediction]: Conformal prediction is a statistical technique that wraps any model to produce rigorous, distribution-free uncertainty bands around its predictions. Here it turns a surrogate's point estimate into a calibrated interval the loop can act on, and only to prune, defer, or escalate, not to make an unowned commitment.
+
+[^fn-stats-exchangeability]: Exchangeability is a statistical property where the joint distribution of a sequence of random variables is invariant to their permutation, a weaker assumption than being independent and identically distributed (i.i.d.). The chapter stresses it because architecture workloads, tools, and process corners are often not exchangeable, so the conformal interval must be audited rather than trusted.
 
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
@@ -416,11 +424,11 @@ stronger the calibration and fidelity requirement.
 Once candidates are generated and their behavior predicted, the loop must decide what to evaluate next. Optimization is often framed as search, finding the best point under an
 objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are often discrete, non-differentiable, and highly constrained. This makes plain gradient descent a poor default and rewards methods that handle sparse, expensive feedback and hard validity constraints. The useful goal is to
 learn the design space well enough to make a defensible decision under
-limited feedback. That may mean finding a Pareto region, identifying a
+limited feedback. That may mean finding a Pareto region[^fn-math-pareto-region], identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
 candidates, or deciding which expensive experiment is worth running next.
 
-> **Pareto region:** The set of optimal solutions in a multi-objective design space where no single objective can be improved without degrading at least one other objective.
+[^fn-math-pareto-region]: A Pareto region is the set of solutions in a multi-objective design space where no single objective can be improved without degrading at least one other. The chapter names it as one defensible target for architecture optimization under limited feedback, alongside a constraint boundary or a ruled-out class of candidates, rather than collapsing the search to a single best point.
 
 Optimization methods are useful here when they make the loop's sampling policy
 representable and rejectable. Bayesian optimization is attractive for
@@ -498,13 +506,13 @@ number without improving architectural understanding.
 ## Sample Efficiency Under Expensive Feedback {#sec-sample-efficiency-under-expensive-feedback}
 
 Whether an optimizer spends its scarce high-fidelity evaluations carefully is
-itself the problem of sample efficiency, which is one of the reasons architecture is a hard AI domain.
+itself the problem of sample efficiency[^fn-ml-sample-efficiency], which is one of the reasons architecture is a hard AI domain.
 Many AI settings assume abundant feedback. Architecture often has the
 opposite shape: a small number of high-fidelity runs, a larger number of
 medium-fidelity simulations, many cheap proxies, and a long tail of hidden
 costs such as expert review, tool setup, debugging, and license availability.
 
-> **Sample efficiency:** In this chapter, the amount of decision-relevant evidence a loop gains per scarce feedback event, including failed runs and expert rejections, not just successful simulations.
+[^fn-ml-sample-efficiency]: In this chapter, sample efficiency is the amount of decision-relevant evidence a loop gains per scarce feedback event, counting failed runs and expert rejections, not just successful simulations. Framing it this way makes it a method-selection criterion, since the loop should spend feedback where decision value per unit cost is highest rather than maximize the raw number of runs.
 
 The combinatorial explosion of architecture design spaces dwarfs the severe constraints of real-world sample budgets, a mismatch @fig-evidence-gap plots on a logarithmic count scale. The upper
 rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the
@@ -584,10 +592,10 @@ what they would resolve, not a number to compute and literally optimize.
 This heuristic has a rigorous counterpart. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
 each candidate next-sample) over a surrogate's posterior (its current
-probability estimate over outcomes), and GP-UCB^[An acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model.] (Gaussian Process Upper
-Confidence Bound) gives that choice a no-regret guarantee under stated
+probability estimate over outcomes), and GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper
+Confidence Bound) gives that choice a no-regret guarantee[^fn-ml-no-regret] under stated
 assumptions, so the loop can defend why it sampled where it did rather than
-appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian^[An extension of Bayesian optimization that jointly selects which design to evaluate and at which level of fidelity, optimizing the tradeoff between information gain and computational cost.]
+appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian[^fn-ml-multi-fidelity-bo]
 optimization goes one step further and treats the fidelity level itself as a
 decision variable. It chooses not only which candidate to evaluate but whether
 to spend a cheap proxy or an expensive simulation on it, exactly the choice the
@@ -598,7 +606,11 @@ what threshold forced escalation. The loop still has to record the acquisition
 rule, fidelity choice, assumptions, rejected alternatives, and escalation
 threshold, or the optimizer becomes another opaque source of candidates.
 
-> **No-regret guarantee:** In this chapter, a formal promise about a sampling rule under stated assumptions; useful only when the loop records whether those assumptions apply.
+[^fn-ml-gp-ucb]: GP-UCB (Gaussian Process Upper Confidence Bound) is an acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model. It matters here because it gives the sample choice a no-regret guarantee under stated assumptions, letting the loop defend where it spent scarce feedback instead of appealing to intuition.
+
+[^fn-ml-multi-fidelity-bo]: Multi-fidelity Bayesian optimization extends Bayesian optimization by jointly choosing which design to evaluate and at which level of fidelity, trading information gain against computational cost. That is exactly the fidelity-ladder decision this section poses, namely whether to spend a cheap proxy or an expensive simulation on a given candidate.
+
+[^fn-ml-no-regret]: In this chapter, a no-regret guarantee is a formal promise about a sampling rule under stated assumptions, useful only when the loop records whether those assumptions actually apply. It is what lets GP-UCB justify where the loop spent its scarce feedback rather than treating the choice as intuition.
 
 > **Fidelity ladder.** A fidelity ladder is the ordered set of feedback levels
 > a loop can climb, from cheap proxies through simulation, synthesis, physical
@@ -776,7 +788,9 @@ Sample efficiency under expensive feedback (@sec-sample-efficiency-under-expensi
 The architecture community lacks standardized adversarial tests designed to falsify unsupported predictions or trap invalid generative actions. The right target is not a definitive oracle for all hardware awareness. A stronger paper would build a bounded rejection suite for a named environment and state the maximum commitment that passing the suite can authorize. The evaluation should include intentionally invalid candidates, near-miss candidates, and valid candidates, so the oracle's false-pass and false-reject behavior is visible.
 
 4. **What control-theoretic mechanisms should govern the dynamic reallocation of method roles?**
-The decision-value heuristic for expensive feedback (@sec-sample-efficiency-under-expensive-feedback) assumes a mostly static policy for invoking the next method role. A compelling thesis direction is a meta-controller, perhaps based on optimal control or meta-reinforcement learning^[A learning paradigm where an agent learns to learn, rapidly adapting to new tasks or environments by leveraging past experience.], that reallocates effort among generation, prediction, critique, and repair. The paper should report whether the controller improves evidence use under a fixed budget while obeying the role contracts and commitment boundaries defined earlier in the chapter.
+The decision-value heuristic for expensive feedback (@sec-sample-efficiency-under-expensive-feedback) assumes a mostly static policy for invoking the next method role. A compelling thesis direction is a meta-controller, perhaps based on optimal control or meta-reinforcement learning[^fn-rl-meta-reinforcement-learning], that reallocates effort among generation, prediction, critique, and repair. The paper should report whether the controller improves evidence use under a fixed budget while obeying the role contracts and commitment boundaries defined earlier in the chapter.
+
+[^fn-rl-meta-reinforcement-learning]: Meta-reinforcement learning is a paradigm in which an agent learns to learn, adapting rapidly to new tasks by leveraging past experience. The open question raises it as a candidate meta-controller that could reallocate effort among generation, prediction, critique, and repair while still obeying the chapter's role contracts and commitment boundaries.
 
 ## Conclusion
 
