@@ -1682,7 +1682,7 @@ grounding notes for later integration.
    interface-cost explanation.
 4. **What receipt metadata makes rejected candidates reusable?**  
    Grounding. Round Four, the worked-loop card, the replay receipt table, and
-   the evidence-packet callout.
+   the evidence packet paragraph.
 5. **When should a recorded rejection be reopened?**  
    Grounding. The worked-loop card, the replay receipt table, and the
    carry-forward discussion around rejected candidates.
