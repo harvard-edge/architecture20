@@ -62,7 +62,7 @@ into evidence.
 The unifying test across these roles is concrete. What state can the method see, what boundaries may it push, and what evidence forces it to stop or escalate? The method question is therefore not "Which AI system is best?" It is "Which role is needed, what feedback can support it, and what evidence would make its output credible?"
 
 Tensor-program autotuning gives a small version of this role split. AutoTVM and
-Ansor, two TVM tensor-program autotuners, generate candidate schedules, predict
+Ansor, the latter a TVM tensor-program autotuner, generate candidate schedules, predict
 or rank promising regions, spend measured hardware feedback selectively, and
 reject candidates that fail correctness or performance checks
 [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The method is useful because the
@@ -214,8 +214,8 @@ locality, bandwidth, occupancy, parallelism, pipelines, and communication.
 Here, "performance model" means a cheap analytical, learned, or surrogate
 estimator used before live tool execution.
 Tool and environment awareness connects those mechanisms to compilers,
-profilers, simulators, synthesis reports, and failed runs; a simulator such as
-gem5 can itself be a tool environment when the loop invokes it, records
+profilers, simulators, synthesis reports, and failed runs; gem5 can itself be a
+tool environment when the loop invokes it, records
 configurations and outputs, and treats its result as feedback rather than as an
 abstract ranking. Evidence awareness
 adds calibration, uncertainty, proxy mismatch, fidelity, and negative traces.
@@ -256,7 +256,7 @@ feedback supports that change, and what authority can reject it.
 : **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and make its output rejectable by the loop. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
 
 However, the previous table is still too abstract unless each level has a falsifiable test.
-@tbl-hardware-awareness-tests provides a practical reviewer version. A method should not
+The practical reviewer version in @tbl-hardware-awareness-tests gives each level an observable test. A method should not
 claim a higher level unless it can pass the observable test for that level in
 the current loop. This ensures that hardware awareness remains an empirical property rather than a rhetorical claim.
 
@@ -439,7 +439,7 @@ limited feedback. That may mean finding a Pareto region[^fn-math-pareto-region],
 constraint boundary, understanding a sensitivity, ruling out a class of
 candidates, or deciding which expensive experiment is worth running next.
 
-[^fn-math-pareto-region]: A Pareto region is the set of solutions in a multi-objective design space where no single objective can be improved without degrading at least one other. The chapter names it as one defensible target for architecture optimization under limited feedback, alongside a constraint boundary or a ruled-out class of candidates, rather than collapsing the search to a single best point.
+[^fn-math-pareto-region]: A Pareto region here is the Pareto frontier introduced earlier, treated as one defensible target for architecture optimization under limited feedback, alongside a constraint boundary or a ruled-out class of candidates, rather than collapsing the search to a single best point.
 
 Optimization methods are useful here when they make the loop's sampling policy
 representable and rejectable. Bayesian optimization is attractive for
@@ -480,7 +480,7 @@ a bounded action space lets a higher-fidelity instrument reject each candidate.
 Method choice is inseparable from what the environment can verify.
 
 ::: {.callout-war-story title="A simpler baseline kept up"}
-**The claim.** AlphaChip is remembered as the reinforcement-learning result, and the learning is the part that drew the attention.
+**The claim.** AlphaChip, the learned method that posed chip floorplanning as a graph-placement problem [@MirhoseiniEtAl2021GraphPlacement], is remembered as the reinforcement-learning result, and the learning is the part that drew the attention.
 
 **The gap.** The point this chapter needs is quieter. When independent researchers reran the comparison, a strong simulated-annealing baseline, a classical optimizer with no learning at all, matched or beat the learned method on its own proxy cost across most modern test cases [@ChengEtAl2023AssessmentRL]. That does not make reinforcement learning the wrong tool for sequential placement, but it means the learned method's advantage over a well-tuned classical baseline could not be shown in that public evaluation.
 
@@ -532,10 +532,9 @@ costs such as expert review, tool setup, debugging, and license availability.
 
 The combinatorial explosion of architecture design spaces dwarfs the severe constraints of real-world sample budgets, a scale-pressure mismatch @fig-evidence-gap plots on a logarithmic count scale. The upper
 rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the
-12,960-state slice computed there, the accelerator DSE scale of MAESTRO, an analytic model for
-evaluating DNN dataflows, AutoTVM-style operator tuning spaces, and the core
-mapspace expression of Timeloop, a mapping and evaluation framework
-[@KwonEtAl2019MAESTRO; @ChenEtAl2018AutoTVM; @ParasharEtAl2019Timeloop]. The
+12,960-state slice computed there, the accelerator DSE scale of MAESTRO,
+AutoTVM-style operator tuning spaces, and the core mapspace expression of
+Timeloop [@KwonEtAl2019MAESTRO; @ChenEtAl2018AutoTVM; @ParasharEtAl2019Timeloop]. The
 lower rows reuse the representative feedback budgets from @sec-architecture-environments-tool-interfaces. This is not a direct quantitative comparison between identical scientific quantities. It is scale intuition. High-fidelity architecture evidence can touch only a tiny slice of
 the plausible candidate space, so methods must decide what can be screened by
 proxies, what should be escalated, and what rejected regions must be recorded.
@@ -602,6 +601,15 @@ where $\Delta D$ denotes the change in decision confidence, rejected-space
 coverage, or evidence strength produced by that sample. Neither term is
 directly measurable; the relation is a way to rank candidate experiments by
 what they would resolve, not a number to compute and literally optimize.
+
+The cost term includes the AI method itself. Large-model inference, agent
+fanout, retrieval, fine-tuning, GPU-hours, energy, carbon exposure, and the
+human time spent reviewing model output are part of $C_{\mathrm{sample}}$ when
+they are needed to obtain the feedback. Treating generation as free simply moves
+cost outside the ledger and can make an already expensive loop look cheaper than
+it is. When energy or carbon exposure is material, the ledger should also state
+the location, time basis, energy source, utilization, and amortization
+assumptions.
 
 This heuristic has a formal analogue in idealized settings. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
@@ -795,6 +803,11 @@ research directions. At this point in the progression, the question is not
 whether a model can generate, predict, or optimize in isolation. The research
 problem is whether a method performs its assigned role inside a bounded,
 evidence-constrained architecture loop.
+
+For a first project, do not try to solve all of these at once. Pick one method
+role in one bounded loop and make its action, feedback, rejection, and
+commitment boundary inspectable. The questions below show how that small
+artifact could grow into research.
 
 1. **What role contracts keep AI methods from becoming decision makers?**
 The decision matrix for method selection in

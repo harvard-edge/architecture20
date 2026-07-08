@@ -10,8 +10,10 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
+import html as html_lib
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -80,7 +82,7 @@ verify_app = typer.Typer(
     help="Verify rendered artifacts against manuscript sources.", no_args_is_help=True
 )
 layout_app = typer.Typer(
-    help="Scan PDF and LaTeX layout signals.", no_args_is_help=True
+    help="Scan PDF, LaTeX, and visual layout signals.", no_args_is_help=True
 )
 review_app = typer.Typer(
     help="Open the Arch2 local review/commenting bench.", no_args_is_help=True
@@ -102,6 +104,35 @@ class Finding:
     code: str
     location: str
     message: str
+
+
+@dataclass(frozen=True)
+class LayoutPageProfile:
+    page: int
+    width: float
+    height: float
+    word_count: int
+    content_top: float | None
+    content_bottom: float | None
+    usable_bottom: float
+    bottom_whitespace: float | None
+    has_figure: bool
+    has_table: bool
+    captions: tuple[str, ...]
+    starts_chapter: bool
+    text_excerpt: str
+
+
+@dataclass(frozen=True)
+class LayoutRepairItem:
+    id: str
+    severity: str
+    code: str
+    location: str
+    evidence: str
+    likely_cause: str
+    suggested_action: str
+    source_hints: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -216,14 +247,32 @@ UNDERFULL_RE = re.compile(r"Underfull \\(?:h|v)box (?P<context>[^\n]*)")
 UNRESOLVED_REF_RE = re.compile(
     r"(?:Reference|Citation) `?([^'\n]+)'? on page .* undefined", re.I
 )
+PDF_CAPTION_LINE_RE = re.compile(r"\b(?P<kind>Figure|Table)\s*[A-Z]?\d+(?:\.\d+)?:")
+PDF_CHAPTER_START_RE = re.compile(r"^Chapter\s+\d+\b", re.I)
 CONTENT_ROOTS = (BOOK_DIR / "chapters", BOOK_DIR / "appendices")
-QUARTO_LABEL_RE = re.compile(
-    r"\{#(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)(?=[\s}])[^}]*\}"
+BOOK_FRONTMATTER = (
+    BOOK_DIR / "index.qmd",
+    BOOK_DIR / "foreword.qmd",
+    BOOK_DIR / "acknowledgments.qmd",
+    BOOK_DIR / "about-the-author.qmd",
 )
-LATEX_LABEL_RE = re.compile(r"\\label\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}")
-QUARTO_REF_RE = re.compile(r"(?<![#\w])@(?P<label>(?:fig|tbl|eq)-[A-Za-z0-9_-]+)\b")
+CANONICAL_CROSSREF_PREFIXES = ("fig", "tbl", "eq", "sec", "lst", "pri")
+REQUIRED_REFERENCED_LABEL_PREFIXES = ("fig-", "tbl-", "eq-", "lst-")
+CANONICAL_BIBLIOGRAPHY = BOOK_DIR / "references" / "references.bib"
+CANONICAL_CSL = BOOK_DIR / "csl" / "chicago-author-date.csl"
+CROSSREF_PREFIX_PATTERN = "|".join(CANONICAL_CROSSREF_PREFIXES)
+GENERATED_ASSET_SUFFIXES = (".pdf", ".svg", ".png", ".jpg", ".jpeg")
+QUARTO_LABEL_RE = re.compile(
+    rf"\{{[^}}\n]*#(?P<label>(?:{CROSSREF_PREFIX_PATTERN})-[A-Za-z0-9_-]+)(?=[\s}}])[^}}]*\}}"
+)
+LATEX_LABEL_RE = re.compile(
+    r"\\label\{(?P<label>(?:fig|tab|eq|sec|lst):[A-Za-z0-9:_-]+)\}"
+)
+QUARTO_REF_RE = re.compile(
+    rf"(?<![#\w])@(?P<label>(?:{CROSSREF_PREFIX_PATTERN})-[A-Za-z0-9_-]+)\b"
+)
 LATEX_REF_RE = re.compile(
-    r"\\(?:auto|[cC]|eq)?ref\{(?P<label>(?:fig|tab|eq):[A-Za-z0-9:_-]+)\}"
+    r"\\(?:auto|[cC]|eq)?ref\{(?P<label>(?:fig|tab|eq|sec|lst):[A-Za-z0-9:_-]+)\}"
 )
 RAW_STRUCTURE_REF_RE = re.compile(
     r"\b(?:(?:[Cc]hapters?|Ch\.)\s*\d+(?:\s*(?:-|and|,)\s*\d+)*|(?:[Aa]ppendix|[Aa]ppendices)\s+[A-Z])\b"
@@ -251,7 +300,10 @@ EXECUTABLE_FIGURE_RE = re.compile(
     re.MULTILINE,
 )
 CHUNK_START_RE = re.compile(r"^\s*```\{(?P<engine>[^}]*)\}\s*$")
-CHUNK_LABEL_RE = re.compile(r"^\s*#\|\s*label:\s*(?P<label>fig-[A-Za-z0-9_-]+)\s*$")
+CHUNK_LABEL_RE = re.compile(
+    rf"^\s*#\|\s*label:\s*(?P<label>(?:{CROSSREF_PREFIX_PATTERN})-[A-Za-z0-9_-]+)\s*$",
+    re.MULTILINE,
+)
 CHUNK_FIG_ALT_RE = re.compile(r"^\s*#\|\s*fig-alt:\s*(?P<alt>.+?)\s*$")
 CHUNK_FIG_POS_RE = re.compile(r"^\s*#\|\s*fig-pos:\s*(?P<pos>.+?)\s*$")
 CITE_RE = re.compile(r"(?<![\w@])@(?P<key>[A-Za-z0-9:_-]+)")
@@ -352,7 +404,7 @@ def _exit_on_findings(
 
 
 def content_qmd_files() -> list[Path]:
-    paths: list[Path] = []
+    paths: list[Path] = [path for path in BOOK_FRONTMATTER if path.exists()]
     for content_root in CONTENT_ROOTS:
         if content_root.exists():
             paths.extend(content_root.rglob("*.qmd"))
@@ -410,6 +462,12 @@ def label_kind(label: str) -> str:
         return "table"
     if label.startswith(("eq-", "eq:")):
         return "equation"
+    if label.startswith(("sec-", "sec:")):
+        return "section"
+    if label.startswith(("lst-", "lst:")):
+        return "listing"
+    if label.startswith("pri-"):
+        return "principle"
     return "label"
 
 
@@ -433,15 +491,23 @@ def collect_labels(path: Path) -> list[ManuscriptLabel]:
             )
         )
 
+    for match in CHUNK_LABEL_RE.finditer(text):
+        label = match.group("label")
+        labels.append(
+            ManuscriptLabel(
+                path, line_number(text, match.start()), label, label_kind(label)
+            )
+        )
+
     return labels
 
 
 def collect_refs(paths: list[Path]) -> set[str]:
     refs: set[str] = set()
     for path in paths:
-        text = path.read_text(encoding="utf-8")
-        refs.update(match.group("label") for match in QUARTO_REF_RE.finditer(text))
-        refs.update(match.group("label") for match in LATEX_REF_RE.finditer(text))
+        for _, line in manuscript_source_lines(path):
+            refs.update(match.group("label") for match in QUARTO_REF_RE.finditer(line))
+            refs.update(match.group("label") for match in LATEX_REF_RE.finditer(line))
     return refs
 
 
@@ -458,7 +524,39 @@ def equivalent_ref_labels(label: str) -> set[str]:
         return {label, f"eq-{label[3:]}"}
     if label.startswith("eq-"):
         return {label, f"eq:{label[3:]}"}
+    if label.startswith("sec:"):
+        return {label, f"sec-{label[4:]}"}
+    if label.startswith("sec-"):
+        return {label, f"sec:{label[4:]}"}
+    if label.startswith("lst:"):
+        return {label, f"lst-{label[4:]}"}
+    if label.startswith("lst-"):
+        return {label, f"lst:{label[4:]}"}
     return {label}
+
+
+def undefined_ref_findings(paths: list[Path]) -> list[Finding]:
+    labels: set[str] = set()
+    for path in paths:
+        for label in collect_labels(path):
+            labels.update(equivalent_ref_labels(label.label))
+
+    findings: list[Finding] = []
+    for path in paths:
+        for line_number_value, line in manuscript_source_lines(path):
+            for regex in (QUARTO_REF_RE, LATEX_REF_RE):
+                for match in regex.finditer(line):
+                    ref = match.group("label")
+                    if not (equivalent_ref_labels(ref) & labels):
+                        findings.append(
+                            Finding(
+                                "error",
+                                "undefined-crossref",
+                                f"{_relative(path)}:{line_number_value}",
+                                f"cross-reference target '{ref}' is not defined",
+                            )
+                        )
+    return findings
 
 
 def unreferenced_label_findings(
@@ -469,6 +567,8 @@ def unreferenced_label_findings(
 
     for path in targets:
         for label in collect_labels(path):
+            if not label.label.startswith(REQUIRED_REFERENCED_LABEL_PREFIXES):
+                continue
             if not (equivalent_ref_labels(label.label) & refs):
                 findings.append(
                     Finding(
@@ -742,6 +842,7 @@ def figure_source_findings(path: Path) -> list[Finding]:
 def manuscript_integrity_findings() -> list[Finding]:
     all_paths = content_qmd_files()
     findings: list[Finding] = []
+    findings.extend(undefined_ref_findings(all_paths))
     findings.extend(unreferenced_label_findings(all_paths, all_paths))
     for path in all_paths:
         findings.extend(figure_path_findings(path))
@@ -755,7 +856,8 @@ def manuscript_integrity_findings() -> list[Finding]:
 
 def is_crossref_key(key: str) -> bool:
     return key.startswith(
-        ("fig-", "tbl-", "eq-", "sec-", "fig:", "tab:", "eq:", "sec:")
+        tuple(f"{prefix}-" for prefix in CANONICAL_CROSSREF_PREFIXES)
+        + ("fig:", "tab:", "eq:", "sec:", "lst:")
     )
 
 
@@ -775,9 +877,7 @@ def collect_citation_occurrences(
 ) -> dict[str, list[CitationOccurrence]]:
     hits: dict[str, list[CitationOccurrence]] = {}
     for path in paths:
-        for line, text in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        for line, text in manuscript_source_lines(path):
             for match in CITE_RE.finditer(text):
                 key = match.group("key").rstrip(".,;:]})")
                 if is_crossref_key(key):
@@ -809,6 +909,718 @@ def citation_reuse_findings(
                         )
                     )
     return sorted(rows, key=lambda finding: (finding.code, finding.location))
+
+
+def bibliography_entry_keys(bib_path: Path = CANONICAL_BIBLIOGRAPHY) -> set[str]:
+    if not bib_path.exists():
+        return set()
+    text = bib_path.read_text(encoding="utf-8")
+    return {
+        match.group("key")
+        for match in re.finditer(r"@\w+\s*\{\s*(?P<key>[^,\s]+)", text)
+    }
+
+
+def citation_resolution_findings(
+    paths: list[Path] | None = None,
+    bib_path: Path = CANONICAL_BIBLIOGRAPHY,
+) -> list[Finding]:
+    targets = paths if paths is not None else content_qmd_files()
+    keys = bibliography_entry_keys(bib_path)
+    findings: list[Finding] = []
+    if not bib_path.exists():
+        return [
+            Finding(
+                "error",
+                "missing-bibliography",
+                _relative(bib_path),
+                "canonical bibliography file is missing",
+            )
+        ]
+    for key, occurrences in collect_citation_occurrences(targets).items():
+        if key in keys:
+            continue
+        for occurrence in occurrences:
+            findings.append(
+                Finding(
+                    "error",
+                    "undefined-citation",
+                    f"{_relative(occurrence.path)}:{occurrence.line}",
+                    f"citation key '@{key}' is not defined in {_relative(bib_path)}",
+                )
+            )
+    return sorted(findings, key=lambda finding: (finding.location, finding.message))
+
+
+def bibliography_style_findings() -> list[Finding]:
+    findings: list[Finding] = []
+    quarto_path = BOOK_DIR / "_quarto.yml"
+    if not quarto_path.exists():
+        return [
+            Finding(
+                "error",
+                "missing-quarto-config",
+                _relative(quarto_path),
+                "book configuration is missing",
+            )
+        ]
+
+    try:
+        import yaml
+    except ImportError:
+        findings.append(
+            Finding(
+                "error",
+                "missing-yaml",
+                "python",
+                "PyYAML is required for bibliography style validation",
+            )
+        )
+        return findings
+
+    try:
+        config = yaml.safe_load(quarto_path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        findings.append(
+            Finding(
+                "error",
+                "invalid-quarto-yaml",
+                _relative(quarto_path),
+                str(exc),
+            )
+        )
+        return findings
+
+    bibliography = config.get("bibliography")
+    if bibliography != ["references/references.bib"]:
+        findings.append(
+            Finding(
+                "error",
+                "bibliography-style",
+                _relative(quarto_path),
+                "use the canonical bibliography list: references/references.bib",
+            )
+        )
+    if config.get("csl") != "csl/chicago-author-date.csl":
+        findings.append(
+            Finding(
+                "error",
+                "bibliography-style",
+                _relative(quarto_path),
+                "use the canonical HTML/EPUB CSL file: csl/chicago-author-date.csl",
+            )
+        )
+    pdf_config = (config.get("format") or {}).get("pdf") or {}
+    if pdf_config.get("biblio-style") != "spbasic":
+        findings.append(
+            Finding(
+                "error",
+                "bibliography-style",
+                _relative(quarto_path),
+                "PDF output should use the Springer spbasic bibliography style",
+            )
+        )
+    if pdf_config.get("cite-method") != "natbib":
+        findings.append(
+            Finding(
+                "error",
+                "bibliography-style",
+                _relative(quarto_path),
+                "PDF output should use natbib citations",
+            )
+        )
+
+    for path, code, message in (
+        (
+            CANONICAL_BIBLIOGRAPHY,
+            "missing-bibliography",
+            "canonical bibliography file is missing",
+        ),
+        (
+            CANONICAL_CSL,
+            "missing-csl",
+            "canonical CSL style file is missing",
+        ),
+    ):
+        if not path.exists():
+            findings.append(Finding("error", code, _relative(path), message))
+
+    if not CANONICAL_BIBLIOGRAPHY.exists():
+        return findings
+
+    bib_text = CANONICAL_BIBLIOGRAPHY.read_text(encoding="utf-8")
+    key_matches = list(re.finditer(r"@(?P<type>\w+)\s*\{\s*(?P<key>[^,\s]+)", bib_text))
+    seen: dict[str, int] = {}
+    for match in key_matches:
+        key = match.group("key")
+        line = line_number(bib_text, match.start())
+        if key in seen:
+            findings.append(
+                Finding(
+                    "error",
+                    "duplicate-bib-key",
+                    f"{_relative(CANONICAL_BIBLIOGRAPHY)}:{line}",
+                    f"duplicate bibliography key '{key}' first appears on line {seen[key]}",
+                )
+            )
+        seen[key] = line
+
+    try:
+        from pybtex.database.input import bibtex
+
+        bibliography_data = bibtex.Parser().parse_file(str(CANONICAL_BIBLIOGRAPHY))
+    except Exception as exc:
+        findings.append(
+            Finding(
+                "error",
+                "invalid-bibliography",
+                _relative(CANONICAL_BIBLIOGRAPHY),
+                f"BibTeX parser failed: {exc}",
+            )
+        )
+        return findings
+
+    required_fields_by_type = {
+        "article": ("title", "year", "journal"),
+        "book": ("title", "year", "publisher"),
+        "inproceedings": ("title", "year", "booktitle"),
+        "techreport": ("title", "year", "institution"),
+        "phdthesis": ("title", "year", "school"),
+        "mastersthesis": ("title", "year", "school"),
+        "misc": ("title", "year"),
+    }
+    key_lines = {
+        match.group("key"): line_number(bib_text, match.start())
+        for match in key_matches
+    }
+    for key, entry in bibliography_data.entries.items():
+        entry_type = entry.type.lower()
+        fields = {field.lower(): value for field, value in entry.fields.items()}
+        line = key_lines.get(key, 1)
+        location = f"{_relative(CANONICAL_BIBLIOGRAPHY)}:{line}"
+        required_fields = required_fields_by_type.get(entry_type, ("title", "year"))
+        missing = [field for field in required_fields if not fields.get(field)]
+        if missing:
+            findings.append(
+                Finding(
+                    "error",
+                    "incomplete-bib-entry",
+                    location,
+                    f"{key} is missing required field(s): {', '.join(missing)}",
+                )
+            )
+        has_identity = bool(
+            entry.persons.get("author")
+            or entry.persons.get("editor")
+            or fields.get("organization")
+            or fields.get("key")
+        )
+        if not has_identity:
+            findings.append(
+                Finding(
+                    "error",
+                    "incomplete-bib-entry",
+                    location,
+                    f"{key} needs author, editor, organization, or key metadata",
+                )
+            )
+        if entry_type == "misc" and not any(
+            fields.get(field)
+            for field in ("doi", "url", "howpublished", "note", "organization")
+        ):
+            findings.append(
+                Finding(
+                    "warning",
+                    "thin-bib-entry",
+                    location,
+                    f"{key} is a misc entry without DOI, URL, organization, howpublished, or note",
+                )
+            )
+
+    return sorted(
+        findings, key=lambda finding: (finding.severity, finding.location, finding.code)
+    )
+
+
+def bibliography_findings() -> list[Finding]:
+    findings = bibliography_style_findings()
+    findings.extend(citation_resolution_findings())
+    return sorted(
+        findings, key=lambda finding: (finding.location, finding.code, finding.message)
+    )
+
+
+def _load_quarto_config() -> tuple[dict, list[Finding]]:
+    quarto_path = BOOK_DIR / "_quarto.yml"
+    if not quarto_path.exists():
+        return {}, [
+            Finding(
+                "error",
+                "missing-quarto-config",
+                _relative(quarto_path),
+                "book configuration is missing",
+            )
+        ]
+    try:
+        import yaml
+    except ImportError:
+        return {}, [
+            Finding(
+                "error",
+                "missing-yaml",
+                "python",
+                "PyYAML is required for Quarto manifest validation",
+            )
+        ]
+    try:
+        return yaml.safe_load(quarto_path.read_text(encoding="utf-8")) or {}, []
+    except yaml.YAMLError as exc:
+        return {}, [
+            Finding(
+                "error",
+                "invalid-quarto-yaml",
+                _relative(quarto_path),
+                str(exc),
+            )
+        ]
+
+
+def _manifest_qmd_entries(config: dict) -> list[Path]:
+    book_config = config.get("book") or {}
+    entries: list[Path] = []
+    for section in ("chapters", "appendices"):
+        raw_items = book_config.get(section) or []
+        if not isinstance(raw_items, list):
+            continue
+        for item in raw_items:
+            if not isinstance(item, str) or item.strip() == "---":
+                continue
+            if item.endswith(".qmd"):
+                entries.append((BOOK_DIR / item).resolve())
+    return entries
+
+
+def _book_qmd_files() -> list[Path]:
+    files: list[Path] = []
+    for path in BOOK_DIR.rglob("*.qmd"):
+        if any(part in {"_build", "_freeze"} for part in path.parts):
+            continue
+        files.append(path.resolve())
+    return sorted(files)
+
+
+def manifest_findings() -> list[Finding]:
+    config, findings = _load_quarto_config()
+    if findings:
+        return findings
+
+    quarto_path = BOOK_DIR / "_quarto.yml"
+    book_config = config.get("book") or {}
+    if not isinstance(book_config, dict):
+        return [
+            Finding(
+                "error",
+                "book-manifest",
+                _relative(quarto_path),
+                "Quarto config is missing the book section",
+            )
+        ]
+
+    entries = _manifest_qmd_entries(config)
+    entry_set = set(entries)
+    actual_qmds = set(_book_qmd_files())
+
+    seen: dict[Path, int] = {}
+    for index, entry in enumerate(entries, start=1):
+        if entry in seen:
+            findings.append(
+                Finding(
+                    "error",
+                    "duplicate-manifest-entry",
+                    _relative(quarto_path),
+                    f"{_relative(entry)} appears more than once in the book manifest",
+                )
+            )
+        seen[entry] = index
+        if not entry.exists():
+            findings.append(
+                Finding(
+                    "error",
+                    "missing-manifest-entry",
+                    _relative(quarto_path),
+                    f"manifest entry does not exist: {_relative(entry)}",
+                )
+            )
+
+    for path in sorted(actual_qmds - entry_set):
+        findings.append(
+            Finding(
+                "error",
+                "orphan-qmd",
+                _relative(path),
+                "QMD file is not included in book.chapters or book.appendices",
+            )
+        )
+
+    chapter_items = book_config.get("chapters") or []
+    chapter_qmds = [
+        item
+        for item in chapter_items
+        if isinstance(item, str) and item.endswith(".qmd")
+    ]
+    expected_frontmatter = [
+        "index.qmd",
+        "foreword.qmd",
+        "acknowledgments.qmd",
+        "about-the-author.qmd",
+    ]
+    if chapter_qmds[: len(expected_frontmatter)] != expected_frontmatter:
+        findings.append(
+            Finding(
+                "error",
+                "frontmatter-order",
+                _relative(quarto_path),
+                "front matter should begin with index, foreword, acknowledgments, and about-the-author",
+            )
+        )
+    if len(chapter_items) > len(expected_frontmatter):
+        separator_index = len(expected_frontmatter)
+        if chapter_items[separator_index] != "---":
+            findings.append(
+                Finding(
+                    "warning",
+                    "frontmatter-separator",
+                    _relative(quarto_path),
+                    "book.chapters should separate front matter from numbered chapters with ---",
+                )
+            )
+
+    return sorted(
+        findings, key=lambda finding: (finding.location, finding.code, finding.message)
+    )
+
+
+UNRESOLVED_RENDERED_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    (
+        "quarto-unresolved-ref",
+        re.compile(r"class=[\"'][^\"']*quarto-unresolved-ref", re.I),
+        "Quarto unresolved-reference markup appears in rendered output",
+    ),
+    (
+        "raw-crossref-token",
+        re.compile(rf"(?<![#\w])@(?:{CROSSREF_PREFIX_PATTERN}|chap)-[A-Za-z0-9_-]+\b"),
+        "raw Quarto cross-reference token appears in rendered output",
+    ),
+    (
+        "raw-citation-token",
+        re.compile(r"\[@[A-Za-z0-9:_-]+(?:[;,\s]+@[A-Za-z0-9:_-]+)*\]"),
+        "raw citation token appears in rendered output",
+    ),
+    (
+        "broken-numbered-ref",
+        re.compile(
+            r"\b(?:Chapter|Section|Figure|Table|Listing|Equation)\s+\?+\b",
+            re.I,
+        ),
+        "numbered reference rendered as a question mark",
+    ),
+    (
+        "generic-unresolved-marker",
+        re.compile(r"(?<!\?)\?\?(?!\?)|\?\?\?"),
+        "generic unresolved marker appears in rendered output",
+    ),
+    (
+        "target-prefixed-question",
+        re.compile(r"\?(?:sec|fig|tbl|eq|lst|chap)-[A-Za-z0-9_-]+"),
+        "target-prefixed unresolved marker appears in rendered output",
+    ),
+    (
+        "citation-question-marker",
+        re.compile(r"\bCitation\?", re.I),
+        "citation rendered as an unresolved question marker",
+    ),
+)
+
+
+def _visible_html_text(text: str) -> str:
+    text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", text)
+    text = re.sub(r"(?is)<(pre|code|samp|kbd)\b.*?</\1>", " ", text)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    return html_lib.unescape(text)
+
+
+def _snippet(text: str, start: int, end: int, *, radius: int = 80) -> str:
+    return _compact_text(text[max(0, start - radius) : end + radius], limit=180)
+
+
+HTML_RAW_UNRESOLVED_CODES = {
+    "quarto-unresolved-ref",
+    "raw-crossref-token",
+    "target-prefixed-question",
+}
+
+
+def _scan_rendered_text(
+    text: str, *, location: str, include_codes: set[str] | None = None
+) -> list[Finding]:
+    findings: list[Finding] = []
+    for code, pattern, message in UNRESOLVED_RENDERED_PATTERNS:
+        if include_codes is not None and code not in include_codes:
+            continue
+        match = pattern.search(text)
+        if not match:
+            continue
+        findings.append(
+            Finding(
+                "error",
+                code,
+                location,
+                f"{message}: {_snippet(text, match.start(), match.end())}",
+            )
+        )
+    return findings
+
+
+def pdf_unresolved_findings(pdf_path: Path = PDF_PATH) -> list[Finding]:
+    if not pdf_path.exists():
+        return [
+            Finding(
+                "error",
+                "missing-pdf",
+                _relative(pdf_path),
+                "rendered PDF does not exist",
+            )
+        ]
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return [
+            Finding(
+                "error",
+                "missing-pypdf",
+                "python",
+                "pypdf is required for rendered unresolved-token scanning",
+            )
+        ]
+
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
+    findings: list[Finding] = []
+    reader = PdfReader(str(pdf_path))
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        findings.extend(
+            _scan_rendered_text(
+                text, location=f"{_relative(pdf_path)}:page {page_number}"
+            )
+        )
+    return findings
+
+
+def html_unresolved_findings(html_root: Path = BUILD_DIR) -> list[Finding]:
+    if not html_root.exists():
+        return [
+            Finding(
+                "error",
+                "missing-html",
+                _relative(html_root),
+                "rendered HTML output does not exist",
+            )
+        ]
+
+    findings: list[Finding] = []
+    html_files = sorted(html_root.rglob("*.html"))
+    if not html_files:
+        return [
+            Finding(
+                "error",
+                "missing-html",
+                _relative(html_root),
+                "rendered HTML output contains no HTML files",
+            )
+        ]
+    for page_path in html_files:
+        page_text = page_path.read_text(encoding="utf-8", errors="replace")
+        findings.extend(
+            _scan_rendered_text(
+                page_text,
+                location=_relative(page_path),
+                include_codes=HTML_RAW_UNRESOLVED_CODES,
+            )
+        )
+        visible_text = _visible_html_text(page_text)
+        findings.extend(
+            _scan_rendered_text(visible_text, location=f"{_relative(page_path)}:text")
+        )
+    return findings
+
+
+def epub_unresolved_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
+    if not epub_path.exists():
+        return [
+            Finding(
+                "error",
+                "missing-epub",
+                _relative(epub_path),
+                "rendered EPUB does not exist",
+            )
+        ]
+    findings: list[Finding] = []
+    try:
+        with zipfile.ZipFile(epub_path) as epub:
+            names = [
+                name
+                for name in epub.namelist()
+                if name.endswith((".html", ".xhtml")) and not name.endswith("nav.xhtml")
+            ]
+            for name in names:
+                text = epub.read(name).decode("utf-8", errors="replace")
+                findings.extend(
+                    _scan_rendered_text(
+                        text,
+                        location=f"{_relative(epub_path)}:{name}",
+                        include_codes=HTML_RAW_UNRESOLVED_CODES,
+                    )
+                )
+                findings.extend(
+                    _scan_rendered_text(
+                        _visible_html_text(text),
+                        location=f"{_relative(epub_path)}:{name}:text",
+                    )
+                )
+    except zipfile.BadZipFile:
+        return [
+            Finding(
+                "error",
+                "invalid-epub",
+                _relative(epub_path),
+                "EPUB is not a readable zip package",
+            )
+        ]
+    return findings
+
+
+def rendered_unresolved_findings(
+    *,
+    pdf: Path = PDF_PATH,
+    html_root: Path = BUILD_DIR,
+    epub: Path = EPUB_PATH,
+    formats: Iterable[str] | None = None,
+) -> list[Finding]:
+    format_set = set(formats or _RENDER_FORMATS)
+    findings: list[Finding] = []
+    if "pdf" in format_set:
+        findings.extend(pdf_unresolved_findings(pdf))
+    if "html" in format_set:
+        findings.extend(html_unresolved_findings(html_root))
+    if "epub" in format_set:
+        findings.extend(epub_unresolved_findings(epub))
+    return sorted(
+        findings, key=lambda finding: (finding.location, finding.code, finding.message)
+    )
+
+
+def _pdf_rendered_pages(pdf_path: Path, prefix: Path) -> list[Path] | None:
+    pdftoppm = shutil.which("pdftoppm")
+    if not pdftoppm:
+        return None
+    proc = subprocess.run(
+        [pdftoppm, "-r", "144", "-png", str(pdf_path), str(prefix)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return None
+    return sorted(prefix.parent.glob(f"{prefix.name}-*.png"))
+
+
+def _pdf_visual_matches_head(path_text: str, current_path: Path) -> bool | None:
+    old_blob = subprocess.run(
+        ["git", "show", f"HEAD:{path_text}"],
+        cwd=str(ROOT),
+        capture_output=True,
+    )
+    if old_blob.returncode != 0:
+        return None
+    (ROOT / "tmp").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix="arch2-asset-", dir=str(ROOT / "tmp")
+    ) as tmp:
+        tmp_dir = Path(tmp)
+        old_pdf = tmp_dir / "old.pdf"
+        old_pdf.write_bytes(old_blob.stdout)
+        old_pages = _pdf_rendered_pages(old_pdf, tmp_dir / "old")
+        new_pages = _pdf_rendered_pages(current_path, tmp_dir / "new")
+        if old_pages is None or new_pages is None:
+            return None
+        if len(old_pages) != len(new_pages):
+            return False
+        return all(
+            old_page.read_bytes() == new_page.read_bytes()
+            for old_page, new_page in zip(old_pages, new_pages)
+        )
+
+
+def generated_asset_findings() -> list[Finding]:
+    proc = _run(
+        [
+            "git",
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+            "--",
+            "book/chapters",
+            "book/appendices",
+        ],
+        capture=True,
+    )
+    if proc.returncode != 0:
+        return [
+            Finding(
+                "error",
+                "git-status",
+                "git",
+                (proc.stderr or proc.stdout or "git status failed").strip(),
+            )
+        ]
+
+    findings: list[Finding] = []
+    for raw_line in proc.stdout.splitlines():
+        if len(raw_line) < 4:
+            continue
+        status = raw_line[:2]
+        path_text = raw_line[3:]
+        if " -> " in path_text:
+            path_text = path_text.split(" -> ", 1)[1]
+        path = Path(path_text)
+        if "images" not in path.parts:
+            continue
+        if path.suffix.lower() not in GENERATED_ASSET_SUFFIXES:
+            continue
+        if path.suffix.lower() == ".pdf" and status.strip() == "M":
+            current_path = ROOT / path
+            visual_match = _pdf_visual_matches_head(path_text, current_path)
+            if visual_match is True:
+                continue
+            if visual_match is None:
+                findings.append(
+                    Finding(
+                        "error",
+                        "generated-asset-drift",
+                        path_text,
+                        "tracked PDF asset is dirty after render and visual comparison could not be completed",
+                    )
+                )
+                continue
+        findings.append(
+            Finding(
+                "error",
+                "generated-asset-drift",
+                path_text,
+                f"tracked generated asset is dirty after render ({status.strip() or 'modified'}); commit the refreshed asset or fix nondeterministic generation",
+            )
+        )
+    return findings
 
 
 def normalize_definition_term(term: str) -> str:
@@ -1645,6 +2457,186 @@ def _is_page_number(text: str) -> bool:
     return bool(re.fullmatch(r"\d+|[ivxlcdm]+", text.strip(), re.I))
 
 
+def _compact_text(text: str, *, limit: int | None = None) -> str:
+    compact = re.sub(r"\s+", " ", text).strip()
+    if limit is not None and len(compact) > limit:
+        return compact[: limit - 1].rstrip() + "..."
+    return compact
+
+
+def _extract_pdf_words(page) -> list[dict]:
+    try:
+        return (
+            page.extract_words(x_tolerance=1, y_tolerance=3, keep_blank_chars=False)
+            or []
+        )
+    except TypeError:
+        return page.extract_words() or []
+
+
+def _word_lines(words: list[dict], *, y_tolerance: float = 4.0) -> list[str]:
+    lines: list[tuple[float, list[dict]]] = []
+    for word in sorted(
+        words,
+        key=lambda item: (
+            float(item.get("top", 0.0)),
+            float(item.get("x0", 0.0)),
+        ),
+    ):
+        top = float(word.get("top", 0.0))
+        if lines and abs(top - lines[-1][0]) <= y_tolerance:
+            lines[-1][1].append(word)
+            continue
+        lines.append((top, [word]))
+    return [
+        _compact_text(
+            " ".join(
+                str(word.get("text", ""))
+                for word in sorted(
+                    line_words, key=lambda item: float(item.get("x0", 0.0))
+                )
+            )
+        )
+        for _, line_words in lines
+    ]
+
+
+def _pdf_caption_snippets(text: str) -> tuple[str, ...]:
+    snippets: list[str] = []
+    for line in text.splitlines():
+        compact = _compact_text(line, limit=220)
+        if PDF_CAPTION_LINE_RE.search(compact):
+            snippets.append(compact)
+    return tuple(snippets)
+
+
+def _pdf_caption_snippets_from_lines(lines: list[str]) -> tuple[str, ...]:
+    snippets: list[str] = []
+    for index, line in enumerate(lines):
+        if not PDF_CAPTION_LINE_RE.search(line):
+            continue
+        snippet = line
+        for continuation in lines[index + 1 : index + 3]:
+            if PDF_CAPTION_LINE_RE.search(continuation):
+                break
+            snippet = f"{snippet} {continuation}"
+            if len(snippet) >= 220:
+                break
+        snippets.append(_compact_text(snippet, limit=220))
+    return tuple(snippets)
+
+
+def _caption_kinds(captions: tuple[str, ...]) -> set[str]:
+    kinds: set[str] = set()
+    for caption in captions:
+        match = PDF_CAPTION_LINE_RE.search(caption)
+        if match:
+            kinds.add(match.group("kind").lower())
+    return kinds
+
+
+def _layout_source_hints(profile: LayoutPageProfile) -> tuple[str, ...]:
+    hints: list[str] = [f"inspect rendered PDF page {profile.page}"]
+    for caption in profile.captions[:2]:
+        hints.append(f"search source for caption: {caption}")
+    if not profile.captions and profile.text_excerpt:
+        hints.append(f"search source for excerpt: {profile.text_excerpt}")
+    return tuple(hints)
+
+
+def _starts_major_unit(profile: LayoutPageProfile) -> bool:
+    return profile.starts_chapter or bool(
+        re.match(r"^(Appendix\b|References\b)", profile.text_excerpt, re.I)
+    )
+
+
+def layout_page_profiles(pdf_path: Path) -> list[LayoutPageProfile]:
+    try:
+        import pdfplumber
+    except ImportError:
+        return []
+    if not pdf_path.exists():
+        return []
+
+    profiles: list[LayoutPageProfile] = []
+    with pdfplumber.open(str(pdf_path)) as pdf:
+        for page_index, page in enumerate(pdf.pages, start=1):
+            width = float(page.width)
+            height = float(page.height)
+            header_cutoff = 90.0
+            footer_cutoff = height - 120.0
+            usable_bottom = footer_cutoff
+            text = page.extract_text() or ""
+
+            words = _extract_pdf_words(page)
+            body_words = []
+            for word in words:
+                word_text = str(word.get("text", "")).strip()
+                if not word_text or _is_page_number(word_text):
+                    continue
+                top = float(word.get("top", 0.0))
+                bottom = float(word.get("bottom", 0.0))
+                if top < header_cutoff or bottom > footer_cutoff:
+                    continue
+                body_words.append(word)
+
+            body_lines = _word_lines(body_words)
+            captions = _pdf_caption_snippets_from_lines(body_lines)
+            if not captions:
+                captions = _pdf_caption_snippets(text)
+            starts_chapter = bool(
+                body_lines and PDF_CHAPTER_START_RE.search(body_lines[0])
+            ) or bool(PDF_CHAPTER_START_RE.search(text.strip()))
+
+            content_tops = [float(word.get("top", 0.0)) for word in body_words]
+            content_bottoms = [float(word.get("bottom", 0.0)) for word in body_words]
+
+            for collection_name in ("images", "rects", "curves"):
+                for obj in getattr(page, collection_name, []) or []:
+                    top = float(obj.get("top", 0.0) or 0.0)
+                    bottom = float(obj.get("bottom", 0.0) or 0.0)
+                    if top < header_cutoff or top > footer_cutoff:
+                        continue
+                    content_tops.append(top)
+                    content_bottoms.append(min(bottom, footer_cutoff))
+
+            content_top = min(content_tops) if content_tops else None
+            content_bottom = max(content_bottoms) if content_bottoms else None
+            bottom_whitespace = (
+                max(0.0, usable_bottom - content_bottom)
+                if content_bottom is not None
+                else None
+            )
+            caption_kinds = _caption_kinds(captions)
+            has_table = "table" in caption_kinds
+            has_figure = bool(page.images) or "figure" in caption_kinds
+            profiles.append(
+                LayoutPageProfile(
+                    page=page_index,
+                    width=round(width, 1),
+                    height=round(height, 1),
+                    word_count=len(body_words),
+                    content_top=round(content_top, 1)
+                    if content_top is not None
+                    else None,
+                    content_bottom=round(content_bottom, 1)
+                    if content_bottom is not None
+                    else None,
+                    usable_bottom=round(usable_bottom, 1),
+                    bottom_whitespace=round(bottom_whitespace, 1)
+                    if bottom_whitespace is not None
+                    else None,
+                    has_figure=has_figure,
+                    has_table=has_table,
+                    captions=captions,
+                    starts_chapter=starts_chapter,
+                    text_excerpt=_compact_text(" ".join(body_lines), limit=220)
+                    or _compact_text(text, limit=220),
+                )
+            )
+    return profiles
+
+
 def scan_pdf_geometry(
     pdf_path: Path,
     *,
@@ -1892,6 +2884,299 @@ def layout_findings(pdf_path: Path, *, bottom_clearance: float = 72.0) -> list[F
     return findings
 
 
+def _repair_item_for_finding(index: int, finding: Finding) -> LayoutRepairItem:
+    guidance = {
+        "overfull-hbox": (
+            "A line, caption, table cell, or margin note exceeds the TeX measure.",
+            "Find the local source near the cited log context, then shorten the phrase, split the table/caption, resize the figure, or introduce a better break point.",
+        ),
+        "overfull-vbox": (
+            "A vertical box is taller than the available page area.",
+            "Inspect the nearby float, callout, table, or footnote stack; reduce height, split it, or move neighboring prose so the page builder has a legal break.",
+        ),
+        "underfull-box": (
+            "TeX had to stretch or loosen a line/page more than usual.",
+            "Check the rendered page before editing. If the looseness is visible, rebalance the paragraph, move a nearby sentence, or adjust the float placement.",
+        ),
+        "physical-bleed": (
+            "Rendered content extends outside the physical PDF page bounds.",
+            "Treat this as a blocking layout bug. Resize or split the offending content so no glyph or object crosses the page box.",
+        ),
+        "bottom-crowding": (
+            "Content is too close to the footer or page bottom.",
+            "Move a sentence, shrink or split the nearby object, or add a better page break so the bottom margin breathes.",
+        ),
+        "footnote-overflow": (
+            "A margin footnote or sidenote stack is too deep for the page.",
+            "Shorten the note, move the note trigger, split the note, or move adjacent prose so the sidenote stack stays within the page.",
+        ),
+        "undefined-reference": (
+            "A rendered cross-reference or citation did not resolve.",
+            "Fix the label, citation key, or source order before doing visual layout polish.",
+        ),
+    }
+    likely_cause, suggested_action = guidance.get(
+        finding.code,
+        (
+            "The raw layout scan found a rendered artifact issue.",
+            "Inspect the rendered page and the nearby source before choosing a repair.",
+        ),
+    )
+    return LayoutRepairItem(
+        id=f"L{index:03d}",
+        severity=finding.severity,
+        code=finding.code,
+        location=finding.location,
+        evidence=finding.message,
+        likely_cause=likely_cause,
+        suggested_action=suggested_action,
+        source_hints=(f"start from {finding.location}",),
+    )
+
+
+def layout_repair_items(
+    pdf_path: Path,
+    *,
+    bottom_clearance: float = 72.0,
+    sparse_clearance: float = 170.0,
+    min_body_words: int = 80,
+    max_items: int = 80,
+    profiles: list[LayoutPageProfile] | None = None,
+) -> list[LayoutRepairItem]:
+    items: list[LayoutRepairItem] = []
+    for finding in layout_findings(pdf_path, bottom_clearance=bottom_clearance):
+        items.append(_repair_item_for_finding(len(items) + 1, finding))
+        if len(items) >= max_items:
+            return items
+
+    page_profiles = profiles if profiles is not None else layout_page_profiles(pdf_path)
+    first_chapter_page = min(
+        (profile.page for profile in page_profiles if profile.starts_chapter),
+        default=1,
+    )
+    for index, profile in enumerate(page_profiles):
+        if profile.bottom_whitespace is None:
+            continue
+        if profile.bottom_whitespace < sparse_clearance:
+            continue
+        if profile.word_count < min_body_words and not (
+            profile.has_figure or profile.has_table
+        ):
+            continue
+
+        next_profile = (
+            page_profiles[index + 1] if index + 1 < len(page_profiles) else None
+        )
+        next_starts_major_unit = bool(next_profile and _starts_major_unit(next_profile))
+        next_has_float = bool(
+            next_profile and (next_profile.has_figure or next_profile.has_table)
+        )
+        next_caption = (
+            next_profile.captions[0]
+            if next_profile and next_profile.captions
+            else "figure/table content"
+        )
+
+        if profile.page < first_chapter_page:
+            severity = "info"
+            code = "front-matter-whitespace"
+            likely_cause = "The page is in the front matter, where shorter pages are often intentional."
+            suggested_action = "Leave this alone unless the front-matter page looks visibly accidental in the final PDF."
+            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
+        elif _starts_major_unit(profile):
+            severity = "info"
+            code = "major-section-opening-whitespace"
+            likely_cause = "The page opens a major unit, where the design may intentionally leave more air."
+            suggested_action = "Leave this alone unless the opening page looks visibly accidental in the final PDF spread."
+            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
+        elif next_has_float:
+            severity = "warning"
+            code = "float-induced-whitespace"
+            likely_cause = "A figure or table likely floated to the next page after this page's prose ended."
+            suggested_action = "Try moving one explanatory paragraph before the float, moving the float earlier, reducing its height, or accepting the break only if the spread reads better that way."
+            evidence = (
+                f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer; "
+                f"page {next_profile.page} contains {next_caption}"
+            )
+        elif next_starts_major_unit:
+            severity = "info"
+            code = "major-section-end-whitespace"
+            likely_cause = "The page appears to end a major unit, so the remaining white space may be intentional."
+            suggested_action = "Usually leave this alone unless the preceding close can absorb a small paragraph without weakening the cadence."
+            evidence = (
+                f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer; "
+                f"page {next_profile.page} starts a new major unit"
+            )
+        elif profile.has_figure or profile.has_table:
+            severity = "warning"
+            code = "sparse-float-page"
+            likely_cause = (
+                "A figure or table page has substantial unused vertical space."
+            )
+            suggested_action = "Check whether the float can be resized, paired with its setup prose, or moved so the reader does not hit an isolated visual island."
+            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
+        else:
+            severity = "warning"
+            code = "large-bottom-whitespace"
+            likely_cause = "The page builder ended the page much earlier than the visible text block allows."
+            suggested_action = "Inspect nearby headings, callouts, footnotes, and floats; move a short paragraph or adjust a nearby object so the spread has a more even rhythm."
+            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
+
+        items.append(
+            LayoutRepairItem(
+                id=f"L{len(items) + 1:03d}",
+                severity=severity,
+                code=code,
+                location=f"{_relative(pdf_path)}:page {profile.page}",
+                evidence=evidence,
+                likely_cause=likely_cause,
+                suggested_action=suggested_action,
+                source_hints=_layout_source_hints(profile),
+            )
+        )
+        if len(items) >= max_items:
+            break
+
+    return items
+
+
+def layout_repair_packet(
+    pdf_path: Path,
+    *,
+    bottom_clearance: float = 72.0,
+    sparse_clearance: float = 170.0,
+    min_body_words: int = 80,
+    max_items: int = 80,
+) -> dict:
+    from collections import Counter
+
+    profiles = layout_page_profiles(pdf_path)
+    items = layout_repair_items(
+        pdf_path,
+        bottom_clearance=bottom_clearance,
+        sparse_clearance=sparse_clearance,
+        min_body_words=min_body_words,
+        max_items=max_items,
+        profiles=profiles,
+    )
+    affected_pages: set[int] = set()
+    for item in items:
+        for match in re.finditer(r"page\s+(\d+)", f"{item.location} {item.evidence}"):
+            page = int(match.group(1))
+            affected_pages.add(page)
+            affected_pages.add(page - 1)
+            affected_pages.add(page + 1)
+    affected_pages = {page for page in affected_pages if page > 0}
+
+    severity_counts = Counter(item.severity for item in items)
+    code_counts = Counter(item.code for item in items)
+    return {
+        "pdf": _relative(pdf_path),
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "thresholds": {
+            "bottom_clearance_pt": bottom_clearance,
+            "sparse_clearance_pt": sparse_clearance,
+            "min_body_words": min_body_words,
+        },
+        "summary": {
+            "item_count": len(items),
+            "by_severity": dict(sorted(severity_counts.items())),
+            "by_code": dict(sorted(code_counts.items())),
+        },
+        "recommended_commands": {
+            "hard_scan": "./arch2 layout scan --json tmp/pdfs/layout-scan.json",
+            "repair_packet": "./arch2 layout doctor --markdown tmp/pdfs/layout-repair-packet.md --json tmp/pdfs/layout-repair-packet.json",
+            "figure_contact_sheet": "./arch2 layout contact-sheet figures",
+            "table_contact_sheet": "./arch2 layout contact-sheet tables",
+        },
+        "items": [asdict(item) for item in items],
+        "page_profiles": [
+            asdict(profile) for profile in profiles if profile.page in affected_pages
+        ],
+    }
+
+
+def render_layout_repair_markdown(packet: dict) -> str:
+    lines = [
+        "# Arch2 layout repair packet",
+        "",
+        f"PDF: `{packet['pdf']}`",
+        f"Generated: `{packet['generated_at']}`",
+        "",
+        "## Summary",
+        "",
+        f"- Items: {packet['summary']['item_count']}",
+        f"- By severity: `{packet['summary']['by_severity']}`",
+        f"- By code: `{packet['summary']['by_code']}`",
+        "",
+        "## Workflow",
+        "",
+        "1. Start with `error` items; they are structural layout failures.",
+        "2. Review `warning` items visually in the PDF spread before editing.",
+        "3. Treat `info` items as context, especially major-unit whitespace.",
+        "4. After edits, rebuild the PDF and rerun `arch2 layout scan` and `arch2 layout doctor`.",
+        "",
+        "## Findings",
+        "",
+    ]
+    if not packet["items"]:
+        lines.append("No layout repair candidates were found.")
+    for item in packet["items"]:
+        lines.extend(
+            [
+                f"### {item['id']} {item['code']} ({item['severity']})",
+                "",
+                f"- Location: `{item['location']}`",
+                f"- Evidence: {item['evidence']}",
+                f"- Likely cause: {item['likely_cause']}",
+                f"- Suggested action: {item['suggested_action']}",
+            ]
+        )
+        if item["source_hints"]:
+            lines.append("- Source hints:")
+            for hint in item["source_hints"]:
+                lines.append(f"  - {hint}")
+        lines.append("")
+
+    if packet["page_profiles"]:
+        lines.extend(["## Page Profiles", ""])
+        for profile in packet["page_profiles"]:
+            lines.append(
+                f"- Page {profile['page']}: words={profile['word_count']}, "
+                f"bottom_whitespace={profile['bottom_whitespace']}, "
+                f"figure={profile['has_figure']}, table={profile['has_table']}"
+            )
+            if profile["captions"]:
+                for caption in profile["captions"][:2]:
+                    lines.append(f"  - {caption}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _emit_layout_repair_items(items: list[LayoutRepairItem]) -> None:
+    if not items:
+        console.print("[green]passed[/green] layout doctor")
+        return
+    table = Table(title="layout doctor", show_lines=False)
+    table.add_column("ID", style="bold")
+    table.add_column("Severity")
+    table.add_column("Code")
+    table.add_column("Location")
+    table.add_column("Action")
+    for item in items:
+        style = "red" if item.severity == "error" else "yellow"
+        if item.severity == "info":
+            style = "cyan"
+        table.add_row(
+            item.id,
+            f"[{style}]{item.severity}[/{style}]",
+            item.code,
+            item.location,
+            _compact_text(item.suggested_action, limit=92),
+        )
+    console.print(table)
+
+
 def run_layout_check(
     *, bottom_clearance: float = 72.0, fail_on_warning: bool = False
 ) -> None:
@@ -1901,6 +3186,10 @@ def run_layout_check(
 
 def run_refs_check() -> None:
     _exit_on_findings(manuscript_integrity_findings(), title="references")
+
+
+def run_manifest_check() -> None:
+    _exit_on_findings(manifest_findings(), title="book manifest")
 
 
 def run_figures_check(pdf: Path = PDF_PATH) -> None:
@@ -1950,6 +3239,14 @@ def run_html_check(html: Path = HTML_PATH) -> None:
     _exit_on_findings(html_findings(html), title="HTML site")
 
 
+def run_rendered_unresolved_check() -> None:
+    _exit_on_findings(rendered_unresolved_findings(), title="rendered references")
+
+
+def run_generated_asset_check() -> None:
+    _exit_on_findings(generated_asset_findings(), title="generated assets")
+
+
 def run_svg_check(paths: list[Path] | None = None) -> None:
     _exit_on_findings(svg_text_findings(paths), title="SVG text fit")
 
@@ -1958,6 +3255,10 @@ def run_citation_check(*, show_context: bool = False) -> None:
     _emit_findings(
         citation_reuse_findings(show_context=show_context), title="citation reuse"
     )
+
+
+def run_bibliography_check() -> None:
+    _exit_on_findings(bibliography_findings(), title="bibliography")
 
 
 def run_concept_check() -> None:
@@ -2771,10 +4072,19 @@ def _render_one(
     # Native finalization (formerly the Quarto post-render hook).
     if "html" in fmts:
         run_html_check(HTML_PATH)
+        _exit_on_findings(
+            html_unresolved_findings(BUILD_DIR), title="HTML rendered references"
+        )
     if "epub" in fmts:
         _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
+        _exit_on_findings(
+            epub_unresolved_findings(EPUB_PATH), title="EPUB rendered references"
+        )
     if "pdf" in fmts:
         run_figures_check(PDF_PATH)
+        _exit_on_findings(
+            pdf_unresolved_findings(PDF_PATH), title="PDF rendered references"
+        )
         layout_error = False
         if layout:
             findings = layout_findings(PDF_PATH, bottom_clearance=bottom_clearance)
@@ -2783,6 +4093,7 @@ def _render_one(
         _clean_latex_scratch(keep_logs)
         if layout_error:
             raise typer.Exit(1)
+    run_generated_asset_check()
 
 
 @app.command()
@@ -2937,8 +4248,14 @@ def serve(
 
 @validate_app.command("refs")
 def validate_refs() -> None:
-    """Check figure, table, equation, and path references."""
+    """Check figure, table, listing, equation, section, and path references."""
     run_refs_check()
+
+
+@validate_app.command("manifest")
+def validate_manifest() -> None:
+    """Check that the Quarto book manifest owns every intended QMD file."""
+    run_manifest_check()
 
 
 @validate_app.command("footnotes")
@@ -2975,6 +4292,18 @@ def verify_epub(
     _exit_on_findings(epub_findings(epub), title="EPUB package")
 
 
+@verify_app.command("unresolved")
+def verify_unresolved() -> None:
+    """Check rendered PDF, HTML, and EPUB for unresolved ref/citation tokens."""
+    run_rendered_unresolved_check()
+
+
+@verify_app.command("generated-assets")
+def verify_generated_assets() -> None:
+    """Check that tracked generated figure assets are clean after rendering."""
+    run_generated_asset_check()
+
+
 @validate_app.command("svg")
 def validate_svg(
     paths: list[Path]
@@ -2992,6 +4321,12 @@ def validate_citations(
 ) -> None:
     """Report repeated citation keys for editorial classification."""
     run_citation_check(show_context=show_context)
+
+
+@validate_app.command("bibliography")
+def validate_bibliography() -> None:
+    """Check bibliography style configuration, BibTeX hygiene, and citekey resolution."""
+    run_bibliography_check()
 
 
 @validate_app.command("concepts")
@@ -3023,7 +4358,9 @@ def check_precommit() -> None:
     """Run fast, no-render checks suitable for pre-commit."""
     run_python_check()
     run_book_navbar_check()
+    run_manifest_check()
     run_refs_check()
+    run_bibliography_check()
     run_footnote_table_check()
     run_concept_check()
     run_disclosure_check()
@@ -3038,8 +4375,11 @@ def check_standard(
 ) -> None:
     """Run the standard rendered-manuscript gate."""
     run_refs_check()
+    run_bibliography_check()
     run_footnote_table_check()
     run_figures_check()
+    run_rendered_unresolved_check()
+    run_generated_asset_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     run_layout_check(fail_on_warning=fail_on_layout_warning)
@@ -3053,8 +4393,11 @@ def check_strict(
 ) -> None:
     """Run the standard gate plus strict SVG text-fit checks."""
     run_refs_check()
+    run_bibliography_check()
     run_footnote_table_check()
     run_figures_check()
+    run_rendered_unresolved_check()
+    run_generated_asset_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     run_svg_check()
@@ -3116,6 +4459,66 @@ def layout_scan(
         f.severity == "error" or (fail_on_warning and f.severity == "warning")
         for f in findings
     ):
+        raise typer.Exit(1)
+
+
+@layout_app.command("doctor")
+def layout_doctor(
+    pdf: Path = typer.Argument(PDF_PATH, help="PDF to inspect."),
+    bottom_clearance: float = typer.Option(
+        72.0, help="Bottom margin warning threshold in PDF points."
+    ),
+    sparse_clearance: float = typer.Option(
+        170.0,
+        help="Advisory threshold for unused body space before the footer.",
+    ),
+    min_body_words: int = typer.Option(
+        80,
+        help="Minimum body words before sparse-page whitespace becomes actionable.",
+    ),
+    max_items: int = typer.Option(80, help="Maximum repair items to emit."),
+    json_out: Path
+    | None = typer.Option(None, "--json", help="Write an LLM-ready JSON packet."),
+    markdown_out: Path
+    | None = typer.Option(
+        None, "--markdown", "--md", help="Write an LLM-ready Markdown packet."
+    ),
+    print_markdown: bool = typer.Option(
+        False, help="Print the Markdown repair packet to stdout."
+    ),
+    fail_on_error: bool = typer.Option(
+        False, help="Exit nonzero when the packet contains an error item."
+    ),
+) -> None:
+    """Create an LLM-ready repair packet for visual PDF layout polish."""
+    if not pdf.exists():
+        console.print(f"[red]missing PDF[/red] {_relative(pdf)}")
+        raise typer.Exit(1)
+    if sparse_clearance <= 0 or bottom_clearance <= 0 or min_body_words < 0:
+        console.print("[red]invalid layout doctor thresholds[/red]")
+        raise typer.Exit(2)
+
+    packet = layout_repair_packet(
+        pdf,
+        bottom_clearance=bottom_clearance,
+        sparse_clearance=sparse_clearance,
+        min_body_words=min_body_words,
+        max_items=max_items,
+    )
+    items = [LayoutRepairItem(**item) for item in packet["items"]]
+    _emit_layout_repair_items(items)
+    markdown = render_layout_repair_markdown(packet)
+    if json_out:
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        json_out.write_text(json.dumps(packet, indent=2), encoding="utf-8")
+        console.print(f"[dim]wrote {_relative(json_out)}[/dim]")
+    if markdown_out:
+        markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        markdown_out.write_text(markdown, encoding="utf-8")
+        console.print(f"[dim]wrote {_relative(markdown_out)}[/dim]")
+    if print_markdown:
+        console.print(markdown)
+    if fail_on_error and any(item.severity == "error" for item in items):
         raise typer.Exit(1)
 
 
