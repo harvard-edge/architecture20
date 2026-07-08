@@ -4051,6 +4051,17 @@ def _render_one(
     release_version = os.environ.get("ARCH2_VERSION", "").strip()
     if release_version:
         cmd.extend(["-M", f"arch2-version:{release_version}"])
+    # Write the LaTeX preview-version macro so the PDF matches the site. Written
+    # every render: the release version when ARCH2_VERSION is set (publish), the
+    # static default otherwise (so local builds leave no git diff). Included ahead
+    # of springer-header.tex via _quarto.yml include-in-header.
+    version_tex = ROOT / "book" / "tex" / "version.tex"
+    preview_label = (
+        f"Preview {release_version}" if release_version else "Preview v0.1.0"
+    )
+    version_tex.write_text(
+        f"\\def\\ArchTwoReleaseVersion{{{preview_label}}}\n", encoding="utf-8"
+    )
     publish_date = os.environ.get("ARCH2_PUBLISH_DATE", "").strip()
     if publish_date:
         cmd.extend(["-M", f"date:{publish_date}"])
