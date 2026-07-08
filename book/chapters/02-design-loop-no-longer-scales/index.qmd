@@ -31,7 +31,7 @@ small. The architecture state it implies is not.
 
 This chapter explains why that state cannot be handled by merely asking a
 larger model to produce a larger answer. Computer architects already use
-models, simulators, benchmarks, profilers, spreadsheets, compilers, RTL flows,
+models, simulators, benchmarks, profilers, spreadsheets, compilers, register-transfer level (RTL) flows,
 electronic design automation (EDA) tools, and expert reviews. The problem is not the absence of tools. The
 problem is that the design loop that coordinates those tools is under pressure.
 The space to search, the constraints to satisfy, and the evidence required to
@@ -56,9 +56,9 @@ delegate only as much search, prediction, and synthesis as it can review and
 reject.
 
 ::: {.callout-war-story title="Generation outran rejection"}
-**The claim.** In AlphaChip, learned placement was reported to compress a months-long floorplanning loop to hours, and generating strong-looking placements only got faster [@MirhoseiniEtAl2021GraphPlacement]. That is the half of the story everyone remembers.
+**The claim.** In AlphaChip, a reinforcement-learning method for chip floorplanning, learned placement was reported to compress a months-long floorplanning loop to hours, and generating strong-looking placements only got faster [@MirhoseiniEtAl2021GraphPlacement]. That is the half of the story everyone remembers.
 
-**The gap.** What did not keep pace was trusted, independent rejection. A candidate that looked excellent on the method's fast proxy still had to be checked against the metrics that decide a real chip, and an independent reassessment that tried to run that check reported baselines the result had not cleared in that setup [@ChengEtAl2023AssessmentRL]. The generation side sped up while the accountable rejection side did not, and the space between them is where the dispute lives.
+**The gap.** What did not keep pace was trusted, independent rejection. A candidate that looked excellent on the method's fast proxy still had to be checked against physical post-route metrics such as timing and routed wirelength, and an independent reassessment that ran that check reported strong classical baselines (such as simulated annealing) that the result had not cleared in that setup [@ChengEtAl2023AssessmentRL]. The generation side sped up while the accountable rejection side did not, and the space between them is where the dispute lives.
 
 **The lesson.** This is the scissors gap in a single result. A loop is rejection-bound, not generation-bound, and faster generation without matching rejection capacity widens the gap rather than closing it. A loop earns trust through what it can independently reject, not through how much it can produce.
 :::
@@ -79,8 +79,8 @@ symptom, needs a different record to confirm, and calls for a different first fi
 
 | **Bound** | **Symptom** | **Lighthouse example** | **Record to inspect** | **First fix** |
 | --- | --- | --- | --- | --- |
-| Representation-bound | The loop cannot encode the state that decides the outcome, so it proposes candidates the environment later rejects. | It ranks XR compute organizations without representing memory-movement cost, so a later estimate overturns the proxy order. | The state schema: which fields the loop can read and write. | Add the missing fields (workload, interface, memory-traffic) to the representation. |
-| Action-bound | The legal action set is too narrow, or too loose, to reach the candidate that would clear the gates. | The loop can retune parameters but cannot change the accelerator interface, so it never reaches the organization that would meet both the real-time deadline and the power envelope. | The action schema: which moves are legal, and recorded. | Widen or tighten the legal action set and record it in the loop contract. |
+| Representation-bound | The loop cannot encode the state that decides the outcome, so it proposes candidates the environment later rejects. | It ranks XR compute organizations without representing memory-movement cost, so a later estimate overturns the proxy order. | The state schema, which fields the loop can read and write. | Add the missing fields (workload, interface, memory-traffic) to the representation. |
+| Action-bound | The legal action set is too narrow, or too loose, to reach the candidate that would clear the gates. | The loop can retune parameters but cannot change the accelerator interface, so it never reaches the organization that would meet both the real-time deadline and the power envelope. | The action schema names which moves are legal and recorded. | Widen or tighten the legal action set and record it in the loop contract. |
 | Feedback-bound | Trusted feedback is too scarce or too expensive to keep up with the candidates generated. | Only a few simulation-stage estimates are affordable, so most candidates are dropped or committed unjudged. | The feedback budget and each check's cost and fidelity. | Add cheaper proxies and a ladder of feedback fidelities so scarce feedback is spent where it changes a decision. |
 | Rejection-bound | The loop generates faster than it can reject, so weak candidates survive to expensive stages. | Lacking a gate, an accelerator that leads a cheap proxy ranking is not rejected until an expensive check exposes its data-movement cost. | The rejection gates and the negative-trace log. | Add explicit gates and record every rejection with its reason. |
 | Commitment-bound | The loop cannot say what evidence licenses which commitment, so it over- or under-commits. | A candidate clears both gates, but nothing states whether that authorizes more exploration or an implementation commitment. | The commitment boundary and the evidence level attached to it. | Set a commitment level the current evidence supports, and name what would raise it. |
@@ -113,13 +113,13 @@ After this chapter you can use the scissors gap to audit whether an
 AI-assisted architecture loop has enough trusted feedback to reject and commit
 responsibly. That means you can:
 
-- recognize the scissors gap between choices and trusted feedback in a real architecture setting;
-- explain why the bottleneck is trusted feedback, not idea generation;
-- diagnose whether a loop is limited by representation, action validity, feedback, rejection, or commitment;
-- point to the design and verification costs that make high-fidelity feedback scarce;
-- connect each pressure source to loop state that can no longer remain implicit;
-- identify where generic AI assumptions break at architecture boundaries;
-- distinguish bounded AI roles from architect-owned commitment decisions.
+- **Recognize** the scissors gap between choices and trusted feedback in a real architecture setting;
+- **Explain** why the bottleneck is trusted feedback, not idea generation;
+- **Diagnose** whether a loop is limited by representation, action validity, feedback, rejection, or commitment;
+- **Point** to the design and verification costs that make high-fidelity feedback scarce;
+- **Connect** each pressure source to loop state that can no longer remain implicit;
+- **Identify** where generic AI assumptions break at architecture boundaries;
+- **Distinguish** bounded AI roles from architect-owned commitment decisions.
 :::
 
 ## Classical Loops Already Use Feedback
@@ -135,16 +135,16 @@ visible in textbook architecture practice and in industrial design loops
 
 A traditional SPEC CPU-style study makes the loop concrete. An architect might
 choose a subset of SPEC CPU workloads, propose a cache hierarchy or branch
-predictor change, run a simulator or performance model, inspect IPC, miss
+predictor change, run a simulator or performance model, inspect IPC (instructions per cycle), miss
 rates, branch-misprediction rates, area and power proxies, reject candidates
 that help one workload while hurting others, and repeat. Human judgment enters
-repeatedly: selecting workloads, deciding which proxy is credible, noticing
+repeatedly in tasks like selecting workloads, deciding which proxy is credible, noticing
 unexpected behavior, choosing when a candidate is worth deeper analysis, and
 deciding which risk to accept. SPEC CPU 2017, for example, was designed as an
 industry-standardized suite for compute-intensive performance, stressing
 processor, memory subsystem, and compiler behavior
 [@SPEC2017CPU]. The important point is not the specific suite version. It is
-the loop discipline: a bounded workload set, an explicit model, comparable
+the loop discipline, which requires a bounded workload set, an explicit model, comparable
 metrics, rejection of weak candidates, and expert judgment about whether the
 evidence is strong enough.
 
@@ -220,16 +220,16 @@ one kind of state, rule, or rejection path that would have to be exposed before
 an automated loop could help without weakening the evidence standard. The
 point is not nostalgia. The point is that many ideas that once looked
 unmanageable became tractable only after the field made some part of the loop
-explicit: the interface, the rules, the workload, the tool contract, the
+explicit. This could mean defining the interface, the rules, the workload, the tool contract, the
 evidence gate, or the software path.
 
 | **Shift** | **What the loop made explicit** | **Architecture 2.0 lesson** |
 | --- | --- | --- |
-| System/360 compatibility | A stable ISA contract separated architecture from implementation across a product family [@AmdahlBlaauwBrooks1964System360]. | Architecture is a durable interface and commitment policy, not only a circuit or microarchitecture. |
+| System/360 compatibility | A stable Instruction Set Architecture (ISA) contract separated architecture from implementation across a product family [@AmdahlBlaauwBrooks1964System360]. | Architecture is a durable interface and commitment policy, not only a circuit or microarchitecture. |
 | Mead--Conway VLSI and MOSIS | Design rules, layout abstractions, and fabrication access turned custom-chip design into a shareable and reusable loop [@MeadConway1980VLSI; @USCISI2025MOSISFirstYear]. | Representation and access to feedback can change who can participate in architecture work. |
-| RISC | Workload, compiler, VLSI, and the quantitative Iron Law of Performance became the explicit architectural argument [@PattersonDitzel1980RISC]. | Evidence can reject attractive complexity when the full loop cost is visible. |
+| RISC | Workload, compiler, Very Large-Scale Integration (VLSI), and the quantitative Iron Law of Performance became the explicit architectural argument [@PattersonDitzel1980RISC]. | Evidence can reject attractive complexity when the full loop cost is visible. |
 | SPEC-style benchmarking | Workload selection, run rules, reporting conventions, and comparability became community infrastructure [@SPEC2017CPU]. | Benchmarks are loop governance, not just input programs. |
-| Logic synthesis and timing closure | HDL, libraries, constraints, and timing reports gave downstream tools authority to reject upstream choices [@DeMicheli1994SynthesisOptimization]. | Implementation feedback belongs in the architecture loop before commitment. |
+| Logic synthesis and timing closure | Hardware Description Language (HDL), libraries, constraints, and timing reports gave downstream tools authority to reject upstream choices [@DeMicheli1994SynthesisOptimization]. | Implementation feedback belongs in the architecture loop before commitment. |
 | CUDA-style GPU programming | Kernels, thread hierarchies, memory spaces, libraries, and toolchains made specialized hardware programmable [@NickollsEtAl2008CUDA]. | Specialized hardware succeeds only when the software loop is designed with it. |
 
 : **Architecture progress often comes from redesigning the loop:** Historical shifts became durable when they exposed a representation, interface, tool path, benchmark, or evidence gate that let the community coordinate work. {#tbl-historical-loop-transformations tbl-colwidths="[22,39,28]"}
@@ -359,9 +359,9 @@ latency, fidelity, and rejection authority, and
 candidate scale with affordable high-fidelity samples.
 
 In the Lighthouse slice, the same count is not search-space trivia. The
-CPU/accelerator/SoC choice also fixes interfaces, memory paths,
-compiler/runtime assumptions, physical constraints, and an evidence schedule:
-which states get cheap proxies, which get simulation, which escalate, and which
+CPU/accelerator/System-on-Chip (SoC) choice also fixes interfaces, memory paths,
+compiler/runtime assumptions, physical constraints, and an evidence schedule
+that defines which states get cheap proxies, which get simulation, which escalate, and which
 rejected regions are preserved.
 
 ::: {.callout-engineer-move title="Triage a design-space slice before you simulate it"}
@@ -414,7 +414,7 @@ efficiency claim through data movement, synchronization, code-generation
 overhead, or maintenance burden.
 
 The historical examples in @tbl-historical-loop-transformations show the same pattern.
-RISC depended on a compiler story. CUDA made GPU specialization useful by
+RISC depended on a compiler story. CUDA, NVIDIA's parallel computing platform and programming model, made GPU specialization useful by
 making the programming and toolchain loop explicit [@NickollsEtAl2008CUDA].
 The tensor-program row in @tbl-design-loop-scale-anchors pushes the point further.
 Billion-scale operator search is already a software-side obligation of
@@ -423,7 +423,7 @@ intermediate representations central parts of the performance loop
 [@RaganKelleyEtAl2017HalideCACM; @LattnerEtAl2020MLIR].
 
 ::: {.callout-field-note title="The architecture bet the compiler never paid: Itanium"}
-Itanium's EPIC architecture rested on one claim, that a compiler could
+Itanium's EPIC (Explicitly Parallel Instruction Computing) architecture rested on one claim, that a compiler could
 statically expose enough instruction-level parallelism to feed a very wide
 machine [@SchlanskerRau2000EPIC]. Written as a design-loop card, that bet is a
 rejection gate waiting to fire.
@@ -679,7 +679,7 @@ This is not a circuit-level energy model. Use this decomposition as loop state.
 If any term is unrepresented, stale, or estimated outside its validity regime,
 the candidate should not cross the next commitment boundary. A candidate that
 reduces arithmetic but increases memory movement, interconnect traffic, control
-overhead, or leakage has not necessarily improved the system, an instance of the *waterbed effect* [@Bode1945NetworkAnalysis], in which suppressing one energy term forces another to rise (@fig-waterbed-effect).
+overhead, or leakage has not necessarily improved the system, an instance of the *waterbed effect* [@Bode1945NetworkAnalysis], where pushing down one energy term inevitably causes another to bulge upward, just as pressing on a waterbed displaces water to the sides (@fig-waterbed-effect).
 
 ![**The Waterbed Effect:** Optimizing one term of the physical energy constraint often causes others to balloon. A naive AI optimization might squeeze down compute energy while massively inflating memory and interconnect costs if it fails to represent data movement.](images/F2-waterbed-effect){#fig-waterbed-effect width="100%" fig-alt="Bar chart showing a baseline energy breakdown alongside a naive AI-optimized candidate where compute energy shrinks but memory and interconnect energy balloon."}
 
@@ -727,14 +727,14 @@ import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style, draw_range_rows, row_axis, top_log_axis
 
 rows = [
-    {"display_label": "32b integer add", "display_note": "baseline arithmetic", "energy_low_pj": 0.1, "energy_high_pj": 0.1, "right_label": "1x", "color": COLORS["blue"]},
-    {"display_label": "32b floating-point add", "display_note": "local arithmetic", "energy_low_pj": 0.9, "energy_high_pj": 0.9, "right_label": "9x", "color": COLORS["blue"]},
-    {"display_label": "32b integer multiply", "display_note": "local arithmetic", "energy_low_pj": 3.1, "energy_high_pj": 3.1, "right_label": "31x", "color": COLORS["blue"]},
-    {"display_label": "32b floating-point multiply", "display_note": "local arithmetic", "energy_low_pj": 3.7, "energy_high_pj": 3.7, "right_label": "37x", "color": COLORS["blue"]},
-    {"display_label": "8 KB SRAM access", "display_note": "64b cache access", "energy_low_pj": 10, "energy_high_pj": 10, "right_label": "100x", "color": COLORS["green"]},
-    {"display_label": "32 KB SRAM access", "display_note": "64b cache access", "energy_low_pj": 20, "energy_high_pj": 20, "right_label": "200x", "color": COLORS["green"]},
-    {"display_label": "1 MB SRAM access", "display_note": "on-chip memory access", "energy_low_pj": 100, "energy_high_pj": 100, "right_label": "1000x", "color": COLORS["orange"]},
-    {"display_label": "off-chip DRAM access", "display_note": "off-chip memory access", "energy_low_pj": 1300, "energy_high_pj": 1300, "right_label": "~13000x", "color": COLORS["red"]},
+    {"display_label": "32b integer add", "display_note": "baseline arithmetic", "energy_low_pj": 0.1, "energy_high_pj": 0.1, "right_label": "1$\\times$", "color": COLORS["blue"]},
+    {"display_label": "32b floating-point add", "display_note": "local arithmetic", "energy_low_pj": 0.9, "energy_high_pj": 0.9, "right_label": "9$\\times$", "color": COLORS["blue"]},
+    {"display_label": "32b integer multiply", "display_note": "local arithmetic", "energy_low_pj": 3.1, "energy_high_pj": 3.1, "right_label": "31$\\times$", "color": COLORS["blue"]},
+    {"display_label": "32b floating-point multiply", "display_note": "local arithmetic", "energy_low_pj": 3.7, "energy_high_pj": 3.7, "right_label": "37$\\times$", "color": COLORS["blue"]},
+    {"display_label": "8 KB SRAM access", "display_note": "64b cache access", "energy_low_pj": 10, "energy_high_pj": 10, "right_label": "100$\\times$", "color": COLORS["green"]},
+    {"display_label": "32 KB SRAM access", "display_note": "64b cache access", "energy_low_pj": 20, "energy_high_pj": 20, "right_label": "200$\\times$", "color": COLORS["green"]},
+    {"display_label": "1 MB SRAM access", "display_note": "on-chip memory access", "energy_low_pj": 100, "energy_high_pj": 100, "right_label": "1000$\\times$", "color": COLORS["orange"]},
+    {"display_label": "off-chip DRAM access", "display_note": "off-chip memory access", "energy_low_pj": 1300, "energy_high_pj": 1300, "right_label": "~13000$\\times$", "color": COLORS["red"]},
 ]
 
 apply_style()
@@ -1048,7 +1048,7 @@ Physical reality becomes an architecture concern when data movement, timing
 margin, congestion, power density, thermal behavior, or closure risk can
 overturn an early architectural win. A useful triage suite would compare early
 signals against later synthesis, floorplanning, placement, routing, static
-timing analysis, design-rule checking, layout-versus-schematic checking, EM/IR,
+timing analysis, design-rule checking, layout-versus-schematic checking, electromigration and voltage drop (EM/IR),
 and power outcomes. The evaluation should report false accepts, false rejects,
 inconclusive runs, and engineering effort saved. The goal is earlier routing
 toward rejection, revision, or stronger evidence, not signoff-quality
