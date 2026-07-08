@@ -3244,6 +3244,20 @@ def run_rendered_unresolved_check() -> None:
 
 
 def run_generated_asset_check() -> None:
+    # The site deploy renders figures fresh into _site, so committed-asset drift
+    # is a repo-hygiene signal, not a published-output problem. Allow the deploy
+    # render to opt out (see build_site.sh), matching the --no-layout policy of
+    # not blocking the community-page publish on non-content noise. Figure
+    # generation is not yet byte-deterministic, so this is a warning there.
+    if os.environ.get("ARCH2_SKIP_ASSET_DRIFT") == "1":
+        findings = generated_asset_findings()
+        if findings:
+            console.print(
+                f"[yellow]warning[/yellow] {len(findings)} generated asset(s) "
+                "drifted after render; skipped as non-blocking for the site "
+                "deploy (ARCH2_SKIP_ASSET_DRIFT=1)"
+            )
+        return
     _exit_on_findings(generated_asset_findings(), title="generated assets")
 
 
