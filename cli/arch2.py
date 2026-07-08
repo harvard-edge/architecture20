@@ -10,8 +10,10 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
+import html as html_lib
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -259,6 +261,7 @@ REQUIRED_REFERENCED_LABEL_PREFIXES = ("fig-", "tbl-", "eq-", "lst-")
 CANONICAL_BIBLIOGRAPHY = BOOK_DIR / "references" / "references.bib"
 CANONICAL_CSL = BOOK_DIR / "csl" / "chicago-author-date.csl"
 CROSSREF_PREFIX_PATTERN = "|".join(CANONICAL_CROSSREF_PREFIXES)
+GENERATED_ASSET_SUFFIXES = (".pdf", ".svg", ".png", ".jpg", ".jpeg")
 QUARTO_LABEL_RE = re.compile(
     rf"\{{[^}}\n]*#(?P<label>(?:{CROSSREF_PREFIX_PATTERN})-[A-Za-z0-9_-]+)(?=[\s}}])[^}}]*\}}"
 )
@@ -1145,6 +1148,479 @@ def bibliography_findings() -> list[Finding]:
     return sorted(
         findings, key=lambda finding: (finding.location, finding.code, finding.message)
     )
+
+
+def _load_quarto_config() -> tuple[dict, list[Finding]]:
+    quarto_path = BOOK_DIR / "_quarto.yml"
+    if not quarto_path.exists():
+        return {}, [
+            Finding(
+                "error",
+                "missing-quarto-config",
+                _relative(quarto_path),
+                "book configuration is missing",
+            )
+        ]
+    try:
+        import yaml
+    except ImportError:
+        return {}, [
+            Finding(
+                "error",
+                "missing-yaml",
+                "python",
+                "PyYAML is required for Quarto manifest validation",
+            )
+        ]
+    try:
+        return yaml.safe_load(quarto_path.read_text(encoding="utf-8")) or {}, []
+    except yaml.YAMLError as exc:
+        return {}, [
+            Finding(
+                "error",
+                "invalid-quarto-yaml",
+                _relative(quarto_path),
+                str(exc),
+            )
+        ]
+
+
+def _manifest_qmd_entries(config: dict) -> list[Path]:
+    book_config = config.get("book") or {}
+    entries: list[Path] = []
+    for section in ("chapters", "appendices"):
+        raw_items = book_config.get(section) or []
+        if not isinstance(raw_items, list):
+            continue
+        for item in raw_items:
+            if not isinstance(item, str) or item.strip() == "---":
+                continue
+            if item.endswith(".qmd"):
+                entries.append((BOOK_DIR / item).resolve())
+    return entries
+
+
+def _book_qmd_files() -> list[Path]:
+    files: list[Path] = []
+    for path in BOOK_DIR.rglob("*.qmd"):
+        if any(part in {"_build", "_freeze"} for part in path.parts):
+            continue
+        files.append(path.resolve())
+    return sorted(files)
+
+
+def manifest_findings() -> list[Finding]:
+    config, findings = _load_quarto_config()
+    if findings:
+        return findings
+
+    quarto_path = BOOK_DIR / "_quarto.yml"
+    book_config = config.get("book") or {}
+    if not isinstance(book_config, dict):
+        return [
+            Finding(
+                "error",
+                "book-manifest",
+                _relative(quarto_path),
+                "Quarto config is missing the book section",
+            )
+        ]
+
+    entries = _manifest_qmd_entries(config)
+    entry_set = set(entries)
+    actual_qmds = set(_book_qmd_files())
+
+    seen: dict[Path, int] = {}
+    for index, entry in enumerate(entries, start=1):
+        if entry in seen:
+            findings.append(
+                Finding(
+                    "error",
+                    "duplicate-manifest-entry",
+                    _relative(quarto_path),
+                    f"{_relative(entry)} appears more than once in the book manifest",
+                )
+            )
+        seen[entry] = index
+        if not entry.exists():
+            findings.append(
+                Finding(
+                    "error",
+                    "missing-manifest-entry",
+                    _relative(quarto_path),
+                    f"manifest entry does not exist: {_relative(entry)}",
+                )
+            )
+
+    for path in sorted(actual_qmds - entry_set):
+        findings.append(
+            Finding(
+                "error",
+                "orphan-qmd",
+                _relative(path),
+                "QMD file is not included in book.chapters or book.appendices",
+            )
+        )
+
+    chapter_items = book_config.get("chapters") or []
+    chapter_qmds = [
+        item
+        for item in chapter_items
+        if isinstance(item, str) and item.endswith(".qmd")
+    ]
+    expected_frontmatter = [
+        "index.qmd",
+        "foreword.qmd",
+        "acknowledgments.qmd",
+        "about-the-author.qmd",
+    ]
+    if chapter_qmds[: len(expected_frontmatter)] != expected_frontmatter:
+        findings.append(
+            Finding(
+                "error",
+                "frontmatter-order",
+                _relative(quarto_path),
+                "front matter should begin with index, foreword, acknowledgments, and about-the-author",
+            )
+        )
+    if len(chapter_items) > len(expected_frontmatter):
+        separator_index = len(expected_frontmatter)
+        if chapter_items[separator_index] != "---":
+            findings.append(
+                Finding(
+                    "warning",
+                    "frontmatter-separator",
+                    _relative(quarto_path),
+                    "book.chapters should separate front matter from numbered chapters with ---",
+                )
+            )
+
+    return sorted(
+        findings, key=lambda finding: (finding.location, finding.code, finding.message)
+    )
+
+
+UNRESOLVED_RENDERED_PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
+    (
+        "quarto-unresolved-ref",
+        re.compile(r"class=[\"'][^\"']*quarto-unresolved-ref", re.I),
+        "Quarto unresolved-reference markup appears in rendered output",
+    ),
+    (
+        "raw-crossref-token",
+        re.compile(rf"(?<![#\w])@(?:{CROSSREF_PREFIX_PATTERN}|chap)-[A-Za-z0-9_-]+\b"),
+        "raw Quarto cross-reference token appears in rendered output",
+    ),
+    (
+        "raw-citation-token",
+        re.compile(r"\[@[A-Za-z0-9:_-]+(?:[;,\s]+@[A-Za-z0-9:_-]+)*\]"),
+        "raw citation token appears in rendered output",
+    ),
+    (
+        "broken-numbered-ref",
+        re.compile(
+            r"\b(?:Chapter|Section|Figure|Table|Listing|Equation)\s+\?+\b",
+            re.I,
+        ),
+        "numbered reference rendered as a question mark",
+    ),
+    (
+        "generic-unresolved-marker",
+        re.compile(r"(?<!\?)\?\?(?!\?)|\?\?\?"),
+        "generic unresolved marker appears in rendered output",
+    ),
+    (
+        "target-prefixed-question",
+        re.compile(r"\?(?:sec|fig|tbl|eq|lst|chap)-[A-Za-z0-9_-]+"),
+        "target-prefixed unresolved marker appears in rendered output",
+    ),
+    (
+        "citation-question-marker",
+        re.compile(r"\bCitation\?", re.I),
+        "citation rendered as an unresolved question marker",
+    ),
+)
+
+
+def _visible_html_text(text: str) -> str:
+    text = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", text)
+    text = re.sub(r"(?is)<(pre|code|samp|kbd)\b.*?</\1>", " ", text)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    return html_lib.unescape(text)
+
+
+def _snippet(text: str, start: int, end: int, *, radius: int = 80) -> str:
+    return _compact_text(text[max(0, start - radius) : end + radius], limit=180)
+
+
+HTML_RAW_UNRESOLVED_CODES = {
+    "quarto-unresolved-ref",
+    "raw-crossref-token",
+    "target-prefixed-question",
+}
+
+
+def _scan_rendered_text(
+    text: str, *, location: str, include_codes: set[str] | None = None
+) -> list[Finding]:
+    findings: list[Finding] = []
+    for code, pattern, message in UNRESOLVED_RENDERED_PATTERNS:
+        if include_codes is not None and code not in include_codes:
+            continue
+        match = pattern.search(text)
+        if not match:
+            continue
+        findings.append(
+            Finding(
+                "error",
+                code,
+                location,
+                f"{message}: {_snippet(text, match.start(), match.end())}",
+            )
+        )
+    return findings
+
+
+def pdf_unresolved_findings(pdf_path: Path = PDF_PATH) -> list[Finding]:
+    if not pdf_path.exists():
+        return [
+            Finding(
+                "error",
+                "missing-pdf",
+                _relative(pdf_path),
+                "rendered PDF does not exist",
+            )
+        ]
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return [
+            Finding(
+                "error",
+                "missing-pypdf",
+                "python",
+                "pypdf is required for rendered unresolved-token scanning",
+            )
+        ]
+
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
+    findings: list[Finding] = []
+    reader = PdfReader(str(pdf_path))
+    for page_number, page in enumerate(reader.pages, start=1):
+        text = page.extract_text() or ""
+        findings.extend(
+            _scan_rendered_text(
+                text, location=f"{_relative(pdf_path)}:page {page_number}"
+            )
+        )
+    return findings
+
+
+def html_unresolved_findings(html_root: Path = BUILD_DIR) -> list[Finding]:
+    if not html_root.exists():
+        return [
+            Finding(
+                "error",
+                "missing-html",
+                _relative(html_root),
+                "rendered HTML output does not exist",
+            )
+        ]
+
+    findings: list[Finding] = []
+    html_files = sorted(html_root.rglob("*.html"))
+    if not html_files:
+        return [
+            Finding(
+                "error",
+                "missing-html",
+                _relative(html_root),
+                "rendered HTML output contains no HTML files",
+            )
+        ]
+    for page_path in html_files:
+        page_text = page_path.read_text(encoding="utf-8", errors="replace")
+        findings.extend(
+            _scan_rendered_text(
+                page_text,
+                location=_relative(page_path),
+                include_codes=HTML_RAW_UNRESOLVED_CODES,
+            )
+        )
+        visible_text = _visible_html_text(page_text)
+        findings.extend(
+            _scan_rendered_text(visible_text, location=f"{_relative(page_path)}:text")
+        )
+    return findings
+
+
+def epub_unresolved_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
+    if not epub_path.exists():
+        return [
+            Finding(
+                "error",
+                "missing-epub",
+                _relative(epub_path),
+                "rendered EPUB does not exist",
+            )
+        ]
+    findings: list[Finding] = []
+    try:
+        with zipfile.ZipFile(epub_path) as epub:
+            names = [
+                name
+                for name in epub.namelist()
+                if name.endswith((".html", ".xhtml")) and not name.endswith("nav.xhtml")
+            ]
+            for name in names:
+                text = epub.read(name).decode("utf-8", errors="replace")
+                findings.extend(
+                    _scan_rendered_text(
+                        text,
+                        location=f"{_relative(epub_path)}:{name}",
+                        include_codes=HTML_RAW_UNRESOLVED_CODES,
+                    )
+                )
+                findings.extend(
+                    _scan_rendered_text(
+                        _visible_html_text(text),
+                        location=f"{_relative(epub_path)}:{name}:text",
+                    )
+                )
+    except zipfile.BadZipFile:
+        return [
+            Finding(
+                "error",
+                "invalid-epub",
+                _relative(epub_path),
+                "EPUB is not a readable zip package",
+            )
+        ]
+    return findings
+
+
+def rendered_unresolved_findings(
+    *,
+    pdf: Path = PDF_PATH,
+    html_root: Path = BUILD_DIR,
+    epub: Path = EPUB_PATH,
+    formats: Iterable[str] | None = None,
+) -> list[Finding]:
+    format_set = set(formats or _RENDER_FORMATS)
+    findings: list[Finding] = []
+    if "pdf" in format_set:
+        findings.extend(pdf_unresolved_findings(pdf))
+    if "html" in format_set:
+        findings.extend(html_unresolved_findings(html_root))
+    if "epub" in format_set:
+        findings.extend(epub_unresolved_findings(epub))
+    return sorted(
+        findings, key=lambda finding: (finding.location, finding.code, finding.message)
+    )
+
+
+def _pdf_rendered_pages(pdf_path: Path, prefix: Path) -> list[Path] | None:
+    pdftoppm = shutil.which("pdftoppm")
+    if not pdftoppm:
+        return None
+    proc = subprocess.run(
+        [pdftoppm, "-r", "144", "-png", str(pdf_path), str(prefix)],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return None
+    return sorted(prefix.parent.glob(f"{prefix.name}-*.png"))
+
+
+def _pdf_visual_matches_head(path_text: str, current_path: Path) -> bool | None:
+    old_blob = subprocess.run(
+        ["git", "show", f"HEAD:{path_text}"],
+        cwd=str(ROOT),
+        capture_output=True,
+    )
+    if old_blob.returncode != 0:
+        return None
+    (ROOT / "tmp").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix="arch2-asset-", dir=str(ROOT / "tmp")
+    ) as tmp:
+        tmp_dir = Path(tmp)
+        old_pdf = tmp_dir / "old.pdf"
+        old_pdf.write_bytes(old_blob.stdout)
+        old_pages = _pdf_rendered_pages(old_pdf, tmp_dir / "old")
+        new_pages = _pdf_rendered_pages(current_path, tmp_dir / "new")
+        if old_pages is None or new_pages is None:
+            return None
+        if len(old_pages) != len(new_pages):
+            return False
+        return all(
+            old_page.read_bytes() == new_page.read_bytes()
+            for old_page, new_page in zip(old_pages, new_pages)
+        )
+
+
+def generated_asset_findings() -> list[Finding]:
+    proc = _run(
+        [
+            "git",
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+            "--",
+            "book/chapters",
+            "book/appendices",
+        ],
+        capture=True,
+    )
+    if proc.returncode != 0:
+        return [
+            Finding(
+                "error",
+                "git-status",
+                "git",
+                (proc.stderr or proc.stdout or "git status failed").strip(),
+            )
+        ]
+
+    findings: list[Finding] = []
+    for raw_line in proc.stdout.splitlines():
+        if len(raw_line) < 4:
+            continue
+        status = raw_line[:2]
+        path_text = raw_line[3:]
+        if " -> " in path_text:
+            path_text = path_text.split(" -> ", 1)[1]
+        path = Path(path_text)
+        if "images" not in path.parts:
+            continue
+        if path.suffix.lower() not in GENERATED_ASSET_SUFFIXES:
+            continue
+        if path.suffix.lower() == ".pdf" and status.strip() == "M":
+            current_path = ROOT / path
+            visual_match = _pdf_visual_matches_head(path_text, current_path)
+            if visual_match is True:
+                continue
+            if visual_match is None:
+                findings.append(
+                    Finding(
+                        "error",
+                        "generated-asset-drift",
+                        path_text,
+                        "tracked PDF asset is dirty after render and visual comparison could not be completed",
+                    )
+                )
+                continue
+        findings.append(
+            Finding(
+                "error",
+                "generated-asset-drift",
+                path_text,
+                f"tracked generated asset is dirty after render ({status.strip() or 'modified'}); commit the refreshed asset or fix nondeterministic generation",
+            )
+        )
+    return findings
 
 
 def normalize_definition_term(term: str) -> str:
@@ -2712,6 +3188,10 @@ def run_refs_check() -> None:
     _exit_on_findings(manuscript_integrity_findings(), title="references")
 
 
+def run_manifest_check() -> None:
+    _exit_on_findings(manifest_findings(), title="book manifest")
+
+
 def run_figures_check(pdf: Path = PDF_PATH) -> None:
     _exit_on_findings(pdf_figure_findings(pdf), title="PDF figures")
 
@@ -2757,6 +3237,14 @@ def run_footnote_table_check() -> None:
 
 def run_html_check(html: Path = HTML_PATH) -> None:
     _exit_on_findings(html_findings(html), title="HTML site")
+
+
+def run_rendered_unresolved_check() -> None:
+    _exit_on_findings(rendered_unresolved_findings(), title="rendered references")
+
+
+def run_generated_asset_check() -> None:
+    _exit_on_findings(generated_asset_findings(), title="generated assets")
 
 
 def run_svg_check(paths: list[Path] | None = None) -> None:
@@ -3584,10 +4072,19 @@ def _render_one(
     # Native finalization (formerly the Quarto post-render hook).
     if "html" in fmts:
         run_html_check(HTML_PATH)
+        _exit_on_findings(
+            html_unresolved_findings(BUILD_DIR), title="HTML rendered references"
+        )
     if "epub" in fmts:
         _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
+        _exit_on_findings(
+            epub_unresolved_findings(EPUB_PATH), title="EPUB rendered references"
+        )
     if "pdf" in fmts:
         run_figures_check(PDF_PATH)
+        _exit_on_findings(
+            pdf_unresolved_findings(PDF_PATH), title="PDF rendered references"
+        )
         layout_error = False
         if layout:
             findings = layout_findings(PDF_PATH, bottom_clearance=bottom_clearance)
@@ -3596,6 +4093,7 @@ def _render_one(
         _clean_latex_scratch(keep_logs)
         if layout_error:
             raise typer.Exit(1)
+    run_generated_asset_check()
 
 
 @app.command()
@@ -3750,8 +4248,14 @@ def serve(
 
 @validate_app.command("refs")
 def validate_refs() -> None:
-    """Check figure, table, equation, and path references."""
+    """Check figure, table, listing, equation, section, and path references."""
     run_refs_check()
+
+
+@validate_app.command("manifest")
+def validate_manifest() -> None:
+    """Check that the Quarto book manifest owns every intended QMD file."""
+    run_manifest_check()
 
 
 @validate_app.command("footnotes")
@@ -3786,6 +4290,18 @@ def verify_epub(
 ) -> None:
     """Check that the local EPUB package contains custom callouts and resolved references."""
     _exit_on_findings(epub_findings(epub), title="EPUB package")
+
+
+@verify_app.command("unresolved")
+def verify_unresolved() -> None:
+    """Check rendered PDF, HTML, and EPUB for unresolved ref/citation tokens."""
+    run_rendered_unresolved_check()
+
+
+@verify_app.command("generated-assets")
+def verify_generated_assets() -> None:
+    """Check that tracked generated figure assets are clean after rendering."""
+    run_generated_asset_check()
 
 
 @validate_app.command("svg")
@@ -3842,6 +4358,7 @@ def check_precommit() -> None:
     """Run fast, no-render checks suitable for pre-commit."""
     run_python_check()
     run_book_navbar_check()
+    run_manifest_check()
     run_refs_check()
     run_bibliography_check()
     run_footnote_table_check()
@@ -3861,6 +4378,8 @@ def check_standard(
     run_bibliography_check()
     run_footnote_table_check()
     run_figures_check()
+    run_rendered_unresolved_check()
+    run_generated_asset_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     run_layout_check(fail_on_warning=fail_on_layout_warning)
@@ -3877,6 +4396,8 @@ def check_strict(
     run_bibliography_check()
     run_footnote_table_check()
     run_figures_check()
+    run_rendered_unresolved_check()
+    run_generated_asset_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
     run_svg_check()
