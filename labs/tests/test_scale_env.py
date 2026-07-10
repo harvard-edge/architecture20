@@ -134,6 +134,25 @@ def test_run_without_human_decision_emits_noncommitting_draft(tmp_path: Path) ->
     assert "receipt awaits a required human decision" in validate_receipt(out_dir)
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_gate_passing_subset_cannot_publish_invalid_level_two_draft(
+    tmp_path: Path,
+) -> None:
+    out_dir = tmp_path / "receipt"
+
+    with pytest.raises(
+        ValueError,
+        match="must include at least one candidate rejected by a declared gate",
+    ):
+        run_example(
+            "scale_proxy_mirage",
+            out_dir,
+            candidate_ids={"balanced_16x16", "throughput_32x32"},
+        )
+
+    assert not out_dir.exists()
+
+
 def test_force_failure_preserves_existing_owned_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

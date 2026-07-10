@@ -622,6 +622,11 @@ def _generate_example(
 
     if not accepted:
         raise RuntimeError("No candidate survived the SCALE-Sim rejection gates")
+    if not negative_traces:
+        raise ValueError(
+            "selected candidates must include at least one candidate rejected "
+            "by a declared gate"
+        )
 
     recommended = min(
         accepted, key=lambda item: item["estimates"]["derived"]["latency_us"]
@@ -795,7 +800,9 @@ def run_example(
                     "generated receipt failed validation: " + "; ".join(errors)
                 )
         else:
-            verify_receipt_ownership(staging)
+            from arch2_labs.validators import validate_decision_draft
+
+            validate_decision_draft(staging)
         _promote_staged_receipt(staging, out_dir, force)
     except BaseException:
         if staging.exists():
