@@ -20,3 +20,21 @@ def test_marimo_notebooks_import() -> None:
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         assert module.app is not None
+
+
+def test_prompt_bootstrap_does_not_claim_canonical_completion() -> None:
+    source = Path("notebooks/lab_01_prompt_to_card.py").read_text()
+
+    assert "Four-field bootstrap complete" in source
+    assert "not a complete canonical design-loop card" in source
+    assert "Card complete" not in source
+
+
+def test_proxy_lab_persists_explicit_learner_decision() -> None:
+    source = Path("examples/scale_proxy_mirage/lab.py").read_text()
+
+    assert "record_human_decision" in source
+    assert '"selected_candidate_id": choice.value' in source
+    assert '"governing_objective": objective.value' in source
+    assert '"rationale": rationale.value.strip()' in source
+    assert "Rationale (optional)" not in source

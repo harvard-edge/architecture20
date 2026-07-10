@@ -2,20 +2,32 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import math
+import os
+import platform
 import shutil
 import subprocess
 import sys
+import tempfile
+import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
+from importlib.resources import files
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 import yaml
 
+from arch2_labs.decisions import HumanDecision, record_human_decision
 from arch2_labs.estimates import ESTIMATE_SOURCES, estimate_candidate
+from arch2_labs.receipts import (
+    ReceiptMetadata,
+    seal_receipt,
+    sha256_file,
+    verify_receipt_ownership,
+)
 from arch2_labs.schemas import Candidate, WorkloadLayer, load_candidates
 
 LABS_ROOT = Path(__file__).resolve().parents[1]
@@ -23,10 +35,26 @@ EXAMPLES_ROOT = LABS_ROOT / "examples"
 
 
 def example_dir(example_name: str) -> Path:
-    path = EXAMPLES_ROOT / example_name
-    if not path.exists():
-        raise FileNotFoundError(f"Unknown lab example: {example_name}")
-    return path
+    source_path = EXAMPLES_ROOT / example_name
+    if source_path.is_dir():
+        return source_path
+
+    resource = files("arch2_labs").joinpath("examples", example_name)
+    if resource.is_dir():
+        try:
+            return Path(resource)
+        except TypeError as exc:
+            raise RuntimeError(
+                "Packaged examples must be installed on a filesystem before use"
+            ) from exc
+    raise FileNotFoundError(f"Unknown lab example: {example_name}")
+
+
+def _distribution_version(distribution: str) -> str:
+    try:
+        return version(distribution)
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def load_workload(topology_path: Path) -> list[WorkloadLayer]:
@@ -50,12 +78,7 @@ def load_workload(topology_path: Path) -> list[WorkloadLayer]:
     return layers
 
 
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as f:
-        for block in iter(lambda: f.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+file_sha256 = sha256_file
 
 
 def proxy_cycles(candidate: Candidate, layers: Iterable[WorkloadLayer]) -> int:
@@ -246,8 +269,14 @@ def run_scalesim(
         "completed_at": completed_at,
         "stdout_tail": proc.stdout.splitlines()[-20:],
         "stderr_tail": proc.stderr.splitlines()[-20:],
+        "tool": {"name": "SCALE-Sim", "version": _distribution_version("scalesim")},
+        "runtime": {
+            "python": platform.python_version(),
+            "executable": sys.executable,
+        },
         "inputs": {
             "config": str(config_path),
+            "config_sha256": file_sha256(config_path),
             "topology": str(topology_copy),
             "layout": str(layout_copy),
             "topology_sha256": file_sha256(topology_copy),
@@ -260,15 +289,30 @@ def run_scalesim(
 
     if proc.returncode == 0:
         record["metrics"] = parse_scale_reports(report_dir)
+        record["outputs"]["raw_files"] = [
+            {"path": str(path), "sha256": file_sha256(path)}
+            for path in sorted(report_dir.rglob("*"))
+            if path.is_file()
+        ]
     return record
 
 
+def _verify_replaceable_dir(path: Path) -> Path:
+    expanded = path.expanduser().absolute()
+    if expanded.is_symlink():
+        raise ValueError(f"refusing to replace a symbolic link: {expanded}")
+    resolved = expanded.resolve()
+    protected = {Path.home().resolve(), LABS_ROOT.resolve()}
+    protected.update(LABS_ROOT.resolve().parents)
+    if resolved in protected:
+        raise ValueError(f"refusing to replace protected path: {resolved}")
+    verify_receipt_ownership(resolved)
+    return resolved
+
+
 def _safe_replace_dir(path: Path) -> None:
-    resolved = path.resolve()
-    if len(resolved.parts) < 4:
-        raise ValueError(f"Refusing to remove shallow path: {resolved}")
-    if resolved.exists():
-        shutil.rmtree(resolved)
+    resolved = _verify_replaceable_dir(path)
+    shutil.rmtree(resolved)
 
 
 def _write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
@@ -299,84 +343,157 @@ def _relative_records(
     return [convert(record) for record in records]
 
 
-def build_decision(
+def build_recommendation(
+    lab_id: str,
     lab_title: str,
     proxy_winner: dict[str, Any],
-    survivor: dict[str, Any],
+    recommended: dict[str, Any],
     negative_traces: list[dict[str, Any]],
     objective_rankings: dict[str, Any],
-) -> str:
-    rejected_lines = "\n".join(
-        f"- `{trace['candidate_id']}` rejected at `{trace['gate']}`. "
-        f"Observed {trace['observed']} against threshold {trace['threshold']}."
-        for trace in negative_traces
+) -> dict[str, Any]:
+    return {
+        "schema_version": "arch2-machine-recommendation/v0.1",
+        "lab_id": lab_id,
+        "lab_title": lab_title,
+        "candidate_id": recommended["candidate_id"],
+        "basis": "lowest SCALE-Sim cycle count among candidates that passed the declared gates",
+        "evidence_source": "scalesim",
+        "human_decision": False,
+        "commitment": "none",
+        "proxy_winner": proxy_winner["candidate_id"],
+        "objective_rankings": objective_rankings,
+        "rejected_candidate_ids": [trace["candidate_id"] for trace in negative_traces],
+        "limits": [
+            "compact GEMM workload slice",
+            "no compiler scheduling evidence",
+            "no RTL or physical-design evidence",
+            "no power, thermal, or product evidence",
+        ],
+    }
+
+
+def build_replayable_card(
+    template: dict[str, Any],
+    receipt_id: str,
+    scale_records: list[dict[str, Any]],
+    negative_traces: list[dict[str, Any]],
+) -> dict[str, Any]:
+    card = template["design_loop_card"]
+    successful = [record for record in scale_records if record["status"] == "ok"]
+    if not successful:
+        raise ValueError("a replayable card requires at least one successful run")
+    tool_version = successful[0]["tool"]["version"]
+    card.update(
+        {
+            "conformance_level": 2,
+            "representation": {
+                "state_schema_id": "arch2-labs.scale-proxy-mirage-state.v1",
+                "ir_level": "GEMM layer dimensions, array geometry, and fixed memory parameters.",
+                "reads": [
+                    "Candidate action records.",
+                    "XR-like GEMM topology and layout inputs.",
+                ],
+                "writes": [
+                    "SCALE-Sim cycle, utilization, bandwidth, and access reports.",
+                    "First-order energy, roofline, and area estimates.",
+                ],
+                "uncertainties": [
+                    "The workload is a compact slice rather than a full XR model.",
+                    "The simulator omits compiler, physical, power, and thermal effects.",
+                ],
+            },
+            "environment": {
+                "environment_id": f"scale-sim-{tool_version}-proxy-mirage-v1",
+                "actions": ["Evaluate one of the four declared array shapes."],
+                "invalid_actions": [
+                    "Change the workload, dataflow, SRAM allocation, or bandwidth.",
+                    "Advance a candidate that fails a declared area or deadline gate.",
+                ],
+                "blast_radius_limit": "Analysis-only output under one receipt directory; no RTL or project source is modified.",
+                "observations": [
+                    "Proxy cycle rank.",
+                    "SCALE-Sim cycle, utilization, bandwidth, and memory-access reports.",
+                    "Declared-gate rejection records.",
+                ],
+                "fidelity": "simulation",
+            },
+            "method_role": {
+                "roles": ["predict", "critique", "verify"],
+                "actor_map": [
+                    {
+                        "actor_id": "arch2-labs-runner",
+                        "role": "Generate the proxy ranking, run the simulator, and make a noncommitting recommendation.",
+                        "reads": ["Declared candidates and environment inputs."],
+                        "writes": [
+                            "Evidence, negative traces, and recommendation.json."
+                        ],
+                        "authority": "May recommend a gate passer; cannot make or own the human commitment.",
+                    },
+                    {
+                        "actor_id": "declared-gate-evaluator",
+                        "role": "Apply the fixed area and deadline rejection gates.",
+                        "reads": ["Candidate PE count and simulated cycle count."],
+                        "writes": ["Negative traces."],
+                        "authority": "May reject candidates; cannot select the human commitment.",
+                    },
+                ],
+            },
+            "feedback_budget": {
+                "evaluations": len(scale_records),
+                "latency": "One local SCALE-Sim process per candidate with a 120-second timeout.",
+                "cost": "Local CPU execution only.",
+                "fidelity": "One cheap proxy pass followed by architecture simulation.",
+                "model_side_cost": {
+                    "model_calls": 0,
+                    "gpu_hours": 0,
+                    "energy_or_carbon": "No model inference is used by this example.",
+                    "human_review": "One explicit architecture decision after evidence review.",
+                },
+            },
+            "evidence": {
+                "baseline_id": successful[-1]["candidate_id"],
+                "records": [
+                    {
+                        "evidence_id": f"scalesim-{record['candidate_id']}",
+                        "kind": "SCALE-Sim raw report set",
+                        "workload_id": "xr-slice-gemm-v1",
+                        "seed": "SCALE-Sim deterministic configuration",
+                        "provenance": {
+                            "tool_version": f"SCALE-Sim {record['tool']['version']}",
+                            "parameter_hash": f"sha256:{record['inputs']['config_sha256']}",
+                        },
+                    }
+                    for record in successful
+                ],
+            },
+            "negative_traces": [
+                {
+                    "candidate_id": trace["candidate_id"],
+                    "reason": trace["reason"],
+                    "stage": trace["stage"],
+                    "gate": trace["gate"],
+                }
+                for trace in negative_traces
+            ],
+        }
     )
-    est = survivor["estimates"]
-    obj_lines = "\n".join(
-        f"- **{name}**: `{pick['candidate_id']}` ({pick['value']})"
-        for name, pick in objective_rankings.items()
-        if isinstance(pick, dict)
+    card["x-arch2-labs"].update(
+        {
+            "receipt_id": receipt_id,
+            "template_status": "replayable_evidence",
+            "environment_contract": "environment.yaml",
+            "recommendation_record": "recommendation.json",
+        }
     )
-    return f"""# Loop Decision
-
-Lab: {lab_title}
-
-Selected survivor: `{survivor['candidate_id']}`.
-
-The cheap proxy ranked `{proxy_winner['candidate_id']}` first because it divided
-total MACs by nominal PE count. The loop does not let that proxy make the final
-commitment. SCALE-Sim supplied the stronger evidence, and the rejection gate
-kept the proxy winner from advancing.
-
-## Evidence Summary
-
-- Proxy winner: `{proxy_winner['candidate_id']}` with {proxy_winner['proxy_cycles']} proxy cycles.
-- Selected candidate: `{survivor['candidate_id']}` with {survivor['metrics']['total_cycles']} SCALE-Sim cycles.
-- Selected minimum layer utilization: {survivor['metrics']['min_layer_util_pct']:.2f}%.
-- Selected first-order energy: {est['energy']['e_total_uj']} uJ ({est['energy']['dram_energy_fraction'] * 100:.0f}% in DRAM movement); roofline bound: {est['roofline']['bound']}.
-
-## Objective Sensitivity
-
-The gate survivor minimizes latency among gate-passers, but the best candidate
-depends on the declared objective. These first-order estimates (Horowitz 45 nm,
-order-of-magnitude; see `evidence_ledger.json` sources) are decision support, not
-signoff:
-
-{obj_lines}
-
-If two of these disagree, the loop has not yet earned a single commitment; the
-architect must state which objective governs before selecting a winner.
-
-## Rejected Alternatives
-
-{rejected_lines}
-
-## Commitment Boundary
-
-Advance `{survivor['candidate_id']}` only to the next-fidelity architecture
-study for this workload slice. This receipt does not claim RTL readiness,
-physical-design feasibility, power signoff, or product suitability.
-
-## Residual Risk
-
-The workload is a compact GEMM slice, not a full XR model. The loop uses
-SCALE-Sim cycle, bandwidth, and utilization reports, but it does not model
-compiler scheduling, physical layout, power, thermal behavior, or quality.
-
-## Would Overturn This Decision
-
-A fuller workload, a different dataflow, a tighter SRAM budget, power evidence,
-or a compiler mapping that improves the rejected array's utilization would
-reopen the decision.
-"""
+    return template
 
 
-def run_example(
+def _generate_example(
     example_name: str,
     out_dir: Path,
-    force: bool = False,
     candidate_ids: set[str] | None = None,
     precision: str = "int8",
+    human_decision: Path | Mapping[str, Any] | HumanDecision | None = None,
 ) -> dict[str, Any]:
     ex_dir = example_dir(example_name)
     spec = load_candidates(ex_dir / "configs" / "candidates.yaml", ex_dir)
@@ -390,16 +507,9 @@ def run_example(
     if not candidates:
         raise ValueError("No candidates selected for the run")
 
-    out_dir = out_dir.resolve()
-    if out_dir.exists():
-        if force:
-            _safe_replace_dir(out_dir)
-        else:
-            raise FileExistsError(
-                f"{out_dir} already exists. Use --force to replace it."
-            )
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = out_dir.absolute()
 
+    receipt_id = str(uuid.uuid4())
     shutil.copy2(ex_dir / "starter_receipt" / "card.yaml", out_dir / "card.yaml")
     shutil.copy2(
         ex_dir / "starter_receipt" / "environment.yaml", out_dir / "environment.yaml"
@@ -432,7 +542,6 @@ def run_example(
         for record in proxy_records
     ]
 
-    scale_records: list[dict[str, Any]] = []
     negative_traces: list[dict[str, Any]] = []
     accepted: list[dict[str, Any]] = []
     estimated: list[dict[str, Any]] = []
@@ -440,7 +549,6 @@ def run_example(
     for candidate in candidates:
         run_dir = out_dir / "runs" / candidate.candidate_id
         scale_record = run_scalesim(candidate, spec.topology, spec.layout, run_dir)
-        scale_records.append(scale_record)
         runs.append(scale_record)
 
         if scale_record["status"] != "ok":
@@ -484,7 +592,7 @@ def run_example(
     if not accepted:
         raise RuntimeError("No candidate survived the SCALE-Sim rejection gates")
 
-    survivor = min(accepted, key=lambda item: item["metrics"]["total_cycles"])
+    recommended = min(accepted, key=lambda item: item["metrics"]["total_cycles"])
     proxy_winner = proxy_records[0]
 
     def _pick(
@@ -499,9 +607,8 @@ def run_example(
         chosen = (max if maximize else min)(items, key=value)
         return {"candidate_id": chosen["candidate_id"], "value": value(chosen)}
 
-    # The gate survivor minimizes latency among gate-passers, but the "best"
-    # candidate depends on the declared objective. Surfacing these side by side
-    # is the point: a loop that does not state its objective cannot defend a winner.
+    # The machine recommendation minimizes latency among gate-passers. Other
+    # objectives remain visible so a human can make and own the commitment.
     objective_rankings = {
         "min_latency_us": _pick(estimated, ["derived", "latency_us"]),
         "min_energy_uj": _pick(estimated, ["energy", "e_total_uj"]),
@@ -512,15 +619,16 @@ def run_example(
         "max_tops_per_mm2": _pick(
             estimated, ["derived", "tops_per_mm2"], maximize=True
         ),
-        "gate_survivor": survivor["candidate_id"],
+        "latency_under_declared_gates": recommended["candidate_id"],
     }
 
+    created_at = datetime.now(timezone.utc).isoformat()
     evidence_ledger = {
         "schema_version": "arch2-loop-evidence/v0.1",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": created_at,
         "lab_id": spec.lab_id,
         "precision": precision,
-        "final_decision_source": "scalesim",
+        "recommendation_evidence_source": "scalesim",
         "objective_rankings": objective_rankings,
         "estimate_sources": ESTIMATE_SOURCES,
         "stages": [
@@ -533,11 +641,12 @@ def run_example(
             {
                 "stage": "scalesim",
                 "fidelity": "simulator CSV reports",
-                "supports": f"{survivor['candidate_id']} is the fastest candidate that survived the declared gates",
+                "supports": f"{recommended['candidate_id']} has the lowest measured cycles among declared-gate passers",
                 "limits": "does not cover compiler, RTL, physical design, power, or full-model accuracy",
             },
         ],
-        "survivor": survivor,
+        "candidate_outcomes": estimated,
+        "machine_recommendation": recommended["candidate_id"],
         "proxy_winner": proxy_winner["candidate_id"],
         "rejected_count": len(negative_traces),
     }
@@ -548,38 +657,121 @@ def run_example(
         json.dumps(evidence_ledger, indent=2, sort_keys=True) + "\n"
     )
     _write_jsonl(out_dir / "negative_traces.jsonl", negative_traces)
-    (out_dir / "decision.md").write_text(
-        build_decision(
-            spec.title, proxy_winner, survivor, negative_traces, objective_rankings
-        )
+    recommendation = build_recommendation(
+        spec.lab_id,
+        spec.title,
+        proxy_winner,
+        recommended,
+        negative_traces,
+        objective_rankings,
     )
-    (out_dir / "manifest.yaml").write_text(
-        yaml.safe_dump(
-            {
-                "lab_id": spec.lab_id,
-                "example": example_name,
-                "created_at": evidence_ledger["created_at"],
-                "receipt_files": [
-                    "card.yaml",
-                    "environment.yaml",
-                    "candidates.jsonl",
-                    "runs.jsonl",
-                    "evidence_ledger.json",
-                    "negative_traces.jsonl",
-                    "decision.md",
-                ],
-            },
-            sort_keys=False,
-        )
+    (out_dir / "recommendation.json").write_text(
+        json.dumps(recommendation, indent=2, sort_keys=True) + "\n"
     )
+    card_template = yaml.safe_load((out_dir / "card.yaml").read_text())
+    card = build_replayable_card(
+        card_template,
+        receipt_id,
+        [record for record in runs if record["stage"] == "scalesim"],
+        negative_traces,
+    )
+    (out_dir / "card.yaml").write_text(yaml.safe_dump(card, sort_keys=False))
+
+    seal_receipt(
+        out_dir,
+        ReceiptMetadata(
+            receipt_id=receipt_id,
+            lab_id=spec.lab_id,
+            example=example_name,
+            created_at=created_at,
+            status="awaiting_human_decision",
+        ),
+    )
+    status = "awaiting_human_decision"
+    if human_decision is not None:
+        record_human_decision(out_dir, human_decision)
+        status = "complete"
 
     return {
         "out_dir": str(out_dir),
         "lab_id": spec.lab_id,
         "proxy_winner": proxy_winner["candidate_id"],
-        "survivor": survivor["candidate_id"],
+        "recommended_candidate": recommended["candidate_id"],
         "rejected_count": len(negative_traces),
+        "status": status,
     }
+
+
+def _promote_staged_receipt(staging: Path, out_dir: Path, force: bool) -> None:
+    if out_dir.is_symlink():
+        raise ValueError(f"refusing to replace a symbolic link: {out_dir}")
+    if not out_dir.exists():
+        os.replace(staging, out_dir)
+        return
+    if not force:
+        raise FileExistsError(f"{out_dir} already exists. Use --force to replace it.")
+
+    _verify_replaceable_dir(out_dir)
+    backup = out_dir.with_name(f".{out_dir.name}.arch2-backup-{uuid.uuid4().hex}")
+    os.replace(out_dir, backup)
+    try:
+        os.replace(staging, out_dir)
+    except BaseException:
+        os.replace(backup, out_dir)
+        raise
+    _safe_replace_dir(backup)
+
+
+def run_example(
+    example_name: str,
+    out_dir: Path,
+    force: bool = False,
+    candidate_ids: set[str] | None = None,
+    precision: str = "int8",
+    human_decision: Path | Mapping[str, Any] | HumanDecision | None = None,
+) -> dict[str, Any]:
+    """Build a receipt in staging and promote it only after generation succeeds."""
+    out_dir = out_dir.expanduser().absolute()
+    if out_dir.is_symlink():
+        raise ValueError(f"refusing to replace a symbolic link: {out_dir}")
+    if out_dir.exists():
+        if not force:
+            raise FileExistsError(
+                f"{out_dir} already exists. Use --force to replace it."
+            )
+        _verify_replaceable_dir(out_dir)
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    staging = Path(
+        tempfile.mkdtemp(
+            prefix=f".{out_dir.name}.arch2-staging-", dir=str(out_dir.parent)
+        )
+    )
+    try:
+        summary = _generate_example(
+            example_name=example_name,
+            out_dir=staging,
+            candidate_ids=candidate_ids,
+            precision=precision,
+            human_decision=human_decision,
+        )
+        if summary["status"] == "complete":
+            from arch2_labs.validators import validate_receipt
+
+            errors = validate_receipt(staging)
+            if errors:
+                raise RuntimeError(
+                    "generated receipt failed validation: " + "; ".join(errors)
+                )
+        else:
+            verify_receipt_ownership(staging)
+        _promote_staged_receipt(staging, out_dir, force)
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
+    summary["out_dir"] = str(out_dir)
+    return summary
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -609,6 +801,14 @@ def main(argv: list[str] | None = None) -> int:
         choices=["int8", "fp16", "fp32"],
         help="Operand precision for first-order energy/area estimates.",
     )
+    parser.add_argument(
+        "--decision-file",
+        type=Path,
+        help=(
+            "Explicit human decision YAML. Without it, the runner emits an "
+            "evidence-only draft that does not validate as a complete receipt."
+        ),
+    )
     args = parser.parse_args(argv)
     summary = run_example(
         example_name=args.example,
@@ -616,6 +816,7 @@ def main(argv: list[str] | None = None) -> int:
         force=args.force,
         candidate_ids=set(args.candidates) if args.candidates else None,
         precision=args.precision,
+        human_decision=args.decision_file,
     )
     print(yaml.safe_dump(summary, sort_keys=False).strip())
     return 0

@@ -174,8 +174,10 @@ def _(actions, boundary, evidence, hardest, mo, workload):
             else "was one you actually filled well — did a different field turn out harder?"
         )
         status = mo.md(
-            "✅ **Card complete.** Every load-bearing field names how the claim could be "
-            "wrong." + (note if hardest.value else "")
+            "✅ **Four-field bootstrap complete.** This exercise is a partial mapping, "
+            "not a complete canonical design-loop card. The remaining canonical fields "
+            "still need evidence, replay, rejection-authority, and ownership records."
+            + (note if hardest.value else "")
         )
     status
     return
