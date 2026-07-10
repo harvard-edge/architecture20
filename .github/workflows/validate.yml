@@ -36,6 +36,7 @@ jobs:
           cache: pip
           cache-dependency-path: |
             requirements.txt
+            requirements-card.txt
             requirements-cff.txt
             constraints/cff-py311-linux.txt
             constraints/py311-linux.txt
@@ -53,6 +54,16 @@ jobs:
         run: |
           python -m unittest discover -s .github/tests -p 'test_*.py' -v
           python -m pytest -q tests
+
+      - name: Smoke-test minimal card environment
+        run: |
+          python -m venv "$RUNNER_TEMP/card-venv"
+          bash .github/scripts/bootstrap_pip.sh \
+            "$RUNNER_TEMP/card-venv/bin/python"
+          "$RUNNER_TEMP/card-venv/bin/python" -m pip install \
+            -r requirements-card.txt -c constraints/py311-linux.txt
+          "$RUNNER_TEMP/card-venv/bin/python" cli/arch2.py validate card \
+            examples/design-loop-cards/level-0-context.yaml
 
       - name: Validate citation metadata
         run: |
@@ -140,6 +151,7 @@ jobs:
       - name: Validate public artifact sources
         run: |
           test -f schemas/design-loop-card.v1.schema.json
+          test -f schemas/design-loop-card.v1.1.schema.json
           test -f schemas/design-loop-card.md
           test -f design-loop-card/template.yaml
           test -f design-loop-card/template.md
@@ -147,6 +159,8 @@ jobs:
           test -f examples/design-loop-cards/level-1-auditable.yaml
           test -f examples/design-loop-cards/level-2-replayable.yaml
           test -f examples/design-loop-cards/level-3-independent.yaml
+          test -f examples/design-loop-cards/evidence/scale-sim-summary-16x16.json
+          test -f examples/design-loop-cards/evidence/scale-sim-summary-32x8.json
 
       - name: Render landing page
         run: quarto render www
