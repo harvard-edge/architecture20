@@ -369,7 +369,7 @@ def build_recommendation(
         "lab_title": lab_title,
         "baseline_id": baseline_id,
         "candidate_id": recommended["candidate_id"],
-        "basis": "lowest SCALE-Sim cycle count among candidates that passed the declared gates",
+        "basis": "lowest derived latency among candidates that passed the declared gates",
         "evidence_source": "scalesim",
         "human_decision": False,
         "commitment": "none",
@@ -623,7 +623,9 @@ def _generate_example(
     if not accepted:
         raise RuntimeError("No candidate survived the SCALE-Sim rejection gates")
 
-    recommended = min(accepted, key=lambda item: item["metrics"]["total_cycles"])
+    recommended = min(
+        accepted, key=lambda item: item["estimates"]["derived"]["latency_us"]
+    )
     proxy_winner = proxy_records[0]
 
     def _pick(
@@ -668,7 +670,7 @@ def _generate_example(
             {
                 "stage": "scalesim",
                 "fidelity": "simulator CSV reports",
-                "supports": f"{recommended['candidate_id']} has the lowest measured cycles among declared-gate passers",
+                "supports": f"{recommended['candidate_id']} has the lowest derived latency among declared-gate passers",
                 "limits": "does not cover compiler, RTL, physical design, power, or full-model accuracy",
             },
         ],
