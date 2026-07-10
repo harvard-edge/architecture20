@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from arch2_labs.receipts import sha256_file
+from arch2_labs.receipts import runtime_versions, sha256_file
 from arch2_labs.scale_env import run_example
 
 LAB_TEST_ROOT = Path(__file__).resolve().parent
@@ -67,6 +67,7 @@ def _fake_scalesim_run(
         "tiny_8x8": 100_000,
     }[candidate.candidate_id]
     now = datetime.now(timezone.utc).isoformat()
+    versions = runtime_versions()
     return {
         "candidate_id": candidate.candidate_id,
         "stage": "scalesim",
@@ -75,8 +76,14 @@ def _fake_scalesim_run(
         "returncode": 0,
         "started_at": now,
         "completed_at": now,
-        "tool": {"name": "SCALE-Sim", "version": "3.0.0"},
-        "runtime": {"python": "3.11.test"},
+        "tool": {
+            "name": "SCALE-Sim",
+            "version": versions["tools"]["SCALE-Sim"],
+        },
+        "runtime": {
+            "python": versions["python"]["version"],
+            "executable": versions["python"]["executable"],
+        },
         "inputs": {
             "config": str(config),
             "config_sha256": sha256_file(config),
@@ -106,16 +113,26 @@ def _fake_scalesim_run(
 
 
 @pytest.fixture
+def draft_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr("arch2_labs.scale_env.run_scalesim", _fake_scalesim_run)
+    receipt_dir = tmp_path / "receipt"
+    run_example("scale_proxy_mirage", receipt_dir)
+    return receipt_dir
+
+
+@pytest.fixture
 def valid_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setattr("arch2_labs.scale_env.run_scalesim", _fake_scalesim_run)
     receipt_dir = tmp_path / "receipt"
     decision = {
-        "schema_version": "arch2-human-decision/v0.1",
+        "schema_version": "arch2-human-decision/v0.2",
         "lab_id": "scale_proxy_mirage",
         "human_owner": "Receipt validator test author",
         "authored_at": "2026-07-10T00:00:00+00:00",
         "selected_candidate_id": "throughput_32x32",
         "governing_objective": "latency_under_declared_gates",
+        "objective_override": False,
+        "override_reason": None,
         "commitment_level": "next_fidelity_study",
         "rationale": "It has the lowest measured latency among candidates that pass both gates.",
         "residual_risk": "The workload and simulator omit physical effects.",

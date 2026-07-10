@@ -11,12 +11,14 @@ from arch2_labs.validators import validate_receipt
 
 def _human_decision(candidate_id: str) -> dict[str, str]:
     return {
-        "schema_version": "arch2-human-decision/v0.1",
+        "schema_version": "arch2-human-decision/v0.2",
         "lab_id": "scale_proxy_mirage",
         "human_owner": "Architecture lab test author",
         "authored_at": "2026-07-10T00:00:00+00:00",
         "selected_candidate_id": candidate_id,
         "governing_objective": "latency_under_declared_gates",
+        "objective_override": False,
+        "override_reason": None,
         "commitment_level": "next_fidelity_study",
         "rationale": "This candidate survives both declared gates with the lowest measured latency.",
         "residual_risk": "The compact workload omits compiler and physical-design behavior.",
@@ -58,7 +60,33 @@ def test_run_example_and_validate_receipt(tmp_path: Path) -> None:
 
     recommendation = json.loads((out_dir / "recommendation.json").read_text())
     assert recommendation["candidate_id"] == "balanced_16x16"
+    assert recommendation["baseline_id"] == "balanced_16x16"
     assert recommendation["human_decision"] is False
+
+    candidates = [
+        json.loads(line)
+        for line in (out_dir / "candidates.jsonl").read_text().splitlines()
+    ]
+    assert [
+        candidate["candidate_id"]
+        for candidate in candidates
+        if candidate["is_baseline"]
+    ] == ["balanced_16x16"]
+    ledger = json.loads((out_dir / "evidence_ledger.json").read_text())
+    assert ledger["baseline_id"] == "balanced_16x16"
+    assert set(ledger["objective_rankings"]) == {
+        "latency_under_declared_gates",
+        "energy_under_declared_gates",
+        "area_efficiency_under_declared_gates",
+    }
+    rejected = {
+        json.loads(line)["candidate_id"]
+        for line in (out_dir / "negative_traces.jsonl").read_text().splitlines()
+    }
+    assert all(
+        ranking["candidate_id"] not in rejected
+        for ranking in ledger["objective_rankings"].values()
+    )
 
     decision = (out_dir / "decision.yaml").read_text()
     assert "Architecture lab test author" in decision

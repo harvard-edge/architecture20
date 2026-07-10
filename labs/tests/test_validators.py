@@ -33,8 +33,97 @@ def _reseal(receipt_dir: Path) -> None:
     )
 
 
+def _rewrite_manifest_marker(receipt_dir: Path, manifest: dict[str, object]) -> None:
+    from arch2_labs.receipts import sha256_file
+
+    manifest_path = receipt_dir / "manifest.yaml"
+    manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False))
+    marker_path = receipt_dir / ".arch2-receipt.json"
+    marker = json.loads(marker_path.read_text())
+    marker["manifest_sha256"] = sha256_file(manifest_path)
+    marker_path.write_text(json.dumps(marker, indent=2, sort_keys=True) + "\n")
+
+
+def _set_lab_id(receipt_dir: Path, record: str, value: str | None) -> None:
+    if record == "card":
+        path = receipt_dir / "card.yaml"
+        data = yaml.safe_load(path.read_text())
+        target = data["design_loop_card"]["x-arch2-labs"]
+    elif record in {"environment", "decision", "manifest"}:
+        filename = {
+            "environment": "environment.yaml",
+            "decision": "decision.yaml",
+            "manifest": "manifest.yaml",
+        }[record]
+        path = receipt_dir / filename
+        data = yaml.safe_load(path.read_text())
+        target = data
+    else:
+        filename = {
+            "evidence": "evidence_ledger.json",
+            "recommendation": "recommendation.json",
+        }[record]
+        path = receipt_dir / filename
+        data = json.loads(path.read_text())
+        target = data
+    if value is None:
+        target.pop("lab_id", None)
+    else:
+        target["lab_id"] = value
+    if record in {"evidence", "recommendation"}:
+        path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    elif record == "manifest":
+        _rewrite_manifest_marker(receipt_dir, data)
+        return
+    else:
+        path.write_text(yaml.safe_dump(data, sort_keys=False))
+    _reseal(receipt_dir)
+
+
 def test_validator_accepts_complete_receipt(valid_receipt: Path) -> None:
     assert validate_receipt(valid_receipt) == []
+
+
+@pytest.mark.parametrize(
+    "record",
+    ["manifest", "card", "environment", "evidence", "recommendation", "decision"],
+)
+def test_validator_requires_lab_id_on_every_lab_record(
+    valid_receipt: Path, record: str
+) -> None:
+    _set_lab_id(valid_receipt, record, None)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert f"{record} missing lab_id" in errors
+
+
+@pytest.mark.parametrize(
+    "record", ["card", "environment", "evidence", "recommendation", "decision"]
+)
+def test_validator_rejects_every_lab_id_mismatch(
+    valid_receipt: Path, record: str
+) -> None:
+    _set_lab_id(valid_receipt, record, "other_lab")
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any(f"{record} lab_id does not match manifest" in error for error in errors)
+
+
+def test_validator_requires_card_lab_extension_and_receipt_id(
+    valid_receipt: Path,
+) -> None:
+    path = valid_receipt / "card.yaml"
+    data = yaml.safe_load(path.read_text())
+    data["design_loop_card"].pop("x-arch2-labs")
+    path.write_text(yaml.safe_dump(data, sort_keys=False))
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert "card missing x-arch2-labs mapping" in errors
+    assert "card x-arch2-labs missing receipt_id" in errors
 
 
 def test_validator_detects_payload_tampering(valid_receipt: Path) -> None:
@@ -135,6 +224,55 @@ def test_validator_rejects_card_receipt_id_drift(valid_receipt: Path) -> None:
     assert "card receipt_id does not match the manifest" in errors
 
 
+@pytest.mark.parametrize("record", ["card", "evidence", "recommendation"])
+def test_validator_rejects_baseline_drift(valid_receipt: Path, record: str) -> None:
+    if record == "card":
+        path = valid_receipt / "card.yaml"
+        data = yaml.safe_load(path.read_text())
+        data["design_loop_card"]["evidence"]["baseline_id"] = "tiny_8x8"
+        path.write_text(yaml.safe_dump(data, sort_keys=False))
+    else:
+        filename = {
+            "evidence": "evidence_ledger.json",
+            "recommendation": "recommendation.json",
+        }[record]
+        path = valid_receipt / filename
+        data = json.loads(path.read_text())
+        data["baseline_id"] = "tiny_8x8"
+        path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any("baseline_id mismatch" in error for error in errors)
+
+
+@pytest.mark.parametrize(
+    "objective",
+    [
+        "latency_under_declared_gates",
+        "energy_under_declared_gates",
+        "area_efficiency_under_declared_gates",
+    ],
+)
+def test_validator_rejects_rejected_candidate_as_objective_winner(
+    valid_receipt: Path, objective: str
+) -> None:
+    path = valid_receipt / "evidence_ledger.json"
+    ledger = json.loads(path.read_text())
+    ledger["objective_rankings"][objective]["candidate_id"] = "proxy_hero_64x64"
+    path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any(
+        f"objective ranking {objective} does not select a gate-passing candidate"
+        in error
+        for error in errors
+    )
+
+
 @pytest.mark.parametrize(
     "commitment_level",
     ["advance_to_rtl", "ready_for_signoff", "tapeout", "product_commitment"],
@@ -191,6 +329,52 @@ def test_validator_requires_explicit_runtime_versions(valid_receipt: Path) -> No
     errors = validate_receipt(valid_receipt)
 
     assert "manifest runtime missing tool version: SCALE-Sim" in errors
+
+
+@pytest.mark.parametrize("layer", ["manifest", "run", "card"])
+def test_validator_cross_checks_scalesim_version(
+    valid_receipt: Path, layer: str
+) -> None:
+    if layer == "manifest":
+        path = valid_receipt / "manifest.yaml"
+        manifest = yaml.safe_load(path.read_text())
+        manifest["runtime"]["tools"]["SCALE-Sim"] = "999.0"
+        _rewrite_manifest_marker(valid_receipt, manifest)
+    elif layer == "run":
+        path = valid_receipt / "runs.jsonl"
+        runs = [json.loads(line) for line in path.read_text().splitlines()]
+        scale_run = next(record for record in runs if record["stage"] == "scalesim")
+        scale_run["tool"]["version"] = "999.0"
+        path.write_text("".join(json.dumps(record) + "\n" for record in runs))
+        _reseal(valid_receipt)
+    else:
+        path = valid_receipt / "card.yaml"
+        card = yaml.safe_load(path.read_text())
+        card["design_loop_card"]["evidence"]["records"][0]["provenance"][
+            "tool_version"
+        ] = "SCALE-Sim 999.0"
+        path.write_text(yaml.safe_dump(card, sort_keys=False))
+        _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any("version does not match" in error for error in errors)
+
+
+def test_validator_cross_checks_card_and_run_config_hash(
+    valid_receipt: Path,
+) -> None:
+    path = valid_receipt / "card.yaml"
+    card = yaml.safe_load(path.read_text())
+    card["design_loop_card"]["evidence"]["records"][0]["provenance"][
+        "parameter_hash"
+    ] = f"sha256:{'9' * 64}"
+    path.write_text(yaml.safe_dump(card, sort_keys=False))
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any("parameter hash does not match run config" in error for error in errors)
 
 
 def test_validator_rejects_undeclared_payload(valid_receipt: Path) -> None:

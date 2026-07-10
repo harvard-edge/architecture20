@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -8,9 +9,9 @@ from typing import Any, Mapping
 
 import yaml
 
-from arch2_labs.receipts import ReceiptMetadata, seal_receipt, verify_receipt_ownership
+from arch2_labs.receipts import ReceiptMetadata, seal_receipt
 
-HUMAN_DECISION_SCHEMA_VERSION = "arch2-human-decision/v0.1"
+HUMAN_DECISION_SCHEMA_VERSION = "arch2-human-decision/v0.2"
 SUPPORTED_COMMITMENT_LEVELS = {"next_fidelity_study"}
 SUPPORTED_OBJECTIVES = {
     "latency_under_declared_gates",
@@ -44,6 +45,8 @@ class HumanDecision:
     authored_at: str
     selected_candidate_id: str
     governing_objective: str
+    objective_override: bool
+    override_reason: str | None
     commitment_level: str
     rationale: str
     residual_risk: str
@@ -54,8 +57,19 @@ def decision_errors(data: Any) -> list[str]:
     if not isinstance(data, Mapping):
         return ["decision.yaml must contain a mapping"]
     errors: list[str] = []
-    fields = [field.name for field in HumanDecision.__dataclass_fields__.values()]
-    for field in fields:
+    text_fields = [
+        "schema_version",
+        "lab_id",
+        "human_owner",
+        "authored_at",
+        "selected_candidate_id",
+        "governing_objective",
+        "commitment_level",
+        "rationale",
+        "residual_risk",
+        "would_overturn",
+    ]
+    for field in text_fields:
         value = data.get(field)
         if not isinstance(value, str) or not value.strip():
             errors.append(f"decision.yaml missing field: {field}")
@@ -72,6 +86,16 @@ def decision_errors(data: Any) -> list[str]:
     objective = data.get("governing_objective")
     if objective and objective not in SUPPORTED_OBJECTIVES:
         errors.append(f"unsupported governing objective: {objective}")
+    override = data.get("objective_override")
+    if not isinstance(override, bool):
+        errors.append("decision.yaml missing boolean field: objective_override")
+    override_reason = data.get("override_reason")
+    if override is True and (
+        not isinstance(override_reason, str) or not override_reason.strip()
+    ):
+        errors.append("decision.yaml override_reason is required for an override")
+    if override is False and override_reason not in (None, ""):
+        errors.append("decision.yaml override_reason requires objective_override: true")
     for field in ("rationale", "residual_risk", "would_overturn"):
         value = data.get(field)
         if not isinstance(value, str):
@@ -87,10 +111,22 @@ def parse_human_decision(data: Mapping[str, Any]) -> HumanDecision:
     if errors:
         raise ValueError("; ".join(errors))
     return HumanDecision(
-        **{
-            field: str(data[field]).strip()
-            for field in HumanDecision.__dataclass_fields__
-        }
+        schema_version=str(data["schema_version"]).strip(),
+        lab_id=str(data["lab_id"]).strip(),
+        human_owner=str(data["human_owner"]).strip(),
+        authored_at=str(data["authored_at"]).strip(),
+        selected_candidate_id=str(data["selected_candidate_id"]).strip(),
+        governing_objective=str(data["governing_objective"]).strip(),
+        objective_override=data["objective_override"],
+        override_reason=(
+            str(data["override_reason"]).strip()
+            if data.get("override_reason")
+            else None
+        ),
+        commitment_level=str(data["commitment_level"]).strip(),
+        rationale=str(data["rationale"]).strip(),
+        residual_risk=str(data["residual_risk"]).strip(),
+        would_overturn=str(data["would_overturn"]).strip(),
     )
 
 
@@ -111,6 +147,11 @@ def load_human_decision(
 
 
 def render_decision(decision: HumanDecision) -> str:
+    override_reason = (
+        f"\nOverride reason: {decision.override_reason}\n"
+        if decision.objective_override
+        else ""
+    )
     return f"""# Human Decision
 
 Human owner: {decision.human_owner}
@@ -120,6 +161,9 @@ Authored at: {decision.authored_at}
 Selected candidate: `{decision.selected_candidate_id}`
 
 Governing objective: `{decision.governing_objective}`
+
+Objective override: `{str(decision.objective_override).lower()}`
+{override_reason}
 
 ## Rationale
 
@@ -186,6 +230,8 @@ def _record_decision_in_card(receipt_dir: Path, decision: HumanDecision) -> None
                 "authored_at": decision.authored_at,
                 "selected_candidate_id": decision.selected_candidate_id,
                 "governing_objective": decision.governing_objective,
+                "objective_override": decision.objective_override,
+                "override_reason": decision.override_reason,
                 "rationale": decision.rationale,
                 "residual_risk": decision.residual_risk,
             },
@@ -200,7 +246,9 @@ def record_human_decision(
 ) -> HumanDecision:
     """Persist an explicit human decision and reseal an existing draft receipt."""
     receipt_dir = receipt_dir.absolute()
-    manifest = verify_receipt_ownership(receipt_dir)
+    from arch2_labs.validators import validate_decision_draft
+
+    manifest = validate_decision_draft(receipt_dir)
     decision = load_human_decision(source)
     if decision.lab_id != manifest.get("lab_id"):
         raise ValueError(
@@ -225,6 +273,27 @@ def record_human_decision(
             f"{decision.selected_candidate_id}"
         )
 
+    evidence = json.loads((receipt_dir / "evidence_ledger.json").read_text())
+    ranking = evidence.get("objective_rankings", {}).get(decision.governing_objective)
+    expected_candidate = (
+        ranking.get("candidate_id") if isinstance(ranking, dict) else None
+    )
+    if not expected_candidate:
+        raise ValueError(
+            "human decision objective has no gate-filtered ranking: "
+            f"{decision.governing_objective}"
+        )
+    differs = decision.selected_candidate_id != expected_candidate
+    if differs and not decision.objective_override:
+        raise ValueError(
+            "human decision differs from the governing objective winner; set "
+            "objective_override: true and provide override_reason"
+        )
+    if not differs and decision.objective_override:
+        raise ValueError(
+            "objective_override must be false when selecting the governing objective winner"
+        )
+
     (receipt_dir / "decision.yaml").write_text(
         yaml.safe_dump(asdict(decision), sort_keys=False)
     )
@@ -241,3 +310,26 @@ def record_human_decision(
         ),
     )
     return decision
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Attach an explicit human decision to an intact Architecture 2.0 "
+            "Level 2 draft receipt."
+        )
+    )
+    parser.add_argument("receipt_dir", type=Path)
+    parser.add_argument("decision_file", type=Path)
+    args = parser.parse_args(argv)
+    try:
+        record_human_decision(args.receipt_dir, args.decision_file)
+    except ValueError as exc:
+        print(f"ERROR: {exc}")
+        return 1
+    print(f"human decision recorded: {args.receipt_dir.resolve()}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

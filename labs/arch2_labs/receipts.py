@@ -6,7 +6,7 @@ import platform
 import sys
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -164,4 +164,76 @@ def verify_receipt_ownership(receipt_dir: Path) -> dict[str, Any]:
         "receipt_id"
     ):
         raise ValueError("Arch2 receipt ID does not match between marker and manifest")
+    return manifest
+
+
+def manifest_payload_errors(receipt_dir: Path, manifest: dict[str, Any]) -> list[str]:
+    """Check that a manifest exactly describes an unchanged regular-file payload."""
+    receipt_dir = receipt_dir.resolve()
+    entries = manifest.get("files")
+    if not isinstance(entries, list):
+        return ["manifest files must be a list"]
+
+    errors: list[str] = []
+    declared: set[str] = set()
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            errors.append(f"manifest file entry {index} must be an object")
+            continue
+        relative = entry.get("path")
+        if not isinstance(relative, str) or not relative:
+            errors.append(f"manifest file entry {index} has no path")
+            continue
+        pure = PurePosixPath(relative)
+        if pure.is_absolute() or ".." in pure.parts:
+            errors.append(f"manifest contains unsafe payload path: {relative}")
+            continue
+        path = receipt_dir.joinpath(*pure.parts)
+        try:
+            path.resolve().relative_to(receipt_dir)
+        except ValueError:
+            errors.append(f"manifest contains unsafe payload path: {relative}")
+            continue
+        if relative in declared:
+            errors.append(f"manifest declares payload more than once: {relative}")
+            continue
+        declared.add(relative)
+        if path.is_symlink():
+            errors.append(f"manifest payload is a symbolic link: {relative}")
+            continue
+        if not path.is_file():
+            errors.append(f"manifest payload is missing: {relative}")
+            continue
+        if entry.get("sha256") != sha256_file(path):
+            errors.append(f"manifest payload {relative} sha256 mismatch")
+        if entry.get("size_bytes") != path.stat().st_size:
+            errors.append(f"manifest payload {relative} size mismatch")
+
+    actual: set[str] = set()
+    for path in receipt_dir.rglob("*"):
+        relative = path.relative_to(receipt_dir).as_posix()
+        if path.is_symlink():
+            errors.append(f"receipt contains a symbolic link: {relative}")
+        elif path.is_file() and relative not in {MARKER_FILENAME, MANIFEST_FILENAME}:
+            actual.add(relative)
+    for relative in sorted(actual - declared):
+        errors.append(f"payload file is not declared in manifest: {relative}")
+    for relative in sorted(declared - actual):
+        errors.append(f"manifest payload is not a regular file: {relative}")
+    return errors
+
+
+def verify_receipt_integrity(
+    receipt_dir: Path, *, expected_status: str | None = None
+) -> dict[str, Any]:
+    """Verify ownership, status, and every payload byte before a state transition."""
+    manifest = verify_receipt_ownership(receipt_dir)
+    errors = manifest_payload_errors(receipt_dir, manifest)
+    if expected_status is not None and manifest.get("status") != expected_status:
+        errors.append(
+            "receipt status must be "
+            f"{expected_status}, got {manifest.get('status') or '<missing>'}"
+        )
+    if errors:
+        raise ValueError("; ".join(errors))
     return manifest

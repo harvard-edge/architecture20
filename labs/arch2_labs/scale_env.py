@@ -28,13 +28,19 @@ from arch2_labs.receipts import (
     sha256_file,
     verify_receipt_ownership,
 )
-from arch2_labs.schemas import Candidate, WorkloadLayer, load_candidates
+from arch2_labs.schemas import (
+    Candidate,
+    WorkloadLayer,
+    load_candidates,
+    require_safe_slug,
+)
 
 LABS_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_ROOT = LABS_ROOT / "examples"
 
 
 def example_dir(example_name: str) -> Path:
+    require_safe_slug(example_name, "example name")
     source_path = EXAMPLES_ROOT / example_name
     if source_path.is_dir():
         return source_path
@@ -64,12 +70,17 @@ def load_workload(topology_path: Path) -> list[WorkloadLayer]:
         for row in reader:
             if not row.get("Layer"):
                 continue
+            dimensions = {field: int(row[field]) for field in ("M", "N", "K")}
+            if any(value <= 0 for value in dimensions.values()):
+                raise ValueError(
+                    f"workload layer {row['Layer']} dimensions must be positive"
+                )
             layers.append(
                 WorkloadLayer(
                     name=row["Layer"],
-                    m=int(row["M"]),
-                    n=int(row["N"]),
-                    k=int(row["K"]),
+                    m=dimensions["M"],
+                    n=dimensions["N"],
+                    k=dimensions["K"],
                     sparsity=row.get("Sparsity") or "1:1",
                 )
             )
@@ -346,6 +357,7 @@ def _relative_records(
 def build_recommendation(
     lab_id: str,
     lab_title: str,
+    baseline_id: str,
     proxy_winner: dict[str, Any],
     recommended: dict[str, Any],
     negative_traces: list[dict[str, Any]],
@@ -355,6 +367,7 @@ def build_recommendation(
         "schema_version": "arch2-machine-recommendation/v0.1",
         "lab_id": lab_id,
         "lab_title": lab_title,
+        "baseline_id": baseline_id,
         "candidate_id": recommended["candidate_id"],
         "basis": "lowest SCALE-Sim cycle count among candidates that passed the declared gates",
         "evidence_source": "scalesim",
@@ -375,6 +388,7 @@ def build_recommendation(
 def build_replayable_card(
     template: dict[str, Any],
     receipt_id: str,
+    baseline_id: str,
     scale_records: list[dict[str, Any]],
     negative_traces: list[dict[str, Any]],
 ) -> dict[str, Any]:
@@ -451,7 +465,7 @@ def build_replayable_card(
                 },
             },
             "evidence": {
-                "baseline_id": successful[-1]["candidate_id"],
+                "baseline_id": baseline_id,
                 "records": [
                     {
                         "evidence_id": f"scalesim-{record['candidate_id']}",
@@ -499,13 +513,25 @@ def _generate_example(
     spec = load_candidates(ex_dir / "configs" / "candidates.yaml", ex_dir)
     layers = load_workload(spec.topology)
     workload_macs = sum(layer.macs for layer in layers)
+    if candidate_ids is not None:
+        for candidate_id in candidate_ids:
+            require_safe_slug(candidate_id, "selected candidate ID")
     candidates = [
         c
         for c in spec.candidates
         if candidate_ids is None or c.candidate_id in candidate_ids
     ]
+    selected_ids = candidate_ids or {candidate.candidate_id for candidate in candidates}
+    declared_ids = {candidate.candidate_id for candidate in spec.candidates}
+    unknown_ids = selected_ids - declared_ids
+    if unknown_ids:
+        raise ValueError(f"unknown candidate IDs: {', '.join(sorted(unknown_ids))}")
     if not candidates:
         raise ValueError("No candidates selected for the run")
+    if spec.baseline_id not in selected_ids:
+        raise ValueError(
+            f"selected candidates must include baseline: {spec.baseline_id}"
+        )
 
     out_dir = out_dir.absolute()
 
@@ -520,6 +546,7 @@ def _generate_example(
         proxy_records.append(
             {
                 **asdict(candidate),
+                "is_baseline": candidate.candidate_id == spec.baseline_id,
                 "stage": "proxy",
                 "action": candidate.action_dict(),
                 "proxy_cycles": proxy_cycles(candidate, layers),
@@ -610,16 +637,11 @@ def _generate_example(
     # The machine recommendation minimizes latency among gate-passers. Other
     # objectives remain visible so a human can make and own the commitment.
     objective_rankings = {
-        "min_latency_us": _pick(estimated, ["derived", "latency_us"]),
-        "min_energy_uj": _pick(estimated, ["energy", "e_total_uj"]),
-        "min_edp": _pick(estimated, ["derived", "edp_uj_us"]),
-        "max_tops_per_watt": _pick(
-            estimated, ["derived", "tops_per_watt"], maximize=True
+        "latency_under_declared_gates": _pick(accepted, ["derived", "latency_us"]),
+        "energy_under_declared_gates": _pick(accepted, ["energy", "e_total_uj"]),
+        "area_efficiency_under_declared_gates": _pick(
+            accepted, ["derived", "tops_per_mm2"], maximize=True
         ),
-        "max_tops_per_mm2": _pick(
-            estimated, ["derived", "tops_per_mm2"], maximize=True
-        ),
-        "latency_under_declared_gates": recommended["candidate_id"],
     }
 
     created_at = datetime.now(timezone.utc).isoformat()
@@ -628,6 +650,7 @@ def _generate_example(
         "created_at": created_at,
         "lab_id": spec.lab_id,
         "precision": precision,
+        "baseline_id": spec.baseline_id,
         "recommendation_evidence_source": "scalesim",
         "objective_rankings": objective_rankings,
         "estimate_sources": ESTIMATE_SOURCES,
@@ -660,6 +683,7 @@ def _generate_example(
     recommendation = build_recommendation(
         spec.lab_id,
         spec.title,
+        spec.baseline_id,
         proxy_winner,
         recommended,
         negative_traces,
@@ -672,6 +696,7 @@ def _generate_example(
     card = build_replayable_card(
         card_template,
         receipt_id,
+        spec.baseline_id,
         [record for record in runs if record["stage"] == "scalesim"],
         negative_traces,
     )
