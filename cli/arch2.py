@@ -11,13 +11,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import xml.etree.ElementTree as ET
 import zipfile
 import html as html_lib
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 import typer
 from rich.console import Console
@@ -2222,11 +2221,11 @@ def parse_translate(transform: str | None) -> tuple[float, float]:
     return (total_x, total_y)
 
 
-def svg_text_content(element: ET.Element) -> str:
+def svg_text_content(element: Any) -> str:
     return " ".join("".join(element.itertext()).split())
 
 
-def parse_class_font_sizes(root: ET.Element) -> dict[str, float]:
+def parse_class_font_sizes(root: Any) -> dict[str, float]:
     css = "\n".join(
         element.text or ""
         for element in root.iter()
@@ -2240,7 +2239,7 @@ def parse_class_font_sizes(root: ET.Element) -> dict[str, float]:
     return sizes
 
 
-def font_size_for(element: ET.Element, class_sizes: dict[str, float]) -> float:
+def font_size_for(element: Any, class_sizes: dict[str, float]) -> float:
     style = element.attrib.get("style", "")
     inline = FONT_SIZE_RE.search(style)
     if inline:
@@ -2267,9 +2266,9 @@ def svg_character_width(ch: str, font_size: float) -> float:
 
 
 def walk_with_translate(
-    element: ET.Element,
+    element: Any,
     inherited: tuple[float, float] = (0.0, 0.0),
-) -> Iterable[tuple[ET.Element, tuple[float, float]]]:
+) -> Iterable[tuple[Any, tuple[float, float]]]:
     own = parse_translate(element.attrib.get("transform"))
     current = (inherited[0] + own[0], inherited[1] + own[1])
     yield element, current
@@ -2277,7 +2276,7 @@ def walk_with_translate(
         yield from walk_with_translate(child, current)
 
 
-def collect_svg_shapes(root: ET.Element) -> list[SvgShape]:
+def collect_svg_shapes(root: Any) -> list[SvgShape]:
     shapes: list[SvgShape] = []
     for element, offset in walk_with_translate(root):
         tag = strip_namespace(element.tag)
@@ -2312,9 +2311,7 @@ def collect_svg_shapes(root: ET.Element) -> list[SvgShape]:
     return shapes
 
 
-def collect_svg_labels(
-    root: ET.Element, class_sizes: dict[str, float]
-) -> list[SvgTextLabel]:
+def collect_svg_labels(root: Any, class_sizes: dict[str, float]) -> list[SvgTextLabel]:
     labels: list[SvgTextLabel] = []
     for element, offset in walk_with_translate(root):
         if strip_namespace(element.tag) != "text":
@@ -2334,7 +2331,7 @@ def collect_svg_labels(
     return labels
 
 
-def parse_viewbox(root: ET.Element) -> tuple[float, float, float, float] | None:
+def parse_viewbox(root: Any) -> tuple[float, float, float, float] | None:
     raw = root.attrib.get("viewBox")
     if not raw:
         width = parse_float(root.attrib.get("width"))
@@ -2354,9 +2351,7 @@ def parse_viewbox(root: ET.Element) -> tuple[float, float, float, float] | None:
     return (x, y, width, height)
 
 
-def collect_svg_bounds(
-    root: ET.Element, class_sizes: dict[str, float]
-) -> list[SvgBounds]:
+def collect_svg_bounds(root: Any, class_sizes: dict[str, float]) -> list[SvgBounds]:
     bounds: list[SvgBounds] = []
     for element, offset in walk_with_translate(root):
         tag = strip_namespace(element.tag)
@@ -2418,7 +2413,7 @@ def collect_svg_bounds(
 
 
 def svg_viewbox_findings(
-    path: Path, root: ET.Element, class_sizes: dict[str, float]
+    path: Path, root: Any, class_sizes: dict[str, float]
 ) -> list[Finding]:
     viewbox = parse_viewbox(root)
     if viewbox is None:
@@ -2540,9 +2535,12 @@ def svg_label_findings(
 
 
 def svg_text_findings_for_file(path: Path) -> list[Finding]:
+    from defusedxml import ElementTree as safe_et
+    from defusedxml.common import DefusedXmlException
+
     try:
-        root = ET.parse(path).getroot()
-    except ET.ParseError as exc:
+        root = safe_et.parse(path).getroot()
+    except (safe_et.ParseError, DefusedXmlException) as exc:
         return [
             Finding(
                 "error", "svg-parse", _relative(path), f"could not parse SVG: {exc}"
