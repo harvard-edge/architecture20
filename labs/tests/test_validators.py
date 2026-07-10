@@ -73,6 +73,22 @@ def test_validator_requires_declared_raw_outputs(valid_receipt: Path) -> None:
     assert any("declares no raw output files" in error for error in errors)
 
 
+def test_validator_rejects_raw_file_not_declared_by_run(valid_receipt: Path) -> None:
+    runs = [
+        json.loads(line)
+        for line in (valid_receipt / "runs.jsonl").read_text().splitlines()
+    ]
+    scale_run = next(record for record in runs if record["stage"] == "scalesim")
+    report_dir = valid_receipt / scale_run["outputs"]["report_dir"]
+    extra = report_dir / "UNDECLARED_REPORT.csv"
+    extra.write_text("undeclared raw report\n")
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any("raw output is not declared by the run" in error for error in errors)
+
+
 def test_validator_rejects_cross_record_candidate_id(valid_receipt: Path) -> None:
     decision_path = valid_receipt / "decision.yaml"
     decision = yaml.safe_load(decision_path.read_text())
@@ -86,6 +102,37 @@ def test_validator_rejects_cross_record_candidate_id(valid_receipt: Path) -> Non
         "decision selected_candidate_id is not a declared candidate: unknown_candidate"
         in errors
     )
+
+
+def test_validator_rejects_card_decision_drift(valid_receipt: Path) -> None:
+    decision_path = valid_receipt / "decision.yaml"
+    decision = yaml.safe_load(decision_path.read_text())
+    decision[
+        "rationale"
+    ] = "The human changed this rationale after the card was recorded."
+    decision_path.write_text(yaml.safe_dump(decision, sort_keys=False))
+    from arch2_labs.decisions import parse_human_decision, render_decision
+
+    (valid_receipt / "decision.md").write_text(
+        render_decision(parse_human_decision(decision))
+    )
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert "card learner decision does not match decision.yaml: rationale" in errors
+
+
+def test_validator_rejects_card_receipt_id_drift(valid_receipt: Path) -> None:
+    card_path = valid_receipt / "card.yaml"
+    card = yaml.safe_load(card_path.read_text())
+    card["design_loop_card"]["x-arch2-labs"]["receipt_id"] = "other-receipt"
+    card_path.write_text(yaml.safe_dump(card, sort_keys=False))
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert "card receipt_id does not match the manifest" in errors
 
 
 @pytest.mark.parametrize(

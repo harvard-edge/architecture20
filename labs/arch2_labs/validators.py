@@ -211,6 +211,10 @@ def _validate_run_files(
                 errors.append(
                     f"SCALE-Sim run {candidate_id} input sha256 mismatch: {name}"
                 )
+            if relative not in declared_manifest_files:
+                errors.append(
+                    f"SCALE-Sim run {candidate_id} input is absent from the manifest: {relative}"
+                )
 
         outputs = run.get("outputs")
         raw_files = outputs.get("raw_files") if isinstance(outputs, dict) else None
@@ -218,6 +222,7 @@ def _validate_run_files(
             errors.append(f"SCALE-Sim run {candidate_id} declares no raw output files")
             continue
         declared_reports: set[str] = set()
+        declared_raw_paths: set[str] = set()
         for raw in raw_files:
             if not isinstance(raw, dict):
                 errors.append(f"SCALE-Sim run {candidate_id} has malformed raw output")
@@ -230,6 +235,7 @@ def _validate_run_files(
                 )
                 continue
             declared_reports.add(path.name)
+            declared_raw_paths.add(relative)
             if raw.get("sha256") != sha256_file(path):
                 errors.append(
                     f"SCALE-Sim run {candidate_id} raw output sha256 mismatch: {relative}"
@@ -243,6 +249,21 @@ def _validate_run_files(
             errors.append(
                 f"SCALE-Sim run {candidate_id} is missing required raw report: {report}"
             )
+        report_dir = _safe_payload_path(receipt_dir, outputs.get("report_dir"))
+        if report_dir is None or not report_dir.is_dir():
+            errors.append(
+                f"SCALE-Sim run {candidate_id} report directory is missing or unsafe"
+            )
+        else:
+            actual_raw_paths = {
+                path.relative_to(receipt_dir).as_posix()
+                for path in report_dir.rglob("*")
+                if path.is_file() and not path.is_symlink()
+            }
+            for relative in sorted(actual_raw_paths - declared_raw_paths):
+                errors.append(
+                    f"SCALE-Sim run {candidate_id} raw output is not declared by the run: {relative}"
+                )
     return errors
 
 
@@ -320,6 +341,9 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
     card_extension = (
         lab_card.get("x-arch2-labs", {}) if isinstance(lab_card, dict) else {}
     )
+    if isinstance(card_extension, dict) and manifest:
+        if card_extension.get("receipt_id") != manifest.get("receipt_id"):
+            errors.append("card receipt_id does not match the manifest")
     lab_ids = {
         "manifest": manifest.get("lab_id"),
         "card": card_extension.get("lab_id")
@@ -381,6 +405,13 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         for field in ("stage", "gate", "reason"):
             if not trace.get(field):
                 errors.append(f"negative trace {candidate_id} missing field: {field}")
+    card_negative_ids = {
+        trace.get("candidate_id")
+        for trace in lab_card.get("negative_traces", [])
+        if isinstance(trace, dict)
+    }
+    if card_negative_ids != rejected_ids:
+        errors.append("card negative-trace IDs do not match negative_traces.jsonl")
 
     if isinstance(evidence, dict):
         stages = {stage.get("stage") for stage in evidence.get("stages", [])}
@@ -398,6 +429,16 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         }
         if not outcome_ids.issubset(declared_ids):
             errors.append("evidence ledger contains an undeclared candidate outcome")
+        for field in ("machine_recommendation", "proxy_winner"):
+            candidate_id = evidence.get(field)
+            if candidate_id not in declared_ids:
+                errors.append(
+                    f"evidence ledger {field} is not a declared candidate: {candidate_id}"
+                )
+        if evidence.get("rejected_count") != len(negative_traces):
+            errors.append(
+                "evidence ledger rejected_count does not match negative traces"
+            )
 
     recommended_id = (
         recommendation.get("candidate_id") if isinstance(recommendation, dict) else None
@@ -417,6 +458,12 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             "machine_recommendation"
         ):
             errors.append("recommendation candidate does not match the evidence ledger")
+        if evidence and recommendation.get("proxy_winner") != evidence.get(
+            "proxy_winner"
+        ):
+            errors.append(
+                "recommendation proxy winner does not match the evidence ledger"
+            )
 
     declared_manifest_files = {
         entry.get("path")
@@ -458,6 +505,31 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             for field in ("governing_objective", "selected_candidate_id", "rationale"):
                 if not isinstance(learner, dict) or not learner.get(field):
                     errors.append(f"card learner decision missing field: {field}")
+            if isinstance(decision, dict) and isinstance(learner, dict):
+                field_map = {
+                    "governing_objective": "governing_objective",
+                    "selected_candidate_id": "selected_candidate_id",
+                    "rationale": "rationale",
+                    "residual_risk": "residual_risk",
+                }
+                for learner_field, decision_field in field_map.items():
+                    if learner.get(learner_field) != decision.get(decision_field):
+                        errors.append(
+                            f"card learner decision does not match decision.yaml: {learner_field}"
+                        )
+        card_human = lab_card.get("human_decision", {})
+        if isinstance(decision, dict):
+            if not isinstance(card_human, dict) or card_human.get(
+                "owner"
+            ) != decision.get("human_owner"):
+                errors.append("card human decision owner does not match decision.yaml")
+            card_boundary = lab_card.get("commitment_boundary", {})
+            if not isinstance(card_boundary, dict) or card_boundary.get(
+                "would_overturn"
+            ) != decision.get("would_overturn"):
+                errors.append(
+                    "card commitment overturn condition does not match decision.yaml"
+                )
 
     return errors
 

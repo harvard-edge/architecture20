@@ -755,6 +755,16 @@ def run_example(
             precision=precision,
             human_decision=human_decision,
         )
+        if summary["status"] == "complete":
+            from arch2_labs.validators import validate_receipt
+
+            errors = validate_receipt(staging)
+            if errors:
+                raise RuntimeError(
+                    "generated receipt failed validation: " + "; ".join(errors)
+                )
+        else:
+            verify_receipt_ownership(staging)
         _promote_staged_receipt(staging, out_dir, force)
     except BaseException:
         if staging.exists():
