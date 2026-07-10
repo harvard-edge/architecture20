@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from arch2_labs.receipts import ReceiptMetadata, seal_receipt
-from arch2_labs.validators import validate_receipt
+from arch2_labs.validators import _card_errors, validate_receipt
 
 
 def test_validator_reports_missing_receipt_files(tmp_path: Path) -> None:
@@ -82,6 +82,22 @@ def _set_lab_id(receipt_dir: Path, record: str, value: str | None) -> None:
 
 def test_validator_accepts_complete_receipt(valid_receipt: Path) -> None:
     assert validate_receipt(valid_receipt) == []
+
+
+def test_card_validator_keeps_v1_0_legacy_dispatch() -> None:
+    labs_root = Path(__file__).resolve().parents[1]
+    card = yaml.safe_load(
+        (
+            labs_root
+            / "examples"
+            / "scale_proxy_mirage"
+            / "starter_receipt"
+            / "card.yaml"
+        ).read_text()
+    )
+    card["schema_version"] = "1.0"
+
+    assert _card_errors(card) == []
 
 
 @pytest.mark.parametrize(
@@ -273,6 +289,24 @@ def test_validator_rejects_rejected_candidate_as_objective_winner(
     )
 
 
+def test_validator_cross_checks_recommendation_objective_rankings(
+    valid_receipt: Path,
+) -> None:
+    path = valid_receipt / "recommendation.json"
+    recommendation = json.loads(path.read_text())
+    recommendation["objective_rankings"]["energy_under_declared_gates"][
+        "candidate_id"
+    ] = "balanced_16x16"
+    path.write_text(json.dumps(recommendation, indent=2, sort_keys=True) + "\n")
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert (
+        "recommendation objective rankings do not match the evidence ledger" in errors
+    )
+
+
 @pytest.mark.parametrize(
     "commitment_level",
     ["advance_to_rtl", "ready_for_signoff", "tapeout", "product_commitment"],
@@ -375,6 +409,20 @@ def test_validator_cross_checks_card_and_run_config_hash(
     errors = validate_receipt(valid_receipt)
 
     assert any("parameter hash does not match run config" in error for error in errors)
+
+
+def test_validator_cross_checks_card_replay_source(valid_receipt: Path) -> None:
+    path = valid_receipt / "card.yaml"
+    card = yaml.safe_load(path.read_text())
+    card["design_loop_card"]["evidence"]["records"][0]["provenance"][
+        "source_uri"
+    ] = "evidence/not-the-run.json"
+    path.write_text(yaml.safe_dump(card, sort_keys=False))
+    _reseal(valid_receipt)
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any("replay source does not match run output" in error for error in errors)
 
 
 def test_validator_rejects_undeclared_payload(valid_receipt: Path) -> None:

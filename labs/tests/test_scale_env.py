@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from arch2_labs.receipts import ReceiptMetadata, seal_receipt
 from arch2_labs.scale_env import example_dir, load_workload, proxy_cycles, run_example
@@ -87,6 +88,12 @@ def test_run_example_and_validate_receipt(tmp_path: Path) -> None:
         ranking["candidate_id"] not in rejected
         for ranking in ledger["objective_rankings"].values()
     )
+    card = yaml.safe_load((out_dir / "card.yaml").read_text())
+    assert card["schema_version"] == "1.1"
+    for record in card["design_loop_card"]["evidence"]["records"]:
+        provenance = record["provenance"]
+        assert provenance["source_uri"].endswith("/COMPUTE_REPORT.csv")
+        assert len(provenance["parameter_hash"]) == len("sha256:") + 64
 
     decision = (out_dir / "decision.yaml").read_text()
     assert "Architecture lab test author" in decision

@@ -475,6 +475,10 @@ def build_replayable_card(
                         "provenance": {
                             "tool_version": f"SCALE-Sim {record['tool']['version']}",
                             "parameter_hash": f"sha256:{record['inputs']['config_sha256']}",
+                            "source_uri": (
+                                f"runs/{record['candidate_id']}/scalesim-results/"
+                                f"{record['candidate_id']}/COMPUTE_REPORT.csv"
+                            ),
                         },
                     }
                     for record in successful

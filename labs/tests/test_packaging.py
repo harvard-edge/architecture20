@@ -10,10 +10,14 @@ from pathlib import Path
 
 def test_packaged_card_schema_matches_canonical_source() -> None:
     labs_root = Path(__file__).resolve().parents[1]
-    canonical = labs_root.parent / "schemas" / "design-loop-card.v1.schema.json"
-    packaged = labs_root / "arch2_labs" / "resources" / canonical.name
+    for name in (
+        "design-loop-card.v1.schema.json",
+        "design-loop-card.v1.1.schema.json",
+    ):
+        canonical = labs_root.parent / "schemas" / name
+        packaged = labs_root / "arch2_labs" / "resources" / name
 
-    assert packaged.read_bytes() == canonical.read_bytes()
+        assert packaged.read_bytes() == canonical.read_bytes()
 
 
 def test_installed_wheel_finds_examples_and_card_schema(tmp_path: Path) -> None:
@@ -41,15 +45,19 @@ from pathlib import Path
 import arch2_labs
 from arch2_labs.scale_env import example_dir
 from arch2_labs.schemas import load_candidates
-from arch2_labs.validators import _card_schema
+from arch2_labs.validators import _card_errors, _card_schema
+import yaml
 
 example = example_dir("scale_proxy_mirage")
 spec = load_candidates(example / "configs" / "candidates.yaml", example)
+card = yaml.safe_load((example / "starter_receipt" / "card.yaml").read_text())
 print(json.dumps({
     "module": arch2_labs.__file__,
     "example": str(example),
     "candidate_count": len(spec.candidates),
     "schema_title": _card_schema()["title"],
+    "schema_version": _card_schema()["properties"]["schema_version"]["const"],
+    "card_errors": _card_errors(card),
 }))
 """
     completed = subprocess.run(
@@ -66,3 +74,5 @@ print(json.dumps({
     assert Path(result["example"]).is_relative_to(target)
     assert result["candidate_count"] == 4
     assert result["schema_title"] == "Architecture 2.0 Design-Loop Card"
+    assert result["schema_version"] == "1.1"
+    assert result["card_errors"] == []

@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
+from referencing import Registry, Resource
 
 from arch2_labs.decisions import decision_errors, parse_human_decision, render_decision
 from arch2_labs.receipts import (
@@ -20,7 +21,10 @@ from arch2_labs.receipts import (
 )
 
 LABS_ROOT = Path(__file__).resolve().parents[1]
-CARD_SCHEMA_SOURCE = LABS_ROOT.parent / "schemas" / "design-loop-card.v1.schema.json"
+CARD_SCHEMA_SOURCES = {
+    "1.0": LABS_ROOT.parent / "schemas" / "design-loop-card.v1.schema.json",
+    "1.1": LABS_ROOT.parent / "schemas" / "design-loop-card.v1.1.schema.json",
+}
 
 REQUIRED_FILES = [
     MARKER_FILENAME,
@@ -112,17 +116,35 @@ def _manifest_errors(receipt_dir: Path, manifest: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _card_schema() -> dict[str, Any]:
-    if CARD_SCHEMA_SOURCE.is_file():
-        return json.loads(CARD_SCHEMA_SOURCE.read_text())
-    resource = files("arch2_labs").joinpath(
-        "resources", "design-loop-card.v1.schema.json"
-    )
+def _card_schema(version: str = "1.1") -> dict[str, Any]:
+    source = CARD_SCHEMA_SOURCES.get(version)
+    if source is None:
+        raise ValueError(f"unsupported design-loop card schema: {version}")
+    if source.is_file():
+        return json.loads(source.read_text())
+    filename = {
+        "1.0": "design-loop-card.v1.schema.json",
+        "1.1": "design-loop-card.v1.1.schema.json",
+    }[version]
+    resource = files("arch2_labs").joinpath("resources", filename)
     return json.loads(resource.read_text())
 
 
 def _card_errors(card: Any) -> list[str]:
-    validator = Draft202012Validator(_card_schema(), format_checker=FormatChecker())
+    version = card.get("schema_version") if isinstance(card, dict) else None
+    try:
+        schema = _card_schema(version)
+    except ValueError as exc:
+        return [f"card.yaml <root>: {exc}"]
+    schemas = [_card_schema("1.0"), _card_schema("1.1")]
+    registry = Registry()
+    for registered_schema in schemas:
+        registry = registry.with_resource(
+            registered_schema["$id"], Resource.from_contents(registered_schema)
+        )
+    validator = Draft202012Validator(
+        schema, format_checker=FormatChecker(), registry=registry
+    )
     messages = []
     for error in sorted(validator.iter_errors(card), key=lambda item: list(item.path)):
         location = ".".join(str(part) for part in error.absolute_path) or "<root>"
@@ -298,6 +320,13 @@ def _provenance_errors(
             errors.append(
                 f"card evidence {evidence_id} parameter hash does not match run config"
             )
+        expected_source = (
+            f"runs/{candidate_id}/scalesim-results/{candidate_id}/COMPUTE_REPORT.csv"
+        )
+        if provenance.get("source_uri") != expected_source:
+            errors.append(
+                f"card evidence {evidence_id} replay source does not match run output"
+            )
 
     extra_card_ids = set(card_by_id) - expected_evidence_ids
     for evidence_id in sorted(extra_card_ids):
@@ -448,6 +477,15 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         for stage in ("proxy", "scalesim"):
             if stage not in stages:
                 errors.append(f"candidate {candidate_id} has no {stage} run")
+    successful_scale_ids = {
+        run.get("candidate_id")
+        for run in runs
+        if run.get("stage") == "scalesim" and run.get("status") == "ok"
+    }
+    if baseline_id is not None and baseline_id not in successful_scale_ids:
+        errors.append(
+            f"baseline candidate has no successful SCALE-Sim run: {baseline_id}"
+        )
 
     if not negative_traces:
         errors.append("negative_traces.jsonl is empty")
@@ -574,6 +612,12 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         ):
             errors.append(
                 "recommendation proxy winner does not match the evidence ledger"
+            )
+        if evidence and recommendation.get("objective_rankings") != evidence.get(
+            "objective_rankings"
+        ):
+            errors.append(
+                "recommendation objective rankings do not match the evidence ledger"
             )
 
     declared_manifest_files = {
