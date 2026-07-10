@@ -1,0 +1,78 @@
+schema_version: "1.0"
+design_loop_card:
+  card_id: example-level-2
+  conformance_level: 2
+  intent:
+    objective: Determine whether a 32x8 array merits higher-fidelity study.
+    constraints:
+    - Hold SRAM capacity, workload, and dataflow constant.
+    non_goals:
+    - Claim post-layout performance or energy.
+  task: dse
+  design_space:
+    legal:
+    - 16x16 and 32x8 arrays.
+    invalid:
+    - Shapes that exceed 256 processing elements.
+    deferred:
+    - SRAM banking and clock frequency.
+  representation:
+    state_schema_id: arch2.example.array-state.v1
+    ir_level: Layer dimensions and array geometry.
+    reads:
+    - Workload layer dimensions.
+    - Candidate array dimensions.
+    writes:
+    - Utilization and cycle estimates.
+    uncertainties:
+    - Simulator results omit physical-design effects.
+  environment:
+    environment_id: scale-sim-v3.0.0-fixed-os
+    actions:
+    - Select one legal array shape.
+    invalid_actions:
+    - Change dataflow or memory capacity.
+    blast_radius_limit: Analysis only; no generated RTL is modified.
+    observations:
+    - Estimated cycles.
+    - Processing-element utilization.
+    fidelity: simulation
+  method_role:
+    roles:
+    - predict
+    - critique
+    actor_map:
+    - actor_id: analyst
+      role: Select candidates and interpret evidence.
+      reads:
+      - Simulator summaries.
+      writes:
+      - Review recommendation.
+      authority: May recommend a higher-fidelity experiment.
+  feedback_budget:
+    evaluations: 2
+    latency: Under one minute per evaluation.
+    cost: One local CPU process.
+    fidelity: Architecture simulation.
+  evidence:
+    baseline_id: array-16x16
+    records:
+    - evidence_id: scale-sim-summary-16x16
+      kind: simulator summary
+      workload_id: resnet-conv-layer-set-v1
+      seed: deterministic
+      provenance:
+        tool_version: SCALE-Sim 3.0.0
+        parameter_hash: sha256:baseline-example
+    - evidence_id: scale-sim-summary-32x8
+      kind: simulator summary
+      workload_id: resnet-conv-layer-set-v1
+      seed: deterministic
+      provenance:
+        tool_version: SCALE-Sim 3.0.0
+        parameter_hash: sha256:candidate-example
+  negative_traces:
+  - candidate_id: array-32x8
+    reason: Utilization regressed on narrow layers.
+    stage: architecture simulation
+    gate: workload-level utilization comparison
