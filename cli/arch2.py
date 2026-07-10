@@ -4234,7 +4234,7 @@ def _render_one(
     # of springer-header.tex via _quarto.yml include-in-header.
     version_tex = ROOT / "book" / "tex" / "version.tex"
     preview_label = (
-        f"Preview {release_version}" if release_version else "Preview v0.1.0"
+        f"Preview {release_version}" if release_version else "Preview development build"
     )
     version_tex.write_text(
         f"\\def\\ArchTwoReleaseVersion{{{preview_label}}}\n", encoding="utf-8"
