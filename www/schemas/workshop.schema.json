@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arch2.mlsysbook.ai/schemas/workshop.v1.schema.json",
+  "title": "Architecture 2.0 Workshop Registry Entry",
+  "type": "object",
+  "required": ["title", "url", "venue", "when", "status", "description", "categories"],
+  "properties": {
+    "title": {"type": "string", "minLength": 1},
+    "url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+    "venue": {"type": "string", "minLength": 1},
+    "location": {"type": "string", "minLength": 1},
+    "when": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer"}]},
+    "event_start": {"type": "string", "format": "date"},
+    "event_end": {"type": "string", "format": "date"},
+    "status": {"enum": ["proposed", "active", "archived"]},
+    "last_verified": {"type": "string", "format": "date"},
+    "organizers": {"type": "string", "minLength": 1},
+    "institution": {"type": "string", "minLength": 1},
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["Architecture 2.0", "ML for Systems", "Agentic AI", "Computer Architecture", "EDA and Tools", "Benchmarks and Datasets", "Education", "Community"]
+      }
+    },
+    "description": {"type": "string", "minLength": 1},
+    "submission_url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+    "deadline": {"type": "string", "minLength": 1},
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "url"],
+        "properties": {
+          "label": {"type": "string", "minLength": 1},
+          "when": {"oneOf": [{"type": "string", "minLength": 1}, {"type": "integer"}]},
+          "url": {"type": "string", "format": "uri", "pattern": "^https?://"},
+          "note": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "order": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "active"}}, "required": ["status"]},
+      "then": {"required": ["event_start", "event_end", "last_verified"]}
+    },
+    {
+      "if": {"properties": {"status": {"const": "archived"}}, "required": ["status"]},
+      "then": {
+        "required": ["event_end", "last_verified"],
+        "not": {"required": ["submission_url"]}
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "proposed"}}, "required": ["status"]},
+      "then": {"not": {"required": ["last_verified"]}}
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 *Designing AI-Assisted Loops for Computing Systems*
 
 <p align="center">
+  <a href="https://arch2.mlsysbook.ai/start.html"><b>Start with the card</b></a> ·
   <a href="https://arch2.mlsysbook.ai"><b>Website</b></a> ·
   <a href="https://arch2.mlsysbook.ai/book/"><b>Book</b></a> ·
   <a href="https://arch2.mlsysbook.ai/tools/"><b>Tool registry</b></a> ·
@@ -12,16 +13,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/harvard-edge/arch2/stargazers"><img src="https://img.shields.io/github/stars/harvard-edge/arch2?style=social" alt="GitHub stars"></a>
   <a href="https://github.com/harvard-edge/arch2/actions/workflows/publish-site.yml"><img src="https://img.shields.io/github/actions/workflow/status/harvard-edge/arch2/publish-site.yml?branch=main&label=site&logo=githubactions" alt="Site workflow"></a>
   <a href="https://arch2.mlsysbook.ai"><img src="https://img.shields.io/badge/site-arch2.mlsysbook.ai-1f6f8b" alt="Architecture 2.0 site"></a>
-  <a href="#community-contributors"><img src="https://img.shields.io/github/all-contributors/harvard-edge/arch2?color=ee8449" alt="All Contributors"></a>
 </p>
 
-**Architecture 2.0** is an open community hub for AI-assisted computer
-architecture and computing-system design. It connects a synthesis lecture, a
-tool registry, a curated reading list, workshop tracking, and shared artifacts
-for building auditable design loops.
+**Architecture 2.0** is a public research and teaching project for AI-assisted
+computer architecture and computing-system design. Its core deliverables are a
+synthesis lecture and a versioned design-loop card for making claims, evidence,
+rejection paths, and human commitments inspectable.
 
 The core idea is simple: as AI enters workflows for chips, accelerators, memory
 systems, simulators, compilers, benchmarks, and evidence generation, the design
@@ -29,29 +28,26 @@ loop itself becomes something we have to engineer. A credible loop must make its
 state, actions, feedback, rejection criteria, evidence, and human commitment
 visible enough for others to inspect.
 
-Architecture 2.0 is part of the [mlsysbook.ai](https://mlsysbook.ai) family of
-open learning and community resources.
+Architecture 2.0 is part of the [mlsysbook.ai](https://mlsysbook.ai) family.
 
 ## Start Here
 
 | If you want to... | Go here |
 | --- | --- |
+| Complete, validate, and review a design-loop card in 30 minutes | [Start workflow](https://arch2.mlsysbook.ai/start.html) |
+| Download the machine-checkable blank card | [YAML template](https://arch2.mlsysbook.ai/design-loop-card/template.yaml) |
 | Read the core argument | [Architecture 2.0 book](https://arch2.mlsysbook.ai/book/) |
 | Find tools, simulators, benchmarks, datasets, and loop infrastructure | [Tool registry](https://arch2.mlsysbook.ai/tools/) |
 | Orient yourself with papers, posts, talks, and datasets | [Reading list](https://arch2.mlsysbook.ai/readings.html) |
 | Find venues where this work is being discussed | [Workshops](https://arch2.mlsysbook.ai/workshops.html) |
 | Submit a tool, dataset, benchmark, or artifact | [Submit](https://arch2.mlsysbook.ai/submit.html) |
 | Ask questions or propose ideas | [GitHub Discussions](https://github.com/harvard-edge/arch2/discussions) |
-| Track future shared artifacts | [🤗 Hugging Face plan](https://arch2.mlsysbook.ai/huggingface.html) |
 
-## Join The Community
+## Participate
 
-If you care about AI-assisted computer architecture, hardware/software co-design,
-or computing-system synthesis, please star this repository. Stars help others
-discover the project and give the community a visible signal that this topic has
-momentum.
-
-You can also help by contributing:
+The project accepts proposed tools, readings, workshops, corrections, and
+examples through structured GitHub forms. Maintainers review each proposal
+before it becomes part of a public registry.
 
 | Contribution | Submit |
 | --- | --- |
@@ -61,26 +57,23 @@ You can also help by contributing:
 | Book correction or clarification | [Suggest a correction](https://github.com/harvard-edge/arch2/issues/new?template=suggest_book_correction.yml) |
 | Broken link | [Report a link](https://github.com/harvard-edge/arch2/issues/new?template=report_broken_link.yml) |
 
-Accepted tools, resources, workshops, corrections, and artifact submissions are
-community contributions. We use the
-[All Contributors](https://allcontributors.org/) convention so people who help
-shape the hub can be credited in this README.
+Accepted contributions can be credited in this README through the
+[All Contributors](https://allcontributors.org/) convention.
 
-## What We Are Building
+## Project Surfaces
 
-Architecture 2.0 is not only a book. It is a shared coordination point for a new
-research community.
+The public site connects the following maintained surfaces.
 
 | Surface | Role |
 | --- | --- |
 | **Synthesis lecture** | A compact framework for auditable AI-assisted architecture loops. |
+| **Design-loop card** | A versioned twelve-field review record with machine-checkable conformance levels. |
 | **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, datasets, and data representations, each tied to a role in an architecture design loop. |
 | **Reading list** | A curated path through papers, SIGARCH posts, talks, datasets, and workshop writeups. |
-| **Workshop tracker** | A community-maintained list of relevant venues and calls for participation. |
-| **Artifact hub** | A coming-soon Hugging Face collection for datasets, models, examples, and reusable loop artifacts with clear attribution. |
-| **Discussions** | A durable place for questions, proposals, and coordination. |
+| **Workshop archive** | Verified active calls when available, with prior events retained as an archive. |
+| **Discussions** | A public place to propose questions and ideas when durable discussion is useful. |
 
-## Community Contributors
+## Contributors
 
 People who contribute tools, readings, workshops, corrections, examples,
 datasets, or artifact pointers help make Architecture 2.0 useful to the field.

@@ -33,6 +33,8 @@ LOG_DIR = BUILD_DIR / "logs"
 DEFAULT_REVIEW_WORKBENCH = ROOT.parent.parent / "PaperReviewWorkbench"
 LOOP_DIR = ROOT / ".arch2" / "reviews" / "loop"
 DEFAULT_GEMINI_MODEL = "gemini-3.1-pro-preview"
+CARD_SCHEMA_PATH = ROOT / "schemas" / "design-loop-card.v1.schema.json"
+CARD_SCHEMA_VERSION = "1.0"
 
 DEFAULT_LOOP_CONCEPTS = (
     "Architecture 2.0",
@@ -366,8 +368,8 @@ def _emit_findings(findings: Iterable[Finding], *, title: str) -> None:
     table = Table(title=title, show_lines=False)
     table.add_column("Severity", style="bold")
     table.add_column("Code")
-    table.add_column("Location")
-    table.add_column("Message")
+    table.add_column("Location", overflow="fold")
+    table.add_column("Message", overflow="fold")
     for finding in rows:
         style = "red" if finding.severity == "error" else "yellow"
         table.add_row(
@@ -401,6 +403,166 @@ def _exit_on_findings(
         for finding in findings
     ):
         raise typer.Exit(1)
+
+
+def _card_json_path(parts: Iterable[object]) -> str:
+    path = "$"
+    for part in parts:
+        if isinstance(part, int):
+            path += f"[{part}]"
+        else:
+            path += f".{part}"
+    return path
+
+
+def _card_schema_message(error: object, card: object) -> str:
+    message = str(getattr(error, "message", "invalid card"))
+    validator = getattr(error, "validator", None)
+    absolute_path = list(getattr(error, "absolute_path", []))
+
+    if absolute_path == ["schema_version"] and validator == "const":
+        return f"unsupported schema version; expected '{CARD_SCHEMA_VERSION}'"
+
+    if validator == "additionalProperties" and "'claim'" in message:
+        return "unexpected top-level card field 'claim'; use intent.claim_boundary.claim and intent.claim_boundary.non_claim"
+
+    if validator == "required" and isinstance(card, dict):
+        loop_card = card.get("design_loop_card")
+        level = (
+            loop_card.get("conformance_level") if isinstance(loop_card, dict) else None
+        )
+        missing_match = re.search(r"'([^']+)' is a required property", message)
+        if missing_match and isinstance(level, int):
+            return (
+                f"conformance level {level} requires "
+                f"'{missing_match.group(1)}' at {_card_json_path(absolute_path)}"
+            )
+
+    return message
+
+
+def card_validation_findings(
+    card_path: Path,
+    *,
+    schema_path: Path = CARD_SCHEMA_PATH,
+) -> list[Finding]:
+    """Validate a YAML or JSON card against the canonical versioned contract."""
+    location = _relative(card_path)
+    if not card_path.exists():
+        return [Finding("error", "card-missing", location, "card file does not exist")]
+
+    try:
+        if card_path.suffix.lower() == ".json":
+            card = json.loads(card_path.read_text(encoding="utf-8"))
+        elif card_path.suffix.lower() in {".yaml", ".yml"}:
+            try:
+                import yaml
+            except ImportError:
+                return [
+                    Finding(
+                        "error",
+                        "missing-yaml",
+                        "python",
+                        "PyYAML is required to validate YAML design-loop cards",
+                    )
+                ]
+            card = yaml.safe_load(card_path.read_text(encoding="utf-8"))
+        else:
+            return [
+                Finding(
+                    "error",
+                    "card-file-type",
+                    location,
+                    "design-loop cards must use a .yaml, .yml, or .json extension",
+                )
+            ]
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return [Finding("error", "card-parse", location, str(exc))]
+    except Exception as exc:
+        # PyYAML's parser exception is intentionally caught without importing it
+        # at module load time, so JSON validation does not require PyYAML.
+        return [Finding("error", "card-parse", location, str(exc))]
+
+    if not isinstance(card, dict):
+        return [
+            Finding(
+                "error",
+                "card-document-type",
+                location,
+                "card document must be a mapping/object",
+            )
+        ]
+
+    if not schema_path.exists():
+        return [
+            Finding(
+                "error",
+                "card-schema-missing",
+                _relative(schema_path),
+                "canonical design-loop card schema does not exist",
+            )
+        ]
+
+    try:
+        from jsonschema import Draft202012Validator, FormatChecker
+        from jsonschema.exceptions import SchemaError
+    except ImportError:
+        return [
+            Finding(
+                "error",
+                "missing-jsonschema",
+                "python",
+                "jsonschema is required to validate design-loop cards",
+            )
+        ]
+
+    try:
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        Draft202012Validator.check_schema(schema)
+    except (OSError, UnicodeError, json.JSONDecodeError, SchemaError) as exc:
+        return [
+            Finding(
+                "error",
+                "card-schema-invalid",
+                _relative(schema_path),
+                str(exc),
+            )
+        ]
+
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    errors = sorted(
+        validator.iter_errors(card),
+        key=lambda error: (
+            list(error.absolute_path),
+            list(error.absolute_schema_path),
+            error.message,
+        ),
+    )
+    return [
+        Finding(
+            "error",
+            "card-schema",
+            f"{location}:{_card_json_path(error.absolute_path)}",
+            _card_schema_message(error, card),
+        )
+        for error in errors
+    ]
+
+
+def run_card_check(card_path: Path) -> None:
+    findings = card_validation_findings(card_path)
+    if not findings:
+        console.print(
+            f"[green]passed[/green] design-loop card ({_relative(card_path)})"
+        )
+        return
+    for finding in findings:
+        console.print(
+            f"{finding.severity} [{finding.code}] {finding.location}: {finding.message}",
+            markup=False,
+            soft_wrap=True,
+        )
+    raise typer.Exit(1)
 
 
 def content_qmd_files() -> list[Path]:
@@ -2616,16 +2778,18 @@ def layout_page_profiles(pdf_path: Path) -> list[LayoutPageProfile]:
                     width=round(width, 1),
                     height=round(height, 1),
                     word_count=len(body_words),
-                    content_top=round(content_top, 1)
-                    if content_top is not None
-                    else None,
-                    content_bottom=round(content_bottom, 1)
-                    if content_bottom is not None
-                    else None,
+                    content_top=(
+                        round(content_top, 1) if content_top is not None else None
+                    ),
+                    content_bottom=(
+                        round(content_bottom, 1) if content_bottom is not None else None
+                    ),
                     usable_bottom=round(usable_bottom, 1),
-                    bottom_whitespace=round(bottom_whitespace, 1)
-                    if bottom_whitespace is not None
-                    else None,
+                    bottom_whitespace=(
+                        round(bottom_whitespace, 1)
+                        if bottom_whitespace is not None
+                        else None
+                    ),
                     has_figure=has_figure,
                     has_table=has_table,
                     captions=captions,
@@ -3916,6 +4080,7 @@ def run_python_check() -> None:
             *ROOT.glob("cli/*.py"),
             *ROOT.glob(".github/scripts/*.py"),
             *ROOT.glob("scripts/*.py"),
+            *ROOT.glob("tools/*.py"),
             *BOOK_DIR.glob("scripts/*.py"),
         ]
     )
@@ -3940,6 +4105,18 @@ def run_book_navbar_check() -> None:
         capture=True,
     )
     _exit_if_failed(proc, "book navbar sync")
+
+
+def run_registry_check() -> None:
+    for script, label in (
+        (ROOT / "tools" / "validate_registries.py", "registry contracts"),
+        (ROOT / "tools" / "render_awesome.py", "AWESOME registry mirror"),
+    ):
+        cmd = [sys.executable, str(script)]
+        if script.name == "render_awesome.py":
+            cmd.append("--check")
+        proc = _run(cmd, cwd=ROOT, capture=True)
+        _exit_if_failed(proc, label)
 
 
 _LATEX_SCRATCH_PATTERNS = (
@@ -4185,19 +4362,20 @@ def build(
 ) -> None:
     """Build selected book formats and run the same post-build audits as render.
 
-    Defaults to HTML + PDF when no format flag is given. Multiple formats render
+    Defaults to HTML + PDF + EPUB when no format flag is given, matching the
+    artifact set required by ``arch2 check standard``. Multiple formats render
     in a single Quarto pass, so they never clobber each other's output:
 
-      arch2 build                # HTML + PDF
+      arch2 build                # HTML + PDF + EPUB
       arch2 build --html --pdf   # HTML + PDF (explicit)
       arch2 build --pdf          # PDF only
       arch2 build --all          # HTML + PDF + EPUB
     """
-    if all_ or (html and pdf and epub):
+    if all_ or not any((html, pdf, epub)) or (html and pdf and epub):
         to = "all"
     else:
         chosen = [t for t, on in (("html", html), ("pdf", pdf), ("epub", epub)) if on]
-        to = ",".join(chosen) if chosen else "html,pdf"
+        to = ",".join(chosen)
     shown = list(_RENDER_FORMATS) if to == "all" else to.split(",")
     console.print(f"[cyan]build[/cyan] targets: {', '.join(shown)}")
     _render_one(
@@ -4275,6 +4453,22 @@ def serve(
 def validate_refs() -> None:
     """Check figure, table, listing, equation, section, and path references."""
     run_refs_check()
+
+
+@validate_app.command("card")
+def validate_card(
+    card: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="YAML or JSON design-loop card to validate.",
+    ),
+) -> None:
+    """Validate a design-loop card and its claimed conformance level."""
+    run_card_check(card)
 
 
 @validate_app.command("manifest")
@@ -4378,11 +4572,18 @@ def validate_book_navbar() -> None:
     run_book_navbar_check()
 
 
+@validate_app.command("registries")
+def validate_registries() -> None:
+    """Check registry schemas, generated indexes, status, and AWESOME mirror."""
+    run_registry_check()
+
+
 @check_app.command("precommit")
 def check_precommit() -> None:
     """Run fast, no-render checks suitable for pre-commit."""
     run_python_check()
     run_book_navbar_check()
+    run_registry_check()
     run_manifest_check()
     run_refs_check()
     run_bibliography_check()
