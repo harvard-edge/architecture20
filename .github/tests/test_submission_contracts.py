@@ -164,6 +164,11 @@ An invalid contract test workshop.
             workflow = yaml.safe_load(
                 (workflow_dir / f"process-{name}-submission.yml").read_text()
             )
+            self.assertEqual(
+                workflow["concurrency"]["group"],
+                "${{ github.workflow }}-${{ github.event.issue.number }}",
+            )
+            self.assertTrue(workflow["concurrency"]["cancel-in-progress"])
             steps = workflow["jobs"]["create_pr_from_issue"]["steps"]
             checkout = next(
                 step for step in steps if step["name"] == "Check out repository"

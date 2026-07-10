@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 USE_RE = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#\s*(.+))?$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
+DOCKER_DIGEST_RE = re.compile(r"^docker://[^@\s]+@sha256:[0-9a-f]{64}$")
 VERSION_COMMENT_RE = re.compile(r"^v\d+(?:\.\d+){0,2}(?:\s|$)")
 
 
@@ -26,8 +27,10 @@ def check_workflow(path: Path) -> list[str]:
         if target.startswith("./"):
             continue
         if target.startswith("docker://"):
-            if "@sha256:" not in target:
-                errors.append(f"{where}: container action must use an sha256 digest")
+            if not DOCKER_DIGEST_RE.fullmatch(target):
+                errors.append(
+                    f"{where}: container action must use a 64-character sha256 digest"
+                )
             continue
         if "@" not in target:
             errors.append(f"{where}: action reference has no commit pin: {target}")

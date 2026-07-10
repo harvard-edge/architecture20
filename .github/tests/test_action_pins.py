@@ -45,6 +45,21 @@ class ActionPinTests(unittest.TestCase):
             action_check.check_workflow(self.workflow("./.github/actions/x")), []
         )
 
+    def test_full_container_digest_passes(self) -> None:
+        digest = "a" * 64
+        self.assertEqual(
+            action_check.check_workflow(
+                self.workflow(f"docker://alpine@sha256:{digest}")
+            ),
+            [],
+        )
+
+    def test_malformed_container_digest_fails(self) -> None:
+        errors = action_check.check_workflow(
+            self.workflow("docker://alpine@sha256:not-a-digest")
+        )
+        self.assertTrue(any("64-character sha256" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()
