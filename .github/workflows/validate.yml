@@ -111,6 +111,17 @@ jobs:
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b # v2
 
+      - name: Validate public artifact sources
+        run: |
+          test -f schemas/design-loop-card.v1.schema.json
+          test -f schemas/design-loop-card.md
+          test -f design-loop-card/template.yaml
+          test -f design-loop-card/template.md
+          test -f examples/design-loop-cards/level-0-context.yaml
+          test -f examples/design-loop-cards/level-1-auditable.yaml
+          test -f examples/design-loop-cards/level-2-replayable.yaml
+          test -f examples/design-loop-cards/level-3-independent.yaml
+
       - name: Render landing page
         run: quarto render www
 
@@ -248,8 +259,15 @@ jobs:
           python -m venv "$smoke_dir/venv"
           "$smoke_dir/venv/bin/python" -m pip install "$wheel"
           cd "$smoke_dir"
+          decision_file="$("$smoke_dir/venv/bin/python" - <<'PY'
+          from arch2_labs.scale_env import example_dir
+          print(example_dir("scale_proxy_mirage") / "human_decision.example.yaml")
+          PY
+          )"
+          test -f "$decision_file"
           "$smoke_dir/venv/bin/python" -m arch2_labs.scale_env \
             --example scale_proxy_mirage \
-            --out "$smoke_dir/receipt"
+            --out "$smoke_dir/receipt" \
+            --decision-file "$decision_file"
           "$smoke_dir/venv/bin/python" -m arch2_labs.validators \
             "$smoke_dir/receipt"
