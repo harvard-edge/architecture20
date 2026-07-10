@@ -241,13 +241,17 @@ Required files:
 
 | File | Contents |
 | --- | --- |
+| `.arch2-receipt.json` | Ownership marker bound to the manifest ID and hash. |
+| `manifest.yaml` | Receipt status, runtime/tool versions, and hashes for every payload file. |
 | `card.yaml` | The design-loop card fields. |
 | `environment.yaml` | Legal actions, observations, invalid states, cost, provenance, and rejection authority. |
 | `candidates.jsonl` | One record per proposed candidate, including source and action values. |
 | `runs.jsonl` | One record per proxy or SCALE-Sim run, including command, status, outputs, and cost. |
 | `evidence_ledger.json` | Evidence stages, fidelity, support, limits, and next evidence required. |
 | `negative_traces.jsonl` | Rejected candidates with stage, gate, and reason. |
-| `decision.md` | Human-owned decision, commitment boundary, residual risk, and would-overturn evidence. |
+| `recommendation.json` | Machine recommendation with no human-decision or commitment authority. |
+| `decision.yaml` | Explicit human owner, objective, candidate choice, rationale, commitment, residual risk, and would-overturn evidence. |
+| `decision.md` | Human-readable rendering of `decision.yaml`. |
 
 The validator should fail if:
 
@@ -257,6 +261,10 @@ The validator should fail if:
 - a SCALE-Sim run has no provenance;
 - the environment contract lacks legal actions or invalid-action semantics;
 - the receipt omits negative traces;
+- a manifest or declared raw-output hash does not match;
+- an ID does not resolve across candidates, runs, evidence, recommendation, and decision;
+- a machine recommendation is represented as a human decision;
+- the commitment level exceeds the evidence-supported next-fidelity study;
 - `decision.md` makes an implementation, RTL, or tapeout claim.
 
 ## Candidate Tools Beyond the First Lab

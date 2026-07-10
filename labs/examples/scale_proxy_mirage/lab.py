@@ -9,6 +9,7 @@ def _():
     import json
     import sys
     import tempfile
+    from datetime import datetime, timezone
     from pathlib import Path
     from textwrap import dedent
 
@@ -20,9 +21,21 @@ def _():
         sys.path.insert(0, str(LABS_ROOT))
 
     from arch2_labs.scale_env import run_example
+    from arch2_labs.decisions import record_human_decision
     from arch2_labs.validators import validate_receipt
 
-    return Path, dedent, json, mo, run_example, tempfile, validate_receipt
+    return (
+        Path,
+        datetime,
+        dedent,
+        json,
+        mo,
+        record_human_decision,
+        run_example,
+        tempfile,
+        timezone,
+        validate_receipt,
+    )
 
 
 @app.cell
@@ -246,48 +259,133 @@ def _(ledger, mo):
 
 
 @app.cell
-def _(mo):
+def _(ledger, mo):
+    eligible = [
+        outcome["candidate_id"]
+        for outcome in ledger["candidate_outcomes"]
+        if outcome["accepted"]
+    ]
     objective = mo.ui.dropdown(
-        options=[
-            "Minimize latency (take the fastest that fits the budget)",
-            "Minimize energy per inference",
-            "Maximize area efficiency (TOPS/mm²)",
-        ],
+        options={
+            "Minimize latency (take the fastest that fits the budget)": "latency_under_declared_gates",
+            "Minimize energy per inference": "energy_under_declared_gates",
+            "Maximize area efficiency (TOPS/mm²)": "area_efficiency_under_declared_gates",
+        },
         label="**Commit.** Which objective governs this decision?",
     )
+    choice = mo.ui.dropdown(
+        options=eligible,
+        label="**Human choice.** Which gate-passing candidate do you select?",
+    )
     level = mo.ui.dropdown(
-        options=[
-            "Advance to a next-fidelity study only",
-            "Advance to RTL",
-            "Ready for signoff / product",
-        ],
+        options={
+            "Advance to a next-fidelity study only": "next_fidelity_study",
+            "Advance to RTL": "advance_to_rtl",
+            "Ready for signoff / product": "ready_for_signoff",
+        },
         label="**Commitment level**",
     )
+    human_owner = mo.ui.text(
+        placeholder="Your name or accountable review role",
+        label="**Human decision owner** (required)",
+    )
     rationale = mo.ui.text_area(
-        placeholder="Optional: one line on what evidence would overturn this decision.",
-        label="Rationale (optional)",
+        placeholder="Why does this candidate fit the governing objective and evidence?",
+        label="**Rationale** (required)",
         rows=2,
     )
-    mo.vstack([objective, level, rationale])
-    return level, objective
+    residual_risk = mo.ui.text_area(
+        placeholder="What material uncertainty remains after this simulator run?",
+        label="**Residual risk** (required)",
+        rows=2,
+    )
+    would_overturn = mo.ui.text_area(
+        placeholder="What new evidence would change your decision?",
+        label="**Would overturn** (required)",
+        rows=2,
+    )
+    submit = mo.ui.run_button(label="Record my human decision")
+    mo.vstack(
+        [
+            objective,
+            choice,
+            level,
+            human_owner,
+            rationale,
+            residual_risk,
+            would_overturn,
+            submit,
+        ]
+    )
+    return (
+        choice,
+        human_owner,
+        level,
+        objective,
+        rationale,
+        residual_risk,
+        submit,
+        would_overturn,
+    )
 
 
 @app.cell
-def _(level, mo, objective, receipt_dir, validate_receipt):
-    if objective.value is None or level.value is None:
-        _out = mo.md("*Choose a governing objective and a commitment level to finish.*")
-    elif level.value != "Advance to a next-fidelity study only":
+def _(
+    choice,
+    datetime,
+    human_owner,
+    level,
+    mo,
+    objective,
+    rationale,
+    receipt_dir,
+    record_human_decision,
+    residual_risk,
+    submit,
+    timezone,
+    validate_receipt,
+    would_overturn,
+):
+    required = [
+        objective.value,
+        choice.value,
+        level.value,
+        human_owner.value.strip(),
+        rationale.value.strip(),
+        residual_risk.value.strip(),
+        would_overturn.value.strip(),
+    ]
+    if not submit.value or not all(required):
+        _out = mo.md(
+            "*Complete every decision field and record your decision to finish.*"
+        )
+    elif level.value != "next_fidelity_study":
         _out = mo.md(
             "🛑 **Overclaim.** Proxy-plus-one-simulator evidence does not license an "
             "RTL, signoff, or product commitment. Lower the commitment level to match "
             "the evidence."
         )
     else:
+        record_human_decision(
+            receipt_dir,
+            {
+                "schema_version": "arch2-human-decision/v0.1",
+                "lab_id": "scale_proxy_mirage",
+                "human_owner": human_owner.value.strip(),
+                "authored_at": datetime.now(timezone.utc).isoformat(),
+                "selected_candidate_id": choice.value,
+                "governing_objective": objective.value,
+                "commitment_level": level.value,
+                "rationale": rationale.value.strip(),
+                "residual_risk": residual_risk.value.strip(),
+                "would_overturn": would_overturn.value.strip(),
+            },
+        )
         errors = validate_receipt(receipt_dir)
         _out = mo.md(
-            "✅ **Receipt valid.** Your loop turn is auditable: card, environment, "
-            "evidence ledger, negative traces, and decision are all present, and the "
-            f"decision cites the simulator, not the proxy.\n\nValidator: `{errors or 'ok'}`."
+            "✅ **Receipt valid.** Your explicit objective, candidate choice, rationale, "
+            "and commitment are now persisted separately from the machine "
+            f"recommendation.\n\nValidator: `{errors or 'ok'}`."
         )
     _out
     return

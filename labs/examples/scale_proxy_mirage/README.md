@@ -25,9 +25,19 @@ cd labs
 ../.venv/bin/python -m arch2_labs.scale_env \
   --example scale_proxy_mirage \
   --out /tmp/arch2_proxy_mirage_receipt \
+  --decision-file examples/scale_proxy_mirage/human_decision.example.yaml \
   --force
 ../.venv/bin/python -m arch2_labs.validators /tmp/arch2_proxy_mirage_receipt
 ```
 
-Inspect `decision.md`, `negative_traces.jsonl`, and the per-candidate
-`runs/*/scalesim-results` directories after the run.
+Inspect `recommendation.json`, `decision.yaml`, `decision.md`,
+`negative_traces.jsonl`, and the per-candidate `runs/*/scalesim-results`
+directories after the run. The checked-in decision is a course staff
+reproducibility fixture. In the notebook, each learner supplies and persists
+their own objective, candidate choice, rationale, residual risk, and overturn
+condition.
+
+Running without `--decision-file` produces a Level 2 evidence draft. It does not
+create `decision.yaml` or `decision.md`, and the validator reports that a human
+decision is still required. A valid completed receipt upgrades the canonical
+card to Level 3 and keeps lab-only teaching state under `x-arch2-labs`.

@@ -17,13 +17,22 @@ python3.11 -m venv ../.venv
 ../.venv/bin/python -m arch2_labs.scale_env \
   --example scale_proxy_mirage \
   --out /tmp/arch2_proxy_mirage_receipt \
+  --decision-file examples/scale_proxy_mirage/human_decision.example.yaml \
   --force
 ../.venv/bin/python -m arch2_labs.validators /tmp/arch2_proxy_mirage_receipt
 ```
 
-The runner emits `card.yaml`, `environment.yaml`, candidate records, SCALE-Sim
-run provenance, negative traces, an evidence ledger, and a human-owned decision
-memo.
+The runner emits a hash-sealed manifest, canonical design-loop card, environment
+contract, candidate records, SCALE-Sim run provenance and raw-output hashes,
+negative traces, an evidence ledger, a noncommitting machine recommendation, and
+an explicitly supplied human decision. The example decision is a named course
+staff reproducibility fixture, not a decision fabricated by the runner.
+
+Omit `--decision-file` to stop after evidence generation. The resulting Level 2
+draft records the machine recommendation but intentionally fails complete-receipt
+validation until a human records a decision. `--force` replaces only a directory
+with a matching Arch2 ownership marker and manifest; it refuses unrelated paths
+and symbolic links.
 
 To run the interactive notebooks:
 
@@ -47,3 +56,11 @@ declared hard gates.
 This is intentionally lightweight enough for a classroom or tutorial session.
 It is also real enough that students see actual simulator CSVs, command
 provenance, and reviewable rejection records.
+
+## Receipt Integrity
+
+`manifest.yaml` hashes every payload file. Each successful simulator run also
+declares the raw reports and their hashes in `runs.jsonl`. The validator checks
+those hashes, candidate IDs across every record, tool and runtime versions, the
+canonical card schema, supported commitment levels, and the separation between
+`recommendation.json` and `decision.yaml`.
