@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -17,6 +18,8 @@ LABELS = {
     "url": "Website URL",
     "venue": "Venue or host",
     "date": "Date or year",
+    "event_start": "Event start date",
+    "event_end": "Event end date",
     "category": "Primary topic",
     "description": "Short description",
     "location": "Location",
@@ -59,6 +62,13 @@ def one_line(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
 
 
+def parse_event_date(value: str, label: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"the {label} must use YYYY-MM-DD") from exc
+
+
 def main() -> None:
     body = os.environ.get("ISSUE_BODY", "").replace("\r\n", "\n")
 
@@ -66,6 +76,8 @@ def main() -> None:
     url = field(body, LABELS["url"])
     venue = field(body, LABELS["venue"])
     when = field(body, LABELS["date"])
+    event_start_text = field(body, LABELS["event_start"])
+    event_end_text = field(body, LABELS["event_end"])
     category = field(body, LABELS["category"])
     description = field(body, LABELS["description"])
     location = field(body, LABELS["location"])
@@ -81,6 +93,8 @@ def main() -> None:
             ("url", "website URL"),
             ("venue", "venue or host"),
             ("when", "date or year"),
+            ("event_start", "event start date"),
+            ("event_end", "event end date"),
             ("category", "primary topic"),
             ("description", "short description"),
         )
@@ -89,12 +103,36 @@ def main() -> None:
             "url": url,
             "venue": venue,
             "when": when,
+            "event_start": event_start_text,
+            "event_end": event_end_text,
             "category": category,
             "description": description,
         }[key]
     ]
     if missing:
         return fail(f"missing required field(s): {', '.join(missing)}")
+
+    title = one_line(title)
+    url = one_line(url)
+    venue = one_line(venue)
+    when = one_line(when)
+    event_start_text = one_line(event_start_text)
+    event_end_text = one_line(event_end_text)
+    category = one_line(category)
+    description = one_line(description)
+    location = one_line(location)
+    organizers = one_line(organizers)
+    institution = one_line(institution)
+    submission_url = one_line(submission_url)
+    deadline = one_line(deadline)
+
+    try:
+        event_start = parse_event_date(event_start_text, "event start date")
+        event_end = parse_event_date(event_end_text, "event end date")
+    except ValueError as exc:
+        return fail(str(exc))
+    if event_end < event_start:
+        return fail("the event end date must not be before the event start date")
 
     if not re.match(r"^https?://", url):
         return fail("the website URL must start with http:// or https://")
@@ -123,6 +161,10 @@ def main() -> None:
         "url": url,
         "venue": venue,
         "when": when,
+        "event_start": event_start_text,
+        "event_end": event_end_text,
+        # A maintainer promotes the entry only after verifying dates and links.
+        "status": "proposed",
         "categories": [category],
         "description": description,
     }
@@ -157,6 +199,9 @@ def main() -> None:
         workshop_url=one_line(url),
         workshop_venue=one_line(venue),
         workshop_when=one_line(when),
+        workshop_event_start=event_start_text,
+        workshop_event_end=event_end_text,
+        workshop_status="proposed",
         workshop_category=one_line(category),
         workshop_description=one_line(description),
         workshop_location=one_line(location) or "Not provided",

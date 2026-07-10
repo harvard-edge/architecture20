@@ -230,6 +230,8 @@ def main() -> None:
         "categories": categories,
         "description": description,
         "fit_note": fit_note,
+        # Availability is a maintainer-verified claim, not a submitter claim.
+        "artifact_availability": "unverified",
     }
     optional_fields = {
         "tags": tags,
@@ -275,6 +277,7 @@ def main() -> None:
         tool_category_suggestion=one_line(category_suggestion) or "Not provided",
         tool_description=one_line(description),
         tool_fit_note=one_line(fit_note),
+        tool_artifact_availability="unverified",
         tool_tags=one_line(", ".join(tags)) or "Not provided",
         tool_authors=one_line(authors) or "Not provided",
         tool_institution=one_line(institution) or "Not provided",
