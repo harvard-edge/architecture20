@@ -16,7 +16,13 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 rm -rf _site
-mkdir -p _site/book _site/tools _site/images
+mkdir -p \
+  _site/book \
+  _site/design-loop-card \
+  _site/examples/design-loop-cards \
+  _site/images \
+  _site/schemas \
+  _site/tools
 
 echo "==> Copying shared preview assets"
 cp book/images/favicon.svg _site/images/
@@ -29,6 +35,11 @@ cp book/images/icon-192.png _site/images/
 cp book/images/icon-512.png _site/images/
 cp book/images/arch2-card.png _site/images/
 cp book/images/site.webmanifest _site/images/
+
+echo "==> Copying public design-loop card artifacts"
+cp -R schemas/. _site/schemas/
+cp -R design-loop-card/. _site/design-loop-card/
+cp -R examples/design-loop-cards/. _site/examples/design-loop-cards/
 
 echo "==> Building generated registry indexes"
 PYTHONPATH=.github/scripts python3 .github/scripts/build_catalog_index.py
@@ -72,8 +83,6 @@ if [[ -d _site/tools ]]; then
     s#href="\./about\.html"#href="../about.html"#g;
     s#href="\./readings\.html"#href="../readings.html"#g;
     s#href="\./workshops\.html"#href="../workshops.html"#g;
-    s#href="\./discord\.html"#href="../discord.html"#g;
-    s#href="\./huggingface\.html"#href="../huggingface.html"#g;
     s#href="\./submit\.html"#href="../submit.html"#g;
     s#href="\./submit-resource\.html"#href="../submit-resource.html"#g;
     s#href="\./submit-workshop\.html"#href="../submit-workshop.html"#g;

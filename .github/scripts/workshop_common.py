@@ -1,9 +1,10 @@
 """Shared constants for the Architecture 2.0 workshop registry."""
 
+import os
 import re
 
-WORKSHOPS_PATH = "www/workshops.yml"
-WORKSHOPS_DIR = "www/workshops"
+WORKSHOPS_PATH = os.environ.get("ARCH2_WORKSHOP_INDEX", "www/workshops.yml")
+WORKSHOPS_DIR = os.environ.get("ARCH2_WORKSHOP_REGISTRY", "www/workshops")
 
 ALLOWED_WORKSHOP_CATEGORIES = [
     "Architecture 2.0",
