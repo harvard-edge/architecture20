@@ -33,8 +33,12 @@ LOG_DIR = BUILD_DIR / "logs"
 DEFAULT_REVIEW_WORKBENCH = ROOT.parent.parent / "PaperReviewWorkbench"
 LOOP_DIR = ROOT / ".arch2" / "reviews" / "loop"
 DEFAULT_GEMINI_MODEL = "gemini-3.1-pro-preview"
-CARD_SCHEMA_PATH = ROOT / "schemas" / "design-loop-card.v1.schema.json"
-CARD_SCHEMA_VERSION = "1.0"
+CARD_SCHEMA_VERSION = "1.1"
+CARD_SCHEMA_PATHS = {
+    "1.0": ROOT / "schemas" / "design-loop-card.v1.schema.json",
+    "1.1": ROOT / "schemas" / "design-loop-card.v1.1.schema.json",
+}
+CARD_SCHEMA_PATH = CARD_SCHEMA_PATHS[CARD_SCHEMA_VERSION]
 
 DEFAULT_LOOP_CONCEPTS = (
     "Architecture 2.0",
@@ -415,13 +419,15 @@ def _card_json_path(parts: Iterable[object]) -> str:
     return path
 
 
-def _card_schema_message(error: object, card: object) -> str:
+def _card_schema_message(
+    error: object, card: object, *, expected_version: str | None = None
+) -> str:
     message = str(getattr(error, "message", "invalid card"))
     validator = getattr(error, "validator", None)
     absolute_path = list(getattr(error, "absolute_path", []))
 
     if absolute_path == ["schema_version"] and validator == "const":
-        return f"unsupported schema version; expected '{CARD_SCHEMA_VERSION}'"
+        return f"schema version does not match contract '{expected_version}'"
 
     if validator == "additionalProperties" and "'claim'" in message:
         return "unexpected top-level card field 'claim'; use intent.claim_boundary.claim and intent.claim_boundary.non_claim"
@@ -444,7 +450,7 @@ def _card_schema_message(error: object, card: object) -> str:
 def card_validation_findings(
     card_path: Path,
     *,
-    schema_path: Path = CARD_SCHEMA_PATH,
+    schema_path: Path | None = None,
 ) -> list[Finding]:
     """Validate a YAML or JSON card against the canonical versioned contract."""
     location = _relative(card_path)
@@ -493,6 +499,23 @@ def card_validation_findings(
             )
         ]
 
+    declared_version = card.get("schema_version")
+    if schema_path is None:
+        if (
+            not isinstance(declared_version, str)
+            or declared_version not in CARD_SCHEMA_PATHS
+        ):
+            supported = ", ".join(f"'{version}'" for version in CARD_SCHEMA_PATHS)
+            return [
+                Finding(
+                    "error",
+                    "card-schema-version",
+                    f"{location}:$.schema_version",
+                    f"unsupported schema version {declared_version!r}; supported versions are {supported}",
+                )
+            ]
+        schema_path = CARD_SCHEMA_PATHS[declared_version]
+
     if not schema_path.exists():
         return [
             Finding(
@@ -506,6 +529,7 @@ def card_validation_findings(
     try:
         from jsonschema import Draft202012Validator, FormatChecker
         from jsonschema.exceptions import SchemaError
+        from referencing import Registry, Resource
     except ImportError:
         return [
             Finding(
@@ -529,7 +553,24 @@ def card_validation_findings(
             )
         ]
 
-    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    registry = Registry()
+    known_schema_paths = set(CARD_SCHEMA_PATHS.values()) | {schema_path}
+    for known_path in known_schema_paths:
+        if not known_path.exists():
+            continue
+        known_schema = json.loads(known_path.read_text(encoding="utf-8"))
+        schema_id = known_schema.get("$id")
+        if schema_id:
+            registry = registry.with_resource(
+                schema_id, Resource.from_contents(known_schema)
+            )
+
+    validator = Draft202012Validator(
+        schema, registry=registry, format_checker=FormatChecker()
+    )
+    expected_version = (
+        schema.get("properties", {}).get("schema_version", {}).get("const")
+    )
     errors = sorted(
         validator.iter_errors(card),
         key=lambda error: (
@@ -543,7 +584,7 @@ def card_validation_findings(
             "error",
             "card-schema",
             f"{location}:{_card_json_path(error.absolute_path)}",
-            _card_schema_message(error, card),
+            _card_schema_message(error, card, expected_version=expected_version),
         )
         for error in errors
     ]

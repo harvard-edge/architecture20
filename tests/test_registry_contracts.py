@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 from tools.render_awesome import OUTPUT_PATH, render
@@ -104,3 +107,81 @@ def test_archived_workshop_cannot_retain_submission_link(tmp_path: Path) -> None
 
 def test_awesome_is_generated_from_registry() -> None:
     assert OUTPUT_PATH.read_text(encoding="utf-8") == render()
+
+
+@pytest.mark.skipif(shutil.which("quarto") is None, reason="Quarto is not installed")
+def test_workshop_template_escapes_untrusted_registry_text(tmp_path: Path) -> None:
+    template_source = ROOT / "www" / "_workshop-card.ejs.md"
+    template = template_source.read_text(encoding="utf-8")
+    assert "<%-" not in template
+
+    (tmp_path / "_workshop-card.ejs.md").write_text(template, encoding="utf-8")
+    (tmp_path / "_quarto.yml").write_text(
+        "project:\n  type: website\n  output-dir: _site\nformat: html\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "index.qmd").write_text(
+        """---
+title: Workshop escaping test
+listing:
+  - id: workshop-registry
+    contents: workshops.yml
+    template: _workshop-card.ejs.md
+    fields: [title, description, venue, when, status, last_verified, location, organizers, history, categories]
+    field-required: [title, url, description, venue, status, categories]
+---
+
+:::{#workshop-registry}
+:::
+""",
+        encoding="utf-8",
+    )
+    payload = {
+        "title": 'Bad"><script>alert("title")</script>',
+        "url": 'https://example.com/workshop/" onmouseover="alert(2)',
+        "venue": 'Venue" onmouseover="alert(1)',
+        "when": "2026",
+        "status": "archived",
+        "last_verified": "2026-07-10",
+        "description": "<img src=x onerror=alert(1)>",
+        "location": "<b>Injected location</b>",
+        "organizers": "<script>alert('organizer')</script>",
+        "categories": ["Architecture 2.0"],
+        "history": [
+            {
+                "label": "<em>Injected label</em>",
+                "when": "2025",
+                "url": 'https://example.com/history/" onmouseover="alert(3)',
+                "note": "<svg onload=alert(1)>",
+            }
+        ],
+    }
+    (tmp_path / "workshops.yml").write_text(
+        yaml.safe_dump([payload], sort_keys=False), encoding="utf-8"
+    )
+
+    rendered = subprocess.run(
+        ["quarto", "render"],
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert rendered.returncode == 0, rendered.stdout + rendered.stderr
+    html = (tmp_path / "_site" / "index.html").read_text(encoding="utf-8")
+    for unsafe in (
+        '<script>alert("title")',
+        "<script>alert('organizer')",
+        "<img src=x onerror=alert(1)>",
+        "<b>Injected location</b>",
+        "<em>Injected label</em>",
+        "<svg onload=alert(1)>",
+    ):
+        assert unsafe not in html
+    for escaped in ("&lt;script&gt;", "&lt;img", "&lt;b&gt;", "&lt;em&gt;", "&lt;svg"):
+        assert escaped in html
+    assert 'Bad"&gt;&lt;script&gt;' in html
+    assert 'onmouseover="alert(2)' not in html
+    assert 'onmouseover="alert(3)' not in html
+    assert "https://example.com/workshop/%22%20onmouseover=%22alert(2)" in html
+    assert "https://example.com/history/%22%20onmouseover=%22alert(3)" in html
