@@ -4362,19 +4362,20 @@ def build(
 ) -> None:
     """Build selected book formats and run the same post-build audits as render.
 
-    Defaults to HTML + PDF when no format flag is given. Multiple formats render
+    Defaults to HTML + PDF + EPUB when no format flag is given, matching the
+    artifact set required by ``arch2 check standard``. Multiple formats render
     in a single Quarto pass, so they never clobber each other's output:
 
-      arch2 build                # HTML + PDF
+      arch2 build                # HTML + PDF + EPUB
       arch2 build --html --pdf   # HTML + PDF (explicit)
       arch2 build --pdf          # PDF only
       arch2 build --all          # HTML + PDF + EPUB
     """
-    if all_ or (html and pdf and epub):
+    if all_ or not any((html, pdf, epub)) or (html and pdf and epub):
         to = "all"
     else:
         chosen = [t for t, on in (("html", html), ("pdf", pdf), ("epub", epub)) if on]
-        to = ",".join(chosen) if chosen else "html,pdf"
+        to = ",".join(chosen)
     shown = list(_RENDER_FORMATS) if to == "all" else to.split(",")
     console.print(f"[cyan]build[/cyan] targets: {', '.join(shown)}")
     _render_one(
