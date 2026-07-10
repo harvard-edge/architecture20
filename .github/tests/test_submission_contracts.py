@@ -158,6 +158,22 @@ An invalid contract test workshop.
         introduction = form["body"][0]["attributes"]["value"]
         self.assertIn("unverified", introduction)
 
+    def test_generated_pull_requests_target_dev(self) -> None:
+        workflow_dir = ROOT / ".github" / "workflows"
+        for name in ("tool", "workshop", "resource"):
+            workflow = yaml.safe_load(
+                (workflow_dir / f"process-{name}-submission.yml").read_text()
+            )
+            steps = workflow["jobs"]["create_pr_from_issue"]["steps"]
+            checkout = next(
+                step for step in steps if step["name"] == "Check out repository"
+            )
+            create_pr = next(
+                step for step in steps if step["name"] == "Create pull request"
+            )
+            self.assertEqual(checkout["with"]["ref"], "dev")
+            self.assertEqual(create_pr["with"]["base"], "dev")
+
 
 if __name__ == "__main__":
     unittest.main()
