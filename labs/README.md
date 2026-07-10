@@ -16,9 +16,11 @@ python3.11 -m venv ../.venv
 ../.venv/bin/python -m pip install -r requirements.txt
 ../.venv/bin/python -m arch2_labs.scale_env \
   --example scale_proxy_mirage \
-  --out /tmp/arch2_proxy_mirage_receipt \
-  --decision-file examples/scale_proxy_mirage/human_decision.example.yaml \
-  --force
+  --out /tmp/arch2_proxy_mirage_receipt
+# Inspect recommendation.json, evidence_ledger.json, and the raw reports first.
+../.venv/bin/python -m arch2_labs.decisions \
+  /tmp/arch2_proxy_mirage_receipt \
+  examples/scale_proxy_mirage/human_decision.example.yaml
 ../.venv/bin/python -m arch2_labs.validators /tmp/arch2_proxy_mirage_receipt
 ```
 
@@ -28,11 +30,14 @@ negative traces, an evidence ledger, a noncommitting machine recommendation, and
 an explicitly supplied human decision. The example decision is a named course
 staff reproducibility fixture, not a decision fabricated by the runner.
 
-Omit `--decision-file` to stop after evidence generation. The resulting Level 2
-draft records the machine recommendation but intentionally fails complete-receipt
-validation until a human records a decision. `--force` replaces only a directory
-with a matching Arch2 ownership marker and manifest; it refuses unrelated paths
-and symbolic links.
+The first command stops after evidence generation. The resulting Level 2 draft
+records the machine recommendation but intentionally fails complete-receipt
+validation until a human inspects it and runs `arch2_labs.decisions`. That command
+refuses a tampered draft and refuses to replace an existing decision. Automated
+reproducibility jobs may pass `--decision-file` to `arch2_labs.scale_env`, but the
+two-phase path is the learner workflow. `--force` replaces only a directory with
+a matching Arch2 ownership marker and manifest; it refuses unrelated paths and
+symbolic links.
 
 To run the interactive notebooks:
 

@@ -192,6 +192,7 @@ The first implementation should support two equivalent runs:
 ```bash
 marimo run labs/examples/scale_proxy_mirage/lab.py
 python -m arch2_labs.scale_env --example scale_proxy_mirage --out receipt/
+python -m arch2_labs.decisions receipt/ human_decision.yaml
 python -m arch2_labs.validators receipt/
 ```
 
@@ -395,7 +396,9 @@ Deliverables:
 Exit criteria:
 
 - `python -m arch2_labs.scale_env --example scale_proxy_mirage --out receipt/`
-  creates a valid receipt on a clean laptop environment.
+  creates a hash-sealed Level 2 draft on a clean laptop environment.
+- `python -m arch2_labs.decisions receipt/ human_decision.yaml` verifies the
+  Level 2 draft and attaches one immutable human decision after evidence review.
 
 ### Phase 3: Marimo Lab
 

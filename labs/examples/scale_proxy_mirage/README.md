@@ -24,9 +24,11 @@ belongs to the human.
 cd labs
 ../.venv/bin/python -m arch2_labs.scale_env \
   --example scale_proxy_mirage \
-  --out /tmp/arch2_proxy_mirage_receipt \
-  --decision-file examples/scale_proxy_mirage/human_decision.example.yaml \
-  --force
+  --out /tmp/arch2_proxy_mirage_receipt
+# Inspect the Level 2 draft before deciding.
+../.venv/bin/python -m arch2_labs.decisions \
+  /tmp/arch2_proxy_mirage_receipt \
+  examples/scale_proxy_mirage/human_decision.example.yaml
 ../.venv/bin/python -m arch2_labs.validators /tmp/arch2_proxy_mirage_receipt
 ```
 
@@ -37,7 +39,8 @@ reproducibility fixture. In the notebook, each learner supplies and persists
 their own objective, candidate choice, rationale, residual risk, and overturn
 condition.
 
-Running without `--decision-file` produces a Level 2 evidence draft. It does not
-create `decision.yaml` or `decision.md`, and the validator reports that a human
-decision is still required. A valid completed receipt upgrades the canonical
-card to Level 3 and keeps lab-only teaching state under `x-arch2-labs`.
+The first command produces a Level 2 evidence draft. It does not create
+`decision.yaml` or `decision.md`, and the validator reports that a human decision
+is still required. `arch2_labs.decisions` verifies every draft hash and record
+before writing, then upgrades the canonical card to Level 3. It will not revise a
+completed receipt. Lab-only teaching state remains under `x-arch2-labs`.

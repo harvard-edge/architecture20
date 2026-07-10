@@ -78,7 +78,7 @@ whole suite. Design to them; do not design around them.
   hand-picked "accelerator loses on energy" reversal is directionally wrong for
   this workload. Labs must teach honest, tool-produced results, never a gate
   chosen to force a predetermined loser.
-- **SCALE-Sim v2 has an idealized memory.** The big array never stalls even at
+- **SCALE-Sim 3.0.0 has an idealized memory in this configuration.** The big array never stalls even at
   DRAM bandwidth 2 words/cycle (measured). A clean "big array stalls and misses
   the deadline" story is *not honestly available* in this tool. State the tool's
   limits in the lab; do not pretend past them.
@@ -163,8 +163,9 @@ Five levers, applied in every lab:
 - **Manipulable knobs with live evidence.** The learner *makes* the utilization
   collapse by growing the array, rather than being told it collapses.
 - **Reconcile the surprise.** The gap between predicted and measured is named and
-  explained mechanistically (roofline: the big array is memory-bound, so its
-  extra PEs cannot be fed → the missing 2×).
+  explained through measured mapping and utilization. The roofline classification
+  is a separate analytic memory-pressure warning because this SCALE-Sim
+  configuration does not model bandwidth stalls.
 - **Read the real artifact.** The learner opens the actual SCALE-Sim CSV and the
   actual receipt JSON, not a polished summary. Evidence you can inspect is the
   lesson.
