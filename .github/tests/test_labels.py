@@ -44,6 +44,18 @@ class LabelCheckTests(unittest.TestCase):
         errors = label_check.check_labels(root)
         self.assertTrue(any("missing" in error for error in errors))
 
+    def test_yaml_extension_is_checked(self) -> None:
+        root = self.make_root(
+            "- name: intake\n  color: '123abc'\n  description: Intake\n",
+            "name: Form\nlabels: [intake]\n",
+            "jobs: {}\n",
+        )
+        (root / ".github" / "workflows" / "extra.yaml").write_text(
+            "jobs:\n  act:\n    steps:\n      - with:\n          labels: missing\n"
+        )
+        errors = label_check.check_labels(root)
+        self.assertTrue(any("missing" in error for error in errors))
+
     def test_duplicate_and_invalid_manifest_entries_fail(self) -> None:
         root = self.make_root(
             "- name: intake\n  color: nope\n  description: ''\n"

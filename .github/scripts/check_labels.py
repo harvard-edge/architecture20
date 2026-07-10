@@ -85,8 +85,11 @@ def check_labels(root: Path = ROOT) -> list[str]:
         return [f"cannot read {manifest}: {exc}"]
 
     used: set[str] = set()
-    sources = sorted((root / ".github" / "ISSUE_TEMPLATE").glob("*.yml"))
-    sources.extend(sorted((root / ".github" / "workflows").glob("*.yml")))
+    sources: list[Path] = []
+    for directory in ("ISSUE_TEMPLATE", "workflows"):
+        root_dir = root / ".github" / directory
+        for pattern in ("*.yml", "*.yaml"):
+            sources.extend(sorted(root_dir.glob(pattern)))
     for path in sources:
         try:
             used.update(labels_in_file(path))
