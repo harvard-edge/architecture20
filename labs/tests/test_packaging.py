@@ -7,11 +7,19 @@ import sys
 from pathlib import Path
 
 
+def test_packaged_card_schema_matches_canonical_source() -> None:
+    labs_root = Path(__file__).resolve().parents[1]
+    canonical = labs_root.parent / "schemas" / "design-loop-card.v1.schema.json"
+    packaged = labs_root / "arch2_labs" / "resources" / canonical.name
+
+    assert packaged.read_bytes() == canonical.read_bytes()
+
+
 def test_installed_wheel_finds_examples_and_card_schema(tmp_path: Path) -> None:
     labs_root = Path(__file__).resolve().parents[1]
     dist_dir = tmp_path / "dist"
     subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", str(dist_dir)],
+        [sys.executable, "-m", "build", "--outdir", str(dist_dir)],
         cwd=labs_root,
         check=True,
         capture_output=True,
