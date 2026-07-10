@@ -11,6 +11,7 @@ from pathlib import Path
 import yaml
 
 from build_workshops_index import main as build_workshops_index
+from github_output import emit_outputs as emit
 from workshop_common import ALLOWED_WORKSHOP_CATEGORIES, WORKSHOPS_DIR, slugify
 
 LABELS = {
@@ -37,20 +38,6 @@ def field(body: str, label: str) -> str:
         return ""
     value = match.group(1).strip()
     return "" if value in ("_No response_", "No response") else value
-
-
-def emit(**outputs: str) -> None:
-    path = os.environ.get("GITHUB_OUTPUT")
-    if not path:
-        return
-    with open(path, "a", encoding="utf-8") as handle:
-        for key, value in outputs.items():
-            value = value or ""
-            if "\n" in value:
-                delimiter = f"EOF_{key}"
-                handle.write(f"{key}<<{delimiter}\n{value}\n{delimiter}\n")
-            else:
-                handle.write(f"{key}={value}\n")
 
 
 def fail(reason: str) -> None:
