@@ -19,6 +19,19 @@ VERSION_RE = re.compile(r"^v(?P<version>\d+\.\d+\.\d+)$")
 RENDERED_VERSION_RE = re.compile(
     r'<span[^>]+id=["\']arch2-release-metadata["\'][^>]*>([^<]+)</span>'
 )
+PREVIEW_VERSION_RE = re.compile(
+    r"\bPreview\s+(v\d+\.\d+\.\d+(?:\+g[0-9a-f]{7,40})?)\b",
+    re.IGNORECASE,
+)
+VERSION_NEUTRAL_SOURCES = (
+    "book/_quarto.yml",
+    "book/tex/version.tex",
+    "book/tex/springer-header.tex",
+    "cli/arch2.py",
+    "book/images/arch2-cover.svg",
+    "book/images/arch2-card.svg",
+)
+TEXT_ARTIFACT_SUFFIXES = {".css", ".html", ".opf", ".svg", ".xhtml", ".xml"}
 
 
 def git_output(args: list[str]) -> str:
@@ -74,6 +87,25 @@ def check_cff(path: Path, tag: str, released: str) -> list[str]:
     return errors
 
 
+def preview_versions(text: str) -> set[str]:
+    return {match.group(1) for match in PREVIEW_VERSION_RE.finditer(text)}
+
+
+def hardcoded_preview_errors(root: Path = ROOT) -> list[str]:
+    errors: list[str] = []
+    for relative in VERSION_NEUTRAL_SOURCES:
+        path = root / relative
+        if not path.exists():
+            continue
+        versions = preview_versions(path.read_text(encoding="utf-8"))
+        if versions:
+            errors.append(
+                f"{path}: fallback preview text must be version-neutral, found "
+                + ", ".join(sorted(versions))
+            )
+    return errors
+
+
 def rendered_html_version(path: Path) -> str:
     text = path.read_text(encoding="utf-8")
     match = RENDERED_VERSION_RE.search(text)
@@ -91,7 +123,17 @@ def rendered_epub_contains(path: Path, expected: str) -> bool:
     return False
 
 
-def rendered_pdf_contains(path: Path, expected: str) -> bool:
+def rendered_epub_preview_versions(path: Path) -> set[str]:
+    versions: set[str] = set()
+    with zipfile.ZipFile(path) as archive:
+        for name in archive.namelist():
+            if Path(name).suffix.lower() in TEXT_ARTIFACT_SUFFIXES:
+                text = archive.read(name).decode("utf-8", errors="replace")
+                versions.update(preview_versions(text))
+    return versions
+
+
+def rendered_pdf_text(path: Path) -> str:
     pdftotext = shutil.which("pdftotext")
     if not pdftotext:
         raise ValueError("pdftotext is required to validate rendered PDF metadata")
@@ -104,7 +146,16 @@ def rendered_pdf_contains(path: Path, expected: str) -> bool:
     )
     if proc.returncode != 0:
         raise ValueError(proc.stderr.strip() or f"cannot extract text from {path}")
-    return expected in proc.stdout
+    return proc.stdout
+
+
+def rendered_tree_preview_versions(root: Path) -> set[str]:
+    versions: set[str] = set()
+    for path in root.rglob("*"):
+        if path.is_file() and path.suffix.lower() in TEXT_ARTIFACT_SUFFIXES:
+            text = path.read_text(encoding="utf-8", errors="replace")
+            versions.update(preview_versions(text))
+    return versions
 
 
 def main() -> None:
@@ -120,6 +171,7 @@ def main() -> None:
     try:
         tag, released = latest_release()
         errors.extend(check_cff(args.cff, tag, released))
+        errors.extend(hardcoded_preview_errors())
     except ValueError as exc:
         errors.append(str(exc))
 
@@ -135,18 +187,42 @@ def main() -> None:
                         f"{args.rendered_html}: rendered version {actual!r} does not "
                         f"match {args.expected_version!r}"
                     )
-            if args.rendered_pdf and not rendered_pdf_contains(
-                args.rendered_pdf, f"Preview {args.expected_version}"
-            ):
-                errors.append(
-                    f"{args.rendered_pdf}: Preview {args.expected_version} is missing"
+                html_versions = rendered_tree_preview_versions(
+                    args.rendered_html.parent
                 )
-            if args.rendered_epub and not rendered_epub_contains(
-                args.rendered_epub, args.expected_version
-            ):
-                errors.append(
-                    f"{args.rendered_epub}: {args.expected_version} is missing"
-                )
+                unexpected = html_versions - {args.expected_version}
+                if unexpected:
+                    errors.append(
+                        f"{args.rendered_html.parent}: stale rendered preview version(s): "
+                        + ", ".join(sorted(unexpected))
+                    )
+            if args.rendered_pdf:
+                pdf_text = rendered_pdf_text(args.rendered_pdf)
+                if f"Preview {args.expected_version}" not in pdf_text:
+                    errors.append(
+                        f"{args.rendered_pdf}: Preview {args.expected_version} is missing"
+                    )
+                unexpected = preview_versions(pdf_text) - {args.expected_version}
+                if unexpected:
+                    errors.append(
+                        f"{args.rendered_pdf}: stale rendered preview version(s): "
+                        + ", ".join(sorted(unexpected))
+                    )
+            if args.rendered_epub:
+                if not rendered_epub_contains(
+                    args.rendered_epub, args.expected_version
+                ):
+                    errors.append(
+                        f"{args.rendered_epub}: {args.expected_version} is missing"
+                    )
+                unexpected = rendered_epub_preview_versions(args.rendered_epub) - {
+                    args.expected_version
+                }
+                if unexpected:
+                    errors.append(
+                        f"{args.rendered_epub}: stale rendered preview version(s): "
+                        + ", ".join(sorted(unexpected))
+                    )
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             errors.append(str(exc))
 
