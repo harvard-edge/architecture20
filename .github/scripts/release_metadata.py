@@ -71,6 +71,25 @@ def head_revision(*, short: bool = False) -> str:
     return revision
 
 
+def release_tag_date(version: str) -> str:
+    tagged_date = git_output(
+        [
+            "for-each-ref",
+            f"refs/tags/{version}",
+            "--format=%(creatordate:short)",
+        ]
+    )
+    if not tagged_date:
+        raise SystemExit(f"cannot resolve the release date for {version}")
+    try:
+        date.fromisoformat(tagged_date)
+    except ValueError as exc:
+        raise SystemExit(
+            f"release tag date is malformed for {version}: {tagged_date!r}"
+        ) from exc
+    return tagged_date
+
+
 def explicit_version() -> str | None:
     value = os.environ.get("ARCH2_VERSION", "").strip()
     if not value:
@@ -148,16 +167,7 @@ def resolve_publish_date(version: str) -> str:
         return explicit
 
     if VERSION_RE.fullmatch(version) and exact_release_tag() == version:
-        tagged_date = git_output(["log", "-1", "--format=%cs", f"{version}^{{}}"])
-        if not tagged_date:
-            raise SystemExit(f"cannot resolve the release date for {version}")
-        try:
-            date.fromisoformat(tagged_date)
-        except ValueError as exc:
-            raise SystemExit(
-                f"release tag date is malformed for {version}: {tagged_date!r}"
-            ) from exc
-        return tagged_date
+        return release_tag_date(version)
 
     return datetime.now(timezone.utc).date().isoformat()
 

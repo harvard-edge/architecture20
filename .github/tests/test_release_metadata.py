@@ -27,7 +27,11 @@ def git_values(*, exact: str | None = None, latest: str | None = "v0.1.3"):
             return full
         if args == ["rev-parse", "--short=12", "HEAD"]:
             return full[:12]
-        if args == ["log", "-1", "--format=%cs", "v0.1.3^{}"]:
+        if args == [
+            "for-each-ref",
+            "refs/tags/v0.1.3",
+            "--format=%(creatordate:short)",
+        ]:
             return "2026-07-08"
         raise AssertionError(f"unexpected git call: {args}")
 

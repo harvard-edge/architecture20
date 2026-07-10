@@ -39,7 +39,9 @@ def latest_release() -> tuple[str, str]:
     tag = git_output(["describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"])
     if not VERSION_RE.fullmatch(tag):
         raise ValueError(f"latest release tag is malformed: {tag!r}")
-    released = git_output(["log", "-1", "--format=%cs", f"{tag}^{{}}"])
+    released = git_output(
+        ["for-each-ref", f"refs/tags/{tag}", "--format=%(creatordate:short)"]
+    )
     try:
         date.fromisoformat(released)
     except ValueError as exc:
