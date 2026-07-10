@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -109,6 +110,24 @@ A contract test workshop.
             self.assertEqual(
                 fields[field_id]["attributes"]["placeholder"], "2026-06-27"
             )
+
+    def test_site_workshop_form_prefills_every_required_issue_field(self) -> None:
+        issue_form = yaml.safe_load(
+            (ROOT / ".github" / "ISSUE_TEMPLATE" / "submit_workshop.yml").read_text()
+        )
+        required_fields = {
+            item["id"]: item["attributes"]["label"]
+            for item in issue_form["body"]
+            if item.get("id") and item.get("validations", {}).get("required")
+        }
+        site_form = (ROOT / "www" / "submit-workshop.qmd").read_text()
+
+        for field_id, label in required_fields.items():
+            self.assertRegex(
+                site_form,
+                rf'<(?:input|select|textarea)\b[^>]*\bname="{re.escape(field_id)}"',
+            )
+            self.assertIn(f'["{label}", "{field_id}"]', site_form)
 
     def test_workshop_submission_rejects_invalid_date_order(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
