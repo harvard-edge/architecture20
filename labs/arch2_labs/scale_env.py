@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import csv
-import hashlib
 import json
 import math
 import shutil
@@ -16,6 +15,7 @@ from typing import Any, Iterable
 import yaml
 
 from arch2_labs.estimates import ESTIMATE_SOURCES, estimate_candidate
+from arch2_labs.receipts import sha256_file, verify_receipt_ownership
 from arch2_labs.schemas import Candidate, WorkloadLayer, load_candidates
 
 LABS_ROOT = Path(__file__).resolve().parents[1]
@@ -50,12 +50,7 @@ def load_workload(topology_path: Path) -> list[WorkloadLayer]:
     return layers
 
 
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as f:
-        for block in iter(lambda: f.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+file_sha256 = sha256_file
 
 
 def proxy_cycles(candidate: Candidate, layers: Iterable[WorkloadLayer]) -> int:
@@ -264,11 +259,16 @@ def run_scalesim(
 
 
 def _safe_replace_dir(path: Path) -> None:
-    resolved = path.resolve()
-    if len(resolved.parts) < 4:
-        raise ValueError(f"Refusing to remove shallow path: {resolved}")
-    if resolved.exists():
-        shutil.rmtree(resolved)
+    expanded = path.expanduser().absolute()
+    if expanded.is_symlink():
+        raise ValueError(f"refusing to replace a symbolic link: {expanded}")
+    resolved = expanded.resolve()
+    protected = {Path.home().resolve(), LABS_ROOT.resolve()}
+    protected.update(LABS_ROOT.resolve().parents)
+    if resolved in protected:
+        raise ValueError(f"refusing to replace protected path: {resolved}")
+    verify_receipt_ownership(resolved)
+    shutil.rmtree(resolved)
 
 
 def _write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
