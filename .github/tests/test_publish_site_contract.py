@@ -1,0 +1,150 @@
+from __future__ import annotations
+
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+WORKFLOW_PATH = ROOT / ".github" / "workflows" / "publish-site.yml"
+
+
+def run_git(cwd: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip()
+
+
+class PublishSiteContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.workflow = yaml.safe_load(WORKFLOW_PATH.read_text())
+        guard_steps = cls.workflow["jobs"]["publish_guard"]["steps"]
+        cls.guard_script = next(
+            step["run"]
+            for step in guard_steps
+            if step["name"] == "Authorize publish ref"
+        )
+
+    def run_guard(
+        self, cwd: Path, ref: str, revision: str
+    ) -> subprocess.CompletedProcess[str]:
+        environment = os.environ.copy()
+        environment.update({"GITHUB_REF": ref, "GITHUB_SHA": revision})
+        return subprocess.run(
+            ["bash", "-c", self.guard_script],
+            cwd=cwd,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    def make_repository(self, root: Path) -> tuple[Path, str, str]:
+        origin = root / "origin.git"
+        seed = root / "seed"
+        runner = root / "runner"
+        run_git(root, "init", "--bare", str(origin))
+        run_git(root, "init", "--initial-branch=main", str(seed))
+        run_git(seed, "config", "user.name", "Contract Test")
+        run_git(seed, "config", "user.email", "contract@example.com")
+        (seed / "release.txt").write_text("main\n")
+        run_git(seed, "add", "release.txt")
+        run_git(seed, "commit", "-m", "main release")
+        main_revision = run_git(seed, "rev-parse", "HEAD")
+        run_git(seed, "tag", "v1.2.3")
+        run_git(seed, "remote", "add", "origin", str(origin))
+        run_git(seed, "push", "origin", "main", "v1.2.3")
+
+        run_git(seed, "switch", "--orphan", "unmerged")
+        (seed / "unmerged.txt").write_text("unmerged\n")
+        run_git(seed, "add", "unmerged.txt")
+        run_git(seed, "commit", "-m", "unmerged release")
+        unmerged_revision = run_git(seed, "rev-parse", "HEAD")
+        run_git(seed, "tag", "v2.0.0")
+        run_git(seed, "push", "origin", "v2.0.0")
+
+        run_git(root, "clone", str(origin), str(runner))
+        run_git(runner, "fetch", "--tags", "origin")
+        return runner, main_revision, unmerged_revision
+
+    def test_guard_is_a_direct_dependency_of_every_publish_job(self) -> None:
+        jobs = self.workflow["jobs"]
+        self.assertEqual(self.workflow["permissions"], {"contents": "read"})
+        self.assertEqual(jobs["publish_guard"]["permissions"], {"contents": "read"})
+        for job_name, job in jobs.items():
+            if job_name == "publish_guard":
+                continue
+            needs = job.get("needs", [])
+            if isinstance(needs, str):
+                needs = [needs]
+            self.assertIn("publish_guard", needs, job_name)
+
+        for job_name, job in jobs.items():
+            if job_name == "deploy":
+                continue
+            permissions = job.get("permissions", self.workflow["permissions"])
+            self.assertTrue(
+                all(access == "read" for access in permissions.values()), job_name
+            )
+        self.assertEqual(
+            jobs["deploy"]["permissions"],
+            {"contents": "read", "id-token": "write", "pages": "write"},
+        )
+
+    def test_guard_contains_tag_identity_fetch_and_ancestry_checks(self) -> None:
+        self.assertIn(r"^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$", self.guard_script)
+        self.assertIn("${GITHUB_REF}^{commit}", self.guard_script)
+        self.assertIn("${GITHUB_SHA}^{commit}", self.guard_script)
+        self.assertIn("+refs/heads/main:refs/remotes/origin/main", self.guard_script)
+        self.assertIn("git merge-base --is-ancestor", self.guard_script)
+
+    def test_main_and_ancestor_stable_tag_are_authorized(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner, main_revision, _ = self.make_repository(root)
+
+            main_result = self.run_guard(runner, "refs/heads/main", main_revision)
+            self.assertEqual(main_result.returncode, 0, main_result.stderr)
+
+            run_git(runner, "update-ref", "-d", "refs/remotes/origin/main")
+            tag_result = self.run_guard(runner, "refs/tags/v1.2.3", main_revision)
+            self.assertEqual(tag_result.returncode, 0, tag_result.stderr)
+            self.assertEqual(
+                run_git(runner, "rev-parse", "refs/remotes/origin/main"),
+                main_revision,
+            )
+
+    def test_non_stable_and_non_main_refs_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner, main_revision, _ = self.make_repository(root)
+            for ref in (
+                "refs/heads/dev",
+                "refs/tags/v1.2",
+                "refs/tags/v1.2.3-rc.1",
+                "refs/tags/release-v1.2.3",
+            ):
+                with self.subTest(ref=ref):
+                    result = self.run_guard(runner, ref, main_revision)
+                    self.assertNotEqual(result.returncode, 0)
+
+    def test_stable_tag_outside_main_history_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner, _, unmerged_revision = self.make_repository(root)
+            result = self.run_guard(runner, "refs/tags/v2.0.0", unmerged_revision)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("not an ancestor", result.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()

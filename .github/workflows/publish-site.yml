@@ -19,10 +19,61 @@ env:
   ARCH2_SITE_DOMAIN: ${{ vars.ARCH2_SITE_DOMAIN || 'arch2.mlsysbook.ai' }}
 
 jobs:
+  publish_guard:
+    name: Authorize publish ref
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Authorize publish ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "$GITHUB_REF" in
+            refs/heads/main)
+              echo "Authorized main branch publish."
+              ;;
+            refs/tags/*)
+              if [[ ! "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Refusing non-stable release tag: $GITHUB_REF" >&2
+                exit 1
+              fi
+
+              ref_commit="$(git rev-parse --verify "${GITHUB_REF}^{commit}")"
+              event_commit="$(git rev-parse --verify "${GITHUB_SHA}^{commit}")"
+              if [[ "$ref_commit" != "$event_commit" ]]; then
+                echo "Release tag does not identify the event commit." >&2
+                exit 1
+              fi
+
+              git fetch --no-tags origin \
+                "+refs/heads/main:refs/remotes/origin/main"
+              if ! git merge-base --is-ancestor \
+                "$event_commit" refs/remotes/origin/main; then
+                echo "Release tag commit is not an ancestor of origin/main." >&2
+                exit 1
+              fi
+              echo "Authorized stable release tag: $GITHUB_REF"
+              ;;
+            *)
+              echo "Refusing publish from unauthorized ref: $GITHUB_REF" >&2
+              exit 1
+              ;;
+          esac
+
   preflight:
     name: Pre-commit gate
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    needs: publish_guard
 
     steps:
       - name: Check out repository
@@ -75,7 +126,7 @@ jobs:
     name: Render and assemble site
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: preflight
+    needs: [publish_guard, preflight]
     permissions:
       contents: read
       pages: read
@@ -203,7 +254,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    needs: build
+    needs: [publish_guard, build]
     permissions:
       contents: read
       id-token: write
