@@ -11,7 +11,6 @@ from jsonschema import Draft202012Validator
 
 from cli.arch2 import CARD_SCHEMA_PATH, ROOT, card_validation_findings
 
-
 VALID_CARD_DIR = ROOT / "examples" / "design-loop-cards"
 INVALID_CARD_DIR = ROOT / "tests" / "fixtures" / "cards"
 

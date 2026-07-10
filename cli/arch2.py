@@ -2778,16 +2778,18 @@ def layout_page_profiles(pdf_path: Path) -> list[LayoutPageProfile]:
                     width=round(width, 1),
                     height=round(height, 1),
                     word_count=len(body_words),
-                    content_top=round(content_top, 1)
-                    if content_top is not None
-                    else None,
-                    content_bottom=round(content_bottom, 1)
-                    if content_bottom is not None
-                    else None,
+                    content_top=(
+                        round(content_top, 1) if content_top is not None else None
+                    ),
+                    content_bottom=(
+                        round(content_bottom, 1) if content_bottom is not None else None
+                    ),
                     usable_bottom=round(usable_bottom, 1),
-                    bottom_whitespace=round(bottom_whitespace, 1)
-                    if bottom_whitespace is not None
-                    else None,
+                    bottom_whitespace=(
+                        round(bottom_whitespace, 1)
+                        if bottom_whitespace is not None
+                        else None
+                    ),
                     has_figure=has_figure,
                     has_table=has_table,
                     captions=captions,
@@ -4078,6 +4080,7 @@ def run_python_check() -> None:
             *ROOT.glob("cli/*.py"),
             *ROOT.glob(".github/scripts/*.py"),
             *ROOT.glob("scripts/*.py"),
+            *ROOT.glob("tools/*.py"),
             *BOOK_DIR.glob("scripts/*.py"),
         ]
     )
@@ -4102,6 +4105,18 @@ def run_book_navbar_check() -> None:
         capture=True,
     )
     _exit_if_failed(proc, "book navbar sync")
+
+
+def run_registry_check() -> None:
+    for script, label in (
+        (ROOT / "tools" / "validate_registries.py", "registry contracts"),
+        (ROOT / "tools" / "render_awesome.py", "AWESOME registry mirror"),
+    ):
+        cmd = [sys.executable, str(script)]
+        if script.name == "render_awesome.py":
+            cmd.append("--check")
+        proc = _run(cmd, cwd=ROOT, capture=True)
+        _exit_if_failed(proc, label)
 
 
 _LATEX_SCRATCH_PATTERNS = (
@@ -4556,11 +4571,18 @@ def validate_book_navbar() -> None:
     run_book_navbar_check()
 
 
+@validate_app.command("registries")
+def validate_registries() -> None:
+    """Check registry schemas, generated indexes, status, and AWESOME mirror."""
+    run_registry_check()
+
+
 @check_app.command("precommit")
 def check_precommit() -> None:
     """Run fast, no-render checks suitable for pre-commit."""
     run_python_check()
     run_book_navbar_check()
+    run_registry_check()
     run_manifest_check()
     run_refs_check()
     run_bibliography_check()

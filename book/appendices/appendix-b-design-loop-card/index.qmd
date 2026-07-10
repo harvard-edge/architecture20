@@ -81,12 +81,22 @@ reviewer a way to find omissions.
 | --- | --- | --- |
 | Model cards | Intended use, evaluated conditions, limitations, and risks. | Claims should name the conditions under which the reported behavior was evaluated and where it should not be used. |
 | Datasheets for datasets | Motivation, provenance, composition, collection, maintenance, and recommended uses. | Workload, trace, benchmark, and artifact records need provenance and usage limits, not only final metrics. |
+| System cards [@MetaAI2022SystemCards] | System configuration, component models, evaluations, operation, and mitigations. | A system-level record can describe what is deployed; the design-loop card records how an architecture decision moves from bounded action to evidence and commitment. |
 | Assurance cases and GSN | Claim, context, argument strategy, evidence, defeaters, and residual risk. | A loop record should say why the evidence supports the claim, what cuts against it, and what uncertainty remains. |
 | Architecture Decision Records | Context, decision, alternatives, and consequences. | A design claim should preserve the rejected or deferred alternatives that make the decision meaningful. |
-| Reproducibility and reporting checklists | Reviewer-facing fields that expose missing evidence or unsupported generalization. | Missing fields should weaken or bound the claim rather than disappear inside prose. |
+| Artifact evaluation and reporting checklists [@ACM2020ArtifactReview] | Whether a submitted artifact is documented, complete, exercisable, and consistent with its paper. | Missing fields should weaken or bound the claim rather than disappear inside prose. |
 | Benchmark governance and provenance records | Versioned scenarios, run rules, inputs, dependencies, and comparable reporting. | A loop claim should carry workload versions, tool versions, evidence IDs, and pointers to deeper artifacts where needed. |
 
 : **The card borrows compact disclosure, not bureaucracy.** Other fields show that small reporting artifacts work when they help readers see scope, evidence, limits, and provenance. The Architecture 2.0 version adapts that pattern to architectural claims and the loops that produce them. {#tbl-card-precedents tbl-colwidths="[23,32,35]"}
+
+These records are complementary. A system card explains the configuration,
+evaluations, and mitigations of an operating AI system. Artifact evaluation
+checks a submitted artifact against the associated paper and its reported
+results. The design-loop card begins earlier. It records the state and allowed
+actions before a method acts, preserves negative traces and rejection authority
+while the loop runs, and states which transition from evidence to commitment is
+authorized. It can link to a system card or an artifact-evaluation report rather
+than replacing either one.
 
 The operating pattern is shown in @fig-design-loop-card-rubric. Fill the
 card, apply the review lens, and assign a readiness status. The point is not
@@ -147,6 +157,14 @@ owner before running the loop.
 
 : **The blank card provides a reusable loop template.** A reader can fill it in for a paper, tool, benchmark, project proposal, or internal loop before judging the claim. {#tbl-blank-design-loop-card tbl-colwidths="[23,64]"}
 
+Ready-to-fill versions and the canonical machine contract are available with
+the public companion materials.
+
+- **YAML template:** [Download the machine-checkable blank card](https://arch2.mlsysbook.ai/design-loop-card/template.yaml).
+- **Markdown template:** [Download the one-page review form](https://arch2.mlsysbook.ai/design-loop-card/template.md).
+- **Completed example:** [Inspect a Level 3 accelerator-review card](https://arch2.mlsysbook.ai/examples/design-loop-cards/level-3-independent.yaml).
+- **30-minute workflow:** [Fill, validate, and review a card](https://arch2.mlsysbook.ai/start.html).
+
 After filling in the card, run the final review gate.
 
 ::: {.callout-architect-checkpoint}
@@ -165,9 +183,11 @@ it is not yet a credible Architecture 2.0 loop.
 
 ## A Machine-Checkable Schema
 
-The card is a review artifact first, but it is meant to become a machine-checkable
-record so tools can validate it, ledgers can index it, and claims can be compared.
-The schema below names the required fields, gives stable IDs for the records a loop
+The card is a review artifact first, but it also has a machine-checkable record
+so tools can validate it, ledgers can index it, and claims can be compared.
+[JSON Schema version 1.0](https://arch2.mlsysbook.ai/schemas/design-loop-card.v1.schema.json)
+is the canonical machine contract. The outline below mirrors its field structure
+for readers. The contract names the required fields, gives stable IDs for the records a loop
 must preserve, reuses the commitment levels of @tbl-commitment-ladder, and
 compresses the fidelity ladder of @sec-fidelity-ladders-and-evidence-ledgers
 into eight machine-checkable rungs. It is a minimum, not a standard to freeze;
@@ -179,10 +199,15 @@ and `global_fleet` name deployment-exposure rungs rather than architecture signo
 stages.
 
 ```yaml
+schema_version: "1.0"
 design_loop_card:
   card_id: string
   conformance_level: { enum: [0, 1, 2, 3] }
-  intent: { objective, constraints, non_goals }
+  intent:
+    objective: string
+    constraints: [string]
+    non_goals: [string]
+    claim_boundary: { claim, non_claim }  # optional paper-review view
   task:
     enum: [generation, prediction, optimization, critique,
            verification, characterization, benchmark, dse]
@@ -273,6 +298,8 @@ Level 2 adds the stable IDs and provenance; Level 3 adds
 and `human_decision`. The `independence_basis` field captures *why* the
 rejection authority is independent (e.g., a separate reporting chain or a formal
 verification tool). A validator checks a card against the level it claims.
+The claim and non-claim, when needed for a paper review, live under
+`intent.claim_boundary`; they do not create a thirteenth top-level card field.
 The optional extension paths are named explicitly in the schema above rather
 than implied by prose. Most cards should leave these blocks empty. They become
 necessary only when the claim depends on large-model cost, field evidence,

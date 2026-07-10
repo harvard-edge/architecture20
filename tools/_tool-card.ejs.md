@@ -6,12 +6,18 @@
   <% const primaryCategory = categories[0] || ""; %>
   <% const primarySlug = String(primaryCategory).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); %>
   <% const tags = Array.isArray(item.tags) ? item.tags : []; %>
+  <% const availabilityLabels = { runnable: "Runnable", source_available: "Source available", benchmark_available: "Benchmark available", dataset_available: "Dataset available", paper_only: "Paper only", unverified: "Unverified" }; %>
+  <% const availability = item.artifact_availability || "unverified"; %>
   <article class="tool-card <%= primarySlug ? `tool-card-${primarySlug}` : "" %>" <%= metadataAttrs(item) %>>
     <div class="tool-card-link">
       <a class="tool-card-hitarea" href="<%= primaryUrl %>" target="_blank" rel="noopener" aria-label="Open <%= item.title %>"></a>
       <div class="tool-card-top">
         <h3 class="listing-title"><%= item.title %></h3>
         <span class="tool-card-arrow" aria-hidden="true">&nearr;</span>
+      </div>
+      <div class="tool-card-status" aria-label="Artifact availability and link verification">
+        <span class="availability-badge availability-<%= availability %>"><%= availabilityLabels[availability] || availabilityLabels.unverified %></span>
+        <span class="verification-date"><% if (item.last_verified) { %>Link checked <%= item.last_verified %><% } else { %>Link not verified<% } %></span>
       </div>
       <p class="listing-description"><%= item.description %></p>
       <% if (item.authors || item.institution || item.submitted_by) { %>
