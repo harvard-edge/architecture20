@@ -83,8 +83,6 @@ if [[ -d _site/tools ]]; then
     s#href="\./about\.html"#href="../about.html"#g;
     s#href="\./readings\.html"#href="../readings.html"#g;
     s#href="\./workshops\.html"#href="../workshops.html"#g;
-    s#href="\./discord\.html"#href="../discord.html"#g;
-    s#href="\./huggingface\.html"#href="../huggingface.html"#g;
     s#href="\./submit\.html"#href="../submit.html"#g;
     s#href="\./submit-resource\.html"#href="../submit-resource.html"#g;
     s#href="\./submit-workshop\.html"#href="../submit-workshop.html"#g;
