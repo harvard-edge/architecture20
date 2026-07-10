@@ -3,38 +3,11 @@ name: Publish site
 on:
   push:
     branches: [main]
-    paths:
-      - "book/**"
-      - "tools/**"
-      - "www/**"
-      - "_global/**"
-      - ".github/scripts/**"
-      - "book/images/arch2-card.png"
-      - "book/images/favicon.svg"
-      - "book/images/favicon-16.png"
-      - "book/images/favicon-32.png"
-      - "book/images/favicon.ico"
-      - "requirements.txt"
-      - ".pre-commit-config.yaml"
-      - ".github/workflows/publish-site.yml"
+    tags: ["v[0-9]*"]
   workflow_dispatch:
-    inputs:
-      version_bump:
-        description: "Preview version bump for this publish"
-        required: true
-        default: "skip"
-        type: choice
-        options:
-          - skip
-          - patch
-          - minor
-          - major
 
 permissions:
-  contents: write
-  actions: write
-  pages: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: publish-site-${{ github.ref }}
@@ -72,15 +45,25 @@ jobs:
       - name: Run pre-commit hooks
         run: pre-commit run --all-files --show-diff-on-failure
 
+      - name: Run repository-integrity tests
+        run: python -m unittest discover -s .github/tests -p 'test_*.py' -v
+
+      - name: Check release and label metadata
+        run: |
+          python .github/scripts/check_release_consistency.py
+          python .github/scripts/check_labels.py
+
   build:
     name: Render and assemble site
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: preflight
+    permissions:
+      contents: read
+      pages: read
     outputs:
       arch2_version: ${{ steps.release_metadata.outputs.arch2_version }}
       arch2_publish_date: ${{ steps.release_metadata.outputs.arch2_publish_date }}
-      arch2_version_bump: ${{ steps.release_metadata.outputs.arch2_version_bump }}
 
     steps:
       - name: Check out repository
@@ -123,15 +106,20 @@ jobs:
 
       - name: Resolve release metadata
         id: release_metadata
-        env:
-          ARCH2_CURRENT_VERSION: ${{ vars.ARCH2_CURRENT_VERSION }}
-          ARCH2_VERSION_BUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.version_bump || 'skip' }}
-        run: python .github/scripts/release_metadata.py --bump "$ARCH2_VERSION_BUMP"
+        run: python .github/scripts/release_metadata.py --bump skip
 
       - name: Build the full site
         run: |
           chmod +x .github/scripts/build_site.sh
           .github/scripts/build_site.sh
+
+      - name: Verify rendered release identity
+        run: |
+          python .github/scripts/check_release_consistency.py \
+            --expected-version "$ARCH2_VERSION" \
+            --rendered-html _site/book/index.html \
+            --rendered-pdf _site/book/Architecture-2.0.pdf \
+            --rendered-epub _site/book/Architecture-2.0.epub
 
       - name: Validate Pages payload
         run: |
@@ -181,20 +169,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: build
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
     env:
       ARCH2_VERSION: ${{ needs.build.outputs.arch2_version }}
       ARCH2_PUBLISH_DATE: ${{ needs.build.outputs.arch2_publish_date }}
-      ARCH2_VERSION_BUMP: ${{ needs.build.outputs.arch2_version_bump }}
 
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Verify live site
         run: |
@@ -212,27 +198,6 @@ jobs:
           done
           echo "Live site did not verify after Pages deployment."
           exit 1
-
-      - name: Persist release metadata
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if ! gh variable set ARCH2_CURRENT_VERSION --body "$ARCH2_VERSION" --repo "$GITHUB_REPOSITORY"; then
-            echo "::warning::Could not update ARCH2_CURRENT_VERSION with the workflow token. Set it manually to $ARCH2_VERSION."
-          fi
-          if [[ "$ARCH2_VERSION_BUMP" != "skip" ]]; then
-            if git rev-parse "$ARCH2_VERSION" >/dev/null 2>&1; then
-              if [[ "$(git rev-list -n 1 "$ARCH2_VERSION")" != "$GITHUB_SHA" ]]; then
-                echo "Tag $ARCH2_VERSION already exists on a different commit."
-                exit 1
-              fi
-            else
-              git config user.name "github-actions[bot]"
-              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-              git tag -a "$ARCH2_VERSION" "$GITHUB_SHA" -m "Architecture 2.0 $ARCH2_VERSION"
-              git push origin "$ARCH2_VERSION"
-            fi
-          fi
 
       - name: Summarize deployment
         run: |
