@@ -3,7 +3,9 @@ from __future__ import annotations
 import datetime as dt
 import shutil
 import subprocess
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 import yaml
@@ -23,6 +25,17 @@ from tools.validate_registries import (
 
 def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+class _FragmentAuditParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.attributes: list[tuple[str, str | None]] = []
+        self.tags: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.tags.append(tag)
+        self.attributes.extend(attrs)
 
 
 def test_registry_contracts_and_generated_indexes_are_current() -> None:
@@ -107,6 +120,106 @@ def test_archived_workshop_cannot_retain_submission_link(tmp_path: Path) -> None
 
 def test_awesome_is_generated_from_registry() -> None:
     assert OUTPUT_PATH.read_text(encoding="utf-8") == render()
+
+
+@pytest.mark.skipif(shutil.which("quarto") is None, reason="Quarto is not installed")
+def test_tool_template_escapes_untrusted_registry_text_and_links(
+    tmp_path: Path,
+) -> None:
+    template_source = ROOT / "tools" / "_tool-card.ejs.md"
+    template = template_source.read_text(encoding="utf-8")
+    assert "<%-" not in template
+
+    (tmp_path / "_tool-card.ejs.md").write_text(template, encoding="utf-8")
+    (tmp_path / "_quarto.yml").write_text(
+        "project:\n  type: website\n  output-dir: _site\nformat: html\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "index.qmd").write_text(
+        """---
+title: Tool escaping test
+listing:
+  - id: tool-registry
+    contents: tools.yml
+    template: _tool-card.ejs.md
+    fields: [title, url, description, authors, institution, submitted_by, artifact_availability, last_verified, categories, tags]
+    field-required: [title, url, description, artifact_availability, categories]
+---
+
+:::{#tool-registry}
+:::
+""",
+        encoding="utf-8",
+    )
+    payloads = [
+        {
+            "title": 'Bad"><script>alert("title")</script>',
+            "url": 'https://example.com/tool/" autofocus onfocus="alert(1)',
+            "description": "<img src=x onerror=alert(2)>",
+            "authors": "<b onmouseover=alert(3)>Injected author</b>",
+            "institution": "<svg onload=alert(4)>",
+            "submitted_by": "<iframe srcdoc='<script>alert(5)</script>'>",
+            "artifact_availability": 'runnable" onclick="alert(6)',
+            "last_verified": "2026-07-10</span><script>alert(7)</script>",
+            "categories": ['Simulation"><img src=x onerror=alert(8)>'],
+            "tags": ['tag"><svg onload=alert(9)>'],
+        },
+        {
+            "title": "Unsafe scheme",
+            "url": "javascript:alert(10)",
+            "description": "Scheme should be rejected.",
+            "artifact_availability": "source_available",
+            "categories": ["Simulation"],
+            "tags": [],
+        },
+    ]
+    (tmp_path / "tools.yml").write_text(
+        yaml.safe_dump(payloads, sort_keys=False), encoding="utf-8"
+    )
+
+    rendered = subprocess.run(
+        ["quarto", "render"],
+        cwd=tmp_path,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert rendered.returncode == 0, rendered.stdout + rendered.stderr
+    html = (tmp_path / "_site" / "index.html").read_text(encoding="utf-8")
+    card_fragments = [
+        f'<article class="tool-card {fragment.split("</article>", 1)[0]}</article>'
+        for fragment in html.split('<article class="tool-card ')[1:]
+    ]
+    assert len(card_fragments) == 2
+
+    audit = _FragmentAuditParser()
+    audit.feed("".join(card_fragments))
+    assert not {"script", "img", "svg", "iframe", "b"}.intersection(audit.tags)
+    assert not any(name.startswith("on") for name, _ in audit.attributes)
+    assert not any(name in {"autofocus", "srcdoc"} for name, _ in audit.attributes)
+
+    hrefs = [value for name, value in audit.attributes if name == "href"]
+    assert len(hrefs) == 2
+    assert hrefs[1] == "#"
+    assert urlparse(hrefs[0] or "").scheme == "https"
+    assert "autofocus" in (hrefs[0] or "")
+    open_labels = [
+        value
+        for name, value in audit.attributes
+        if name == "aria-label" and (value or "").startswith("Open Bad")
+    ]
+    assert open_labels == ['Open Bad"><script>alert("title")</script>']
+    assert 'href="javascript:' not in html
+    assert "availability-runnable&quot;" not in html
+    assert "availability-unverified" in html
+    for escaped in (
+        "&lt;script&gt;",
+        "&lt;img",
+        "&lt;b",
+        "&lt;svg",
+        "&lt;iframe",
+    ):
+        assert escaped in html
 
 
 @pytest.mark.skipif(shutil.which("quarto") is None, reason="Quarto is not installed")
