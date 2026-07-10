@@ -12,8 +12,10 @@ canonical YAML and Markdown templates, the JSON Schema, and examples for Levels
 0 through 3. Validate a completed card from a repository clone.
 
 ```bash
-python3 -m pip install -r requirements-card.txt
-./arch2 validate card path/to/card.yaml
+python3 -m venv .venv-card
+.venv-card/bin/python -m pip install pip==26.1.2
+.venv-card/bin/python -m pip install -r requirements-card.txt
+.venv-card/bin/python cli/arch2.py validate card path/to/card.yaml
 ```
 
 The schema rejects unknown contract versions and fields. Conformance levels are
