@@ -22,6 +22,10 @@ def _():
 
     from arch2_labs.scale_env import run_example
     from arch2_labs.decisions import record_human_decision
+    from arch2_labs.presentation import (
+        render_objective_summary,
+        render_receipt_validation,
+    )
     from arch2_labs.validators import validate_receipt
 
     return (
@@ -31,6 +35,8 @@ def _():
         json,
         mo,
         record_human_decision,
+        render_objective_summary,
+        render_receipt_validation,
         run_example,
         tempfile,
         timezone,
@@ -226,35 +232,21 @@ def _(mo, predicted, real_ratio):
         You predicted **{picked or "—"}**; the truth is about **{real_ratio}×**.
         {"You had the right instinct." if close else "The realized speedup is far below the proxy's promise."}
 
-        **Name the mechanism (self-explanation).** The proxy divides by PE *count*,
-        which silently assumes every PE does useful work. A 64×64 array on a workload
-        with a 32-row layer leaves most rows idle, so utilization collapses and the
-        realized speedup is a fraction of the promised one. The roofline column shows
-        the 64×64 is **memory-bound** here: its extra PEs cannot be fed, so they cannot
-        pay off.
+        **Name the measured mechanism (self-explanation).** The proxy divides by PE
+        *count*, which silently assumes every PE does useful work. A 64×64 array on a
+        workload with a 32-row layer leaves rows idle, so mapping and utilization make
+        the measured speedup a fraction of the proxy's promise. The roofline label is a
+        separate analytic warning derived from access counts and declared bandwidth.
+        SCALE-Sim 3.0.0 does not model bandwidth stalls in this configuration, so the
+        label is not evidence that memory stalls caused the measured cycle gap.
         """
     )
     return
 
 
 @app.cell
-def _(ledger, mo):
-    obj = ledger["objective_rankings"]
-    mo.md(
-        f"""
-        ### No single metric owns the commitment
-
-        The 64×64 wins **latency** (`{obj['min_latency_us']['candidate_id']}`),
-        **energy** (`{obj['min_energy_uj']['candidate_id']}`), and
-        **EDP** (`{obj['min_edp']['candidate_id']}`). It loses only on the stated
-        **silicon budget** (it needs 4096 PEs against a 1024-PE budget), so the loop's
-        hard gates reject it on *cost* and the survivor is
-        **`{obj['gate_survivor']}`** — the best design you can actually afford.
-
-        The proxy was not simply wrong; it overstated the prize *and* was blind to the
-        budget. Before you name a winner you must state which objective governs.
-        """
-    )
+def _(ledger, mo, render_objective_summary):
+    mo.md(render_objective_summary(ledger))
     return
 
 
@@ -294,6 +286,15 @@ def _(ledger, mo):
         label="**Rationale** (required)",
         rows=2,
     )
+    objective_override = mo.ui.checkbox(
+        value=False,
+        label="**Override objective winner**",
+    )
+    override_reason = mo.ui.text_area(
+        placeholder="Why should another gate passer override the selected objective?",
+        label="**Override reason** (required only for an override)",
+        rows=2,
+    )
     residual_risk = mo.ui.text_area(
         placeholder="What material uncertainty remains after this simulator run?",
         label="**Residual risk** (required)",
@@ -312,6 +313,8 @@ def _(ledger, mo):
             level,
             human_owner,
             rationale,
+            objective_override,
+            override_reason,
             residual_risk,
             would_overturn,
             submit,
@@ -321,7 +324,9 @@ def _(ledger, mo):
         choice,
         human_owner,
         level,
+        objective_override,
         objective,
+        override_reason,
         rationale,
         residual_risk,
         submit,
@@ -335,11 +340,15 @@ def _(
     datetime,
     human_owner,
     level,
+    ledger,
     mo,
     objective,
+    objective_override,
+    override_reason,
     rationale,
     receipt_dir,
     record_human_decision,
+    render_receipt_validation,
     residual_risk,
     submit,
     timezone,
@@ -355,6 +364,11 @@ def _(
         residual_risk.value.strip(),
         would_overturn.value.strip(),
     ]
+    expected_candidate = (
+        ledger["objective_rankings"].get(objective.value, {}).get("candidate_id")
+        if objective.value
+        else None
+    )
     if not submit.value or not all(required):
         _out = mo.md(
             "*Complete every decision field and record your decision to finish.*"
@@ -365,28 +379,41 @@ def _(
             "RTL, signoff, or product commitment. Lower the commitment level to match "
             "the evidence."
         )
-    else:
-        record_human_decision(
-            receipt_dir,
-            {
-                "schema_version": "arch2-human-decision/v0.1",
-                "lab_id": "scale_proxy_mirage",
-                "human_owner": human_owner.value.strip(),
-                "authored_at": datetime.now(timezone.utc).isoformat(),
-                "selected_candidate_id": choice.value,
-                "governing_objective": objective.value,
-                "commitment_level": level.value,
-                "rationale": rationale.value.strip(),
-                "residual_risk": residual_risk.value.strip(),
-                "would_overturn": would_overturn.value.strip(),
-            },
-        )
-        errors = validate_receipt(receipt_dir)
+    elif choice.value != expected_candidate and not objective_override.value:
         _out = mo.md(
-            "✅ **Receipt valid.** Your explicit objective, candidate choice, rationale, "
-            "and commitment are now persisted separately from the machine "
-            f"recommendation.\n\nValidator: `{errors or 'ok'}`."
+            "🛑 **Objective mismatch.** Your candidate is not the gate-filtered winner "
+            "for the selected objective. Choose that winner or record a justified override."
         )
+    elif choice.value == expected_candidate and objective_override.value:
+        _out = mo.md(
+            "🛑 **Override not needed.** Your choice already matches the selected "
+            "objective's gate-filtered winner."
+        )
+    elif objective_override.value and not override_reason.value.strip():
+        _out = mo.md("🛑 **Override reason required.** Explain the human override.")
+    else:
+        try:
+            record_human_decision(
+                receipt_dir,
+                {
+                    "schema_version": "arch2-human-decision/v0.2",
+                    "lab_id": "scale_proxy_mirage",
+                    "human_owner": human_owner.value.strip(),
+                    "authored_at": datetime.now(timezone.utc).isoformat(),
+                    "selected_candidate_id": choice.value,
+                    "governing_objective": objective.value,
+                    "objective_override": objective_override.value,
+                    "override_reason": override_reason.value.strip() or None,
+                    "commitment_level": level.value,
+                    "rationale": rationale.value.strip(),
+                    "residual_risk": residual_risk.value.strip(),
+                    "would_overturn": would_overturn.value.strip(),
+                },
+            )
+            errors = validate_receipt(receipt_dir)
+        except ValueError as exc:
+            errors = [str(exc)]
+        _out = mo.md(render_receipt_validation(errors))
     _out
     return
 
@@ -403,9 +430,10 @@ def _(dedent, mo):
     What is the *smallest* change to the brief (workload, budget, or objective)
     that would flip the survivor?
 
-    *SCALE-Sim v2 idealizes memory (it does not stall on bandwidth). This lab
-    therefore teaches proxy overstatement and objective conflict, not memory
-    stalls. A later lab red-teams that idealization directly.*
+    *SCALE-Sim 3.0.0 does not model bandwidth stalls in this configuration. This
+    lab therefore teaches proxy overstatement through mapping/utilization and
+    objective conflict. The roofline result is a separate analytic warning, not
+    a causal explanation of the simulator's measured cycles.*
     """
         ).strip()
     )

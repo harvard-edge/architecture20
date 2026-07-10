@@ -44,7 +44,7 @@ AREA_PER_SRAM_KB_MM2 = 0.007
 ESTIMATE_SOURCES = {
     "per_op_energy": "Horowitz, Computing's Energy Problem, ISSCC 2014 (45 nm, order-of-magnitude)",
     "method": "Accelergy-style linear access-count model (Wu/Emer/Sze, ICCAD 2019); SCALE-Sim v3 uses the same layering",
-    "access_counts": "SCALE-Sim v2 DETAILED_ACCESS_REPORT (Samajdar et al., ISPASS 2020)",
+    "access_counts": "SCALE-Sim 3.0.0 DETAILED_ACCESS_REPORT (Samajdar et al., ISPASS 2020)",
     "roofline": "Williams, Waterman, Patterson, Roofline, CACM 2009",
     "unmodeled": "NoC/interconnect energy, static/leakage energy, and real DRAM controller behavior are omitted",
 }
@@ -109,8 +109,9 @@ def roofline(
     """Classify a candidate as compute- or memory-bound (Williams et al., 2009).
 
     OI = FLOPs / off-chip bytes. Ridge = peak compute / peak DRAM bandwidth. A
-    config whose OI sits left of the ridge cannot be fed fast enough, so more PEs
-    are wasted; that is the mechanistic reason a big array shows low utilization.
+    A config whose OI sits left of the ridge has analytic memory-pressure risk.
+    This classification does not explain SCALE-Sim cycles or utilization because
+    the lab configuration does not model bandwidth stalls.
     """
     b = BYTES_PER_ELEMENT[precision]
     flops = 2 * macs

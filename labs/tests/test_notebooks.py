@@ -34,7 +34,11 @@ def test_proxy_lab_persists_explicit_learner_decision() -> None:
     source = Path("examples/scale_proxy_mirage/lab.py").read_text()
 
     assert "record_human_decision" in source
+    assert "render_objective_summary" in source
+    assert "render_receipt_validation" in source
     assert '"selected_candidate_id": choice.value' in source
     assert '"governing_objective": objective.value' in source
     assert '"rationale": rationale.value.strip()' in source
     assert "Rationale (optional)" not in source
+    assert "gate_survivor" not in source
+    assert "SCALE-Sim v2" not in source
