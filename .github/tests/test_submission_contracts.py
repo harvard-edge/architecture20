@@ -172,6 +172,7 @@ An invalid contract test workshop.
                 step for step in steps if step["name"] == "Create pull request"
             )
             self.assertEqual(checkout["with"]["ref"], "dev")
+            self.assertFalse(checkout["with"]["persist-credentials"])
             self.assertEqual(create_pr["with"]["base"], "dev")
 
 
