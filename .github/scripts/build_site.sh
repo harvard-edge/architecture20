@@ -81,6 +81,7 @@ if [[ -d _site/tools ]]; then
   find _site/tools -name '*.html' -print0 | xargs -0 perl -0pi -e '
     s#href="\./book/#href="../book/#g;
     s#href="\./about\.html"#href="../about.html"#g;
+    s#href="\./start\.html"#href="../start.html"#g;
     s#href="\./readings\.html"#href="../readings.html"#g;
     s#href="\./workshops\.html"#href="../workshops.html"#g;
     s#href="\./submit\.html"#href="../submit.html"#g;
@@ -90,6 +91,13 @@ if [[ -d _site/tools ]]; then
     s#href="\./images/#href="../images/#g;
     s#class="navbar-brand" href="\./index\.html"#class="navbar-brand" href="../index.html"#g;
   '
+
+  if grep -R -n -E \
+    'href="\./(about|start|readings|workshops|submit|submit-resource|submit-workshop)\.html"' \
+    _site/tools; then
+    echo "error: assembled tool pages retain root-relative navigation links" >&2
+    exit 1
+  fi
 fi
 
 echo "==> Site assembled in ./_site"
