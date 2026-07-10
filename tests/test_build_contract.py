@@ -9,6 +9,19 @@ import cli.arch2 as arch2_cli
 runner = CliRunner()
 
 
+def test_release_render_restores_version_source(tmp_path) -> None:
+    version_tex = tmp_path / "version.tex"
+    original = "\\def\\ArchTwoReleaseVersion{Preview development build}\n"
+    version_tex.write_text(original)
+
+    with arch2_cli._temporary_version_tex(version_tex, "Preview v1.2.3+gabcdef1"):
+        assert version_tex.read_text() == (
+            "\\def\\ArchTwoReleaseVersion{Preview v1.2.3+gabcdef1}\n"
+        )
+
+    assert version_tex.read_text() == original
+
+
 def test_tool_subsite_rewrites_all_root_navigation_targets() -> None:
     build_script = (
         arch2_cli.ROOT / ".github" / "scripts" / "build_site.sh"

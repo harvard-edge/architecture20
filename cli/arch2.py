@@ -13,10 +13,11 @@ import sys
 import tempfile
 import zipfile
 import html as html_lib
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 import typer
 from rich.console import Console
@@ -4203,6 +4204,21 @@ def _render_book_navbar() -> None:
         raise typer.Exit(proc.returncode)
 
 
+@contextmanager
+def _temporary_version_tex(path: Path, preview_label: str) -> Iterator[None]:
+    original = path.read_bytes() if path.exists() else None
+    path.write_text(
+        f"\\def\\ArchTwoReleaseVersion{{{preview_label}}}\n", encoding="utf-8"
+    )
+    try:
+        yield
+    finally:
+        if original is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(original)
+
+
 def _clean_latex_scratch(keep_logs: bool) -> None:
     """Remove LaTeX scratch files left in the book directory after a PDF render."""
     if keep_logs:
@@ -4275,14 +4291,12 @@ def _render_one(
     preview_label = (
         f"Preview {release_version}" if release_version else "Preview development build"
     )
-    version_tex.write_text(
-        f"\\def\\ArchTwoReleaseVersion{{{preview_label}}}\n", encoding="utf-8"
-    )
     publish_date = os.environ.get("ARCH2_PUBLISH_DATE", "").strip()
     if publish_date:
         cmd.extend(["-M", f"date:{publish_date}"])
     console.print(f"[cyan]rendering[/cyan] {' '.join(cmd)}")
-    proc = _run(cmd, cwd=ROOT, env=env, capture=True)
+    with _temporary_version_tex(version_tex, preview_label):
+        proc = _run(cmd, cwd=ROOT, env=env, capture=True)
     transcript = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
     log_path = _record_log("render", transcript)
 
