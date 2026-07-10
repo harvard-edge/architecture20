@@ -1,10 +1,24 @@
 # Contributing to Architecture 2.0
 
-Architecture 2.0 is built in the open as a community resource: a synthesis
-lecture, a living tool registry, workshop tracking, and the shared datasets,
-benchmarks, and practices that make AI-assisted architecture research
-reproducible. Contributions of all sizes are welcome. Please also read our
-[Code of Conduct](CODE_OF_CONDUCT.md).
+Architecture 2.0 is a public research and teaching project built around a
+synthesis lecture, a versioned design-loop card, and maintainer-reviewed
+registries. Contributions of all sizes are welcome. Please also read our [Code
+of Conduct](CODE_OF_CONDUCT.md).
+
+## Use or extend the design-loop card
+
+The [30-minute start workflow](https://arch2.mlsysbook.ai/start.html) links the
+canonical YAML and Markdown templates, the JSON Schema, and examples for Levels
+0 through 3. Validate a completed card from a repository clone.
+
+```bash
+python3 -m pip install -r requirements-card.txt
+./arch2 validate card path/to/card.yaml
+```
+
+The schema rejects unknown contract versions and fields. Conformance levels are
+cumulative, so a card must satisfy every lower level before claiming a higher
+one.
 
 ## Ways to contribute
 
@@ -25,7 +39,9 @@ design loop, or agentic workflow?
    evidence, limitations, and artifact status. The public card shows the concise
    summary, credit, category, and tags; the rest is preserved in the source
    artifact record.
-4. On submit, an automated check parses the form and opens a pull request adding
+4. New submissions enter as `unverified`. A maintainer records the observed
+   artifact availability and verification date only after checking the links.
+5. On submit, an automated check parses the form and opens a pull request adding
    one source file under `tools/registry/` and regenerating `tools/tools.yml`.
    A maintainer reviews it for fit and category, then merges. It appears on the
    site shortly after.
@@ -45,7 +61,7 @@ physical design, or agent workflow infrastructure.
 You can validate the registry locally with:
 
 ```bash
-PYTHONPATH=.github/scripts python .github/scripts/validate_catalog.py
+./arch2 validate registries
 ```
 
 ### Add a workshop or venue
@@ -55,8 +71,8 @@ Architecture 2.0, ML for systems, agentic AI, or AI-assisted computer
 architecture?
 
 1. Open the [Submit a workshop](https://arch2.mlsysbook.ai/submit-workshop.html) page.
-2. Fill in the workshop name, website, venue or host, date, primary topic, and a
-   short description.
+2. Fill in the workshop name, website, venue or host, start and end dates,
+   primary topic, and a short description.
 3. Optionally add location, organizers, institutions, CFP/submission URL, and
    deadline so the card is useful to potential submitters.
 4. The workflow opens a pull request adding one source file under
@@ -65,7 +81,7 @@ architecture?
 Validate the workshop registry locally with:
 
 ```bash
-PYTHONPATH=.github/scripts python .github/scripts/validate_workshops.py
+./arch2 validate registries
 ```
 
 ### Add a reading or resource
@@ -103,6 +119,15 @@ and files issues automatically.
 The site is three Quarto projects (`www/`, `tools/`, `book/`) assembled into one:
 
 ```bash
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+CI uses Python 3.11.15 and Quarto 1.9.36. The reviewed Linux dependency
+resolution is recorded in `constraints/py311-linux.txt`; local environments may
+resolve platform-specific wheels from the direct requirements.
+
+```bash
 # Landing page + registries only (fast, no LaTeX needed):
 SKIP_BOOK=1 .github/scripts/build_site.sh
 python3 -m http.server 8757 --directory _site   # then open http://localhost:8757/
@@ -123,11 +148,15 @@ Rendering the book requires the `arch2` CLI and a LaTeX toolchain; a full build 
 
 ## Branch and release flow
 
-- `dev` is the integration branch. Every push to `dev` runs the pre-commit gate,
-  registry validation, and fast site render.
+- `dev` is the integration branch. Every push to `dev` runs the pre-commit and
+  root test gates, registry validation, site renders, the full book build, and
+  the Python 3.10/3.11 lab matrix.
 - `main` is the release branch. Updating `main` runs the same pre-commit gate
   first, then performs the full site/book build and GitHub Pages publish.
 - Do not promote `dev` to `main` until the `Validate site` workflow is green.
+- An exact `vMAJOR.MINOR.PATCH` tag is the only stable release identity. Untagged
+  builds carry the current commit ID as `vMAJOR.MINOR.PATCH+g<sha>` and remain
+  development previews. Keep `CITATION.cff` aligned with the latest release tag.
 - Local pre-commit and GitHub preflight intentionally run the same hooks:
 
 ```bash
