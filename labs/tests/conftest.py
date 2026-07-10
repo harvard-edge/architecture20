@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -8,6 +9,25 @@ import pytest
 
 from arch2_labs.receipts import sha256_file
 from arch2_labs.scale_env import run_example
+
+LAB_TEST_ROOT = Path(__file__).resolve().parent
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    if (3, 10) <= sys.version_info[:2] < (3, 12):
+        return
+    unsupported = pytest.mark.skip(
+        reason=(
+            "arch2-labs supports Python >=3.10,<3.12; "
+            f"current interpreter is {sys.version_info.major}.{sys.version_info.minor}"
+        )
+    )
+    for item in items:
+        try:
+            Path(item.path).resolve().relative_to(LAB_TEST_ROOT)
+        except ValueError:
+            continue
+        item.add_marker(unsupported)
 
 
 def _fake_scalesim_run(

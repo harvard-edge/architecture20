@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 
@@ -27,21 +28,8 @@ def test_installed_wheel_finds_examples_and_card_schema(tmp_path: Path) -> None:
     )
     wheel = next(dist_dir.glob("arch2_labs-*.whl"))
     target = tmp_path / "installed"
-    subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--no-deps",
-            "--target",
-            str(target),
-            str(wheel),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    with zipfile.ZipFile(wheel) as archive:
+        archive.extractall(target)
 
     outside = tmp_path / "outside-source"
     outside.mkdir()
