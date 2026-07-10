@@ -9,9 +9,9 @@ design_loop_card:
     non_goals:
     - Authorize tapeout, integration, or post-layout performance claims.
     risks:
-    - Architecture simulation may hide timing and routing effects.
+    - The illustrative estimator omits memory, timing, and routing effects.
     claim_boundary:
-      claim: The 32x8 array has enough workload-level evidence to justify an RTL experiment.
+      claim: The 32x8 array has enough evidence on the declared synthetic layer set to justify an RTL experiment.
       non_claim: The 32x8 array improves post-layout performance or energy.
   task: dse
   design_space:
@@ -30,9 +30,9 @@ design_loop_card:
     writes:
     - Utilization and cycle estimates.
     uncertainties:
-    - Simulator results omit physical-design effects.
+    - The illustrative estimator omits memory and physical-design effects.
   environment:
-    environment_id: scale-sim-v3.0.0-fixed-os
+    environment_id: arch2-illustrative-array-estimator-v1.0.0
     actions:
     - Select one legal array shape.
     invalid_actions:
@@ -41,23 +41,23 @@ design_loop_card:
     observations:
     - Estimated cycles.
     - Processing-element utilization.
-    fidelity: simulation
+    fidelity: proxy
   method_role:
     roles:
     - predict
     - critique
     actor_map:
     - actor_id: loop-analyst
-      role: Select candidates and summarize simulator evidence.
+      role: Select candidates and summarize estimator evidence.
       reads:
-      - Simulator summaries.
+      - Replayable estimator packets.
       writes:
       - Candidate recommendation.
       authority: May propose, but cannot authorize, the next experiment.
     - actor_id: design-reviewer
       role: Review claim scope and rejection evidence.
       reads:
-      - Simulator summaries.
+      - Replayable estimator packets.
       - Negative traces.
       writes:
       - Review disposition.
@@ -66,7 +66,7 @@ design_loop_card:
     evaluations: 2
     latency: Under one minute per evaluation.
     cost: One local CPU process.
-    fidelity: Architecture simulation.
+    fidelity: Deterministic illustrative compute estimate.
     model_side_cost:
       model_calls: 0
       gpu_hours: 0
@@ -75,36 +75,36 @@ design_loop_card:
   evidence:
     baseline_id: array-16x16
     records:
-    - evidence_id: scale-sim-summary-16x16
-      kind: simulator summary
-      workload_id: resnet-conv-layer-set-v1
+    - evidence_id: illustrative-array-summary-16x16
+      kind: deterministic estimator replay packet
+      workload_id: illustrative-conv-layer-set-v1
       seed: deterministic
       provenance:
-        tool_version: SCALE-Sim 3.0.0
-        parameter_hash: sha256:ed7f987becd32da9ff0c108d03c522598d38326af2f8a2648023de22f0582ed1
-        source_uri: evidence/scale-sim-summary-16x16.json
-    - evidence_id: scale-sim-summary-32x8
-      kind: simulator summary
-      workload_id: resnet-conv-layer-set-v1
+        tool_version: Architecture 2.0 illustrative array estimator 1.0.0
+        parameter_hash: sha256:070e5378e5f57dd99b3c852fef462eeb6d072ca85ebea49ed630f59d5e20d421
+        source_uri: evidence/illustrative-array-summary-16x16.json
+    - evidence_id: illustrative-array-summary-32x8
+      kind: deterministic estimator replay packet
+      workload_id: illustrative-conv-layer-set-v1
       seed: deterministic
       provenance:
-        tool_version: SCALE-Sim 3.0.0
-        parameter_hash: sha256:a2723358051c6b69ff19b8df27d9e25c751fe8f071b29c05e357e80b65f33e3b
-        source_uri: evidence/scale-sim-summary-32x8.json
+        tool_version: Architecture 2.0 illustrative array estimator 1.0.0
+        parameter_hash: sha256:e47a47951fe79d73728f8ecfbf8f70a595592afbe886de74ffe8d1350399007b
+        source_uri: evidence/illustrative-array-summary-32x8.json
   negative_traces:
   - candidate_id: array-32x8
-    reason: Utilization regressed on narrow layers.
-    stage: architecture simulation
+    reason: Processing-element utilization regressed on the row-narrow-wide layer.
+    stage: illustrative deterministic estimate
     gate: workload-level utilization comparison
   rejection_authority:
     gates:
     - Independent review of per-layer utilization and cycle evidence.
     independent_of_producer: true
-    independence_basis: The design reviewer did not select the candidate or produce the simulator summary.
+    independence_basis: The design reviewer did not select the candidate or produce the estimator packet.
   commitment_boundary:
     level: experimental
     strongest_supported_claim: Run one bounded RTL experiment for the 32x8 candidate.
-    would_overturn: A replay mismatch or a representative workload regression against the baseline.
+    would_overturn: A replay mismatch or a regression on an added workload inside the claim scope.
   human_decision:
     owner: Accelerator architecture lead.
     authorizes: One RTL experiment; no integration or product commitment.

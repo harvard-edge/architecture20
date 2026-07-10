@@ -10,6 +10,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "publish-site.yml"
+VALIDATE_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "validate.yml"
+REPLAY_ASSETS = (
+    "examples/design-loop-cards/replay.py",
+    "examples/design-loop-cards/workloads/illustrative-conv-layer-set-v1.json",
+    "examples/design-loop-cards/evidence/illustrative-array-summary-16x16.json",
+    "examples/design-loop-cards/evidence/illustrative-array-summary-32x8.json",
+)
 
 
 def run_git(cwd: Path, *args: str) -> str:
@@ -27,12 +34,35 @@ class PublishSiteContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.workflow = yaml.safe_load(WORKFLOW_PATH.read_text())
+        cls.validate_workflow = yaml.safe_load(VALIDATE_WORKFLOW_PATH.read_text())
         guard_steps = cls.workflow["jobs"]["publish_guard"]["steps"]
         cls.guard_script = next(
             step["run"]
             for step in guard_steps
             if step["name"] == "Authorize publish ref"
         )
+
+    def test_replay_packet_assets_are_required_in_source_and_publish_payload(
+        self,
+    ) -> None:
+        source_steps = self.validate_workflow["jobs"]["render"]["steps"]
+        source_script = next(
+            step["run"]
+            for step in source_steps
+            if step["name"] == "Validate public artifact sources"
+        )
+        publish_steps = self.workflow["jobs"]["build"]["steps"]
+        publish_script = next(
+            step["run"]
+            for step in publish_steps
+            if step["name"] == "Validate Pages payload"
+        )
+
+        for relative_path in REPLAY_ASSETS:
+            self.assertIn(f"test -f {relative_path}", source_script)
+            self.assertIn(f"test -f _site/{relative_path}", publish_script)
+        self.assertNotIn("scale-sim-summary", source_script)
+        self.assertNotIn("scale-sim-summary", publish_script)
 
     def run_guard(
         self, cwd: Path, ref: str, revision: str
