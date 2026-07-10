@@ -69,6 +69,7 @@ class DependencyContractTests(unittest.TestCase):
         self.assertIn('"hatchling==1.31.0"', install)
         self.assertIn("--no-build-isolation", install)
         self.assertIn('-c "${{ matrix.constraints }}"', install)
+        self.assertNotIn(' -e ".[dev,notebook]"', install)
         self.assertIn("python -m pip check", install)
 
         build = next(
