@@ -118,12 +118,15 @@ and files issues automatically.
 
 ## Building the site locally
 
-The site is three Quarto projects (`www/`, `tools/`, `book/`) assembled into one:
+The site is three Quarto projects (`www/`, `tools/`, `book/`) assembled into one.
+Install Quarto 1.9.36 separately and make `quarto` available on `PATH`. Then
+create and activate the Python environment:
 
 ```bash
 python3.11 -m venv .venv
 .venv/bin/python -m pip install pip==26.1.2
 .venv/bin/python -m pip install -r requirements.txt
+source .venv/bin/activate
 ```
 
 CI uses Python 3.11.15 and Quarto 1.9.36. The reviewed Linux dependency

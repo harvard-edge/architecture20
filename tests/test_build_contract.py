@@ -28,6 +28,14 @@ def test_tool_subsite_rewrites_all_root_navigation_targets() -> None:
     assert "assembled tool pages retain root-relative navigation links" in build_script
 
 
+def test_local_build_guide_activates_its_documented_environment() -> None:
+    guide = (arch2_cli.ROOT / "CONTRIBUTING.md").read_text()
+    activation = guide.index("source .venv/bin/activate")
+    build = guide.index("SKIP_BOOK=1 .github/scripts/build_site.sh")
+    assert activation < build
+    assert "Quarto 1.9.36" in guide[:build]
+
+
 def test_build_help_matches_standard_artifact_contract() -> None:
     result = runner.invoke(arch2_cli.app, ["build", "--help"])
     assert result.exit_code == 0, result.output
