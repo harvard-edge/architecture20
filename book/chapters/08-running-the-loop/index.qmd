@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Jan L. A. van de Snepscheut, a prominent computer scientist, humorously captured the gap between theoretical models and real-world execution. In this chapter, we see this play out as we trace an illustrative end-to-end loop turn where an accelerator looks like a massive winner in a fast proxy ("theory"), but fails once a simulation-stage estimate charges data movement ("practice").
+**Author's Note:** Jan L. A. van de Snepscheut, a prominent computer scientist, humorously captured the gap between theoretical models and real-world execution. This chapter uses a constructed end-to-end loop turn in which a stronger estimate is deliberately assigned costs that overturn a proxy winner. The companion SCALE-Sim lab returns a different outcome, which is the point of keeping an illustrative trace separate from empirical evidence.
 :::
 
 ```{=latex}
@@ -23,9 +23,12 @@ The previous chapters defined the parts of a credible loop, but a list of parts 
 This chapter turns the crank. It takes the lighthouse
 prompt, bounds it to a task small enough to run, and walks the loop through
 candidate instantiation, prediction, escalation, rejection, and commitment.
-Every number here is illustrative and generated in code, not measured; the
-lesson is the shape of the loop, not the values. Replace them with local source
-receipts before using this pattern for an empirical claim.
+Every number here is illustrative and generated in code, not measured. The
+values are chosen to construct a proxy reversal so the chapter can expose the
+mechanics of escalation, rejection, and commitment in one compact turn. They do
+not establish that data movement reverses this ranking for XRBench, these three
+organizations, or any named simulator. Replace them with local source receipts
+before using this pattern for an empirical claim.
 @sec-loop-patterns-across-stack supplies one measured deployment-facing case for
 the same receipt discipline, while this chapter remains deliberately synthetic.
 It teaches the loop mechanics on a bounded hardware slice, not evidence that
@@ -38,8 +41,8 @@ case with no invented numbers at all.
 Read the chapter as a calibration exercise for the whole book. Earlier chapters
 named the card fields one at a time. This chapter asks whether those names
 change how a reader handles a plausible AI answer. The test is whether the
-reader can watch a candidate win a cheap proxy, lose when stronger evidence
-charges the missing cost, and still see progress because the loop preserved the
+reader can watch a candidate win a cheap proxy, lose under a constructed
+stronger-evidence stage, and still see progress because the loop preserved the
 reason for rejection.
 
 Bounding the task comes first. "Design a low-power XR compute subsystem" is not
@@ -58,6 +61,15 @@ AI-assisted architecture loop may propose, what feedback it may trust, and what
 residue it must leave for a human owner.
 
 [^fn-arch-xrbench-class]: This chapter uses "XRBench-class" to mean a workload slice modeled on the XRBench benchmark family [@KwonEtAl2023XRBench], not measured XRBench results, which is why every number in the worked turn is illustrative rather than a benchmark score.
+
+::: {.callout-field-note title="Let the evidence choose the lesson"}
+The companion SCALE-Sim lab, a runnable systolic-array exercise in the project
+repository, does not reproduce this chapter's constructed energy reversal. Its
+tool-produced result instead exposes proxy overstatement and a multiobjective
+tradeoff among latency, utilization, and hardware budget. That disagreement is
+useful. A real loop must report the lesson its evidence supports rather than
+choose values that force a predetermined rejection.
+:::
 
 The active slice of the lighthouse prompt grounds this trace (@tbl-active-lighthouse-slice).
 Everything outside the slice is not ignored; it is explicitly deferred to the
@@ -129,9 +141,9 @@ The AI-assisted loop records the proxy ranking and escalates.
 
 ## Round Two: Escalate to a Simulation-Stage Estimate
 
-To advance beyond the proxy's blind spots, an illustrative simulation-stage
-estimate is the first stage that charges memory *traffic*. The exact tool is not
-the lesson. This stage is a stronger environment contract. It prices *data
+To advance beyond the proxy's blind spots, a constructed simulation-stage
+estimate assigns the first memory-*traffic* charge. The exact values and tool
+are not the lesson. This stage represents a stronger environment contract. It prices *data
 movement*, returns latency, energy, and power observations with provenance and
 cost, and has authority to overturn proxy rankings before commitment. Its power
 column is frame energy divided by the candidate's active compute time, a simple
@@ -148,8 +160,9 @@ simulation (e.g., FireSim) [@KarandikarEtAl2018FireSim].
 It is
 slower and scarcer than the proxy. In this toy turn all three candidates are
 escalated because proxy feedback has no final rejection authority. The result
-is the central lesson of the chapter. The candidate that wins the cheap screen
-does not survive the stage that charges *data movement* (@tbl-worked-loop).
+is the chapter's central mechanics demonstration. By construction, the candidate
+that wins the cheap screen does not survive the stronger stage
+(@tbl-worked-loop).
 
 ```{python}
 #| output: asis
@@ -193,7 +206,7 @@ for c in candidates:
 lines.append("")
 lines.append(
     ": **One illustrative loop turn on the lighthouse prompt.** the lowest-energy candidate "
-    f"at proxy fidelity is the {proxy_pick.lower()}, but an illustrative simulation-stage estimate and the "
+    f"at proxy fidelity is the {proxy_pick.lower()}, but a constructed simulation-stage estimate and the "
     f"{deadline_ms:.0f} ms / {power_budget_w:.0f} W gates reject it, and the {survivor.lower()} is the only "
     f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
     "envelope. Values are illustrative and computed in the chunk; active-window power is frame energy over active compute time, a screen rather than a signoff TDP verdict. {#tbl-worked-loop}"
@@ -203,11 +216,10 @@ print("\n".join(lines))
 
 In this illustrative three-candidate slice, the
 intentionally separated accelerator stress case that won on the proxy fails under the
-simulation-stage estimate. Once data
-movement across the system interconnect (e.g., a Network-on-Chip router fabric or an AXI bus, a standard on-chip communication protocol) is charged, its energy rises above every alternative and its latency
-loses most of its lead. The shared-memory SoC block absorbs the same charge
-with little damage because its traffic stays inside the tightly-coupled on-chip hierarchy it
-shares with the CPU, so the proxy's blind spot was never subsidizing it. The
+constructed simulation-stage estimate. The assigned values model a case where
+data movement across the system interconnect (e.g., a Network-on-Chip router fabric or an AXI bus, a standard on-chip communication protocol) raises its energy above every alternative and removes most of its latency lead. The shared-memory SoC block is assigned a smaller penalty to represent traffic that stays inside the tightly coupled on-chip hierarchy it
+shares with the CPU. These assignments make proxy mismatch concrete without
+claiming that this ranking was measured. The
 vector extension, which also keeps data local, fails instead on raw throughput
 against the deadline. This is proxy mismatch made concrete (@fig-proxy-mirage), a phenomenon the Roofline model (a visual performance model relating compute, memory bandwidth, and locality) also captures for ML systems [@WilliamsWatermanPatterson2009Roofline]. The loop was
 optimizing the *measurement* it could see (arithmetic), not the *objective* it cared about (end-to-end latency and energy). The stronger simulation-stage rejection gate prices communication. The
@@ -218,9 +230,9 @@ rediscover it.
 ```{python}
 #| label: fig-proxy-mirage
 #| fig-cap: |
-#|   **The proxy ranking is a mirage.** The candidate with the lowest proxy energy, the intentionally separated accelerator stress case, becomes worst within this candidate set once the simulation-stage estimate charges data movement, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The energy values are the same illustrative, computed numbers as @tbl-worked-loop.
+#|   **A constructed proxy ranking becomes a mirage.** The candidate with the lowest proxy energy, the intentionally separated accelerator stress case, becomes worst within this illustrative candidate set after the stronger stage assigns a data-movement penalty, and the 8\ ms / 3\ W gates reject it. The shared-memory SoC block, second on the proxy, is the only organization that clears both the real-time deadline and the power envelope. The values are the same constructed, computed numbers as @tbl-worked-loop, not measurements from the companion lab.
 #| out-width: "82%"
-#| fig-alt: "Grouped comparison plot showing that proxy energy ranking reverses when an illustrative simulation-stage estimate and power constraints are applied."
+#| fig-alt: "Grouped comparison plot showing a constructed example in which proxy energy ranking reverses after an assigned data-movement penalty and power constraints are applied."
 
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style
@@ -264,7 +276,7 @@ for spine in ["top", "right"]:
 ax.legend(loc="upper left", fontsize=5.9, frameon=False, handlelength=1.4)
 add_note_box(
     fig,
-    "Lowest proxy energy is not best end-to-end; interface and data movement reorder the ranking.",
+    "In this constructed case, interface and data-movement penalties reorder the proxy ranking.",
     xywh=(0.11, 0.035, 0.78, 0.10),
     fontsize=5.6,
 )
@@ -302,7 +314,7 @@ Read the first two rows of @tbl-worked-loop-ledger as feedback stages and the th
 
 ## Round Three: Reject on the Envelope
 
-Beyond simply reordering candidates, the simulation-stage estimate also exposes harder physical gates. The loosely coupled
+Beyond simply reordering candidates, the constructed simulation-stage estimate also exposes harder physical gates. The loosely coupled
 accelerator does not merely lose on energy; in this constructed setting, its
 symptoms point to one possible cause the next evidence stage would have to verify.
 Reaching the accelerator means moving data across an *interface* to off-chip or
@@ -342,7 +354,7 @@ accelerator, or SoC block" choice and its interface cost.
 **Deferred evidence.** Compiler and runtime, RTL, thermal, physical-design, and
 verification and reliability evidence are deferred to the next stage.
 
-**Takeaway.** In the Lighthouse loop, a proposed accelerator is not a faster box attached
+**Takeaway.** In this constructed Lighthouse turn, a proposed accelerator is not a faster box attached
 to the side; it is an interface, memory-system, software-path, and power claim.
 Once *data movement* across that *interface* misses the deadline and crosses the
 envelope, the local *arithmetic* win the automation found no longer matters.
@@ -413,7 +425,7 @@ loop can state what it did and what would reject it.
 | **Method role** | Seed candidates, predict cheap proxy scores, escalate all candidates because the proxy has no final rejection authority, and critique proxy wins against stronger feedback. |
 | **Feedback budget** | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
 | **Evidence** | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. |
-| **Negative traces** | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after the illustrative estimate exposes data movement. |
+| **Negative traces** | The vector CPU extension misses the latency deadline; the loosely coupled accelerator misses the latency deadline and exceeds the power envelope after the constructed estimate assigns a data-movement penalty. |
 | **Rejection authority** | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
 | **Commitment boundary / would overturn** | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, memory-consistency/coherence, and stronger power evidence. |
 | **Human decision** | Advance the shared-memory SoC block to RTL-level study and keep the other two candidates as negative traces. |
