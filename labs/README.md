@@ -13,7 +13,9 @@ Use Python 3.11. SCALE-Sim 3.0.0 currently runs cleanly here with `numpy<2`.
 ```bash
 cd labs
 python3.11 -m venv ../.venv
-../.venv/bin/python -m pip install -r requirements.txt
+../.venv/bin/python -m pip install \
+  -r requirements.txt \
+  -c constraints/py311-linux.txt
 ../.venv/bin/python -m arch2_labs.scale_env \
   --example scale_proxy_mirage \
   --out /tmp/arch2_proxy_mirage_receipt

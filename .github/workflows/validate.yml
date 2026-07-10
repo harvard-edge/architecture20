@@ -265,7 +265,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10.20", "3.11.15"]
+        include:
+          - python-version: "3.10.20"
+            constraints: constraints/py310-linux.txt
+          - python-version: "3.11.15"
+            constraints: constraints/py311-linux.txt
     steps:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -275,14 +279,19 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: labs/pyproject.toml
+          cache-dependency-path: |
+            labs/pyproject.toml
+            labs/${{ matrix.constraints }}
 
       - name: Install source and test dependencies
         working-directory: labs
         run: |
           bash ../.github/scripts/bootstrap_pip.sh
-          python -m pip install build
-          python -m pip install -e ".[dev,notebook]"
+          python -m pip install -c "${{ matrix.constraints }}" "hatchling==1.31.0"
+          python -m pip install --no-build-isolation \
+            -c "${{ matrix.constraints }}" \
+            -e ".[dev,notebook]"
+          python -m pip check
 
       - name: Run lab tests and notebook checks
         working-directory: labs
@@ -295,16 +304,18 @@ jobs:
 
       - name: Build distribution artifacts
         working-directory: labs
-        run: python -m build
+        run: python -m build --no-isolation
 
       - name: Smoke-test installed wheel outside the checkout
         run: |
           wheel="$(find "$PWD/labs/dist" -name '*.whl' -print -quit)"
           test -n "$wheel"
+          constraints="$PWD/labs/${{ matrix.constraints }}"
           smoke_dir="$(mktemp -d)"
           python -m venv "$smoke_dir/venv"
           bash .github/scripts/bootstrap_pip.sh "$smoke_dir/venv/bin/python"
-          "$smoke_dir/venv/bin/python" -m pip install "$wheel"
+          "$smoke_dir/venv/bin/python" -m pip install -c "$constraints" "$wheel"
+          "$smoke_dir/venv/bin/python" -m pip check
           cd "$smoke_dir"
           decision_file="$("$smoke_dir/venv/bin/python" - <<'PY'
           from arch2_labs.scale_env import example_dir
