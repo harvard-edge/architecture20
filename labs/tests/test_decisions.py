@@ -149,3 +149,21 @@ def test_justified_objective_override_is_persisted(draft_receipt: Path) -> None:
     )
 
     assert validate_receipt(draft_receipt) == []
+
+
+def test_objective_override_reason_cannot_launder_overclaim(
+    draft_receipt: Path,
+) -> None:
+    before = _snapshot(draft_receipt)
+
+    with pytest.raises(ValueError, match="appears to overclaim in override_reason"):
+        record_human_decision(
+            draft_receipt,
+            _decision(
+                "balanced_16x16",
+                override=True,
+                override_reason="Advance this candidate to RTL.",
+            ),
+        )
+
+    assert _snapshot(draft_receipt) == before

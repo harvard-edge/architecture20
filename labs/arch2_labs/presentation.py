@@ -39,8 +39,8 @@ def render_receipt_validation(errors: list[str]) -> str:
     if errors:
         details = "\n".join(f"- `{error}`" for error in errors)
         return (
-            "🛑 **Receipt invalid.** The decision was recorded, but the receipt "
-            f"failed validation.\n\n{details}"
+            "🛑 **Receipt invalid.** The decision could not be completed or the "
+            f"resulting receipt failed validation.\n\n{details}"
         )
     return (
         "✅ **Receipt valid.** Your explicit objective, candidate choice, rationale, "

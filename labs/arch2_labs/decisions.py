@@ -96,7 +96,7 @@ def decision_errors(data: Any) -> list[str]:
         errors.append("decision.yaml override_reason is required for an override")
     if override is False and override_reason not in (None, ""):
         errors.append("decision.yaml override_reason requires objective_override: true")
-    for field in ("rationale", "residual_risk", "would_overturn"):
+    for field in ("rationale", "residual_risk", "would_overturn", "override_reason"):
         value = data.get(field)
         if not isinstance(value, str):
             continue
