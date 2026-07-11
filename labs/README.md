@@ -43,18 +43,20 @@ simulator-backed activity, lives with its packaged example:
 
 Every activity begins with retrieval and a submitted prediction. Evidence stays
 hidden until the required response is complete. Later activities inspect or
-produce cards, evidence ledgers, negative traces, environment records, and loop
-receipts. The Chapter 8 activity is a separate real-tool exercise. It does not
+produce cards, supporting evidence records, failed-run and rejected-alternative
+records, environment records, and runnable receipts. The Chapter 8 activity is a separate real-tool exercise. It does not
 replace the book's constructed lighthouse example, and its measured outcome is
 allowed to differ.
 
 ## Receipt Workflow
 
-The simulator runner deliberately stops after generating a Level 2 draft. A
-learner must inspect the machine recommendation and evidence, supply an explicit
-human decision, and then validate the completed receipt. The interactive Lab 06
-and Lab 08 activities guide that process and provide the completed artifact for
-review.
+For this course exercise, the simulator runner deliberately stops after
+generating a Level 2 draft. A learner must inspect the machine recommendation
+and evidence, supply an explicit accountable decision, and then validate the
+completed Level 3 receipt. The interactive Lab 06 and Lab 08 activities guide
+that process and provide the completed artifact for review. Requiring Level 3 is
+the exercise's submission rule, not a claim that every low-consequence loop
+needs independent review or a Level 3 card.
 
 The command-line equivalent is useful for instructors and reproducibility jobs:
 
@@ -70,14 +72,15 @@ The command-line equivalent is useful for instructors and reproducibility jobs:
   /tmp/arch2_proxy_mirage_receipt
 ```
 
-`human_decision.example.yaml` is a named course-staff fixture for automated
+`human_decision.example.yaml` uses the released v1.1 compatibility key and is a named course-staff fixture for automated
 reproduction. It is not the learner assignment and must not be presented as the
 learner's judgment.
 
-A complete receipt contains a hash-sealed manifest, canonical design-loop card,
+A complete course receipt contains a hash-sealed manifest, canonical design-loop card,
 environment contract, candidates, raw simulator provenance and output hashes,
-an evidence ledger, negative traces, a noncommitting machine recommendation,
-and separate human-owned decision records. Validation checks receipt integrity,
+a supporting evidence record (stored as `evidence_ledger.json` for compatibility),
+failed-run and rejected-alternative records, a noncommitting machine recommendation,
+and a separate accountable decision record. Validation checks receipt integrity,
 cross-record candidate identities, supported commitment levels, and the
 separation between recommendation and decision.
 

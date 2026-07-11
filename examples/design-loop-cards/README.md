@@ -8,13 +8,13 @@ on its own.
 | **Level** | **What the example adds** |
 | --- | --- |
 | **0, context** | Intent, task, and legal, invalid, and deferred design choices. |
-| **1, auditable** | Representation, environment, actor map, feedback budget, evidence, and a negative trace. |
-| **2, replayable** | Stable IDs, a workload and seed, tool version, parameter digest, and replay source. |
-| **3, independently rejectable** | Independent rejection authority, a commitment boundary, and a named human owner. |
+| **1, auditable card** | Representation, environment, actor map, feedback budget, evidence, and a failed-run or rejected-alternative entry. |
+| **2, replay bindings present** | Stable IDs, a workload and seed, tool version, parameter digest, and replay source. |
+| **3, independence and decision fields present** | Claimed independent rejection authority, a commitment boundary, and a named accountable owner. |
 
 Conformance level, evidence fidelity, and commitment are separate judgments. A
 Level 3 card can still contain proxy evidence, as this example does. A stronger
-human commitment needs stronger evidence; it does not follow from the presence
+commitment needs stronger evidence; it does not follow from the presence
 of more fields. Disclosure and method autonomy are separate review constraints
 too.
 
@@ -62,8 +62,8 @@ These synthetic packets teach schema progression, provenance, and replay in a
 small deterministic setting. They do not replace empirical lab work with
 tool-produced evidence. Continue with the
 [simulator-backed Architecture 2.0 labs](https://github.com/harvard-edge/arch2/tree/main/labs)
-to generate evidence, inspect raw outputs, preserve negative traces, and submit
-a loop receipt for review.
+to generate evidence, inspect raw outputs, preserve failed runs and rejected
+alternatives, and submit a runnable receipt for review.
 
 The fixture progression and the real labs serve different teaching roles.
 Neither replaces Chapter 8's constructed lighthouse example, which remains the

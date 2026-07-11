@@ -62,7 +62,7 @@ def _(dedent, mo):
 
         > **Recap.** A tool may recommend a candidate, but it does not own the
         > commitment. The receipt must keep objective rankings, machine
-        > recommendation, declared rejections, and the human decision separate. A
+        > recommendation, declared rejections, and the accountable decision separate. A
         > different gate-passing choice requires an explicit, justified override.
         """
         ).strip()
@@ -92,7 +92,9 @@ def _(mo, warmup):
             "*Choose the answer that includes evidence, decision ownership, and validation.*"
         ),
     )
-    mo.md("The receipt is complete only after the human decision is recorded.")
+    mo.md(
+        "For this exercise, the receipt is complete only after the accountable decision is recorded."
+    )
     warmup_unlocked = True
     return (warmup_unlocked,)
 
@@ -227,7 +229,7 @@ def _(
             mo.md(render_objective_summary(ledger)),
             mo.md(
                 f"The draft records `{run_snapshot['machine_recommendation']}` as a "
-                "machine recommendation. That recommendation is not yet a human decision."
+                "machine recommendation. That recommendation is not yet an accountable decision."
             ),
         ]
     )
@@ -242,7 +244,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
 
     def validate_decision(value):
         if value is None:
-            return "Complete the human decision."
+            return "Complete the accountable decision."
         required = [
             value.get("objective"),
             value.get("choice"),
@@ -284,7 +286,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
                 label="**Human choice.** Which gate-passing candidate advances?",
             ),
             "human_owner": mo.ui.text(
-                label="**Human decision owner** (required)",
+                label="**Accountable decision owner** (required)",
                 placeholder="Your name or accountable review role",
             ),
             "rationale": mo.ui.text_area(
@@ -313,7 +315,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
         }
     ).form(
-        submit_button_label="Record my human decision",
+        submit_button_label="Record my accountable decision",
         clear_on_submit=False,
         validate=validate_decision,
     )
@@ -334,7 +336,7 @@ def _(
 ):
     mo.stop(
         decision_form.value is None,
-        mo.md("*Submit the human decision to complete the receipt.*"),
+        mo.md("*Submit the accountable decision to complete the receipt.*"),
     )
     decision_snapshot = dict(decision_form.value)
     try:
@@ -414,7 +416,7 @@ def _(
                 "### Complete, Validated Receipt\n\n"
                 "The ZIP contains the hash-sealed replay receipt and its manifest-bound "
                 "Lab 08 activity record. The receipt keeps the machine recommendation "
-                "and human decision separate."
+                "and accountable decision separate."
             ),
             mo.download(
                 data=archive_buffer.getvalue(),

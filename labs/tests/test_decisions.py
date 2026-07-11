@@ -90,7 +90,7 @@ def test_decision_module_attaches_decision_to_intact_draft(
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "human decision recorded" in completed.stdout
+    assert "accountable decision recorded" in completed.stdout
     assert validate_receipt(draft_receipt) == []
 
 
@@ -103,7 +103,7 @@ def test_decision_module_help_is_discoverable() -> None:
     )
 
     assert completed.returncode == 0
-    assert "Attach an explicit human decision" in completed.stdout
+    assert "Attach an explicit accountable decision" in completed.stdout
     assert "receipt_dir" in completed.stdout
     assert "decision_file" in completed.stdout
 

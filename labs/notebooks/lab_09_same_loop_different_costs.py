@@ -295,7 +295,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
 
     def validate_decision(value):
         if value is None:
-            return "Complete the budget policy and human decision."
+            return "Complete the budget policy and accountable decision."
         required = [
             value.get("budget_policy"),
             value.get("objective"),
@@ -351,7 +351,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
                 label="**Human choice.** Which gate-passing candidate advances?",
             ),
             "human_owner": mo.ui.text(
-                label="**Human decision owner** (required)",
+                label="**Accountable decision owner** (required)",
                 placeholder="Your name or accountable review role",
             ),
             "rationale": mo.ui.text_area(
@@ -380,7 +380,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
         }
     ).form(
-        submit_button_label="Record budget policy and human decision",
+        submit_button_label="Record budget policy and accountable decision",
         clear_on_submit=False,
         validate=validate_decision,
     )
@@ -401,7 +401,9 @@ def _(
 ):
     mo.stop(
         decision_form.value is None,
-        mo.md("*Submit the budget policy and human decision to complete the receipt.*"),
+        mo.md(
+            "*Submit the budget policy and accountable decision to complete the receipt.*"
+        ),
     )
     decision_snapshot = dict(decision_form.value)
     try:
@@ -481,7 +483,7 @@ def _(
             mo.md(
                 "### Complete Budgeted-Turn Receipt\n\n"
                 "The ZIP preserves the fixed baseline, both incremental runs, declared "
-                "rejections, objective rankings, human decision, and the manifest-bound "
+                "rejections, objective rankings, accountable decision, and the manifest-bound "
                 "Lab 09 activity record."
             ),
             mo.download(

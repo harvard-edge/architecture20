@@ -48,29 +48,23 @@ DEFAULT_LOOP_CONCEPTS = (
     "design-loop card",
     "feedback budget",
     "fidelity ladder",
-    "evidence ledger",
     "rejection authority",
-    "negative traces",
     "world model",
     "environment",
     "method role",
     "commitment boundary",
     "lighthouse prompt",
-    "ArchOps",
 )
 
 DISCLOSURE_GATED_CONCEPTS = (
     "design-loop card",
     "feedback budget",
     "fidelity ladder",
-    "evidence ledger",
     "rejection authority",
-    "negative traces",
     "world model",
     "method role",
     "commitment boundary",
     "lighthouse prompt",
-    "ArchOps",
 )
 
 console = Console()
@@ -3829,7 +3823,9 @@ def _concept_occurrences(
         for line_number_, line in enumerate(
             path.read_text(encoding="utf-8").splitlines(), start=1
         ):
-            if pattern.search(line):
+            visible_line = QUARTO_REF_RE.sub("", line)
+            visible_line = QUARTO_LABEL_RE.sub("", visible_line)
+            if pattern.search(visible_line):
                 occurrences.append((path, line_number_, line.strip()))
     return occurrences
 

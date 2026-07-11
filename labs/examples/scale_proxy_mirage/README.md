@@ -14,9 +14,9 @@ proxy winner is genuinely fast, but the loop rejects it because it exceeds the
 declared 1024-PE mobile silicon budget. Utilization and roofline are kept as
 diagnostics, not hidden hard gates.
 
-The receipt makes the split between agent, environment, rejector, and human
-owner concrete. The environment can reject candidates, but the final memo still
-belongs to the human.
+The receipt makes the split between agent, environment, rejector, and
+accountable decision owner concrete. The environment can reject candidates,
+but the final memo still belongs to the declared owner.
 
 ## Run
 
@@ -40,7 +40,8 @@ their own objective, candidate choice, rationale, residual risk, and overturn
 condition.
 
 The first command produces a draft receipt with a Level 2 card. It does not create
-`decision.yaml` or `decision.md`, and the validator reports that a human decision
-is still required. `arch2_labs.decisions` verifies every draft hash and record
+`decision.yaml` or `decision.md`, and the validator reports that this exercise's
+accountable decision is still required. `arch2_labs.decisions` verifies every draft hash and record
 before writing, then upgrades the canonical card to Level 3. It will not revise a
-completed receipt. Lab-only teaching state remains under `x-arch2-labs`.
+completed receipt. Requiring Level 3 is the course submission rule, not a
+universal completeness rule. Lab-only teaching state remains under `x-arch2-labs`.

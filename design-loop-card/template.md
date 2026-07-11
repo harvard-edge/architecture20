@@ -12,9 +12,9 @@
 
 **Non-goals:**
 
-**Claim:**
+**Claim (optional):**
 
-**Non-claim:**
+**Non-claim (optional):**
 
 ## Task
 
@@ -36,10 +36,10 @@
 
 ## Evidence
 
-## Negative Traces
+## Failed Runs and Rejected Alternatives (`negative_traces`)
 
 ## Rejection Authority
 
 ## Commitment Boundary and What Would Overturn It
 
-## Human Decision
+## Accountable Decision (`human_decision`)

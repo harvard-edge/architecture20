@@ -13,7 +13,7 @@ run independently from its chapter recap.
 | [03](lab_03_score_a_claim.py) | Ch3, Score a Claim | audit | 20 min | Claim-review record naming missing evidence and rejection conditions |
 | [04](lab_04_represent_and_replay.py) | Ch4, Represent and Replay | simulator audit | 25 min | Replayability audit of a generated draft receipt |
 | [05](lab_05_environment_contract.py) | Ch5, Environment Contract | simulator | 25 min | Legal or refused action plus a provenance-bearing environment record |
-| [06](../examples/scale_proxy_mirage/lab.py) | Ch6, Proxy Versus Evidence | simulator anchor | 45 min | Completed and validated loop receipt with a human decision |
+| [06](../examples/scale_proxy_mirage/lab.py) | Ch6, Proxy Versus Evidence | simulator anchor | 45 min | Completed and validated runnable receipt with an accountable decision |
 | [07](lab_07_earned_trust.py) | Ch7, Earned Trust | simulator red team | 30 min | Orthogonal feasibility check for an environment blind spot |
 | [08](lab_08_run_the_loop.py) | Ch8, Run the Loop | simulator capstone | 45 min | Completed receipt and self-assessed commitment decision |
 | [09](lab_09_same_loop_different_costs.py) | Ch9, Same Loop at Different Costs | feedback-budget exercise | 25 min | Budget-allocation receipt audit and cheap-first gate decision |

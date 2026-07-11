@@ -78,7 +78,7 @@ def decision_errors(data: Any) -> list[str]:
         and data.get("schema_version") != HUMAN_DECISION_SCHEMA_VERSION
     ):
         errors.append(
-            f"unsupported human decision schema: {data.get('schema_version')}"
+            f"unsupported accountable-decision schema: {data.get('schema_version')}"
         )
     level = data.get("commitment_level")
     if level and level not in SUPPORTED_COMMITMENT_LEVELS:
@@ -139,9 +139,9 @@ def load_human_decision(
         try:
             data = yaml.safe_load(source.read_text())
         except (OSError, yaml.YAMLError) as exc:
-            raise ValueError(f"could not read human decision: {source}") from exc
+            raise ValueError(f"could not read accountable decision: {source}") from exc
         if not isinstance(data, Mapping):
-            raise ValueError("human decision file must contain a mapping")
+            raise ValueError("accountable decision file must contain a mapping")
         return parse_human_decision(data)
     return parse_human_decision(source)
 
@@ -152,9 +152,9 @@ def render_decision(decision: HumanDecision) -> str:
         if decision.objective_override
         else ""
     )
-    return f"""# Human Decision
+    return f"""# Accountable Decision
 
-Human owner: {decision.human_owner}
+Accountable owner: {decision.human_owner}
 
 Authored at: {decision.authored_at}
 
@@ -204,7 +204,7 @@ def _record_decision_in_card(receipt_dir: Path, decision: HumanDecision) -> None
                     "Reject candidates above the 90000-cycle workload deadline.",
                 ],
                 "independent_of_producer": True,
-                "independence_basis": "The fixed area and deadline gates execute independently of the machine recommendation and the human decision.",
+                "independence_basis": "The fixed area and deadline checks execute independently of the machine recommendation and the accountable decision.",
             },
             "commitment_boundary": {
                 "level": "experimental",
@@ -244,7 +244,7 @@ def record_human_decision(
     receipt_dir: Path,
     source: Path | Mapping[str, Any] | HumanDecision,
 ) -> HumanDecision:
-    """Persist an explicit human decision and reseal an existing draft receipt."""
+    """Persist an explicit accountable decision and reseal an existing draft receipt."""
     receipt_dir = receipt_dir.absolute()
     from arch2_labs.validators import validate_decision_draft
 
@@ -252,7 +252,7 @@ def record_human_decision(
     decision = load_human_decision(source)
     if decision.lab_id != manifest.get("lab_id"):
         raise ValueError(
-            "human decision lab_id does not match the receipt: "
+            "accountable decision lab_id does not match the receipt: "
             f"{decision.lab_id} != {manifest.get('lab_id')}"
         )
 
@@ -260,7 +260,7 @@ def record_human_decision(
     candidate_ids = {record.get("candidate_id") for record in candidates}
     if decision.selected_candidate_id not in candidate_ids:
         raise ValueError(
-            "human decision selected_candidate_id is not a declared candidate: "
+            "accountable decision selected_candidate_id is not a declared candidate: "
             f"{decision.selected_candidate_id}"
         )
     rejected_ids = {
@@ -269,7 +269,7 @@ def record_human_decision(
     }
     if decision.selected_candidate_id in rejected_ids:
         raise ValueError(
-            "human decision selects a candidate rejected by a declared gate: "
+            "accountable decision selects a candidate rejected by a declared check: "
             f"{decision.selected_candidate_id}"
         )
 
@@ -280,13 +280,13 @@ def record_human_decision(
     )
     if not expected_candidate:
         raise ValueError(
-            "human decision objective has no gate-filtered ranking: "
+            "accountable decision objective has no check-filtered ranking: "
             f"{decision.governing_objective}"
         )
     differs = decision.selected_candidate_id != expected_candidate
     if differs and not decision.objective_override:
         raise ValueError(
-            "human decision differs from the governing objective winner; set "
+            "accountable decision differs from the governing objective winner; set "
             "objective_override: true and provide override_reason"
         )
     if not differs and decision.objective_override:
@@ -315,7 +315,7 @@ def record_human_decision(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Attach an explicit human decision to an intact Architecture 2.0 "
+            "Attach an explicit accountable decision to an intact Architecture 2.0 "
             "Level 2 draft receipt."
         )
     )
@@ -327,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"ERROR: {exc}")
         return 1
-    print(f"human decision recorded: {args.receipt_dir.resolve()}")
+    print(f"accountable decision recorded: {args.receipt_dir.resolve()}")
     return 0
 
 

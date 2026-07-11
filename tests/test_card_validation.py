@@ -179,10 +179,10 @@ def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
         "Method role",
         "Feedback budget",
         "Evidence",
-        "Negative traces",
+        "Failed / rejected",
         "Rejection authority",
         "Commitment boundary",
-        "Human decision",
+        "Accountable decision",
     ]
     svg = svg_path.read_text(encoding="utf-8")
     assert "constraint violations" in svg
@@ -214,7 +214,7 @@ def test_appendix_b_distinguishes_fixtures_labs_and_level_0_drafting() -> None:
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     assert "Synthetic card example" in appendix
-    assert "Runnable SCALE-Sim lab" in appendix
+    assert "Separate runnable SCALE-Sim lab" in appendix
     assert "https://github.com/harvard-edge/arch2/blob/main/labs/README.md" in appendix
     assert "30-minute Level 0 workflow" in appendix
     assert "Draft and validate context and boundaries" in appendix
@@ -232,15 +232,15 @@ def test_appendix_b_does_not_treat_logs_or_crashes_as_proof() -> None:
     assert "enough to prove you explored the space" not in appendix
 
 
-def test_appendix_b_keeps_card_ledger_and_receipt_contained() -> None:
+def test_appendix_b_keeps_card_evidence_and_receipt_contained() -> None:
     appendix = (
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     normalized = re.sub(r"\s+", " ", appendix)
     assert "card is a compact summary and index" in normalized
-    assert "Detailed observations belong in a separate evidence ledger" in normalized
+    assert "Detailed observations belong in a supporting evidence record" in normalized
     assert "belong in a replay receipt" in normalized
-    assert "Shareable Evidence View" in normalized
+    assert "The review rubric separates support from polish" in normalized
     assert "card acts as a shareable evidence ledger" not in normalized
     assert 'do not need separate "claim cards" or "evidence ledgers"' not in normalized
 

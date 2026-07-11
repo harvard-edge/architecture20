@@ -93,8 +93,8 @@ def _(mo, warmup_unlocked):
         ## The task
 
         The lab will run the checked-in SCALE-Sim example and produce its current Level 2
-        draft receipt. A Level 2 card binds replay material, but the draft still awaits a
-        human decision. You will inspect the packet before deciding what it supports.
+        draft receipt. A Level 2 card binds replay material, but this exercise's draft still awaits an
+        accountable decision. You will inspect the packet before deciding what it supports.
         """
     )
     brief_ready = True
@@ -243,7 +243,7 @@ def _(binding_audit, mo, prediction_snapshot):
         | Candidate | `{binding_audit['candidate_id']}` |
         | Command | `{' '.join(str(part) for part in binding_audit['command'])}` |
         | Raw outputs with hashes | {len(binding_audit['raw_outputs'])} |
-        | Negative traces | {binding_audit['negative_trace_count']} |
+        | Failed / rejected records | {binding_audit['negative_trace_count']} |
 
         **Input integrity bindings**
 
@@ -272,7 +272,7 @@ def _(audit_revealed, mo):
 
     commitment_form = mo.ui.dropdown(
         options=[
-            "Evidence-bearing Level 2 draft with replay bindings; replay is not attempted and the human decision is pending.",
+            "Evidence-bearing Level 2 draft with replay bindings; replay is not attempted and the accountable decision is pending.",
             "Independently reproduced result ready for implementation.",
             "No evidence exists because the receipt is not yet complete.",
         ],
@@ -296,7 +296,7 @@ def _(commitment_form, mo):
         not commitment_form.value.startswith("Evidence-bearing Level 2 draft"),
         mo.md(
             "That status collapses evidence, replay, and commitment. The packet carries "
-            "evidence and replay bindings, but no replay result or human decision."
+            "evidence and replay bindings, but no replay result or accountable decision."
         ),
     )
     packet_status = commitment_form.value
