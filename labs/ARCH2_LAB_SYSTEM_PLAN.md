@@ -1,6 +1,9 @@
 # Architecture 2.0 Lab System Plan
 
-Status: planning artifact for the `feat/arch2-labs-plan` worktree.
+This document is design history. The authoritative learner sequence and current
+run instructions live in `notebooks/README.md` and `README.md`. This document
+keeps the implementation rationale and should not be used as a release-status
+list.
 
 This plan sketches an Architecture 2.0 lab system that borrows the strongest
 MLSysBook lab patterns while preserving the core Architecture 2.0 thesis. The

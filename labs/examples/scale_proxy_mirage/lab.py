@@ -6,9 +6,11 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    import io
     import json
     import sys
     import tempfile
+    import zipfile
     from datetime import datetime, timezone
     from pathlib import Path
     from textwrap import dedent
@@ -32,6 +34,7 @@ def _():
         Path,
         datetime,
         dedent,
+        io,
         json,
         mo,
         record_human_decision,
@@ -41,6 +44,7 @@ def _():
         tempfile,
         timezone,
         validate_receipt,
+        zipfile,
     )
 
 
@@ -49,18 +53,19 @@ def _(dedent, mo):
     mo.md(
         dedent(
             """
-    # Lab: Proxy vs Evidence — the Cheap-Model Trap
+    # Lab 06 · Proxy vs Evidence  ·  Chapter 6 (Method Roles)
 
     **You can, after this lab:** predict what a cheap proxy will say, run a real
-    simulator, measure how far the proxy *overstated* the winner, name the
-    mechanism behind the gap, and commit to a decision that states its governing
-    objective.
+    simulator, measure how far the proxy *overstated* the winner, inspect the
+    evidence and rejection records, and commit to a decision that states its
+    governing objective.
 
     > **Architecture 2.0 recap.** A method's job inside the loop is a *role*:
     > generate, **predict**, optimize, critique. A cheap predictor (proxy) can
-    > rank candidates fast, but its score is only a proxy. A loop is
-    > *rejection-bound*: the scarce work is deciding which ranking to believe
-    > before you commit.
+    > rank candidates fast, but its score is only a proxy. Stronger review can
+    > become rejection-bound only when comparable admitted proposals arrive faster
+    > than trusted dispositions. This four-candidate exercise does not measure
+    > those rates; it tests whether stronger evidence changes what may advance.
     """
         ).strip()
     )
@@ -88,11 +93,13 @@ def _(mo, retrieval):
         mo.md("🔒 *Pick the answer that matches the recap to continue.*"),
     )
     mo.md("✅ Right. A proxy ranks; it does not commit. Keep going.")
-    return
+    warmup_unlocked = True
+    return (warmup_unlocked,)
 
 
 @app.cell
-def _(dedent, mo):
+def _(dedent, mo, warmup_unlocked):
+    assert warmup_unlocked
     mo.md(
         dedent(
             """
@@ -109,333 +116,510 @@ def _(dedent, mo):
     """
         ).strip()
     )
-    return
+    brief_ready = True
+    return (brief_ready,)
 
 
 @app.cell
-def _(mo):
-    predicted = mo.ui.dropdown(
-        options=[
-            "About 16× (the proxy is right)",
-            "About 10–13× (a little less)",
-            "About 6–8× (much less than promised)",
-            "Under 2× (the proxy is badly wrong)",
-        ],
-        label="**Predict.** The proxy says the 64×64 is 16× faster than the 16×16. What will SCALE-Sim measure?",
+def _(brief_ready, mo):
+    assert brief_ready
+
+    def _validate_prediction(value):
+        if value is None or value.get("prediction") is None:
+            return "Select a predicted SCALE-Sim speedup."
+        if value.get("confidence") is None:
+            return "Record your confidence before locking the prediction."
+        if not str(value.get("reason", "")).strip():
+            return "Name a mechanism that could make the proxy wrong."
+        return None
+
+    prediction_form = mo.ui.dictionary(
+        {
+            "prediction": mo.ui.dropdown(
+                options=[
+                    "About 16× (the proxy is right)",
+                    "About 10–13× (a little less)",
+                    "About 6–8× (much less than promised)",
+                    "Under 2× (the proxy is badly wrong)",
+                ],
+                label="**Predict.** The proxy says the 64×64 is 16× faster than the 16×16. What will SCALE-Sim measure?",
+            ),
+            "confidence": mo.ui.dropdown(
+                options={
+                    "Low (25%)": 25,
+                    "Medium (50%)": 50,
+                    "High (75%)": 75,
+                    "Very high (100%)": 100,
+                },
+                label="**Confidence** (required)",
+            ),
+            "reason": mo.ui.text_area(
+                placeholder="One sentence: what mechanism might make the real speedup differ from 16×?",
+                label="**Reason** (required)",
+                rows=2,
+            ),
+        }
+    ).form(
+        submit_button_label="Lock my prediction",
+        clear_on_submit=False,
+        validate=_validate_prediction,
     )
-    confidence = mo.ui.slider(
-        start=0, stop=100, step=5, value=50, label="**Confidence** (%)"
-    )
-    reason = mo.ui.text_area(
-        placeholder="One sentence: what mechanism might make the real speedup differ from 16×?",
-        label="**Reason** (required)",
-        rows=2,
-    )
-    lock = mo.ui.run_button(label="🔒 Lock my prediction")
-    mo.vstack([predicted, confidence, reason, lock])
-    return lock, predicted, reason
+    prediction_form
+    return (prediction_form,)
 
 
 @app.cell
-def _(lock, mo, reason):
+def _(mo, prediction_form):
     mo.stop(
-        not lock.value or not reason.value.strip(),
-        mo.md(
-            "*Make a prediction, give a reason, and click **Lock** to reveal the evidence.*"
-        ),
+        prediction_form.value is None,
+        mo.md("*Submit a prediction, confidence, and reason to continue.*"),
     )
-    mo.md("Prediction locked. Now run the real simulator.")
-    return
+    prediction_snapshot = dict(prediction_form.value)
+    prediction_locked = True
+    mo.md(
+        f"Prediction locked at **{prediction_snapshot['confidence']}% confidence**. "
+        "Now run the real simulator."
+    )
+    return prediction_locked, prediction_snapshot
 
 
 @app.cell
-def _(mo):
-    run = mo.ui.run_button(label="▶ Run SCALE-Sim on all four arrays")
+def _(mo, prediction_locked, prediction_snapshot):
+    assert prediction_locked and prediction_snapshot
+    run = mo.ui.run_button(label="Run SCALE-Sim on all four arrays")
     run
     return (run,)
 
 
 @app.cell
-def _(Path, json, mo, run, run_example, tempfile):
+def _(Path, json, mo, prediction_snapshot, run, run_example, tempfile):
+    assert prediction_snapshot
     mo.stop(not run.value, mo.md("*Click **Run** to execute the simulator.*"))
 
     _out = Path(tempfile.mkdtemp(prefix="arch2_proxy_")) / "receipt"
     summary = run_example("scale_proxy_mirage", _out, force=True)
 
     runs = [
-        json.loads(l)
-        for l in (_out / "runs.jsonl").read_text().splitlines()
-        if l.strip()
+        json.loads(line)
+        for line in (_out / "runs.jsonl").read_text().splitlines()
+        if line.strip()
     ]
-    proxy_rows = {r["candidate_id"]: r for r in runs if r.get("stage") == "proxy"}
-    sim_rows = {
-        r["candidate_id"]: r
-        for r in runs
-        if r.get("stage") == "scalesim" and r.get("status") == "ok"
+    proxy_rows = {
+        record["candidate_id"]: record
+        for record in runs
+        if record.get("stage") == "proxy"
     }
-    ledger = json.loads((_out / "evidence_ledger.json").read_text())
+    sim_rows = {
+        record["candidate_id"]: record
+        for record in runs
+        if record.get("stage") == "scalesim" and record.get("status") == "ok"
+    }
+    ledger_text = (_out / "evidence_ledger.json").read_text()
+    ledger = json.loads(ledger_text)
+    negative_traces = [
+        json.loads(line)
+        for line in (_out / "negative_traces.jsonl").read_text().splitlines()
+        if line.strip()
+    ]
+    provenance_rows = []
+    for record in runs:
+        if record.get("stage") != "scalesim":
+            continue
+        tool = record.get("tool", {})
+        inputs = record.get("inputs", {})
+        outputs = record.get("outputs", {})
+        provenance_rows.append(
+            {
+                "candidate": record["candidate_id"],
+                "tool": f"{tool.get('name', 'unknown')} {tool.get('version', 'unknown')}",
+                "status": record.get("status"),
+                "command": " ".join(record.get("command", [])),
+                "config_sha256": inputs.get("config_sha256", ""),
+                "raw_files": len(outputs.get("raw_files", [])),
+            }
+        )
+
+    card_text = (_out / "card.yaml").read_text()
+    environment_text = (_out / "environment.yaml").read_text()
+    manifest_text = (_out / "manifest.yaml").read_text()
     receipt_dir = _out
-    mo.md(f"Ran {len(sim_rows)} candidates. Receipt at `{receipt_dir}`.")
-    return ledger, proxy_rows, receipt_dir, sim_rows
+    run_complete = True
+    mo.md(
+        f"Ran **{len(sim_rows)} candidates**. Draft status: `{summary['status']}`. "
+        f"Local receipt: `{receipt_dir}`."
+    )
+    return (
+        card_text,
+        environment_text,
+        ledger,
+        ledger_text,
+        manifest_text,
+        negative_traces,
+        provenance_rows,
+        proxy_rows,
+        receipt_dir,
+        run_complete,
+        sim_rows,
+    )
 
 
 @app.cell
-def _(mo, proxy_rows, sim_rows):
-    def _fmt():
+def _(mo, proxy_rows, run_complete, sim_rows):
+    assert run_complete
+
+    def _format_evidence():
         order = ["proxy_hero_64x64", "throughput_32x32", "balanced_16x16", "tiny_8x8"]
         rows = []
-        for cid in order:
-            if cid not in sim_rows:
+        for candidate_id in order:
+            if candidate_id not in sim_rows:
                 continue
-            m = sim_rows[cid]["metrics"]
-            e = sim_rows[cid]["estimates"]
+            metrics = sim_rows[candidate_id]["metrics"]
+            estimates = sim_rows[candidate_id]["estimates"]
             rows.append(
                 {
-                    "candidate": cid,
-                    "proxy_cycles": proxy_rows[cid]["proxy_cycles"],
-                    "sim_cycles": m["total_cycles"],
-                    "min_util_%": round(m["min_layer_util_pct"], 1),
-                    "energy_uJ": e["energy"]["e_total_uj"],
-                    "roofline": e["roofline"]["bound"],
+                    "candidate": candidate_id,
+                    "proxy_cycles": proxy_rows[candidate_id]["proxy_cycles"],
+                    "sim_cycles": metrics["total_cycles"],
+                    "min_util_%": round(metrics["min_layer_util_pct"], 1),
+                    "energy_uJ": estimates["energy"]["e_total_uj"],
+                    "roofline": estimates["roofline"]["bound"],
                 }
             )
         return rows
 
-    big = next(r for r in _fmt() if r["candidate"] == "proxy_hero_64x64")
-    small = next(r for r in _fmt() if r["candidate"] == "balanced_16x16")
+    evidence_rows = _format_evidence()
+    big = next(row for row in evidence_rows if row["candidate"] == "proxy_hero_64x64")
+    small = next(row for row in evidence_rows if row["candidate"] == "balanced_16x16")
     proxy_ratio = round(small["proxy_cycles"] / big["proxy_cycles"], 1)
     real_ratio = round(small["sim_cycles"] / big["sim_cycles"], 1)
 
     mo.vstack(
         [
             mo.md("### The evidence"),
-            mo.ui.table(_fmt(), selection=None),
+            mo.ui.table(evidence_rows, selection=None),
             mo.md(
                 f"**Proxy promised {proxy_ratio}× speedup for the 64×64. "
                 f"SCALE-Sim measured {real_ratio}×.** The proxy overstated by "
-                f"~{round(proxy_ratio / real_ratio, 1)}×."
+                f"about {round(proxy_ratio / real_ratio, 1)}×."
             ),
         ]
     )
-    return (real_ratio,)
+    evidence_revealed = True
+    return evidence_revealed, real_ratio
 
 
 @app.cell
-def _(mo, predicted, real_ratio):
-    # Calibration feedback: score the mental model, not just the number.
-    picked = predicted.value or ""
+def _(evidence_revealed, mo, prediction_snapshot, real_ratio):
+    assert evidence_revealed
+    picked = prediction_snapshot["prediction"]
     close = "6–8×" in picked
     mo.md(
         f"""
         ### Reconcile the surprise
 
-        You predicted **{picked or "—"}**; the truth is about **{real_ratio}×**.
-        {"You had the right instinct." if close else "The realized speedup is far below the proxy's promise."}
+        You predicted **{picked}** at **{prediction_snapshot['confidence']}% confidence**.
+        Your submitted mechanism was: *{prediction_snapshot['reason']}*
 
-        **Name the measured mechanism (self-explanation).** The proxy divides by PE
-        *count*, which silently assumes every PE does useful work. A 64×64 array on a
-        workload with a 32-row layer leaves rows idle, so mapping and utilization make
-        the measured speedup a fraction of the proxy's promise. The roofline label is a
-        separate analytic warning derived from access counts and declared bandwidth.
-        SCALE-Sim 3.0.0 does not model bandwidth stalls in this configuration, so the
-        label is not evidence that memory stalls caused the measured cycle gap.
+        SCALE-Sim measured about **{real_ratio}×**.
+        {"Your predicted range matched the measured result." if close else "The realized speedup is far below the proxy's promise."}
+
+        **The measured mechanism.** The proxy divides by PE *count*, which silently
+        assumes every PE does useful work. A 64×64 array on a workload with a 32-row
+        layer leaves rows idle, so mapping and utilization make the measured speedup a
+        fraction of the proxy's promise. The roofline label is a separate analytic
+        warning derived from access counts and declared bandwidth. SCALE-Sim 3.0.0 does
+        not model bandwidth stalls in this configuration, so the label is not evidence
+        that memory stalls caused the measured cycle gap.
         """
     )
-    return
+    reconciliation_complete = True
+    return (reconciliation_complete,)
 
 
 @app.cell
-def _(ledger, mo, render_objective_summary):
+def _(
+    card_text,
+    environment_text,
+    ledger_text,
+    manifest_text,
+    mo,
+    negative_traces,
+    provenance_rows,
+    reconciliation_complete,
+):
+    assert reconciliation_complete
+    artifact_browser = mo.accordion(
+        {
+            "Design-loop card (Level 2 draft)": mo.md("```yaml\n" + card_text + "```"),
+            "Environment contract": mo.md("```yaml\n" + environment_text + "```"),
+            "Evidence ledger": mo.md("```json\n" + ledger_text + "```"),
+            "Rejected candidates and gates": mo.ui.table(
+                negative_traces, selection=None
+            ),
+            "Run provenance": mo.ui.table(provenance_rows, selection=None),
+            "Hash-sealed draft manifest": mo.md("```yaml\n" + manifest_text + "```"),
+        },
+        multiple=False,
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "### Inspect the receipt before deciding\n\n"
+                "Open each record. The card summarizes the claim, the ledger states "
+                "what each evidence stage supports and omits, negative traces preserve "
+                "declared rejections, provenance binds runs to inputs and outputs, and "
+                "the manifest seals the draft."
+            ),
+            artifact_browser,
+        ]
+    )
+    artifacts_revealed = True
+    return (artifacts_revealed,)
+
+
+@app.cell
+def _(artifacts_revealed, ledger, mo, render_objective_summary):
+    assert artifacts_revealed
     mo.md(render_objective_summary(ledger))
-    return
+    decision_ready = True
+    return (decision_ready,)
 
 
 @app.cell
-def _(ledger, mo):
+def _(decision_ready, ledger, mo):
+    assert decision_ready
     eligible = [
         outcome["candidate_id"]
         for outcome in ledger["candidate_outcomes"]
         if outcome["accepted"]
     ]
-    objective = mo.ui.dropdown(
-        options={
-            "Minimize latency (take the fastest that fits the budget)": "latency_under_declared_gates",
-            "Minimize energy per inference": "energy_under_declared_gates",
-            "Maximize area efficiency (TOPS/mm²)": "area_efficiency_under_declared_gates",
-        },
-        label="**Commit.** Which objective governs this decision?",
-    )
-    choice = mo.ui.dropdown(
-        options=eligible,
-        label="**Human choice.** Which gate-passing candidate do you select?",
-    )
-    level = mo.ui.dropdown(
-        options={
-            "Advance to a next-fidelity study only": "next_fidelity_study",
-            "Advance to RTL": "advance_to_rtl",
-            "Ready for signoff / product": "ready_for_signoff",
-        },
-        label="**Commitment level**",
-    )
-    human_owner = mo.ui.text(
-        placeholder="Your name or accountable review role",
-        label="**Human decision owner** (required)",
-    )
-    rationale = mo.ui.text_area(
-        placeholder="Why does this candidate fit the governing objective and evidence?",
-        label="**Rationale** (required)",
-        rows=2,
-    )
-    objective_override = mo.ui.checkbox(
-        value=False,
-        label="**Override objective winner**",
-    )
-    override_reason = mo.ui.text_area(
-        placeholder="Why should another gate passer override the selected objective?",
-        label="**Override reason** (required only for an override)",
-        rows=2,
-    )
-    residual_risk = mo.ui.text_area(
-        placeholder="What material uncertainty remains after this simulator run?",
-        label="**Residual risk** (required)",
-        rows=2,
-    )
-    would_overturn = mo.ui.text_area(
-        placeholder="What new evidence would change your decision?",
-        label="**Would overturn** (required)",
-        rows=2,
-    )
-    submit = mo.ui.run_button(label="Record my human decision")
-    mo.vstack(
-        [
-            objective,
-            choice,
-            level,
-            human_owner,
-            rationale,
-            objective_override,
-            override_reason,
-            residual_risk,
-            would_overturn,
-            submit,
+
+    def _validate_decision(value):
+        if value is None:
+            return "Complete the human decision."
+        required = [
+            value.get("objective"),
+            value.get("choice"),
+            value.get("level"),
+            str(value.get("human_owner", "")).strip(),
+            str(value.get("rationale", "")).strip(),
+            str(value.get("residual_risk", "")).strip(),
+            str(value.get("would_overturn", "")).strip(),
         ]
+        if not all(required):
+            return "Complete every required decision field."
+        expected_candidate = (
+            ledger["objective_rankings"].get(value["objective"], {}).get("candidate_id")
+        )
+        if value["level"] != "next_fidelity_study":
+            return (
+                "Proxy-plus-one-simulator evidence licenses only a next-fidelity study."
+            )
+        if value["choice"] != expected_candidate and not value["objective_override"]:
+            return "Choose the gate-filtered objective winner or record an explicit override."
+        if value["choice"] == expected_candidate and value["objective_override"]:
+            return "An override is unnecessary when the choice already matches the objective winner."
+        if (
+            value["objective_override"]
+            and not str(value.get("override_reason", "")).strip()
+        ):
+            return "Explain the human objective override."
+        return None
+
+    decision_form = mo.ui.dictionary(
+        {
+            "objective": mo.ui.dropdown(
+                options={
+                    "Minimize latency (take the fastest that fits the budget)": "latency_under_declared_gates",
+                    "Minimize energy per inference": "energy_under_declared_gates",
+                    "Maximize area efficiency (TOPS/mm²)": "area_efficiency_under_declared_gates",
+                },
+                label="**Commit.** Which objective governs this decision?",
+            ),
+            "choice": mo.ui.dropdown(
+                options=eligible,
+                label="**Human choice.** Which gate-passing candidate do you select?",
+            ),
+            "level": mo.ui.dropdown(
+                options={
+                    "Advance to a next-fidelity study only": "next_fidelity_study",
+                    "Advance to RTL": "advance_to_rtl",
+                    "Ready for signoff / product": "ready_for_signoff",
+                },
+                label="**Commitment level**",
+            ),
+            "human_owner": mo.ui.text(
+                placeholder="Your name or accountable review role",
+                label="**Human decision owner** (required)",
+            ),
+            "rationale": mo.ui.text_area(
+                placeholder="Why does this candidate fit the governing objective and evidence?",
+                label="**Rationale** (required)",
+                rows=2,
+            ),
+            "objective_override": mo.ui.checkbox(
+                value=False,
+                label="**Override objective winner**",
+            ),
+            "override_reason": mo.ui.text_area(
+                placeholder="Why should another gate passer override the selected objective?",
+                label="**Override reason** (required only for an override)",
+                rows=2,
+            ),
+            "residual_risk": mo.ui.text_area(
+                placeholder="What material uncertainty remains after this simulator run?",
+                label="**Residual risk** (required)",
+                rows=2,
+            ),
+            "would_overturn": mo.ui.text_area(
+                placeholder="What new evidence would change your decision?",
+                label="**Would overturn** (required)",
+                rows=2,
+            ),
+        }
+    ).form(
+        submit_button_label="Record my human decision",
+        clear_on_submit=False,
+        validate=_validate_decision,
     )
-    return (
-        choice,
-        human_owner,
-        level,
-        objective_override,
-        objective,
-        override_reason,
-        rationale,
-        residual_risk,
-        submit,
-        would_overturn,
-    )
+    decision_form
+    return (decision_form,)
 
 
 @app.cell
 def _(
-    choice,
     datetime,
-    human_owner,
-    level,
-    ledger,
+    decision_form,
     mo,
-    objective,
-    objective_override,
-    override_reason,
-    rationale,
     receipt_dir,
     record_human_decision,
     render_receipt_validation,
-    residual_risk,
-    submit,
     timezone,
     validate_receipt,
-    would_overturn,
 ):
-    required = [
-        objective.value,
-        choice.value,
-        level.value,
-        human_owner.value.strip(),
-        rationale.value.strip(),
-        residual_risk.value.strip(),
-        would_overturn.value.strip(),
-    ]
-    expected_candidate = (
-        ledger["objective_rankings"].get(objective.value, {}).get("candidate_id")
-        if objective.value
-        else None
+    mo.stop(
+        decision_form.value is None,
+        mo.md("*Complete and submit the human decision to continue.*"),
     )
-    if not submit.value or not all(required):
-        _out = mo.md(
-            "*Complete every decision field and record your decision to finish.*"
+    decision_snapshot = dict(decision_form.value)
+    try:
+        record_human_decision(
+            receipt_dir,
+            {
+                "schema_version": "arch2-human-decision/v0.2",
+                "lab_id": "scale_proxy_mirage",
+                "human_owner": str(decision_snapshot["human_owner"]).strip(),
+                "authored_at": datetime.now(timezone.utc).isoformat(),
+                "selected_candidate_id": decision_snapshot["choice"],
+                "governing_objective": decision_snapshot["objective"],
+                "objective_override": decision_snapshot["objective_override"],
+                "override_reason": str(
+                    decision_snapshot.get("override_reason", "")
+                ).strip()
+                or None,
+                "commitment_level": decision_snapshot["level"],
+                "rationale": str(decision_snapshot["rationale"]).strip(),
+                "residual_risk": str(decision_snapshot["residual_risk"]).strip(),
+                "would_overturn": str(decision_snapshot["would_overturn"]).strip(),
+            },
         )
-    elif level.value != "next_fidelity_study":
-        _out = mo.md(
-            "🛑 **Overclaim.** Proxy-plus-one-simulator evidence does not license an "
-            "RTL, signoff, or product commitment. Lower the commitment level to match "
-            "the evidence."
-        )
-    elif choice.value != expected_candidate and not objective_override.value:
-        _out = mo.md(
-            "🛑 **Objective mismatch.** Your candidate is not the gate-filtered winner "
-            "for the selected objective. Choose that winner or record a justified override."
-        )
-    elif choice.value == expected_candidate and objective_override.value:
-        _out = mo.md(
-            "🛑 **Override not needed.** Your choice already matches the selected "
-            "objective's gate-filtered winner."
-        )
-    elif objective_override.value and not override_reason.value.strip():
-        _out = mo.md("🛑 **Override reason required.** Explain the human override.")
-    else:
-        try:
-            record_human_decision(
-                receipt_dir,
-                {
-                    "schema_version": "arch2-human-decision/v0.2",
-                    "lab_id": "scale_proxy_mirage",
-                    "human_owner": human_owner.value.strip(),
-                    "authored_at": datetime.now(timezone.utc).isoformat(),
-                    "selected_candidate_id": choice.value,
-                    "governing_objective": objective.value,
-                    "objective_override": objective_override.value,
-                    "override_reason": override_reason.value.strip() or None,
-                    "commitment_level": level.value,
-                    "rationale": rationale.value.strip(),
-                    "residual_risk": residual_risk.value.strip(),
-                    "would_overturn": would_overturn.value.strip(),
-                },
-            )
-            errors = validate_receipt(receipt_dir)
-        except ValueError as exc:
-            errors = [str(exc)]
-        _out = mo.md(render_receipt_validation(errors))
-    _out
-    return
+        errors = validate_receipt(receipt_dir)
+    except ValueError as exc:
+        errors = [str(exc)]
+    mo.stop(errors, mo.md(render_receipt_validation(errors)))
+    mo.md(render_receipt_validation([]))
+    decision_complete = True
+    return (decision_complete,)
 
 
 @app.cell
-def _(dedent, mo):
+def _(decision_complete, io, mo, receipt_dir, validate_receipt, zipfile):
+    assert decision_complete
+    final_errors = validate_receipt(receipt_dir)
+    mo.stop(final_errors, mo.md("The completed receipt no longer validates."))
+
+    archive_buffer = io.BytesIO()
+    with zipfile.ZipFile(archive_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(receipt_dir.rglob("*")):
+            if path.is_file() and not path.is_symlink():
+                archive.write(
+                    path,
+                    arcname=(
+                        "arch2-proxy-mirage-receipt/"
+                        + path.relative_to(receipt_dir).as_posix()
+                    ),
+                )
+    receipt_archive = archive_buffer.getvalue()
+    receipt_download = mo.download(
+        data=receipt_archive,
+        filename="arch2-proxy-mirage-receipt.zip",
+        mimetype="application/zip",
+        label="Download complete loop receipt",
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "### Complete receipt\n\n"
+                "The ZIP contains the card, environment contract, ledger, negative "
+                "traces, raw simulator reports, provenance, machine recommendation, "
+                "explicit human decision, and final hash-sealed manifest."
+            ),
+            receipt_download,
+        ]
+    )
+    archive_ready = True
+    return (archive_ready,)
+
+
+@app.cell
+def _(archive_ready, dedent, mo):
+    assert archive_ready
+    reflection_form = mo.ui.text_area(
+        label="**Reflect.** What is the smallest brief or evidence change that would flip your decision?",
+        placeholder="Name the workload, budget, objective, or higher-fidelity result and how it changes the decision.",
+        rows=3,
+    ).form(
+        submit_button_label="Record reflection",
+        clear_on_submit=False,
+        validate=lambda value: (
+            None
+            if value is not None and str(value).strip()
+            else "Write one reflection."
+        ),
+    )
+    mo.vstack(
+        [
+            mo.md(
+                dedent(
+                    """
+                ### Reflect
+
+                The workload had a 32-row layer. If every layer were 64 rows or larger,
+                would the 64×64's utilization gap close, and would the proxy's
+                overstatement shrink?
+
+                *SCALE-Sim 3.0.0 does not model bandwidth stalls in this configuration.
+                This lab therefore teaches proxy overstatement through
+                mapping/utilization and objective conflict. The roofline result is a
+                separate analytic warning, not a causal explanation of the simulator's
+                measured cycles.*
+                """
+                ).strip()
+            ),
+            reflection_form,
+        ]
+    )
+    return (reflection_form,)
+
+
+@app.cell
+def _(mo, reflection_form):
+    mo.stop(
+        reflection_form.value is None,
+        mo.md("*Submit the reflection to finish the activity.*"),
+    )
     mo.md(
-        dedent(
-            """
-    ### Reflect
-
-    The workload had a 32-row layer. If every layer were 64 rows or larger, would
-    the 64×64's utilization gap close, and would the proxy's overstatement shrink?
-    What is the *smallest* change to the brief (workload, budget, or objective)
-    that would flip the survivor?
-
-    *SCALE-Sim 3.0.0 does not model bandwidth stalls in this configuration. This
-    lab therefore teaches proxy overstatement through mapping/utilization and
-    objective conflict. The roofline result is a separate analytic warning, not
-    a causal explanation of the simulator's measured cycles.*
-    """
-        ).strip()
+        "✅ **Activity complete.** The prediction, evidence review, human decision, receipt, and reflection were completed in order."
     )
     return
 

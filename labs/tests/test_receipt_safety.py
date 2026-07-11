@@ -5,8 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from arch2_labs.receipts import ReceiptMetadata, seal_receipt
+from arch2_labs.receipts import (
+    ACTIVITY_RECORD_FILENAME,
+    ReceiptMetadata,
+    attach_activity_record,
+    seal_receipt,
+    verify_receipt_integrity,
+)
 from arch2_labs.scale_env import LABS_ROOT, _safe_replace_dir
+from arch2_labs.validators import validate_receipt
 
 
 def _seal(directory: Path, *, receipt_id: str = "receipt-test-id") -> None:
@@ -133,3 +140,41 @@ def test_safe_replace_removes_sealed_arch2_receipt(tmp_path: Path) -> None:
     _safe_replace_dir(directory)
 
     assert not directory.exists()
+
+
+def test_activity_record_is_bound_into_complete_receipt(valid_receipt: Path) -> None:
+    payload = attach_activity_record(
+        valid_receipt,
+        {
+            "schema_version": "arch2-activity-record/v1",
+            "activity_id": "lab_09_same_loop_different_costs",
+            "budget_policy": "baseline_then_screen",
+        },
+    )
+
+    manifest = verify_receipt_integrity(valid_receipt, expected_status="complete")
+    declared = {entry["path"] for entry in manifest["files"]}
+    stored = json.loads((valid_receipt / ACTIVITY_RECORD_FILENAME).read_text())
+
+    assert ACTIVITY_RECORD_FILENAME in declared
+    assert stored == payload
+    assert stored["embedded_receipt"]["lab_id"] == "scale_proxy_mirage"
+    assert validate_receipt(valid_receipt) == []
+
+
+def test_activity_record_tampering_breaks_receipt_validation(
+    valid_receipt: Path,
+) -> None:
+    attach_activity_record(
+        valid_receipt,
+        {
+            "schema_version": "arch2-activity-record/v1",
+            "activity_id": "lab_08_run_the_loop",
+        },
+    )
+    with (valid_receipt / ACTIVITY_RECORD_FILENAME).open("a") as record:
+        record.write("tampered\n")
+
+    errors = validate_receipt(valid_receipt)
+
+    assert any("activity_record.json sha256 mismatch" in error for error in errors)

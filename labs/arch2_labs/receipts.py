@@ -4,6 +4,7 @@ import hashlib
 import json
 import platform
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path, PurePosixPath
@@ -18,6 +19,8 @@ MANIFEST_FILENAME = "manifest.yaml"
 MARKER_SCHEMA_VERSION = "arch2-receipt-marker/v1"
 RECEIPT_SCHEMA_VERSION = "arch2-loop-receipt/v0.2"
 RECEIPT_OWNER = "arch2-labs"
+ACTIVITY_RECORD_FILENAME = "activity_record.json"
+ACTIVITY_RECORD_SCHEMA_VERSION = "arch2-activity-record/v1"
 
 
 @dataclass(frozen=True)
@@ -237,3 +240,42 @@ def verify_receipt_integrity(
     if errors:
         raise ValueError("; ".join(errors))
     return manifest
+
+
+def attach_activity_record(
+    receipt_dir: Path, record: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Add one activity record to a complete receipt and reseal its manifest."""
+    manifest = verify_receipt_integrity(receipt_dir, expected_status="complete")
+    if record.get("schema_version") != ACTIVITY_RECORD_SCHEMA_VERSION:
+        raise ValueError("activity record has an unsupported schema")
+    activity_id = record.get("activity_id")
+    if not isinstance(activity_id, str) or not activity_id.strip():
+        raise ValueError("activity record must name a nonempty activity_id")
+    if "embedded_receipt" in record:
+        raise ValueError("embedded_receipt is reserved for receipt metadata")
+
+    record_path = receipt_dir / ACTIVITY_RECORD_FILENAME
+    if record_path.is_symlink() or record_path.exists():
+        raise ValueError("receipt already contains an activity record")
+
+    payload = dict(record)
+    payload["activity_id"] = activity_id.strip()
+    payload["embedded_receipt"] = {
+        "receipt_id": manifest["receipt_id"],
+        "lab_id": manifest["lab_id"],
+        "example": manifest["example"],
+    }
+    record_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    seal_receipt(
+        receipt_dir,
+        ReceiptMetadata(
+            receipt_id=manifest["receipt_id"],
+            lab_id=manifest["lab_id"],
+            example=manifest["example"],
+            created_at=manifest["created_at"],
+            status=manifest["status"],
+        ),
+    )
+    verify_receipt_integrity(receipt_dir, expected_status="complete")
+    return payload

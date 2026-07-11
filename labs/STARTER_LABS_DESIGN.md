@@ -1,25 +1,27 @@
-# Architecture 2.0 Starter Labs — Suite Design (v0 draft for review)
+# Architecture 2.0 Starter Labs Design History
 
-Status: design draft in the `feat/arch2-labs-plan` worktree. Companion to
-`ARCH2_LAB_SYSTEM_PLAN.md` (implementation grammar) and the working
-`scale_proxy_mirage` example. This document decides *what the labs are*, *why*,
-*how they map to the book*, and *how each is structured to teach for
-internalization rather than skimming*.
+This document is design history. The authoritative learner sequence and current
+run instructions live in `notebooks/README.md` and `README.md`. This document
+records the decisions that shaped the suite and is not a second activity map.
 
-## 0. v1 revisions (from the Codex + Gemini 3.1 Pro review round)
+The final sequence keeps a small simulator-backed spine while exposing one
+marimo activity per chapter. Reasoning and audit activities are intentionally
+lighter than the full simulator labs.
 
-Both models reviewed the v0 draft below; where they conflict with v0, this section
-wins. Points where Codex and Gemini independently agreed are treated as settled.
+## 0. Review Revisions
 
-- **Spine is 5 labs, reordered so the proxy-overstatement lab is the anchor**
-  (Codex): Lab 0 Prompt-to-Card (worked example first) → **Lab 1 Proxy vs
+The v1 review produced the following revisions. Where they conflict with the
+earlier draft below, this section wins.
+
+- **Spine is 5 labs, reordered so the proxy-overstatement lab is the anchor.**
+  Lab 0 Prompt-to-Card (worked example first) → **Lab 1 Proxy vs
   Evidence (anchor)** → Lab 2 Environment Contract (introduced only *after* the
   learner is burned by the proxy) → Lab 3 Earned Trust (rejection, fidelity via
   injected noise, multi-objective, **red-team the environment**) → Lab 4 Capstone
   (two-turn loop, graded by a judgment rubric). Exercises E1–E3 unchanged; E3
   (AlphaChip card) complements the book's Chapter 10 audit without replacing a
   chapter example.
-- **Validator checks completeness, never the "right" winner** (both). Removed the
+- **Validator checks completeness, never the "right" winner.** Removed the
   check that required proxy winner ≠ survivor; it manufactured a mirage and
   implied a hidden canonical answer. *(Done in code.)*
 - **Honest gates** (both, and our finding #1): utilization and roofline are
@@ -27,35 +29,35 @@ wins. Points where Codex and Gemini independently agreed are treated as settled.
   budget and the real-time deadline. *(Done in code: the 64×64 is now rejected on
   the 1024-PE mobile budget, not on utilization.)*
 - **Prediction-lock captures confidence + reason and scores calibration, not
-  correctness** (Codex). Self-explanation must name a mechanism (utilization,
+  correctness.** Self-explanation must name a mechanism (utilization,
   roofline, budget). *(Done in the Lab 1 notebook.)*
-- **Structured commitment gates the receipt; free text is optional** (Gemini);
+- **Structured commitment gates the receipt; free text is optional.**
   the commitment level is checked against the evidence (no RTL/product claim on
   proxy+one-sim evidence). *(Done in the notebook.)*
-- **Do not build an `arch2_labs.ui` cell-generator framework** (Gemini) — import
+- **Do not build an `arch2_labs.ui` cell-generator framework.** Import
   helpers, keep marimo cells explicit. Replaces v0 build-order step 3.
-- **Vary the challenge form** across labs (both): worked example → predict/reveal
+- **Vary the challenge form** across labs: worked example → predict/reveal
   → build-the-contract → audit/red-team → transfer/capstone. Not five identical
   notebooks.
-- **Retrieval-question unlock** replaces the passive recap (Gemini). **Worked
+- **Retrieval-question unlock** replaces the passive recap. **Worked
   example shown before the learner authors one** (both). *(Done in the notebook.)*
 - **Drop-in via seed/state capsules** (both): each lab ships a pre-validated seed
   JSON; cumulative learners load their prior receipt. *(To build.)*
-- **Two added dimensions v0 missed entirely:** (a) *adversarial / model-hacking*
-  (Gemini) — a learner red-teams SCALE-Sim's idealized memory to make an
+- **Two added dimensions v0 missed entirely:** (a) *adversarial / model-hacking*.
+  A learner red-teams SCALE-Sim's idealized memory to make an
   unrealizable design score perfectly, proving why the human gate must be
   independent of the generator; this becomes Lab 3's spine and uses our finding
-  #2. (b) *a judgment rubric* (Codex) — weak / adequate / excellent criteria for a
+  #2. (b) *a judgment rubric* with weak, adequate, and excellent criteria for a
   rejection, a commitment, and a loop contract when there is no single right
   answer; it becomes a shared artifact and the capstone's grading basis.
 - **Version estimate assumptions in every receipt + keep a frozen golden
-  workload** (Codex). *(ESTIMATE_SOURCES already ships in the ledger; golden
+  workload.** *(ESTIMATE_SOURCES already ships in the ledger; golden
   fixture to add.)*
 - **MVP release = Labs 0, 1, 4** (card, proxy failure, capstone) as a coherent
   half-day tutorial.
 
-Status: the honest engine and the runnable **Lab 1 (Proxy vs Evidence)** marimo
-notebook exist and are validated (`examples/scale_proxy_mirage/lab.py`).
+The proxy-versus-evidence anchor now ships as the Chapter 6 activity at
+`examples/scale_proxy_mirage/lab.py`.
 
 ## 1. The single design bet
 
@@ -202,7 +204,7 @@ Five levers, applied in every lab:
    lighthouse trace. Explain the contrast in the lab material or a companion
    appendix without replacing the chapter's teaching example.
 
-## 8. Open questions for the Codex / Gemini review pass
+## 8. Questions From the Review Pass
 
 - Is five runnable labs the right spine, or should Labs 1 and 2 merge further?
 - Is prediction-lock-gates-reveal too rigid for a self-paced reader vs a live
