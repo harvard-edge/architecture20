@@ -360,7 +360,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         if manifest:
             errors.extend(_manifest_errors(receipt_dir, manifest))
     if manifest.get("status") != "complete":
-        errors.append("receipt awaits a required human decision")
+        errors.append("course receipt awaits its required accountable decision")
 
     def present(name: str) -> bool:
         return (receipt_dir / name).is_file()
@@ -495,11 +495,13 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         rejected_ids.add(candidate_id)
         if candidate_id not in declared_ids:
             errors.append(
-                f"negative trace references an undeclared candidate: {candidate_id}"
+                f"rejected-alternative record references an undeclared candidate: {candidate_id}"
             )
         for field in ("stage", "gate", "reason"):
             if not trace.get(field):
-                errors.append(f"negative trace {candidate_id} missing field: {field}")
+                errors.append(
+                    f"rejected-alternative record {candidate_id} missing field: {field}"
+                )
     card_negative_ids = {
         trace.get("candidate_id")
         for trace in lab_card.get("negative_traces", [])
@@ -523,7 +525,9 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             if isinstance(outcome, dict)
         }
         if not outcome_ids.issubset(declared_ids):
-            errors.append("evidence ledger contains an undeclared candidate outcome")
+            errors.append(
+                "supporting evidence record contains an undeclared candidate outcome"
+            )
         accepted_ids = {
             outcome.get("candidate_id")
             for outcome in evidence.get("candidate_outcomes", [])
@@ -537,7 +541,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         rankings = evidence.get("objective_rankings")
         if not isinstance(rankings, dict) or set(rankings) != required_objectives:
             errors.append(
-                "evidence ledger must contain exactly the three supported objective rankings"
+                "supporting evidence record must contain exactly the three supported objective rankings"
             )
             rankings = {}
         for objective in sorted(required_objectives):
@@ -553,11 +557,11 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             candidate_id = evidence.get(field)
             if candidate_id not in declared_ids:
                 errors.append(
-                    f"evidence ledger {field} is not a declared candidate: {candidate_id}"
+                    f"supporting evidence record {field} is not a declared candidate: {candidate_id}"
                 )
         if evidence.get("rejected_count") != len(negative_traces):
             errors.append(
-                "evidence ledger rejected_count does not match negative traces"
+                "supporting evidence record rejected_count does not match rejected-alternative records"
             )
 
     card_evidence = lab_card.get("evidence", {})
@@ -589,13 +593,17 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         errors.append(f"recommendation selects a rejected candidate: {recommended_id}")
     if isinstance(recommendation, dict):
         if recommendation.get("human_decision") is not False:
-            errors.append("recommendation must state that it is not a human decision")
+            errors.append(
+                "recommendation must state that it is not an accountable decision"
+            )
         if recommendation.get("commitment") != "none":
             errors.append("machine recommendation must not claim commitment authority")
         if evidence and recommendation.get("candidate_id") != evidence.get(
             "machine_recommendation"
         ):
-            errors.append("recommendation candidate does not match the evidence ledger")
+            errors.append(
+                "recommendation candidate does not match the supporting evidence record"
+            )
         latency_ranking = (
             evidence.get("objective_rankings", {}).get(
                 "latency_under_declared_gates", {}
@@ -611,13 +619,13 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             "proxy_winner"
         ):
             errors.append(
-                "recommendation proxy winner does not match the evidence ledger"
+                "recommendation proxy winner does not match the supporting evidence record"
             )
         if evidence and recommendation.get("objective_rankings") != evidence.get(
             "objective_rankings"
         ):
             errors.append(
-                "recommendation objective rankings do not match the evidence ledger"
+                "recommendation objective rankings do not match the supporting evidence record"
             )
 
     declared_manifest_files = {
@@ -698,7 +706,9 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             if not isinstance(card_human, dict) or card_human.get(
                 "owner"
             ) != decision.get("human_owner"):
-                errors.append("card human decision owner does not match decision.yaml")
+                errors.append(
+                    "card accountable decision owner does not match decision.yaml"
+                )
             card_boundary = lab_card.get("commitment_boundary", {})
             if not isinstance(card_boundary, dict) or card_boundary.get(
                 "would_overturn"
@@ -742,7 +752,7 @@ def validate_decision_draft(receipt_dir: Path) -> dict[str, Any]:
     expected_incomplete_errors = {
         "missing required file: decision.yaml",
         "missing required file: decision.md",
-        "receipt awaits a required human decision",
+        "course receipt awaits its required accountable decision",
     }
     errors.extend(
         error
@@ -756,7 +766,7 @@ def validate_decision_draft(receipt_dir: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Validate an Architecture 2.0 loop receipt."
+        description="Validate an Architecture 2.0 runnable receipt."
     )
     parser.add_argument("receipt_dir", type=Path)
     args = parser.parse_args(argv)

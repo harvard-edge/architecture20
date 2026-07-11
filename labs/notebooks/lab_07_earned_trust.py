@@ -282,7 +282,7 @@ def _(evidence_revealed, mo):
         if value["decision"] != "reject_bandwidth_claim":
             return "The evidence does not clear the bandwidth-1 configuration for advancement."
         if not str(value.get("human_owner", "")).strip():
-            return "Name the human owner of the commitment."
+            return "Name the accountable owner of the commitment."
         if not str(value.get("rationale", "")).strip():
             return "Explain why the scoped check supports the commitment."
         if not str(value.get("would_overturn", "")).strip():
@@ -300,7 +300,7 @@ def _(evidence_revealed, mo):
                 label="**Commit.** What does this evidence license?",
             ),
             "human_owner": mo.ui.text(
-                label="**Human decision owner** (required)",
+                label="**Accountable decision owner** (required)",
                 placeholder="Your name or accountable review role",
             ),
             "rationale": mo.ui.text_area(

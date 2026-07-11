@@ -303,7 +303,8 @@ def test_validator_cross_checks_recommendation_objective_rankings(
     errors = validate_receipt(valid_receipt)
 
     assert (
-        "recommendation objective rankings do not match the evidence ledger" in errors
+        "recommendation objective rankings do not match the supporting evidence record"
+        in errors
     )
 
 

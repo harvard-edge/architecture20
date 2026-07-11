@@ -81,7 +81,7 @@ def _(dedent, mo, warmup_unlocked):
         | **Feedback budget** | Many proxy evals, few simulator runs, ~0 P&R runs this turn. |
         | **Evidence & rejection gate** | 3 W envelope, latency deadline, silicon budget; reject on any. |
         | **Commitment boundary** | Advance to a next-fidelity study only; no RTL/product claim. |
-        | **Human decision owner** | The architect signs the commitment; the method proposes. |
+        | **Accountable decision owner** | The architect signs the commitment; the method proposes. |
 
         Notice the card exposes *how the answer could be wrong*, not just what it is.
         """
@@ -221,8 +221,8 @@ def _(card_form, mo, prediction_snapshot):
         "✅ **Four-field bootstrap complete.** This exercise is a partial mapping, "
         "not a complete canonical design-loop card. Among the still-unwritten card "
         "fields are explicit intent and task, representation, environment, method "
-        "role and actor map, feedback budget, evidence, negative traces, rejection "
-        "authority, and human decision. Replay is not another card field; it "
+        "role and actor map, feedback budget, evidence, failed runs and rejected "
+        "alternatives, rejection authority, and accountable decision. Replay is not another card field; it "
         f"requires a separate runnable receipt. {note}"
     )
     card_ready = True

@@ -12,12 +12,14 @@ OBJECTIVE_LABELS = {
 def render_objective_summary(ledger: dict[str, Any]) -> str:
     rankings = ledger.get("objective_rankings")
     if not isinstance(rankings, dict):
-        raise ValueError("evidence ledger has no objective rankings")
+        raise ValueError("supporting evidence record has no objective rankings")
     lines = []
     for objective, label in OBJECTIVE_LABELS.items():
         ranking = rankings.get(objective)
         if not isinstance(ranking, dict) or not ranking.get("candidate_id"):
-            raise ValueError(f"evidence ledger is missing objective: {objective}")
+            raise ValueError(
+                f"supporting evidence record is missing objective: {objective}"
+            )
         lines.append(
             f"- **{label}.** `{ranking['candidate_id']}` ({ranking['value']})."
         )

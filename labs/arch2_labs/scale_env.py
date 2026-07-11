@@ -439,7 +439,7 @@ def build_replayable_card(
                         "role": "Generate the proxy ranking, run the simulator, and make a noncommitting recommendation.",
                         "reads": ["Declared candidates and environment inputs."],
                         "writes": [
-                            "Evidence, negative traces, and recommendation.json."
+                            "Evidence, failed-run and rejected-alternative records, and recommendation.json."
                         ],
                         "authority": "May recommend a gate passer; cannot make or own the human commitment.",
                     },
@@ -447,7 +447,7 @@ def build_replayable_card(
                         "actor_id": "declared-gate-evaluator",
                         "role": "Apply the fixed area and deadline rejection gates.",
                         "reads": ["Candidate PE count and simulated cycle count."],
-                        "writes": ["Negative traces."],
+                        "writes": ["Failed-run and rejected-alternative records."],
                         "authority": "May reject candidates; cannot select the human commitment.",
                     },
                 ],
@@ -822,7 +822,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Example name under labs/examples.",
     )
     parser.add_argument(
-        "--out", required=True, type=Path, help="Output loop receipt directory."
+        "--out", required=True, type=Path, help="Output runnable receipt directory."
     )
     parser.add_argument(
         "--force", action="store_true", help="Replace an existing output directory."
@@ -843,7 +843,7 @@ def main(argv: list[str] | None = None) -> int:
         "--decision-file",
         type=Path,
         help=(
-            "Explicit human decision YAML. Without it, the runner emits an "
+            "Explicit accountable-decision YAML using the v1.1 human_decision key. Without it, the runner emits an "
             "evidence-only draft that does not validate as a complete receipt."
         ),
     )

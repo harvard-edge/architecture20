@@ -34,10 +34,10 @@ CANONICAL_CARD_FIELDS = [
     "Method role",
     "Feedback budget",
     "Evidence",
-    "Negative traces",
+    "Failed runs / rejected alternatives",
     "Rejection authority",
     "Commitment boundary / would overturn",
-    "Human decision",
+    "Accountable decision",
 ]
 
 HIDDEN_DEFAULT_STATE = {

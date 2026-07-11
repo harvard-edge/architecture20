@@ -352,7 +352,7 @@ def _(
         {
             "Design-loop card (Level 2 draft)": mo.md("```yaml\n" + card_text + "```"),
             "Environment contract": mo.md("```yaml\n" + environment_text + "```"),
-            "Evidence ledger": mo.md("```json\n" + ledger_text + "```"),
+            "Supporting evidence record": mo.md("```json\n" + ledger_text + "```"),
             "Rejected candidates and gates": mo.ui.table(
                 negative_traces, selection=None
             ),
@@ -365,8 +365,8 @@ def _(
         [
             mo.md(
                 "### Inspect the receipt before deciding\n\n"
-                "Open each record. The card summarizes the claim, the ledger states "
-                "what each evidence stage supports and omits, negative traces preserve "
+                "Open each record. The card summarizes the claim, the evidence record states "
+                "what each stage supports and omits, rejected-alternative records preserve "
                 "declared rejections, provenance binds runs to inputs and outputs, and "
                 "the manifest seals the draft."
             ),
@@ -396,7 +396,7 @@ def _(decision_ready, ledger, mo):
 
     def _validate_decision(value):
         if value is None:
-            return "Complete the human decision."
+            return "Complete the accountable decision."
         required = [
             value.get("objective"),
             value.get("choice"),
@@ -450,7 +450,7 @@ def _(decision_ready, ledger, mo):
             ),
             "human_owner": mo.ui.text(
                 placeholder="Your name or accountable review role",
-                label="**Human decision owner** (required)",
+                label="**Accountable decision owner** (required)",
             ),
             "rationale": mo.ui.text_area(
                 placeholder="Why does this candidate fit the governing objective and evidence?",
@@ -478,7 +478,7 @@ def _(decision_ready, ledger, mo):
             ),
         }
     ).form(
-        submit_button_label="Record my human decision",
+        submit_button_label="Record my accountable decision",
         clear_on_submit=False,
         validate=_validate_decision,
     )
@@ -499,7 +499,7 @@ def _(
 ):
     mo.stop(
         decision_form.value is None,
-        mo.md("*Complete and submit the human decision to continue.*"),
+        mo.md("*Complete and submit the accountable decision to continue.*"),
     )
     decision_snapshot = dict(decision_form.value)
     try:
@@ -554,15 +554,16 @@ def _(decision_complete, io, mo, receipt_dir, validate_receipt, zipfile):
         data=receipt_archive,
         filename="arch2-proxy-mirage-receipt.zip",
         mimetype="application/zip",
-        label="Download complete loop receipt",
+        label="Download complete runnable receipt",
     )
     mo.vstack(
         [
             mo.md(
                 "### Complete receipt\n\n"
-                "The ZIP contains the card, environment contract, ledger, negative "
-                "traces, raw simulator reports, provenance, machine recommendation, "
-                "explicit human decision, and final hash-sealed manifest."
+                "The ZIP contains the card, environment contract, supporting evidence "
+                "record, failed-run and rejected-alternative records, raw simulator "
+                "reports, provenance, machine recommendation, accountable decision, "
+                "and final hash-sealed manifest."
             ),
             receipt_download,
         ]
@@ -619,7 +620,7 @@ def _(mo, reflection_form):
         mo.md("*Submit the reflection to finish the activity.*"),
     )
     mo.md(
-        "✅ **Activity complete.** The prediction, evidence review, human decision, receipt, and reflection were completed in order."
+        "**Activity complete.** The prediction, evidence review, accountable decision, receipt, and reflection were completed in order."
     )
     return
 

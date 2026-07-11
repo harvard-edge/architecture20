@@ -10,11 +10,11 @@ Version `1.1` follows the cumulative conformance levels in Appendix B.
 | Level | Required content |
 | --- | --- |
 | 0 | Nonempty intent boundaries and design-space choices, with card metadata and task |
-| 1 | Nonempty representation, environment, actor map, feedback budget, evidence, and negative traces, with at least one evaluation |
-| 2 | Stable state, environment, evidence, workload, and candidate IDs, a SHA-256 parameter digest, and a replay source URI |
-| 3 | Independent rejection authority, commitment boundary, and human decision |
+| 1 | Nonempty representation, environment, actor map, feedback budget, evidence, and failed-run or rejected-alternative entries under `negative_traces`, with at least one evaluation |
+| 2 | Stable state, environment, evidence, workload, and candidate IDs, a SHA-256 parameter digest, and a replay source URI; these are replay bindings, not proof that replay succeeds |
+| 3 | Claimed independent rejection authority, commitment boundary, and accountable decision under `human_decision`; these fields do not prove independence or decision quality |
 
-The optional research claim view belongs at `intent.claim_boundary`. A
+The optional claim and non-claim view belongs at `intent.claim_boundary`. A
 namespaced experimental extension may use a top-level card key beginning with
 `x-`, such as `x-example.org-review`. Consumers must not treat an extension as
 one of the twelve canonical fields.

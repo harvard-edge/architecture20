@@ -131,7 +131,10 @@ def test_run_without_human_decision_emits_noncommitting_draft(tmp_path: Path) ->
     assert (out_dir / "recommendation.json").is_file()
     assert not (out_dir / "decision.yaml").exists()
     assert not (out_dir / "decision.md").exists()
-    assert "receipt awaits a required human decision" in validate_receipt(out_dir)
+    assert (
+        "course receipt awaits its required accountable decision"
+        in validate_receipt(out_dir)
+    )
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")

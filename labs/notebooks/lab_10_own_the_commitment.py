@@ -151,10 +151,10 @@ def _(Path, hashlib, json, prediction_snapshot):
         "Method role",
         "Feedback budget",
         "Evidence",
-        "Negative traces",
+        "Failed runs / rejected alternatives",
         "Rejection authority",
         "Commitment boundary / would overturn",
-        "Human decision",
+        "Accountable decision",
     ]
     actual_fields = [row["field"] for row in source_fixture["card_fields"]]
     if actual_fields != expected_fields:
@@ -222,7 +222,7 @@ def _(audit_revealed, mo):
         if value["boundary"] != "context_only":
             return "The fixed public packet does not license that conclusion."
         if not str(value.get("human_owner", "")).strip():
-            return "Name the human owner of the audit judgment."
+            return "Name the accountable owner of the audit judgment."
         if not str(value.get("rationale", "")).strip():
             return "Explain why the boundary follows from the twelve fields."
         if not str(value.get("would_strengthen", "")).strip():
