@@ -1,13 +1,18 @@
 schema_version: "1.1"
 design_loop_card:
-  card_id: example-level-1
+  card_id: example-array-study-level-1
   conformance_level: 1
   intent:
-    objective: Screen two accelerator array shapes with a fast simulator.
+    objective: Determine whether a 32x8 accelerator array merits a bounded RTL experiment.
     constraints:
-    - Hold SRAM capacity and dataflow constant.
+    - Hold SRAM capacity, workload, and dataflow constant.
     non_goals:
-    - Predict post-layout timing or power.
+    - Authorize tapeout or integration, or claim post-layout performance or energy.
+    risks:
+    - The illustrative estimator omits memory, timing, and routing effects.
+    claim_boundary:
+      claim: The card scopes the 16x16/32x8 comparison and the decision whether to run one bounded RTL experiment for the 32x8 array.
+      non_claim: The 32x8 array improves post-layout performance or energy.
   task: dse
   design_space:
     legal:
@@ -15,7 +20,7 @@ design_loop_card:
     invalid:
     - Shapes that exceed 256 processing elements.
     deferred:
-    - Clock-frequency selection.
+    - SRAM banking, clock frequency, and physical design.
   representation:
     ir_level: Layer dimensions and array geometry.
     reads:
@@ -24,7 +29,7 @@ design_loop_card:
     writes:
     - Utilization and cycle estimates.
     uncertainties:
-    - Proxy results omit physical-design effects.
+    - The illustrative estimator omits memory and physical-design effects.
   environment:
     actions:
     - Select one legal array shape.
@@ -34,29 +39,35 @@ design_loop_card:
     observations:
     - Estimated cycles.
     - Processing-element utilization.
-    fidelity: simulation
+    fidelity: proxy
   method_role:
     roles:
     - predict
     - critique
     actor_map:
     - actor_id: loop-analyst
-      role: Select candidates and summarize simulator evidence.
+      role: Select candidates and summarize estimator evidence.
       reads:
-      - Workload definitions and candidate parameters.
+      - Candidate parameters and estimator evidence.
       writes:
-      - Simulator requests and evidence summaries.
-      authority: May recommend a higher-fidelity experiment but cannot authorize it.
+      - Candidate recommendation.
+      authority: May propose, but cannot authorize, the next experiment.
   feedback_budget:
     evaluations: 2
     latency: Under one minute per evaluation.
     cost: One local CPU process.
-    fidelity: Architecture simulation.
+    fidelity: Deterministic illustrative compute estimate.
+    model_side_cost:
+      model_calls: 0
+      gpu_hours: 0
+      energy_or_carbon: No model inference used.
+      human_review: One 15-minute architecture review.
   evidence:
     baseline_id: array-16x16
     records:
-    - kind: simulator summary
+    - kind: 16x16 illustrative array estimate (4032 cycles, 38.095238% aggregate PE utilization)
+    - kind: 32x8 illustrative array estimate (3368 cycles, 45.605701% aggregate PE utilization)
   negative_traces:
-  - reason: Utilization regressed on narrow layers.
-    stage: architecture simulation
+  - reason: Processing-element utilization regressed on the row-narrow-wide layer.
+    stage: illustrative deterministic estimate
     gate: workload-level utilization comparison

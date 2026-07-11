@@ -1,6 +1,14 @@
 local str = pandoc.utils.stringify
 local pout = quarto.log.output
 
+local function escapeHTML(value)
+  return tostring(value or "")
+    :gsub("&", "&amp;")
+    :gsub("<", "&lt;")
+    :gsub(">", "&gt;")
+    :gsub('"', "&quot;")
+end
+
 -- Convert a 6-digit hex color string to R, G, B decimal values
 -- e.g., "5B4B8A" -> 91, 75, 138
 local function hexToRGB(hex)
@@ -29,15 +37,22 @@ blockStart = function (tt, fmt)
   local texEnv = "fbx"
   if #tt.title > 0 then tt.typlabelTag = tt.typlabelTag..":" end
   if fmt =="html" then
-    -- For ePub (XHTML), use open="open" instead of just open (boolean attribute)
-    -- ePub requires strict XHTML syntax
     local isEpub = quarto.doc.is_format("epub")
+    local label = escapeHTML(tt.typlabelTag)
+    local title = escapeHTML(tt.title)
+    local titleSep = ""
+    if #tt.title > 0 then titleSep = "\u{2003}" end
+
+    -- EPUB readers do not consistently support interactive disclosure widgets.
+    -- Emit static, balanced XHTML instead of HTML <details>/<summary> markup.
+    if isEpub then
+      return '<div class="'..tt.type..BoxStyle..' fbx-epub" style="border: 1px solid #7c929c; border-left: 0.3rem solid #1f5f7a; margin: 1em 0;">'..
+        '<div class="fbx-epub-summary" style="background: #eef4f6; padding: 0.65em 0.8em;"><strong>'..label..titleSep..title..'</strong></div>'..
+        '<div class="fbx-epub-body" style="padding: 0.1em 0.8em 0.7em;">'
+    end
+
     if tt.collapse =="false" then
-      if isEpub then
-        Open=' open="open"'
-      else
-        Open=" open"
-      end
+      Open=" open"
     end
     if tt.boxstyle =="foldbox.simple"
       then
@@ -45,9 +60,7 @@ blockStart = function (tt, fmt)
     --    Open=" open" do not force override. Chose this in yaml or individually.
     --    we would want e.g to have remarks closed by default
       end
-    local titleSep = ""
-    if #tt.title > 0 then titleSep = "\u{2003}" end
-    result = ('<details class=\"'..tt.type..BoxStyle ..'\"'..Open..'><summary>'..'<strong>'..tt.typlabelTag .. titleSep .. tt.title..'</strong></summary><div>')
+    result = ('<details class=\"'..tt.type..BoxStyle ..'\"'..Open..'><summary>'..'<strong>'..label..titleSep..title..'</strong></summary><div>')
     return result
 
   elseif fmt =="tex" then
@@ -63,6 +76,9 @@ end,
 blockEnd = function (tt, fmt)
   local texEnv = "fbx"
   if fmt =="html" then
+    if quarto.doc.is_format("epub") then
+      return('</div></div>')
+    end
     return('</div></details>')
   elseif fmt =="tex" then
     if tt.boxstyle=="foldbox.simple" then texEnv = "fbxSimple" end

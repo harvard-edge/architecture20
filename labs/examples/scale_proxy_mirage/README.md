@@ -39,7 +39,7 @@ reproducibility fixture. In the notebook, each learner supplies and persists
 their own objective, candidate choice, rationale, residual risk, and overturn
 condition.
 
-The first command produces a Level 2 evidence draft. It does not create
+The first command produces a draft receipt with a Level 2 card. It does not create
 `decision.yaml` or `decision.md`, and the validator reports that a human decision
 is still required. `arch2_labs.decisions` verifies every draft hash and record
 before writing, then upgrades the canonical card to Level 3. It will not revise a

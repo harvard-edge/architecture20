@@ -1,13 +1,18 @@
 schema_version: "1.1"
 design_loop_card:
-  card_id: example-level-2
+  card_id: example-array-study-level-2
   conformance_level: 2
   intent:
-    objective: Determine whether a 32x8 array merits higher-fidelity study.
+    objective: Determine whether a 32x8 accelerator array merits a bounded RTL experiment.
     constraints:
     - Hold SRAM capacity, workload, and dataflow constant.
     non_goals:
-    - Claim post-layout performance or energy.
+    - Authorize tapeout or integration, or claim post-layout performance or energy.
+    risks:
+    - The illustrative estimator omits memory, timing, and routing effects.
+    claim_boundary:
+      claim: The card scopes the 16x16/32x8 comparison and the decision whether to run one bounded RTL experiment for the 32x8 array.
+      non_claim: The 32x8 array improves post-layout performance or energy.
   task: dse
   design_space:
     legal:
@@ -15,7 +20,7 @@ design_loop_card:
     invalid:
     - Shapes that exceed 256 processing elements.
     deferred:
-    - SRAM banking and clock frequency.
+    - SRAM banking, clock frequency, and physical design.
   representation:
     state_schema_id: arch2.example.array-state.v1
     ir_level: Layer dimensions and array geometry.
@@ -42,23 +47,28 @@ design_loop_card:
     - predict
     - critique
     actor_map:
-    - actor_id: analyst
-      role: Select candidates and interpret evidence.
+    - actor_id: loop-analyst
+      role: Select candidates and summarize estimator evidence.
       reads:
-      - Replayable estimator packets.
+      - Candidate parameters and estimator evidence.
       writes:
-      - Review recommendation.
-      authority: May recommend a higher-fidelity experiment.
+      - Candidate recommendation.
+      authority: May propose, but cannot authorize, the next experiment.
   feedback_budget:
     evaluations: 2
     latency: Under one minute per evaluation.
     cost: One local CPU process.
     fidelity: Deterministic illustrative compute estimate.
+    model_side_cost:
+      model_calls: 0
+      gpu_hours: 0
+      energy_or_carbon: No model inference used.
+      human_review: One 15-minute architecture review.
   evidence:
     baseline_id: array-16x16
     records:
     - evidence_id: illustrative-array-summary-16x16
-      kind: deterministic estimator replay packet
+      kind: 16x16 illustrative array estimate (4032 cycles, 38.095238% aggregate PE utilization)
       workload_id: illustrative-conv-layer-set-v1
       seed: deterministic
       provenance:
@@ -66,7 +76,7 @@ design_loop_card:
         parameter_hash: sha256:070e5378e5f57dd99b3c852fef462eeb6d072ca85ebea49ed630f59d5e20d421
         source_uri: evidence/illustrative-array-summary-16x16.json
     - evidence_id: illustrative-array-summary-32x8
-      kind: deterministic estimator replay packet
+      kind: 32x8 illustrative array estimate (3368 cycles, 45.605701% aggregate PE utilization)
       workload_id: illustrative-conv-layer-set-v1
       seed: deterministic
       provenance:

@@ -790,7 +790,10 @@ renderDiv = function(thediv)
 
     local fmt='html'
     if quarto.doc.is_format("pdf") then fmt = "tex" end;
-    if #thediv.content > 0 and thediv.content[1].t == "Para" and
+    -- Raw inline tags are valid for the browser's forgiving HTML parser, but
+    -- EPUB XHTML must keep block containers outside paragraphs.
+    if not quarto.doc.is_format("epub") and
+      #thediv.content > 0 and thediv.content[1].t == "Para" and
       thediv.content[#thediv.content].t == "Para" then
         table.insert(thediv.content[1].content, 1,
           pandoc.RawInline(fmt, stylez.blockStart(tt, fmt)))

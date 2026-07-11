@@ -4,6 +4,8 @@ import json
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -34,6 +36,7 @@ def test_schema_is_valid_draft_2020_12(schema_path: Path) -> None:
         "level-1-auditable.yaml",
         "level-2-replayable.yaml",
         "level-3-independent.yaml",
+        "redacted-level-0.yaml",
     ],
 )
 def test_valid_conformance_fixture(filename: str) -> None:
@@ -43,6 +46,222 @@ def test_valid_conformance_fixture(filename: str) -> None:
         == CARD_SCHEMA_VERSION
     )
     assert card_validation_findings(path) == []
+
+
+def test_examples_preserve_one_case_as_conformance_increases() -> None:
+    cards = []
+    for level, filename in enumerate(
+        [
+            "level-0-context.yaml",
+            "level-1-auditable.yaml",
+            "level-2-replayable.yaml",
+            "level-3-independent.yaml",
+        ]
+    ):
+        document = yaml.safe_load(
+            (VALID_CARD_DIR / filename).read_text(encoding="utf-8")
+        )
+        card = document["design_loop_card"]
+        assert card["conformance_level"] == level
+        cards.append(card)
+
+    for card in cards[1:]:
+        for field in ("intent", "task", "design_space"):
+            assert card[field] == cards[0][field]
+
+    level_0_claim = cards[0]["intent"]["claim_boundary"]["claim"]
+    assert "scopes the 16x16/32x8 comparison" in level_0_claim
+    assert "evidence" not in level_0_claim.lower()
+    assert (
+        cards[3]["commitment_boundary"]["strongest_supported_claim"]
+        == "Run one bounded RTL experiment for the 32x8 candidate."
+    )
+
+    def level_1_view(card: dict[str, object]) -> dict[str, object]:
+        view = deepcopy(card)
+        view.pop("card_id")
+        view.pop("conformance_level")
+        view.pop("rejection_authority", None)
+        view.pop("commitment_boundary", None)
+        view.pop("human_decision", None)
+        view["representation"].pop("state_schema_id", None)
+        view["environment"].pop("environment_id", None)
+        view["method_role"]["actor_map"] = view["method_role"]["actor_map"][:1]
+        for record in view["evidence"]["records"]:
+            for key in ("evidence_id", "workload_id", "seed", "provenance"):
+                record.pop(key, None)
+        for trace in view["negative_traces"]:
+            trace.pop("candidate_id", None)
+        return view
+
+    assert level_1_view(cards[1]) == level_1_view(cards[2])
+    assert level_1_view(cards[2]) == level_1_view(cards[3])
+
+    for record, packet_name in zip(
+        cards[1]["evidence"]["records"],
+        (
+            "illustrative-array-summary-16x16.json",
+            "illustrative-array-summary-32x8.json",
+        ),
+        strict=True,
+    ):
+        packet = json.loads(
+            (VALID_CARD_DIR / "evidence" / packet_name).read_text(encoding="utf-8")
+        )
+        aggregate = packet["results"]["aggregate"]
+        assert str(aggregate["estimated_cycles"]) in record["kind"]
+        assert f'{aggregate["pe_utilization_percent"]:.6f}%' in record["kind"]
+
+
+def test_start_path_separates_drafting_from_evidence_progression() -> None:
+    start = (ROOT / "www" / "start.qmd").read_text(encoding="utf-8")
+    assert "Draft Level 0 in 30 minutes" in start
+    assert "Progress with existing evidence" in start
+    assert "Do not invent evidence to raise the level." in start
+    for filename in (
+        "level-0-context.yaml",
+        "level-1-auditable.yaml",
+        "level-2-replayable.yaml",
+        "level-3-independent.yaml",
+    ):
+        assert f"/examples/design-loop-cards/{filename}" in start
+
+
+def test_start_path_keeps_fixtures_labs_and_lighthouse_distinct() -> None:
+    start = (ROOT / "www" / "start.qmd").read_text(encoding="utf-8")
+    assert "Practice in the real labs" in start
+    assert "https://github.com/harvard-edge/arch2/tree/main/labs" in start
+    assert "do not replace empirical lab work" in start
+    assert "/book/chapters/08-running-the-loop/" in start
+    assert "Neither replaces Chapter 8's constructed lighthouse example." in start
+
+    examples_readme = (VALID_CARD_DIR / "README.md").read_text(encoding="utf-8")
+    assert "These synthetic packets teach schema progression" in examples_readme
+    assert "https://github.com/harvard-edge/arch2/tree/main/labs" in examples_readme
+    assert "They do not replace empirical lab work" in examples_readme
+    assert (
+        "Neither replaces Chapter 8's constructed lighthouse example" in examples_readme
+    )
+
+
+def test_start_path_separates_card_level_from_evidence_and_commitment() -> None:
+    start = (ROOT / "www" / "start.qmd").read_text(encoding="utf-8")
+    for heading in ("Conformance", "Evidence fidelity", "Commitment"):
+        assert f"<strong>{heading}</strong>" in start
+    assert "A Level 3 card can still contain proxy evidence." in start
+    assert "Schema validation proves structure, not evidence quality." in start
+    assert "It does not prove that the evidence is adequate" in start
+    assert "a referenced replay succeeds" in start
+    assert "independent reviewers agree" in start
+
+
+def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
+    svg_path = (
+        ROOT
+        / "book"
+        / "chapters"
+        / "03-architecture-20-framework"
+        / "images"
+        / "F4b-design-loop-card-example.svg"
+    )
+    root = ET.parse(svg_path).getroot()
+    labels = [
+        "".join(element.itertext())
+        for element in root.iter("{http://www.w3.org/2000/svg}text")
+        if element.attrib.get("class") == "label"
+    ]
+    assert labels == [
+        "Intent",
+        "Task",
+        "Design space",
+        "Representation",
+        "Environment",
+        "Method role",
+        "Feedback budget",
+        "Evidence",
+        "Negative traces",
+        "Rejection authority",
+        "Commitment boundary",
+        "Human decision",
+    ]
+    svg = svg_path.read_text(encoding="utf-8")
+    assert "constraint violations" in svg
+    assert "tool failures" not in svg
+
+
+def test_design_loop_figure_separates_evidence_stage_from_governance() -> None:
+    chapter_root = ROOT / "book" / "chapters" / "03-architecture-20-framework"
+    svg = (chapter_root / "images" / "F3-design-loop.svg").read_text(encoding="utf-8")
+    chapter = (chapter_root / "index.qmd").read_text(encoding="utf-8")
+    assert "evidence stages may raise fidelity and cost" in svg
+    assert "commitment boundary and allowed autonomy" in svg
+    assert "neither rises automatically with fidelity" in chapter.lower()
+    assert "fidelity, cost, and commitment rise" not in svg
+    assert "fidelity, cost, and commitment rise" not in chapter
+
+
+def test_chapter_3_separates_reviewability_from_reproduction() -> None:
+    chapter = (
+        ROOT / "book" / "chapters" / "03-architecture-20-framework" / "index.qmd"
+    ).read_text(encoding="utf-8")
+    assert "compared, inspected, and contested" in chapter
+    assert "Replay or reproduction requires a separate runnable receipt" in chapter
+    assert "compared, reproduced, and contested" not in chapter
+
+
+def test_appendix_b_distinguishes_fixtures_labs_and_level_0_drafting() -> None:
+    appendix = (
+        ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
+    ).read_text(encoding="utf-8")
+    assert "Synthetic card example" in appendix
+    assert "Runnable SCALE-Sim lab" in appendix
+    assert "https://github.com/harvard-edge/arch2/blob/main/labs/README.md" in appendix
+    assert "30-minute Level 0 workflow" in appendix
+    assert "Draft and validate context and boundaries" in appendix
+
+
+def test_appendix_b_does_not_treat_logs_or_crashes_as_proof() -> None:
+    appendix = (
+        ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
+    ).read_text(encoding="utf-8")
+    normalized = re.sub(r"\s+", " ", appendix)
+    assert "does not prove adequate exploration" in normalized
+    assert "segfault or compile failure is an environment failure" in normalized
+    assert "rejection gate only when a predeclared rule" in normalized
+    assert "simulator segfaults" not in appendix
+    assert "enough to prove you explored the space" not in appendix
+
+
+def test_appendix_b_keeps_card_ledger_and_receipt_contained() -> None:
+    appendix = (
+        ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
+    ).read_text(encoding="utf-8")
+    normalized = re.sub(r"\s+", " ", appendix)
+    assert "card is a compact summary and index" in normalized
+    assert "Detailed observations belong in a separate evidence ledger" in normalized
+    assert "belong in a replay receipt" in normalized
+    assert "Shareable Evidence View" in normalized
+    assert "card acts as a shareable evidence ledger" not in normalized
+    assert 'do not need separate "claim cards" or "evidence ledgers"' not in normalized
+
+
+def test_appendix_b_bounds_conformance_claims() -> None:
+    appendix = (
+        ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
+    ).read_text(encoding="utf-8")
+    normalized = re.sub(r"\s+", " ", appendix)
+    assert "locate inputs and attempt replay" in normalized
+    assert "replay result must be checked separately" in normalized
+    assert "a boolean field cannot establish that relationship" in normalized
+    assert "judge, challenge, reject, or extend" in normalized
+    assert "successful replay shows that the named packet ran" in normalized
+    assert "broader reproducibility or transfer needs its own protocol" in normalized
+    assert "judge, repeat, reject, or extend" not in normalized
+    assert (
+        "simulator and dispatch failures remain environment-failure traces"
+        in normalized.lower()
+    )
+    assert "blob/main/labs/README.md" in normalized
 
 
 def test_legacy_v1_card_still_uses_v1_contract() -> None:

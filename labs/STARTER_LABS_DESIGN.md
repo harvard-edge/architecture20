@@ -17,7 +17,8 @@ wins. Points where Codex and Gemini independently agreed are treated as settled.
   learner is burned by the proxy) → Lab 3 Earned Trust (rejection, fidelity via
   injected noise, multi-objective, **red-team the environment**) → Lab 4 Capstone
   (two-turn loop, graded by a judgment rubric). Exercises E1–E3 unchanged; E3
-  (AlphaChip card) is also the book's Chapter 8/10 demonstration.
+  (AlphaChip card) complements the book's Chapter 10 audit without replacing a
+  chapter example.
 - **Validator checks completeness, never the "right" winner** (both). Removed the
   check that required proxy winner ≠ survivor; it manufactured a mirage and
   implied a hidden canonical answer. *(Done in code.)*
@@ -72,12 +73,11 @@ We built and ran the first environment against real SCALE-Sim 3.0.0, then added
 literature-grounded energy/roofline estimates. Three findings constrain the
 whole suite. Design to them; do not design around them.
 
-- **No rigged reversals.** The book's Chapter 8 typed a losing energy number by
-  hand. When we compute energy from real DRAM access counts (Horowitz 45 nm,
-  Accelergy-style), the *big* array is actually lowest-energy and fastest, so the
-  hand-picked "accelerator loses on energy" reversal is directionally wrong for
-  this workload. Labs must teach honest, tool-produced results, never a gate
-  chosen to force a predetermined loser.
+- **Keep the constructed and measured paths separate.** Chapter 8 uses a
+  constructed trace to expose a proxy reversal. The SCALE-Sim exercise produces
+  a different outcome from real tool outputs for its own workload and model. The
+  lab records that outcome rather than treating either path as a correction to
+  the other or choosing a gate to force a predetermined loser.
 - **SCALE-Sim 3.0.0 has an idealized memory in this configuration.** The big array never stalls even at
   DRAM bandwidth 2 words/cycle (measured). A clean "big array stalls and misses
   the deadline" story is *not honestly available* in this tool. State the tool's
@@ -92,32 +92,31 @@ whole suite. Design to them; do not design around them.
 ## 3. The suite: a spine of runnable labs + light chapter exercises
 
 Ten full marimo labs is too many to build well and too long a sequence to
-finish. The book's arc is a loop, so the labs are a loop: a **spine of six
+finish. The book's arc is a loop, so the labs are a loop: a **spine of five
 runnable labs** that cumulatively build and run one loop on the shared
 lighthouse prompt (low-power RISC-V mobile-XR subsystem), plus **three short
 exercises** for the chapters whose lesson is analytical, not computational. That
 is "a handful to generate," and it is a complete learning sequence.
 
-The same lighthouse prompt threads all six labs. Each lab adds exactly one loop
-element, so by the capstone the learner has assembled the whole loop, not six
+The same lighthouse prompt threads all five labs. Each lab adds exactly one loop
+element, so by the capstone the learner has assembled the whole loop, not five
 disconnected demos.
 
 | # | Lab (runnable unless noted) | Book chapter(s) | The one loop element it adds | The internalized lesson |
 | --- | --- | --- | --- | --- |
 | **0** | **Prompt to Loop Card** | Ch1–3 (moonshot, scissors, framework) | The loop contract | A prompt is not an architecture claim until task, actions, evidence, rejection, and commitment are named. |
-| **1** | **Representing Loop State** *(light)* | Ch4 (data, world models) | Represented state + provenance | A result you cannot replay is not evidence; negative traces are architecture data. |
-| **2** | **The Environment Contract** | Ch5 (environments, tool interfaces) | The environment (SCALE-Sim) | A tool becomes an environment only when legal actions, observations, invalid-action semantics, cost, and provenance are explicit. |
-| **3** | **Proxy vs Evidence: the Cheap-Model Trap** | Ch6 (generation/prediction/optimization) | Method roles under a feedback budget | A cheap proxy does not just pick wrong winners; it *overstates* advantages by assuming realizability the tool later denies. |
-| **4** | **When Has the Loop Earned Trust?** | Ch7 (feedback, verification, trust) | Fidelity ladder + rejection authority | No single metric owns the commitment; when latency and cost-efficiency disagree, the architect must state the governing objective before selecting a winner. |
-| **5** | **Run the Whole Loop (Capstone)** | Ch8 (running the loop) | The full turn + receipt | A defensible decision states its commitment boundary and what evidence would overturn it. |
+| **1** | **Proxy vs Evidence: the Cheap-Model Trap** | Ch4 and Ch6 (represented state and method roles) | Representation plus a method role under a feedback budget | A cheap proxy does not just pick wrong winners; it can overstate advantages by assuming realizability the tool later denies. |
+| **2** | **The Environment Contract** | Ch5 (environments and tool interfaces) | The environment (SCALE-Sim) | A tool becomes an environment only when legal actions, observations, invalid-action semantics, cost, and provenance are explicit. |
+| **3** | **When Has the Loop Earned Trust?** | Ch7 (feedback, verification, and trust) | Fidelity ladder plus rejection authority | No single metric owns the commitment; when latency and cost-efficiency disagree, the architect must state the governing objective before selecting a winner. |
+| **4** | **Run the Whole Loop (Capstone)** | Ch8 (running the loop) | The full turn plus receipt | A defensible decision states its commitment boundary and what evidence would overturn it. |
 | E1 | *Exercise:* The Same Loop at Different Costs | Ch9 (patterns across the stack) | — | Method posture changes as feedback gets expensive and commitments get harder to reverse. |
 | E2 | *Exercise:* Redact and Share a Negative Trace | Ch10 (what the architect owns) | — | Field infrastructure is an incentive problem; you can share a lesson without the IP. |
 | E3 | *Exercise:* Audit AlphaChip with the Card | Ch10 + preface war story | — | Fill the design-loop card for a real, contested, public claim; the empty "replayable inputs" field is where the dispute lives. (Ties to the book's AlphaChip demonstration.) |
 
-Labs 2–5 reuse the working `arch2_labs` engine (SCALE-Sim wrapper, estimates,
-receipt, validator). Lab 0 and E1–E3 are no-simulator. E3 doubles as the
-book's AlphaChip worked-card demonstration; building the lab and fixing the book
-are the same task.
+Labs 1–4 reuse the working `arch2_labs` engine (SCALE-Sim wrapper, estimates,
+receipt, validator). Lab 0 and E1–E3 are no-simulator. E3 can reuse the book's
+public-record questions, but the lab artifact and the manuscript remain separate
+deliverables.
 
 ## 4. Anatomy of one lab (the marimo notebook contract)
 
@@ -131,7 +130,7 @@ cell can gate the reveal.
    vocabulary (loop contract, evidence ledger, commitment boundary…).
 3. **Loop brief** — claim, workload slice, design space, commitment boundary.
 4. **Predict (locked)** — a structured prediction (radio/dropdown, no free text)
-   the learner must submit before any evidence renders. Example for Lab 3:
+   the learner must submit before any evidence renders. Example for Lab 1:
    "Which array wins on latency? On energy? Will the proxy winner survive the
    gate?" The reveal cells stay hidden until this is submitted.
 5. **Knobs (≤3)** — array rows/cols, DRAM bandwidth, budget. Reactive.
@@ -189,29 +188,30 @@ Five levers, applied in every lab:
 
 ## 7. Build order
 
-1. Harden Lab 3 (the working example) to the honest framing above: utilization
+1. Harden Lab 1 (the working example) to the honest framing above: utilization
    becomes a diagnostic, add a stated budget gate, keep the multi-objective
    table as the lesson. *(This is the current code; small changes.)*
-2. Install marimo; build the Lab 3 notebook as the reference implementation of
+2. Install marimo; build the Lab 1 notebook as the reference implementation of
    the eleven-cell contract.
-3. Factor the shared marimo cells into `arch2_labs.ui` so Labs 0, 2, 4, 5 reuse
-   them.
-4. Build Lab 0 (no simulator) and Lab 5 (capstone) around the same engine.
-5. Write E3 (AlphaChip card) — it is also the book's Chapter 8/10 demonstration.
-6. Fill in Labs 1, 2, 4 and exercises E1–E2.
-7. Wire the corrected Lab 3 numbers back into the book's Chapter 8.
+3. Factor reusable logic into ordinary `arch2_labs` helpers while keeping the
+   marimo cells explicit rather than generating them through a UI framework.
+4. Build Lab 0 (no simulator) and Lab 4 (capstone) around the same engine.
+5. Write E3 (AlphaChip card) as a companion to the book's Chapter 10 audit.
+6. Fill in Labs 2 and 3 and exercises E1–E2.
+7. Keep the measured Lab 1 outcome separate from Chapter 8's constructed
+   lighthouse trace. Explain the contrast in the lab material or a companion
+   appendix without replacing the chapter's teaching example.
 
 ## 8. Open questions for the Codex / Gemini review pass
 
-- Is six runnable labs the right spine, or should Labs 1 and 2 merge (state +
-  environment are close)?
+- Is five runnable labs the right spine, or should Labs 1 and 2 merge further?
 - Is prediction-lock-gates-reveal too rigid for a self-paced reader vs a live
   tutorial? Should there be a "reveal anyway" escape that records that the
   learner skipped the prediction?
-- Should the capstone (Lab 5) run a *second, contrasting* turn (a candidate that
+- Should the capstone (Lab 4) run a *second, contrasting* turn (a candidate that
   is correctly rejected) so the learner sees both a survive and a reject?
-- Is SCALE-Sim the right single tool for the spine, or should Lab 4 escalate to a
+- Is SCALE-Sim the right single tool for the spine, or should Lab 3 escalate to a
   second fidelity (Timeloop/Accelergy) to make the "fidelity ladder" real rather
   than narrated — accepting the install cost?
-- What is the minimum viable set for a first public release: all six, or Labs 0,
-  3, 5 as a coherent half-day tutorial?
+- What is the minimum viable set for a first public release: all five, or Labs 0,
+  1, and 4 as a coherent half-day tutorial?

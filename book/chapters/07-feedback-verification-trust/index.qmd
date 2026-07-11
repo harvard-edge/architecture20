@@ -28,7 +28,7 @@ the cost of being wrong.
 
 This distinction between generated output and verified evidence is central to the book. A model can generate a plausible
 architecture description. A search method can find a strong proxy score. A
-A surrogate model (a fast, learned approximation of a slow simulator) can rank candidates. A tool-using agent[^fn-ml-tool-using-agent] can call simulators and
+surrogate model (a fast, learned approximation of a slow simulator) can rank candidates. A tool-using agent[^fn-ml-tool-using-agent] can call simulators and
 summarize results. None of those actions creates trust by itself. Trust
 begins when the loop records what was measured, why it was relevant, how much
 it cost, what assumptions it used, where the feedback is weak, which
@@ -50,8 +50,9 @@ broadly than its usual formal-methods sense.
 > checks, interface checks, regression tests, baseline replay, simulator
 > cross-checks, synthesis constraints, physical-design warnings, security
 > review, workload coverage, and expert design review. The common requirement is
-> independence. The check should be able to reject the claim, not merely restate
-> the method's output.
+> rejection capability. The check must be able to fail visibly rather than
+> merely restate the method's output. As commitment risk rises, the loop also
+> needs stronger independence from the method that produced the candidate.
 
 Verification is therefore a family of rejection authorities, not a single tool
 category (@tbl-verification-authorities). Inside AI-assisted loops, these authorities are not generic quality checks; they
@@ -101,6 +102,12 @@ ledger, commitment ladder, rejection authority, and trust checklist are not
 separate paperwork. They are views of one question, whether a loop has enough
 evidence and independent rejection to support the commitment it asks for.
 {#tbl-trust-record-map tbl-colwidths="[22,37,31]"}
+
+The design-loop card is the summary and index for these views. Detailed
+observations remain in the evidence ledger, and a replay receipt bundles the
+card, ledger, inputs, runs, and decision records when the loop claims
+replayability. Card conformance, evidence fidelity, and commitment strength are
+separate claims; one does not advance automatically when another does.
 
 ::: {.callout-learning-objectives}
 After this chapter you can write or review the trust checklist for an
@@ -210,8 +217,8 @@ technology assumptions, constraints, tool versions, warnings, and comparison
 baseline are explicit.
 
 As used in @sec-architecture-environments-tool-interfaces, feedback regimes
-classify checks by fidelity, cost, and commitment level. This chapter reuses the
-term for trust.
+classify checks by fidelity and cost. This chapter reuses the term for trust,
+while keeping the commitment at stake as a separate decision property.
 
 To structure this transition from feedback to evidence, each rung of the fidelity ladder from
 @sec-methods-generation-prediction-optimization is a feedback regime. The
@@ -244,7 +251,7 @@ For Architecture 2.0, rather than treating all feedback as equal, a claim must
 move through a chain of increasingly costly feedback sources, recording a
 rejection gate and evidence ledger entry at each stage (@fig-evidence-chain-rejection-gates).
 
-![**Evidence ledgers turn feedback into trust:** A claim becomes more credible only as it moves through staged feedback sources, records provenance and uncertainty, and gives each stage authority to reject, revise, or escalate the result before the commitment boundary rises.](images/F9-evidence-chain-rejection-gates){#fig-evidence-chain-rejection-gates width="100%" fig-alt="Staged evidence ledger diagram showing feedback sources, provenance, uncertainty, rejection gates, revision, escalation, and rising commitment boundaries."}
+![**Evidence ledgers connect feedback to decisions:** Staged checks record provenance and uncertainty while declaring what each stage may reject, revise, or escalate. Fidelity, cost, rejection authority, commitment, and allowed autonomy remain separate judgments; moving to a stronger check does not authorize a stronger commitment by itself.](images/F9-evidence-chain-rejection-gates){#fig-evidence-chain-rejection-gates width="100%" fig-alt="Staged evidence-ledger diagram showing feedback sources, provenance, uncertainty, declared rejection gates, revision, and escalation, with a note that rejection authority, commitment, and allowed autonomy are governed separately from evidence fidelity and cost."}
 
 The figure changes the meaning of trust. Trust is not a model property or a
 single score. It is a staged loop property.
@@ -343,20 +350,22 @@ test, synthesis flow, cross-tool comparison, signoff rule, deployment signal,
 security policy, benchmark governance rule, or expert reviewer. What matters
 is that rejection is part of the loop interface, not an afterthought.
 
-A compact way to remember *why* a candidate is rejected is the *4 P's of
-Rejection*:
+A compact way to remember *why* a candidate is rejected is the *four Ps of
+rejection*:
 
-1. **Proxy Mismatches:** Rejection occurs because the system was optimizing a surrogate model instead of the true metric.
-2. **Protocol Violations:** Rejection occurs because the candidate breaks the ISA, hardware/software contract, or memory consistency model.
-3. **Physical Limits:** Rejection occurs because the candidate fails timing closure, violates power envelopes, exceeds area budgets during physical synthesis, or fails Design Rule Checks (DRC).
-4. **Policy Boundaries:** Rejection occurs because the candidate fails fast structural checks, breaks interface contracts, or violates information-flow/timing-channel security boundaries.
+1. **Proxy mismatches:** Rejection occurs because the system optimized a stand-in that did not track the declared objective.
+2. **Protocol violations:** Rejection occurs because the candidate breaks the ISA, hardware/software contract, memory model, or another declared interface.
+3. **Physical limits:** Rejection occurs because the candidate fails timing closure, violates power or area bounds, or fails a physical-design check.
+4. **Policy boundaries:** Rejection occurs because the candidate violates security, privacy, license, disclosure, release, or other organizational constraints.
 
-Beyond preventing errors, rejection authority is also the lever that controls loop speed. A loop speeds
-up only as cheap, independent rejectors discharge a larger fraction of
-commitments before expensive escalation. Generation does not help if it only
-adds candidates that no trusted check can reject. Rejection authority is
-therefore not a safeguard bolted onto a loop that already works. It is the
-resource that sets how fast the loop can run.
+Beyond preventing errors, rejection authority is one lever of adjudication
+capacity. In a rejection-bound stage with a fixed proposal stream, validated
+cheap checks can settle some cases before expensive escalation. Total capacity
+also depends on routing, audits, reference-check cost, and concurrency. A search
+loop has another lever because a better generator may need fewer evaluations to
+reach a fixed-quality target. Rejection authority is therefore not a safeguard
+bolted onto a loop that already works, but neither is it the sole determinant of
+useful design progress.
 
 ::: {.callout-architect-checkpoint title="The Rejection Authority Check"}
 When a generative model or optimizer proposes a "winning" candidate, does the loop name at least one independent authority that can say no? Trusting an AI-assisted architecture loop requires showing that the generator is not the sole grader of its own work. The loop must expose a simulator, constraint checker, formal tool, benchmark rule, or expert review path with the authority to reject a candidate before treating it as an architectural commitment.
@@ -364,10 +373,11 @@ When a generative model or optimizer proposes a "winning" candidate, does the lo
 
 To function effectively, this rejection authority has three parts. First, the loop must know which check is
 being applied. Second, the loop must know what happens after rejection. Third,
-the loop must record the rejection as evidence. A simulator crash, failed
-build, invalid constraint, timing miss, benchmark violation, or expert
-objection is not merely an inconvenience. It is information about the boundary
-of the design space.
+the loop must record the disposition and supporting observation. An invalid
+constraint, timing miss, benchmark violation, or expert objection can expose a
+design-space boundary. A simulator crash or failed build is recorded first as
+an environment failure and becomes a candidate rejection only when a declared
+validity or constraint rule makes the candidate responsible for that outcome.
 
 We can formalize this commitment discipline compactly as a boolean gate:
 $$
@@ -413,13 +423,14 @@ promising. It asks whether the candidate is legal for the commitment level the
 generative method is about to claim.
 
 **In the Lighthouse prompt.** A generative method's candidate for the "64-bit RISC-V-based compute
-subsystem" is valid only if it stays inside the declared ISA/software contract,
-can plausibly serve the "XRBench-class real-time mobile XR workload," and has
-not crossed the "3\ W TDP (Thermal Design Power) target" or hidden an invalid memory or SoC (System-on-Chip) interface
-assumption at the evidence level being used.
+subsystem" is legal only if it stays inside the declared ISA/software contract
+and does not hide an invalid memory or SoC (System-on-Chip) interface
+assumption. A legal candidate can still be rejected when the evidence shows that
+it misses the XRBench-class workload obligation or the 3\ W TDP (Thermal Design
+Power) target.
 
 **Rejection gate.** ISA compatibility, workload validity, memory/interface
-legality, power, deadline, and evidence fidelity are gates, not advisory
+legality, power, deadline, and evidence sufficiency for the proposed decision are gates, not advisory
 metrics for the generator to optimize.
 
 **Takeaway.** If any gate is unsupported, the loop should force the generative method to reject, revise, or
@@ -685,7 +696,7 @@ expensive commitment.
 | **What loop state and action contract are exposed?** | State fields, legal actions, tool or environment APIs, invalid transitions, and replay receipts. | The loop can act through hidden state or unlogged tool semantics. |
 | **What feedback supports it?** | Metrics, tool outputs, logs, reviews, and negative traces tied to a feedback budget. | Only the winning score is shown. |
 | **What is the fidelity?** | Proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level stated explicitly. | Treating all measurements as equivalent. |
-| **What is the provenance?** | Workload and exact tool versions, tech nodes, configs, deterministic seeds, constraints, assumptions, and baselines for replay. | Hidden scripts, unstated defaults, or non-deterministic environments. |
+| **What is the provenance?** | Workload and exact tool versions, tech nodes, configs, seeds, run-to-run variance or other nondeterminism, constraints, assumptions, and baselines needed for the declared audit or replay claim. | Hidden scripts, unstated defaults, or unrecorded nondeterminism. |
 | **What is the security, IP, license, export-control, or disclosure boundary?** | Data classes, access rules, redaction limits, license or disclosure class, release or export-control review record, public proxy limits, authorized reviewer role, and an audit path. | Private or restricted evidence is treated as invisible or unverifiable. |
 | **What can reject it?** | Tests, formal checks, simulators, signoff rules, deployment signals, or expert review. | No independent authority can say no. |
 | **Who commits?** | A named human or process accepts, rejects, escalates, or revises the artifact. | The loop silently turns output into decision. |
@@ -771,18 +782,19 @@ commitment boundary matches the cost of being wrong.
 Read together, these are not six separate safeguards but one discipline. Trust
 in Architecture 2.0 is a property of the loop, not of the model running inside
 it. A confident report, a strong proxy score, or a fluent explanation moves none
-of this. Each stays generated output until an authority that could have blocked
-it declines to. That is why the chapter treats verification as a family of
-rejection authorities rather than a single tool, and why the fidelity ladder and
-evidence ledger exist at all. They let a claim carry, wherever it stops
-climbing, an honest account of what it has shown and what it still cannot.
+of this. Output supports a claim only after the declared acceptance criteria are
+met with relevant, scoped, and traceable evidence. A gate merely declining to
+reject is not sufficient. That is why the chapter treats verification as a
+family of rejection authorities rather than a single tool, and why the fidelity
+ladder and evidence ledger exist at all. They let a claim carry an honest account
+of what it has shown and what it still cannot.
 
 The durable move is to escalate with commitment. Cheap feedback screens, and
 stronger feedback can support higher commitment, but only when the evidence
 ledger names the gate, the uncertainty, and the authority that can still say no.
-The loop should climb the fidelity ladder only as far as a decision's
-reversibility demands before stopping at an honest level, rather than dressing a
-proxy win as silicon-grade proof. A result that cannot
+The loop should obtain the evidence appropriate to the decision's consequences
+and stop at an honest commitment boundary, rather than dressing a proxy win as
+silicon-grade proof. A result that cannot
 name what would overturn it, or who holds the authority to reject it, has not yet
 met the bar this chapter sets, however plausible it looks.
 

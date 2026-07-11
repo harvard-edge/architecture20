@@ -13,6 +13,7 @@ import sys
 import tempfile
 import zipfile
 import html as html_lib
+import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -29,6 +30,7 @@ BUILD_DIR = BOOK_DIR / "_build"
 PDF_PATH = BUILD_DIR / "Architecture-2.0.pdf"
 HTML_PATH = BUILD_DIR / "index.html"
 EPUB_PATH = BUILD_DIR / "Architecture-2.0.epub"
+EPUBCHECK_VERSION = "5.3.0"
 LOG_DIR = BUILD_DIR / "logs"
 DEFAULT_REVIEW_WORKBENCH = ROOT.parent.parent / "PaperReviewWorkbench"
 LOOP_DIR = ROOT / ".arch2" / "reviews" / "loop"
@@ -2128,6 +2130,30 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
     return findings
 
 
+def _epub_visible_text(payload: bytes) -> str:
+    """Extract XHTML text while excluding literal examples and executable content."""
+    try:
+        root = ET.fromstring(payload)
+    except ET.ParseError:
+        return ""
+
+    chunks: list[str] = []
+    excluded = {"code", "kbd", "pre", "samp", "script", "style"}
+
+    def visit(element: ET.Element, suppressed: bool = False) -> None:
+        local_name = element.tag.rsplit("}", 1)[-1]
+        current_suppressed = suppressed or local_name in excluded
+        if not current_suppressed and element.text:
+            chunks.append(element.text)
+        for child in element:
+            visit(child, current_suppressed)
+            if not current_suppressed and child.tail:
+                chunks.append(child.tail)
+
+    visit(root)
+    return "\n".join(chunks)
+
+
 def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
     if not epub_path.exists():
         return [
@@ -2143,6 +2169,56 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
     try:
         with zipfile.ZipFile(epub_path) as epub:
             names = epub.namelist()
+            opf_names = [name for name in names if name.endswith(".opf")]
+            if not opf_names:
+                findings.append(
+                    Finding(
+                        "error",
+                        "epub-metadata",
+                        _relative(epub_path),
+                        "EPUB contains no OPF package metadata",
+                    )
+                )
+            else:
+                try:
+                    opf_root = ET.fromstring(epub.read(opf_names[0]))
+                except ET.ParseError:
+                    findings.append(
+                        Finding(
+                            "error",
+                            "epub-metadata",
+                            f"{_relative(epub_path)}:{opf_names[0]}",
+                            "EPUB package metadata is not well-formed XML",
+                        )
+                    )
+                else:
+                    languages = [
+                        (element.text or "").strip()
+                        for element in opf_root.findall(
+                            ".//{http://purl.org/dc/elements/1.1/}language"
+                        )
+                    ]
+                    invalid_languages = {
+                        value for value in languages if value.upper() in {"C", "POSIX"}
+                    }
+                    if not languages or any(not value for value in languages):
+                        findings.append(
+                            Finding(
+                                "error",
+                                "epub-language",
+                                f"{_relative(epub_path)}:{opf_names[0]}",
+                                "EPUB package metadata must declare a publication language",
+                            )
+                        )
+                    elif invalid_languages:
+                        findings.append(
+                            Finding(
+                                "error",
+                                "epub-language",
+                                f"{_relative(epub_path)}:{opf_names[0]}",
+                                "EPUB publication language cannot use a process locale such as C or POSIX",
+                            )
+                        )
             html_names = [name for name in names if name.endswith((".html", ".xhtml"))]
             if not html_names:
                 findings.append(
@@ -2155,10 +2231,15 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
                 )
                 return findings
 
+            content_payloads = [
+                epub.read(name) for name in html_names if not name.endswith("nav.xhtml")
+            ]
             combined = "\n".join(
-                epub.read(name).decode("utf-8", errors="replace")
-                for name in html_names
-                if not name.endswith("nav.xhtml")
+                payload.decode("utf-8", errors="replace")
+                for payload in content_payloads
+            )
+            visible_text = "\n".join(
+                _epub_visible_text(payload) for payload in content_payloads
             )
     except zipfile.BadZipFile:
         return [
@@ -2180,6 +2261,16 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
             )
         )
 
+    if re.search(r"(?m)^\s*:::\s*(?:\{[^}\n]*\})?\s*$", visible_text):
+        findings.append(
+            Finding(
+                "error",
+                "epub-literal-fenced-div",
+                _relative(epub_path),
+                "EPUB contains a literal fenced-Div marker; check source block spacing",
+            )
+        )
+
     for pattern in (
         r"class=[\"'][^\"']*quarto-unresolved-ref",
         r"\?(?:sec|fig|tbl|eq)-[A-Za-z0-9_-]+",
@@ -2198,6 +2289,108 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
             break
 
     return findings
+
+
+def normalize_epub_xhtml(epub_path: Path = EPUB_PATH) -> int:
+    """Remove invalid duplicate alt attributes from EPUB figure wrappers."""
+    original_mode = epub_path.stat().st_mode & 0o777
+    xhtml_namespace = "http://www.w3.org/1999/xhtml"
+    ET.register_namespace("", xhtml_namespace)
+    ET.register_namespace("epub", "http://www.idpf.org/2007/ops")
+    ET.register_namespace("m", "http://www.w3.org/1998/Math/MathML")
+    ET.register_namespace("svg", "http://www.w3.org/2000/svg")
+
+    with zipfile.ZipFile(epub_path, "r") as source:
+        entries = [(info, source.read(info.filename)) for info in source.infolist()]
+
+    changed = 0
+    normalized: list[tuple[zipfile.ZipInfo, bytes]] = []
+    for info, payload in entries:
+        if not info.filename.endswith((".html", ".xhtml")):
+            normalized.append((info, payload))
+            continue
+
+        root = ET.fromstring(payload)
+        document_changed = False
+        for wrapper in root.iter(f"{{{xhtml_namespace}}}div"):
+            if "alt" in wrapper.attrib:
+                del wrapper.attrib["alt"]
+                changed += 1
+                document_changed = True
+        if document_changed:
+            payload = ET.tostring(
+                root,
+                encoding="utf-8",
+                xml_declaration=True,
+                short_empty_elements=True,
+            )
+        normalized.append((info, payload))
+
+    if not changed:
+        return 0
+
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{epub_path.name}.", suffix=".tmp", dir=epub_path.parent, delete=False
+    ) as handle:
+        temporary = Path(handle.name)
+    try:
+        with zipfile.ZipFile(temporary, "w") as target:
+            for info, payload in normalized:
+                target.writestr(info, payload)
+        temporary.chmod(original_mode)
+        temporary.replace(epub_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return changed
+
+
+def _has_required_epubcheck_version(output: str) -> bool:
+    expected = f"EPUBCheck v{EPUBCHECK_VERSION}"
+    return expected in {line.strip() for line in output.splitlines()}
+
+
+def run_epubcheck(epub_path: Path = EPUB_PATH) -> None:
+    executable = shutil.which("epubcheck")
+    if executable is None:
+        _exit_on_findings(
+            [
+                Finding(
+                    "error",
+                    "missing-epubcheck",
+                    _relative(epub_path),
+                    f"EPUBCheck {EPUBCHECK_VERSION} is required for EPUB publication",
+                )
+            ],
+            title="EPUBCheck",
+        )
+        return
+
+    version_proc = _run([executable, "--version"], capture=True)
+    version_output = (version_proc.stdout or "") + (version_proc.stderr or "")
+    if version_proc.returncode != 0 or not _has_required_epubcheck_version(
+        version_output
+    ):
+        _exit_on_findings(
+            [
+                Finding(
+                    "error",
+                    "epubcheck-version",
+                    executable,
+                    f"EPUBCheck {EPUBCHECK_VERSION} is required; found {version_output.strip() or 'an unreadable version'}",
+                )
+            ],
+            title="EPUBCheck",
+        )
+
+    proc = _run([executable, str(epub_path), "--failonwarnings"], capture=True)
+    transcript = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
+    log_path = _record_log("epubcheck", transcript)
+    if proc.returncode != 0:
+        console.print(f"[red]failed[/red] EPUBCheck transcript: {_relative(log_path)}")
+        console.print(transcript[-6000:])
+        raise typer.Exit(proc.returncode)
+    console.print(f"[green]passed[/green] EPUBCheck {EPUBCHECK_VERSION}")
+    console.print(f"[dim]transcript: {_relative(log_path)}[/dim]")
 
 
 def strip_namespace(tag: str) -> str:
@@ -4331,10 +4524,20 @@ def _render_one(
             html_unresolved_findings(BUILD_DIR), title="HTML rendered references"
         )
     if "epub" in fmts:
+        try:
+            normalized_count = normalize_epub_xhtml(EPUB_PATH)
+        except (ET.ParseError, zipfile.BadZipFile) as exc:
+            console.print(f"[red]EPUB XHTML normalization failed[/red] {exc}")
+            raise typer.Exit(1) from exc
+        if normalized_count:
+            console.print(
+                f"[green]normalized[/green] {normalized_count} EPUB figure wrapper alt attributes"
+            )
         _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
         _exit_on_findings(
             epub_unresolved_findings(EPUB_PATH), title="EPUB rendered references"
         )
+        run_epubcheck(EPUB_PATH)
     if "pdf" in fmts:
         run_figures_check(PDF_PATH)
         _exit_on_findings(
@@ -4560,8 +4763,10 @@ def verify_epub(
         EPUB_PATH, "--epub", help="Rendered EPUB package to inspect."
     ),
 ) -> None:
-    """Check that the local EPUB package contains custom callouts and resolved references."""
+    """Check EPUB structure, metadata, custom callouts, references, and conformance."""
     _exit_on_findings(epub_findings(epub), title="EPUB package")
+    _exit_on_findings(epub_unresolved_findings(epub), title="EPUB rendered references")
+    run_epubcheck(epub)
 
 
 @verify_app.command("unresolved")
@@ -4661,6 +4866,7 @@ def check_standard(
     run_generated_asset_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
+    run_epubcheck(EPUB_PATH)
     run_layout_check(fail_on_warning=fail_on_layout_warning)
 
 
@@ -4679,6 +4885,7 @@ def check_strict(
     run_generated_asset_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
+    run_epubcheck(EPUB_PATH)
     run_svg_check()
     run_layout_check(fail_on_warning=fail_on_layout_warning)
 
@@ -4711,6 +4918,7 @@ def check_all(
     run_figures_check()
     run_citation_check(show_context=False)
     _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
+    run_epubcheck(EPUB_PATH)
     if include_svg:
         run_svg_check()
     run_layout_check(fail_on_warning=fail_on_layout_warning)
@@ -5217,6 +5425,7 @@ def doctor() -> None:
     """Show tool availability for the manuscript build."""
     checks = [
         ("quarto", ["quarto", "--version"]),
+        ("epubcheck", ["epubcheck", "--version"]),
         ("rsvg-convert", ["rsvg-convert", "--version"]),
         ("pdftotext", ["pdftotext", "-v"]),
         ("python", [sys.executable, "--version"]),
@@ -5226,9 +5435,15 @@ def doctor() -> None:
     table.add_column("Status")
     table.add_column("Detail")
     for name, cmd in checks:
+        if shutil.which(cmd[0]) is None:
+            table.add_row(name, "missing", "not found on PATH")
+            continue
         proc = _run(cmd, capture=True)
         status = "ok" if proc.returncode == 0 else "missing"
-        detail = (proc.stdout or proc.stderr or "").strip().splitlines()
+        output = (proc.stdout or proc.stderr or "").strip()
+        if name == "epubcheck" and not _has_required_epubcheck_version(output):
+            status = "wrong version"
+        detail = output.splitlines()
         table.add_row(name, status, detail[0] if detail else "")
     table.add_row("PDF", "ok" if PDF_PATH.exists() else "missing", _relative(PDF_PATH))
     console.print(table)

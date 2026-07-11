@@ -42,3 +42,18 @@ def test_proxy_lab_persists_explicit_learner_decision() -> None:
     assert "Rationale (optional)" not in source
     assert "gate_survivor" not in source
     assert "SCALE-Sim v2" not in source
+
+
+def test_scissors_gap_separates_queue_load_from_search_effort() -> None:
+    source = Path("notebooks/lab_02_scissors_gap.py").read_text()
+
+    assert "offered_load = proposal_rate / adjudication_capacity" in source
+    assert "queue_growth = max(0.0, proposal_rate - adjudication_capacity)" in source
+    assert "trusted_throughput = min(proposal_rate, adjudication_capacity)" in source
+    assert "evaluations_to_target" in source
+    assert "generated candidates wait behind" not in source
+    assert "Only raising" not in source
+    assert "this book's remedy buys them little" not in source
+    assert "return (warmup_unlocked,)" in source
+    assert "return (prediction_locked,)" in source
+    assert "return (investment_committed,)" in source

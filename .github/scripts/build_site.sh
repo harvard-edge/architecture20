@@ -100,5 +100,8 @@ if [[ -d _site/tools ]]; then
   fi
 fi
 
+python3 .github/scripts/check_site_accessibility.py \
+  _site/*.html _site/tools/*.html
+
 echo "==> Site assembled in ./_site"
 find _site -maxdepth 2 -name '*.html' | sort

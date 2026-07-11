@@ -1,0 +1,71 @@
+<script data-arch2-accessibility="true">
+(function () {
+  var skipLink = document.querySelector(".site-skip-link");
+  if (skipLink) {
+    document.body.insertBefore(skipLink, document.body.firstChild);
+  }
+
+  document.querySelectorAll('button.navbar-toggler[role="menu"]').forEach(function (toggle) {
+    toggle.removeAttribute("role");
+  });
+
+  document.querySelectorAll(".quarto-listing-filter input.search").forEach(function (input) {
+    if (!input.hasAttribute("aria-label") && !input.hasAttribute("aria-labelledby")) {
+      var heading = document.querySelector("h1");
+      var context = heading ? heading.textContent.trim() : "resources";
+      input.setAttribute("aria-label", "Filter " + context);
+    }
+  });
+
+  document.querySelectorAll(".quarto-listing-filter .input-group-text i").forEach(function (icon) {
+    icon.setAttribute("aria-hidden", "true");
+  });
+
+  function buttonCategory(button) {
+    var onclick = button.getAttribute("onclick") || "";
+    var match = onclick.match(/quartoListingCategory\('([^']*)'\)/);
+    if (!match) {
+      return null;
+    }
+    try {
+      return decodeURIComponent(window.atob(match[1]));
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function selectedCategory() {
+    var values = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    return values.get("category") || "";
+  }
+
+  function syncCategoryButtons() {
+    var selected = selectedCategory();
+    document.querySelectorAll(".category-strip").forEach(function (group) {
+      group.querySelectorAll("button").forEach(function (button) {
+        button.setAttribute(
+          "aria-pressed",
+          buttonCategory(button) === selected ? "true" : "false"
+        );
+      });
+    });
+  }
+
+  document.querySelectorAll(".category-strip button").forEach(function (button) {
+    button.addEventListener("click", function () {
+      window.setTimeout(syncCategoryButtons, 0);
+    });
+  });
+  document.addEventListener("click", function (event) {
+    if (
+      event.target instanceof Element &&
+      event.target.closest(".quarto-listing-category .category, .quarto-listing-category-title")
+    ) {
+      window.setTimeout(syncCategoryButtons, 0);
+    }
+  });
+  window.addEventListener("hashchange", syncCategoryButtons);
+  window.addEventListener("popstate", syncCategoryButtons);
+  syncCategoryButtons();
+})();
+</script>

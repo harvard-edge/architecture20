@@ -40,7 +40,7 @@ def render_dropdown(item: dict, *, indent: str = "        ") -> list[str]:
         f'{indent}<li class="nav-item dropdown">',
         (
             f'{indent}  <a class="nav-link dropdown-toggle" href="#" id="{menu_id}" '
-            'role="link" data-bs-toggle="dropdown" aria-expanded="false">'
+            'data-bs-toggle="dropdown" aria-expanded="false">'
         ),
         f'{indent}    <span class="menu-text">{html.escape(text)}</span>',
         f"{indent}  </a>",
@@ -98,7 +98,7 @@ def render_navbar(navbar: dict) -> str:
         (
             '    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" '
             'data-bs-target="#arch2HubNavbarCollapse" aria-controls="arch2HubNavbarCollapse" '
-            'role="menu" aria-expanded="false" aria-label="Toggle navigation" '
+            'aria-expanded="false" aria-label="Toggle navigation" '
             'onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">'
         ),
         '      <span class="navbar-toggler-icon"></span>',

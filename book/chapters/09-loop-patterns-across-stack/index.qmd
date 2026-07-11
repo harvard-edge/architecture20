@@ -73,11 +73,12 @@ running example. This chapter also carries the measured deployment-facing
 fleet-migration example promised in @sec-running-the-loop; it is not presented as
 a measured hardware co-design loop.
 
-Keep one rule in view as the cases become more technical. A loop does not scale
-because it can produce more candidates. It scales when the card can name a cheap,
-independent, trusted way to reject or clear a larger fraction of proposed
-commitments. The end of the chapter writes that rule as a bound, but the cases
-are the intuition for it.
+Keep one conditional rule in view as the cases become more technical. Once
+proposal arrival exceeds trusted disposition capacity, adding candidates no
+longer scales that adjudication stage. Capacity improves when validated cheap
+checks can settle more comparable cases, or when routing, audits, escalation,
+reference checks, or concurrency improve. The end of the chapter states this as
+a scoped service-cost model, while the cases supply the intuition.
 
 The chapter's core spectrum categorizes the loop patterns by their feedback latency and rollback cost (@fig-loop-pattern-spectrum). The
 boxes are not a maturity scale. Fast software loops are not better than
@@ -379,8 +380,8 @@ the accelerated work is large enough, and coarse enough per invocation, to
 amortize the cost of reaching the accelerator. A dramatic local speedup can
 still fail as an architecture result if the stable domain fraction is small,
 the interface is expensive, or the software path cannot keep up. This same form
-returns at the end of the chapter, lifted from one accelerator's speedup to the
-throughput of the entire design loop (@sec-the-rejection-bound).
+returns at the end of the chapter as a scoped model of one design loop's
+adjudication stage (@sec-the-rejection-bound).
 For an AI-assisted loop, this equation is a rejection contract. A proposed
 specialization is not credible unless the method also carries interface,
 software-path, and end-to-end evidence.
@@ -654,19 +655,19 @@ co-design loop. The target ISA is fixed, and the loop repairs software to meet
 it. But moving a production fleet of core services onto a new instruction set is
 a fleet-scale software-repair loop in which tens of thousands of
 applications must follow, and it is the book's measured deployment-facing
-exemplar; no measured cross-layer hardware co-design loop is offered. The reported effort analyzed more than 38,000
-migration commits and wrapped part of the software change in an AI-assisted
-build-and-test repair loop, accepting a candidate fix only when the build and
-the test suite pass, and letting a fleet monitor automatically evict jobs that
-crash-loop or run slow on the new target. Authority sits with the instruments,
-not the generator. Build, test, sanitizers that expose memory-model differences
-between the two ISAs, and the production monitor that rejects regressions and
-preserves the evicted cases as negative traces for offline debugging. The repair
-tool resolves only a minority of failures on its own, roughly a third of broken
-tests without tuning, and the hardest changes stay with the application owners
-who know the code. The model behind the loop will age; the structure, a
-represented migration loop with instrument-held rejection authority and
-human-owned exceptions, is the part worth keeping.
+exemplar; no measured cross-layer hardware co-design loop is offered. The
+reported effort analyzed more than 38,000 migration commits. It also evaluated
+an AI-assisted repair tool on a selected replay benchmark of 245 historical
+commits with identifiable build and test targets. The tool produced a passing
+repair for 30 percent of that benchmark, a directional result rather than a live
+fleet automation rate [@ChristopherEtAl2025ISAMigration]. Separately, build,
+test, sanitizers that expose memory-model differences between the two ISAs, and
+a production monitor can reject regressions or evict jobs that crash-loop or run
+slow on the new target. Authority sits with those instruments, not the
+generator, while application owners keep the cases the automated repair path
+cannot settle. The model behind the loop will age; the represented migration
+state, instrument-held rejection authority, and human-owned exceptions are the
+parts worth keeping.
 
 When read through the same card, the migration case is not primarily an Arm story but a loop-contract story, its reusable fields laid out in @tbl-isa-migration-loop-card.
 
@@ -865,195 +866,108 @@ limiting regime. Architects can treat a slow design loop as
 Once candidate supply exceeds trusted adjudication capacity, that diagnosis is
 wrong. Just as a kernel can be memory-bound rather than compute-bound [@WilliamsWatermanPatterson2009Roofline], a design
 loop can become *rejection-bound*. In that regime its throughput is set by how
-fast trusted, independent dispositions can be applied, not by how fast
-candidates can be produced. This is the compact hypothesis the preceding
-vocabulary makes measurable. The interface speedup form
-used earlier for accelerators lifts cleanly from one block to the whole loop.
-There it priced the cost of reaching an accelerator. Lifted one level, it prices
-the cost of reaching a decision. The resulting bound measures the loop's speedup, how much useful
-design progress the loop makes per commitment once the cost of trusted feedback
-is paid.
+fast trusted dispositions can be applied. If candidate proposals arrive at rate
+$\lambda_{\mathrm{propose}}$ while the trusted disposition path can settle them
+at rate $\mu_{\mathrm{adjudicate}}$, the stage is rejection-bound when
+$\lambda_{\mathrm{propose}} > \mu_{\mathrm{adjudicate}}$. Candidate supply then
+builds a queue instead of increasing trusted progress.
 
-If a loop is not yet instrumented enough to estimate these terms, use the bound
-qualitatively first. Name the commitment unit, the cheap independent check, and
-the cases that must still escalate.
-
-Keep Amdahl's $f$, but raise what it counts. It is no longer the fraction of
-computation that an accelerator speeds. It is the fraction of design commitments
-that a cheap, independent, trusted rejection authority can discharge without
-escalating to expensive feedback or human judgment. This is rejection authority
-(@sec-feedback-verification-trust) in its
-algebraic role; this section uses rejector only as shorthand for the authority
-that applies the check. Take the slow loop that checks every commitment at full
-fidelity as the baseline. Introduce a cheap rejection authority that clears a
-fraction $f$ of commitments at a small fraction of that cost, and the loop's
-throughput obeys
+An Amdahl-like cost model can sharpen this idea for one restricted setting, a
+fixed stream of comparable candidate dispositions
+[@Amdahl1967ValiditySingleProcessor; @AltafWood2017LogCA]. Let
+$c_{\mathrm{hi}}$ be the mean service cost when every item goes directly to the
+high-fidelity reference, and let $c_{\mathrm{cheap}} < c_{\mathrm{hi}}$ be the
+mean cost of the cheaper check. Let $f$ be the fraction correctly settled without
+high-fidelity escalation, and let $a$ be the fraction that incurs the cheap check. Holding the
+candidate distribution, disposition quality, and adjudication concurrency
+fixed, the service-cost speedup is
 $$
-S_{\mathrm{loop}} \le
-\frac{1}{(1-f) + f \cdot (c_{\mathrm{cheap}}/c_{\mathrm{hi}}) +
-\epsilon_{\mathrm{escalate}}}.
+S_{\mathrm{adj}} =
+\frac{1}{(1-f) + a \cdot (c_{\mathrm{cheap}}/c_{\mathrm{hi}}) + \epsilon}
+\le
+\frac{1}{(1-f) + f \cdot (c_{\mathrm{cheap}}/c_{\mathrm{hi}}) + \epsilon}.
 $$
-Here $f$ is the fraction of commitments a cheap, independent, trusted instrument
-can settle without escalating by catching a violation and rejecting it, or clearing it at
-the commitment level the stage is deciding. Rejection is what such an instrument
-does most reliably, and acceptance is only ever as strong as the check and the
-commitment behind it. A green test suite is enough to accept a code fix, but not
-to certify a tapeout. The commitments that need a stronger acceptance than the
-cheap instrument can give fall in $(1-f)$, the irreducible part that only
-higher-fidelity feedback or human judgment can clear.
+The inequality follows because $f \le a \le 1$. Screening every candidate gives
+$a=1$; the optimistic upper bound assumes perfect routing, so the cheap check is
+spent only where it settles the disposition and $a=f$. The overhead
+$\epsilon \ge 0$ covers routing, queueing, audit, and rework beyond the high-fidelity
+service already charged by $(1-f)$, normalized by $c_{\mathrm{hi}}$. When high-fidelity costs differ materially
+across items, $f$ must be the fraction of baseline service cost avoided, not a
+simple fraction of candidate count.
 
-The ratio
-$c_{\mathrm{cheap}}/c_{\mathrm{hi}}$ is the cost of a cheap check relative to a
-high-fidelity one, and $\epsilon_{\mathrm{escalate}}$ is the escalation overhead, defined as
-the rate at which the cheap rejection authority defers times the cost of each
-climb up the fidelity ladder, expressed relative to $c_{\mathrm{hi}}$. The form
-charges the cheap check only on the commitments it settles; a rejection
-authority that must screen every candidate pays $c_{\mathrm{cheap}}$ on all of
-them, which only lowers
-$S_{\mathrm{loop}}$ further, so the relation is written as an upper bound, with
-equality in the idealized case where triage and escalation overheads vanish.
-For instance, if a fast compiler pass (the cheap rejector) can confidently discard 90% of invalid generated kernels ($f=0.9$) at 1/1000th the cost of full execution on silicon ($c_{\mathrm{cheap}}/c_{\mathrm{hi}} = 0.001$), the loop's throughput accelerates dramatically, provided the pass's overhead for escalating borderline cases ($\epsilon_{\mathrm{escalate}}$) does not wipe out those gains.
+This equation measures adjudication service cost, not useful design progress.
+Its $f$ counts only dispositions that agree with the declared high-fidelity
+reference. Observed cheap-check coverage is not enough. Both cheap accepts and
+cheap rejects need sampled escalation so false passes and false rejects are
+visible, and those audits belong in the cost. Independence reduces correlated
+blind spots, but does not establish accuracy by itself.
 
-The bound holds on one condition. The cheap rejector's clears must be *true*
-clears. A false pass, a candidate the cheap check waves through that a stronger
-stage would have rejected, does not speed the loop; it corrupts it, and repaid
-later at higher commitment it makes the effective $f$ a fiction. So $f$ counts
-only true, independent clears, which is why the rejector must not share the
-generator's blind spots (@sec-feedback-verification-trust). The honest bound is
-$S_{\mathrm{loop}}$ conditional on a bounded false-pass rate, not a promise that
-any cheap check that says yes has raised $f$. The condition is two-sided. A loop
-that rejects everything scores $f=1$ and maximal $S_{\mathrm{loop}}$ while
-producing nothing, so a false reject, a good candidate the cheap check discards,
-corrupts the bound as surely as a false pass. A *true clear* means the cheap
-check's disposition, accept or reject, matches what full fidelity would have
-decided; the bound is honest only under a bounded rate of both errors, read at a
-fixed design quality so the comparison holds the answer fixed the way Amdahl's
-does.
+The restriction to adjudication matters. For an exogenous proposal stream,
+faster generation cannot raise adjudication capacity. A search loop is
+different. A better generator can reduce evaluations to a fixed-quality target
+without changing $f$. Search quality, evaluations to target, and adjudication
+service cost therefore need separate measurements.
 
-Software testing gives the intuition. A fast unit test that misses bugs later
-caught by integration tests cannot earn a cheap clear just because it is cheap,
-and a flaky test that discards good patches does not make the pipeline more
-reliable. Cheap architecture rejectors need the same calibration against
-stronger checks before their clears can count.
+::: {.callout-engineer-move title="Measuring rejection-bound adjudication"}
+To estimate the model for a real AI-assisted loop rather than assert it, fix a
+protocol before the run.
 
-The form is Amdahl's law as LogCA prices it
-[@Amdahl1967ValiditySingleProcessor; @AltafWood2017LogCA]. The cheap rejection
-authority's local speedup is just $c_{\mathrm{hi}}/c_{\mathrm{cheap}}$, so the
-middle term is exactly Amdahl's $f/s$, and escalation overhead plays the role
-the interface cost played for the accelerator. The form is borrowed and
-credited. It is an Amdahl-like lens, not a new law. What is new is what the
-variables name, what they rule out, and the protocol that would falsify them.
+- **Comparable unit:** State what one disposition is, fix the task distribution,
+  and use service-cost weighting when items are heterogeneous.
+- **Outcome labels:** Record cheap accepts, cheap rejects, escalations, waivers,
+  and the later reference outcome.
+- **Matched audit:** Escalate random samples of both cheap accepts and cheap
+  rejects; report false-pass and false-reject uncertainty.
+- **Costs and routing:** Record $a$, $c_{\mathrm{cheap}}$,
+  $c_{\mathrm{hi}}$, queueing, audits, and rework actually paid.
+- **Independence:** Disclose shared actors, models, data, objectives, and tool
+  paths between the producer and rejector.
 
-What they rule out is the thing most easily mistaken for progress. Candidate
-count does not appear in the bound. That much is nearly a tautology, since
-$S_{\mathrm{loop}}$ is a per-commitment ratio and the candidate count divides
-out. Candidate count still sets the loop's total load and wall-clock; what it
-cannot move is the per-commitment throughput $S_{\mathrm{loop}}$, which improves
-only when rejection coverage, rejection cost, or escalation overhead improves. The substantive claim is that generation and rejection are ordinarily
-independent levers. Proposing more designs raises the candidate count but not
-$f$, so a loop can multiply its proposals by a thousand and move
-$S_{\mathrm{loop}}$ not at all. The one way out is a generator good enough to
-propose only obviously-good or obviously-rejectable candidates, which would raise
-$f$ itself, a better rejector wearing a generator's clothes. Short of that, the
-bound exposes only three levers, which are to raise $f$, lower the cost ratio, or lower
-escalation overhead.
-
-This holds cleanly for *adjudication* loops, where an exogenous stream of
-commitments arrives to be accepted or rejected; the fleet migration is the
-exemplar, its candidates given and its throughput set by how cheaply each is
-disposed. *Search* loops behave differently, and @sec-methods-generation-prediction-optimization
-is right about them. When the loop generates its own population to reach a target,
-a better generator legitimately lowers the number of evaluations to get there. The
-two are not in conflict. In a search loop that gain shows up *as* a higher $f$,
-because a generator that proposes only obviously-good or obviously-rejectable
-candidates makes the cheap check decisive more often. Either way, throughput moves
-through $f$, not through raw candidate count.
-
-::: {.callout-engineer-move title="Measuring the rejection bound"}
-To estimate $f$ for a real AI-assisted loop rather than assert it, fix a protocol before the run.
-
-- **Commitment unit:** State what one commitment is (an AI candidate accepted for the
-  next fidelity stage, an RTL change merged, a signoff waiver), so $f$ is a rate
-  over comparable events.
-- **Outcome labels:** Label every AI candidate commitment `cleared`, `rejected`,
-  `escalated`, or `waived`, and reserve `false pass` and `false reject` for
-  outcomes overturned later.
-- **Costs:** Record the cheap-check cost $c_{\mathrm{cheap}}$ and the high-fidelity
-  cost $c_{\mathrm{hi}}$ actually paid, not list prices.
-- **Independence:** Disclose whether the rejector shares data, model, or authorship
-  with the AI generator; a rejector that does is not independent, and $f$ is inflated.
-- **False-reject audit:** Periodically escalate a random sample of rejected
-  candidates to higher fidelity. The fraction that would have cleared estimates the
-  false-reject rate and bounds how aggressive the cheap authority may safely be.
-
-Without this protocol, $f$ is a story about the AI-assisted loop, not a measurement of it.
+Without this protocol, $f$ is a story about the AI-assisted loop, not a
+measurement of it.
 :::
 
 ::: {#pri-rejection-bound .callout-design-principle title="Recognize the rejection-bound regime"}
-For a fixed commitment target, an AI-assisted design loop becomes
-rejection-bound when candidate supply exceeds the capacity of trusted,
-independent adjudication. In that regime, adding candidates does not raise
-per-commitment throughput. The loop speeds up when a cheap, independent,
-trusted rejector discharges a larger fraction of commitments, when trusted
-feedback gets cheaper relative to high-fidelity evidence, or when escalation
-gets cheaper. Search loops can remain generation-bound when a better generator
-reduces the evaluations needed to reach a fixed-quality target.
+For a fixed adjudication stream, an AI-assisted design stage becomes
+rejection-bound when proposal arrival exceeds trusted disposition capacity.
+Adding candidates then grows the queue. The stage speeds up when validated cheap
+checks settle a larger share of comparable dispositions, when those checks get
+cheaper, or when routing, audit, and escalation overhead falls. Search loops
+need additional measures because a better generator can reduce evaluations to a
+fixed-quality target.
 :::
 
-Three readings follow, each argued qualitatively in an earlier chapter. First,
-generation is not the constraint. Cheap generation raises the candidate count the
-bound ignores, not $f$, which is @sec-methods-generation-prediction-optimization
-restated as algebra. Second, independence is load-bearing, not decorative. Only a
-rejector that does not share the generator's blind spots counts toward $f$, so a
-cheap check coupled to the generator inflates the apparent $f$ while real escapes
-survive, the failure @sec-feedback-verification-trust warns against when a learned
-judge and a learned generator quietly become the same witness. Third, $(1-f)$ is a
-floor. The commitments that only silicon, deployment, or a human can settle set a
-ceiling that no amount of cheap, abundant generation removes. It is Amdahl's
-serial fraction, written for the design loop.
+The ISA-migration study supplies an illustrative automation result, not a
+measured point on this model. Its 30 percent repair rate comes from a selected
+245-commit replay benchmark and combines generator behavior, benchmark
+selection, and build/test coverage [@ChristopherEtAl2025ISAMigration]. The
+study did not report the matched audits and service costs needed to estimate
+$f$. A proper measurement would hold the task distribution and generator fixed,
+audit both accepts and rejects at the reference fidelity, and record every
+service cost.
 
-The bound is not only a way to talk; its variables are estimable on a real loop.
-The fleet ISA migration earlier in this chapter gives one reading. Applied to the
-broken-test repair slice the migration left behind, the automated repair tool
-proposed fixes, and the cheap, independent instruments (build, test, sanitizers
-that expose memory-model differences, and the production monitor) settled
-roughly a third of those commitments without a human; the rest escalated to the
-engineers who owned the code. That is an $f$ of about $0.3$, with a $(1-f)$ floor of
-human-owned commitments, the shape the bound predicts. Progress tracked
-the fraction the cheap, independent instruments could settle without a human, not
-the number of fixes proposed. This estimates $f$ for that repair slice, not the
-entire migration loop, and it is a joint number. The third that cleared reflects
-both the repair tool's quality and the instruments' coverage, so a stronger
-generator would move it. Reading $f$ cleanly, holding the generator fixed and
-varying only the rejector stack, is the measurement the bound still owes. One
-measured point is not a validated law, but it shows the variables can be read off
-a deployed loop rather than only defined on paper.
-
-The bound also makes the scissors gap of @sec-design-loop-no-longer-scales
-computable. The gap widens precisely when one blade, the rate of proposals and
-evidence demands, races ahead while the other blade, the rate at which trusted
-feedback can reject, stays fixed. In these terms the gap is the regime where
-candidate count climbs while $f$ does not, and the bound says throughput is flat
-in exactly that direction. The loop families walked through this chapter are
-operating points on the same curve. Fast software loops sit near high $f$, cheap
-feedback, and low escalation, so they run quickly. High-commitment RTL and
-physical-design loops sit near low $f$, expensive feedback, and high escalation,
-which is why the method posture there shifts away from autonomous action toward
-critique, evidence organization, and rejection. The bound gives that advice a
-testable form rather than leaving it as an assertion.
+The arrival and service rates make the scissors gap of
+@sec-design-loop-no-longer-scales measurable without pretending the model is a
+general law of search. The gap widens when proposal and evidence demand grows
+faster than trusted disposition capacity. Fast software loops often have cheap
+checks and low escalation overhead. RTL and physical-design loops often have
+costlier references and more cases that must escalate. That operating
+difference, rather than raw candidate count alone, is what should change the
+method posture toward critique, evidence organization, and rejection.
 
 ## What Transfers Across Loops
 
 Across the loop families in this chapter, the same ontology transfers, and the
-rejection-bound form gives a useful way to compare many of them. Each loop has a
+rejection-bound model gives a useful way to compare their adjudication stages.
+Each loop has a
 task, a representation, an environment, method roles, feedback, evidence,
 rejection, and human decision. Each loop can preserve negative traces. Each loop
 can be reviewed with the design-loop card. Each loop can fail by hiding
 assumptions, optimizing a proxy, omitting provenance, or letting an output
 become a decision too early.
 
-What changes is the operating regime, which the rejection-bound relation gives
-a compact way to name using the value of $f$, the cost ratio between cheap and
+What changes is the operating regime, which the scoped cost model helps name
+using validated cheap-check coverage, the cost ratio between cheap and
 high-fidelity feedback, and the escalation overhead. Feedback latency changes. Reversibility changes. Action
 validity changes. Data availability changes. Security and IP constraints change.
 The cost of being wrong changes. Rejection authority changes. The acceptable
@@ -1084,8 +998,8 @@ should measure safe reuse and harmful transfer, not only whether an artifact can
 be parsed by another tool.
 
 2. **What error bounds make cheap cross-layer rejectors usable?**
-The rejection bound in @sec-the-rejection-bound makes cheap rejection
-authorities central to loop throughput, but the field needs to know when those
+The scoped model in @sec-the-rejection-bound makes validated cheap dispositions
+central to adjudication capacity, but the field needs to know when those
 authorities silently pass system-breaking bugs or discard good candidates. A
 top-tier systems paper could develop stress tests, bounded formal subsets, or
 calibrated empirical protocols that estimate false-pass and false-reject

@@ -20,7 +20,7 @@ namespaced experimental extension may use a top-level card key beginning with
 one of the twelve canonical fields.
 
 Version `1.1` tightens conformance after version `1.0` accepted structurally
-present but empty Level 1 ledgers and weak Level 2 provenance. Because that
+present but empty Level 1 records and weak Level 2 provenance. Because that
 change rejects some previously accepted documents, it is a new contract version
 rather than an in-place edit. The CLI still dispatches `schema_version: "1.0"`
 to `design-loop-card.v1.schema.json` for legacy records. New cards should emit

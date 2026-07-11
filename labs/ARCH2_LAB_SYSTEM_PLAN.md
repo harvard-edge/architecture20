@@ -93,28 +93,33 @@ The lab immediately converts that prompt into a bounded loop:
 | Invalid actions | Unsupported dimensions, impossible SRAM budgets, missing topology, or bandwidth outside the declared envelope. |
 | Cheap proxy | MACs divided by nominal PE count, with simple SRAM and bandwidth checks. |
 | Stronger feedback | SCALE-Sim reports for cycles, stalls, utilization, bandwidth, accesses, and optional time estimate. |
-| Rejection authority | Deadline miss, poor utilization, bandwidth pressure, invalid config, missing provenance, or stronger feedback overturning proxy rank. |
+| Rejection authority | Declared real-time or mobile-silicon budget, invalid config, missing provenance, or another predeclared hard gate. Utilization and bandwidth pressure remain diagnostics unless the loop separately declares and validates them as constraints. |
 | Commitment boundary | Advance to next-fidelity study only. No RTL, physical design, power signoff, or product claim. |
 | Human decision | Student names the survivor, rejected candidates, residual risk, and evidence that would overturn the decision. |
 
 ### Intended Aha Moment
 
-The cheap proxy should make a larger or seemingly faster array look best. The
-SCALE-Sim run should reveal that the proxy ignored utilization, memory stalls,
-or bandwidth pressure, so a different candidate survives.
+The cheap proxy should make a larger array look much better than a smaller one.
+The SCALE-Sim run should reveal how much that proxy overstated the gain and
+expose utilization or memory-pressure diagnostics. Those diagnostics explain
+the result but do not silently reject a candidate. A declared deadline or
+silicon budget supplies the hard gate, and the learner's stated objective
+governs choices among candidates that clear it.
 
-The exact winner is less important than the reversal:
+The important lesson is the separation among proxy, diagnostic, gate, and
+decision, not a required winner reversal:
 
 ```text
- Proxy rank: largest array wins.
- SCALE-Sim evidence: largest array has poor utilization or memory pressure.
- Rejection: proxy winner does not earn the commitment.
- Decision: a smaller or differently mapped candidate advances only to the next study.
+ Proxy rank: the largest array appears to dominate.
+ SCALE-Sim evidence: measured improvement is smaller; utilization explains the gap.
+ Hard gate: an oversized candidate fails only if it violates the declared budget.
+ Decision: the learner applies a stated objective and advances only to the next study.
 ```
 
 This is the Architecture 2.0 lesson in executable form. The loop does not trust
-the agent or proxy. It records what evidence supported the survivor and what
-rejected the alternatives.
+the agent or proxy, does not turn every diagnostic into a veto, and does not
+force a canonical survivor. It records what evidence supported the learner's
+decision and what declared rule rejected each alternative.
 
 ## Lab Modality
 
@@ -293,7 +298,7 @@ A useful Arch2 lab sequence should be short, coherent, and conference-ready.
 | 3 | Agent as Generator | An agent can propose candidates only inside an action schema. | Optional LLM, fallback heuristic. |
 | 4 | Agent as Critic | An agent may be more useful finding missing evidence and overclaims than generating designs. | Receipt validator plus optional LLM. |
 | 5 | Negative Trace Reuse | A rejected candidate is architecture data with scope and reuse limits. | Receipt repository. |
-| 6 | Higher-Fidelity Escalation | Commitment level rises only when evidence rises. | Timeloop, Verilator, or gem5 extension. |
+| 6 | Higher-Fidelity Escalation | Higher fidelity may support a stronger commitment only through an explicit architect-owned decision; neither axis rises automatically. | Timeloop, Verilator, or gem5 extension. |
 
 The first three labs are enough for a half-day tutorial. Labs 0 through 5 are
 enough for a full-day tutorial or a two-week course module.
@@ -325,7 +330,7 @@ commitment level.
 | --- | --- | --- |
 | 1 | Prompt to loop | The prompt hides workload, action, evidence, and ownership obligations. |
 | 2 | Proxy to evidence | The proxy winner can fail once the environment returns stronger feedback. |
-| 3 | Rejection gates | A useful loop is rejection-bound, not generation-bound. |
+| 3 | Rejection gates | A stage becomes rejection-bound when proposal arrival exceeds trusted disposition capacity. |
 | 4 | Agent role discipline | The same agent is safe or unsafe depending on role and authority. |
 | 5 | Negative traces | Failures are reusable only with fidelity labels and scope limits. |
 | 6 | Capstone design review | A human decision is defensible only when it states what would overturn it. |

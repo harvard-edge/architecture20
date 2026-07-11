@@ -94,9 +94,12 @@ For the lighthouse prompt, the first task should not be the whole mobile XR
 compute subsystem. A better first task might characterize a slice of XRBench, an extended reality benchmark suite, and compare three compute-organization candidates. The candidates are a vector CPU
 extension, an intentionally separated accelerator candidate used to expose interface costs, and a shared-memory System-on-Chip (SoC)
 block. The output is a latency-energy-power evidence ledger with rejected
-alternatives. That is still hard, but it is a loop rather than a wish, and it is
-deliberately the same slice @sec-running-the-loop walks. The first loop you build
-can be one the book has already run.
+alternatives. That is still hard, but it is a loop rather than a wish. It uses
+the same bounded slice that @sec-running-the-loop walks with constructed values,
+so the first loop you build can borrow the chapter's structure. Its evidence,
+however, must come from your own runs. The
+[companion labs](https://github.com/harvard-edge/arch2/tree/main/labs) provide a
+separate executable practice path and may produce a different result.
 
 ## Choose a Representation
 
@@ -116,7 +119,7 @@ Write down four boundaries before running anything:
 The last item matters. Early loops often fail because important state is
 outside the loop, such as a simulator default, a benchmark version, an undocumented
 constraint, a hidden preprocessing step, a fragile script, or a human judgment
-that never gets recorded. For example, if an AI generates an accelerator configuration but the area constraint is held only in the architect's head, the AI will inevitably propose invalid, oversized designs. Exposing that missing constraint is a success of the loop, not a failure of the model. Those gaps are not embarrassing. They are exactly
+that never gets recorded. For example, if an AI generates an accelerator configuration but the area constraint is held only in the architect's head, the AI can propose invalid, oversized designs. Exposing that missing constraint is a success of the loop, not a failure of the model. Those gaps are not embarrassing. They are exactly
 what the bootstrap loop is meant to expose.
 
 ## Wrap the Environment
@@ -135,14 +138,15 @@ For a first wrapper, keep the interface narrow:
 - logged tool versions, seeds, configurations, and errors;
 - a run directory that preserves successful and failed attempts.
 
-The wrapper should make failure visible. If a configuration does not compile,
-times out, violates a constraint, uses a stale benchmark, or produces an
-incomplete log, that result should be recorded as a negative trace rather than
-deleted. For example, a candidate with a 256~KB Level 2 (L2) cache and 128-bit vector unit, run
-at seed 7 under simulator v2.3, that times out after ten minutes belongs in the
-log as a rejected trace naming the timeout as its reason, not erased. A first
-environment that records failures is more valuable than a
-larger environment that only reports successes.
+The wrapper should make failure visible. A hard-constraint violation can reject
+a candidate. A compile error, timeout, stale benchmark, or incomplete log should
+first be recorded as an environment-failure trace unless a declared rule makes
+the candidate responsible for that outcome. For example, if a candidate with a
+256~KB Level 2 (L2) cache and 128-bit vector unit, run at seed 7 under simulator
+v2.3, times out after ten minutes, the log should preserve the timeout and its
+context. It becomes a candidate rejection only if the loop declared that limit
+as part of the candidate contract. A first environment that records failures is
+more valuable than a larger environment that only reports successes.
 
 ## Assign the Method Role
 
@@ -177,15 +181,17 @@ For example:
    conclusion.
 - A simulator result is valid only if the workload version, seed,
    configuration, and tool version are logged.
-- A candidate is rejected if it violates a hard constraint, fails to run,
-   or improves one metric by worsening the architectural objective.
+- A candidate is rejected if it violates a hard constraint. A failed run is
+   recorded as an environment failure, while a multiobjective tradeoff remains
+   for the declared decision rule or human review.
 - A result escalates to higher fidelity only after it passes the low-cost
    checks and preserves its assumptions.
 - A human architect must approve any claim that changes the commitment
    level of the result.
 
 Rejection authority is not pessimism. It is what makes automation useful.
-Without rejection, the loop can only produce artifacts. With rejection, it can
+Without rejection, the loop can only produce artifacts. With relevant
+observations, provenance, scope, and acceptance or rejection criteria, it can
 produce evidence.
 
 ## Fill in the Minimal Design-Loop Card
@@ -244,7 +250,7 @@ team, research project, or design-review group fits that cycle
 | **Pilot step** | **Output** | **Timebox** |
 | --- | --- | --- |
 | Pick one decision | A single architecture question with an owner and a non-goal. | 15 minutes. |
-| Fill the card | Task, representation, environment, evidence, rejection, and decision fields. | 30 minutes. |
+| Draft Level 0 | Intent, bounded task, and legal, invalid, and deferred design choices. | 30 minutes. |
 | Run one cheap check | One proxy, replay, compile, simulator, or review result with provenance. | One afternoon or less. |
 | Preserve one failure | A rejected candidate, invalid action, missing input, or tool error with reason. | During the first run. |
 | Review commitment | A note that says whether the evidence supports exploration, implementation, escalation, or rejection. | 15 minutes. |

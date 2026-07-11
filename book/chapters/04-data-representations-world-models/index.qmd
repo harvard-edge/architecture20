@@ -11,7 +11,7 @@
 :::
 
 ```{=latex}
-\abstract*{Representation is one of the first hard problems in Architecture 2.0. Automated optimizers cannot act credibly unless architecture work is made legible. The representation must structure three state schemas for loop state, execution history, and meta-state. Together, those schemas make the five-part execution state readable, replayable, comparable, and revisable.}
+\abstract*{Representation is one of the first hard problems in Architecture 2.0. Automated optimizers cannot act credibly unless architecture work is made legible. The representation must structure three state schemas for loop state, execution history, and meta-state. Together, those schemas make the five-part execution state readable, comparable, and revisable, supply records for audit, and provide state that a runnable receipt can bind for replay.}
 ```
 
 ::: {.callout-crux}
@@ -131,7 +131,7 @@ what is known, what is assumed, and what must still be checked. Representation
 design has two halves. The representation records that state, and the world
 model that predicts what acting on it will do.
 
-> **Architecture representation.** An architecture representation structures the loop into three state schemas that a method can read, compare, update, replay, and audit:
+> **Architecture representation.** An architecture representation structures the loop into three state schemas that a method can read, compare, and update. Those records support audit, while a runnable receipt can additionally bind them to replay:
 >
 > - **Loop State:** Workload, design state, constraints, and action-relevant fields (the system inputs and outputs defining the *state seen* and the fields an environment can validate).
 > - **Execution History:** Provenance, feedback, and negative traces (the runtime telemetry proving *why* the loop navigated there, mapping to *evidence* and *alternatives rejected*).
@@ -149,10 +149,11 @@ This representation records what the loop knows, but the loop also needs a mecha
 > the model's output.
 
 The boundary test in @tbl-representation-world-model-boundary is simple. A
-representation records the state a loop can read and replay. A world model
-predicts or constrains the consequences of acting on that state. The same
-artifact can contribute to both, but the loop must know which role it is
-playing.
+representation records the state a loop can read. A replay receipt additionally
+binds that state to runnable inputs, environment, provenance, and expected
+observations. A world model predicts or constrains the consequences of acting on
+the represented state. The same artifact can contribute to more than one role,
+but the loop must say which role it is playing.
 
 | **Example** | **Representation role** | **World-model role** |
 | --- | --- | --- |
@@ -338,15 +339,16 @@ not an afterthought.
 Because this cost dictates how an optimizer must treat an evaluation point, we have to move away from the web-centric view of a sample. In many benchmark settings, a sample is treated merely as an input-output pair, such as a
 question and answer, an image and label, or a prompt and reference response. In an
 architecture design loop, a sample is better understood as a feedback event
-that changes what the loop believes. It might be a cycle-level simulation, a
+that can change what the loop believes. It might be a cycle-level simulation, a
 compiler report, a failed synthesis run, a power estimate, a rejected
 floorplan, an expert review, or a silicon measurement. Each event has a cost,
-fidelity, provenance, and commitment level.
+fidelity, and provenance, and it may support or reject a claim or proposed
+decision.
 
-> **Architecture sample.** An architecture sample is any feedback event
-> that changes the loop's belief about a design candidate, including its cost,
-> fidelity, provenance, assumptions, rejected-space coverage, and commitment
-> level.
+> **Architecture sample.** An architecture sample is a feedback event that can
+> change the loop's belief about a design candidate. Its record includes cost,
+> fidelity, provenance, assumptions, rejected-space coverage, and the declared
+> claims or decisions it can support or reject.
 
 For an automated design loop, sample cost is part of the action policy. It
 determines which evaluations are cheap enough to explore, which require
@@ -398,10 +400,10 @@ state.
 | Cycle-level simulation | Minutes to days depending on model detail and target workload. | Simulator evidence is scoped by abstraction, calibration, and unsupported states. | Simulator version, configuration, seeds, workload revision, and calibration notes. |
 | RTL, gate, or EDA feedback | Hours to days when synthesis, timing closure, power analysis, or physical DRC/LVS feedback enters the loop. | High-fidelity samples are scarce and multiobjective. | Tool versions, constraints, process assumptions, waived warnings, and rejected candidates. |
 | FPGA, emulation, or prototype | High setup and shared-resource cost; high throughput once mapped. | Speed changes observability and debugging semantics, not only wall-clock time. | Mapping constraints, observability limits, debug hooks, and queue/resource state. |
-| Post-silicon bring-up or validation | Weeks to months and high commitment. | Real hardware exposes integration, timing, power, reliability, and validation failures that earlier evidence missed. | Hardware stepping, firmware or microcode version, test context, failure mode, waiver, and owner. |
+| Post-silicon bring-up or validation | Weeks to months and high acquisition cost. | Real hardware exposes integration, timing, power, reliability, and validation failures that earlier evidence missed. | Hardware stepping, firmware or microcode version, test context, failure mode, waiver, and owner. |
 | Field or fleet telemetry | Months to years and operationally confounded. | Real deployment shows workload drift, cohort effects, incidents, rollback triggers, and user-visible regressions. | Population, deployment version, sampling policy, privacy filter, incident context, and decision owner. |
 
-: **Architecture samples carry cost, fidelity, and commitment.** A feedback event is useful only when the representation records what it cost, what assumptions it used, and what future decision it can support or reject. {#tbl-sample-cost-regimes tbl-colwidths="[20,24,24,22]"}
+: **Architecture samples carry cost, fidelity, and decision scope.** A feedback event is useful only when the representation records what it cost, what assumptions it used, and what future decision it can support or reject. {#tbl-sample-cost-regimes tbl-colwidths="[20,24,24,22]"}
 
 For tools like simulators, the timing side of this cost is multiplicative. A simulator is not slow in the abstract; it
 is slow relative to the target cycles the workload demands. For a target clock
@@ -554,13 +556,14 @@ discarded.
 
 This missing information typically hides in common, recurring sources of undocumented
 design state, which @tbl-representation-debt collects. The point is not to document everything for its own sake. The point is
-to capture enough state that a loop can compare, replay, reject, and revise.
+to capture enough state that a loop can compare, reject, and revise, and that a
+suitable receipt can bind to a replay.
 
 | **Artifact** | **What it enables** | **What it often hides** | **Failure mode** |
 | --- | --- | --- | --- |
 | Paper or plot | Claim, result, and comparison. | Tool flags, failed candidates, tuning history. | Reproduce only the story, not the loop. |
 | Workload trace | Concrete input behavior and measurements. | Coverage, versioning, sampling policy, privacy filters. | Optimize for an unrepresentative slice. |
-| Simulator config | Replayable model setting. | Defaults, unsupported states, calibration limits. | Trust a number outside its valid scope. |
+| Simulator config | Explicit model setting. | Defaults, unsupported states, calibration limits. | Trust a number outside its valid scope. |
 | RTL or EDA report | Implementation-facing feedback. | Process assumptions, constraints, waived warnings. | Accept an artifact that cannot close. |
 | Review notes | Human judgment and rationale. | Tacit assumptions and discarded alternatives. | Lose why a decision was made. |
 | Rejected candidate | Search boundary and negative evidence. | Why it failed and at what fidelity. | Rediscover known dead ends. |
@@ -628,7 +631,7 @@ failure modes, and invalid-action conditions. It does not own the action schema,
 sampling policy, or human decision policy. The basic structure, shown in @fig-architecture-world-model, has tools return
 feedback while evidence updates both the representation and the world model.
 
-![**A world model connects artifacts to valid architectural action:** A representation record captures what the loop can read, compare, and replay; a world model captures what the loop believes actions will change. Feedback becomes reusable only when provenance, coverage, and negative traces are recorded.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Loop diagram showing representation records, world models, tool feedback, evidence, provenance, coverage, and negative traces connected to valid architectural action."}
+![**A world model connects artifacts to valid architectural action:** A representation record captures what the loop can read, compare, and update; a world model captures what the loop believes actions will change. Feedback becomes reusable only when provenance, coverage, and negative traces are recorded, while replay additionally requires runnable inputs and environment bindings.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Loop diagram showing representation records, world models, tool feedback, evidence, provenance, coverage, and negative traces connected to valid architectural action, with replay requiring a separate runnable receipt."}
 
 For the lighthouse prompt, a small world model might be as simple as
 @tbl-xr-world-model-sketch. It is not a full simulator. It is the part of the
@@ -728,8 +731,9 @@ exposed, and how that evidence should change the next action in the loop.
 
 : **Negative traces are architecture data.** Failed builds, invalid candidates, missed constraints, and rejected alternatives define the boundary of the design space and should be preserved rather than discarded. {#tbl-negative-traces tbl-colwidths="[26,32,32]"}
 
-Negative traces require provenance, an exact, replayable record of the environment that produced the result. A failed result without context is not very
-useful. The minimum reusable record includes the candidate identifier, workload
+Negative traces require provenance detailed enough to interpret the environment
+that produced the result. A replay claim additionally requires the runnable
+environment and inputs. A failed result without context is not very useful. The minimum reusable record includes the candidate identifier, workload
 slice, software stack, tool version, seed, parameters, constraints, fidelity
 level, failure reason, coverage boundary, and decision owner. The loop also
 needs coverage. What part of the design space, workload space, or evidence
@@ -744,10 +748,10 @@ loop cannot tell whether a past rejection is still valid.
 
 ## When a Representation Becomes Actionable
 
-Collecting this architecture data, from high-fidelity negative traces to structured constraints and world-model escalation triggers, ultimately serves a narrower goal. It makes bounded automated action reviewable, rejectable, and replayable. A representation becomes actionable when it can safely support loop operations.
+Collecting this architecture data, from high-fidelity negative traces to structured constraints and world-model escalation triggers, ultimately serves a narrower goal. It makes bounded automated action reviewable and rejectable, and supplies state for replay when a runnable receipt is also present. A representation becomes actionable when it can safely support loop operations.
 It should expose the action-relevant fields that an environment can validate,
 expose relevant observations, carry constraints and objectives, record
-provenance, support replay, preserve uncertainty, separate feedback from
+provenance, preserve uncertainty, separate feedback from
 evidence, and record what rejects a candidate. It should also say what remains a
 human decision.
 
@@ -760,8 +764,9 @@ space.
 
 The same test applies to abstractions. A useful Architecture 2.0 abstraction
 does not merely hide detail or provide nicer names. It creates a
-surface where valid actions, feedback, rejection, replay, or review can happen
-earlier, cheaper, or with clearer authority. An abstraction that cannot return
+surface where valid actions, feedback, rejection, or review can happen earlier,
+cheaper, or with clearer authority. Replay additionally depends on an attached
+runnable receipt. An abstraction that cannot return
 feedback is merely notation; it may help people talk, but it has not
 yet made the loop more capable.
 
@@ -784,8 +789,8 @@ the loop cannot see, it cannot reason about, and what the human architect cannot
 The gap between public architecture knowledge and actionable loop state is
 significant. The questions here focus on representations and world models, not
 yet on full tool environments or governance. Each question asks what structure,
-learning problem, or benchmark would make architecture state replayable,
-rejectable, and useful inside an AI-assisted loop.
+learning problem, or benchmark would make architecture state rejectable and
+useful inside an AI-assisted loop, and what a receipt must add for replay.
 
 1. **What semantics make architecture proposals replayable and rejectable?**
 Representations must act as boundary objects between human intent and tool
@@ -793,9 +798,9 @@ execution, as discussed in @sec-architecture-descriptions-as-boundary-objects.
 Yet optimizer proposals are still often described informally. A thesis-level
 contribution would define a machine-readable proposal language with operational
 semantics for task intent, design-space boundaries, evidence, and rejection.
-The evaluation should show that proposals can be replayed, checked, compared,
-and safely rejected using attached provenance rather than private author
-memory.
+The evaluation should show that proposals can be checked, compared, and safely
+rejected from attached records, then replayed when the runnable environment,
+inputs, commands, expected observations, and provenance are also present.
 
 2. **What should costly architecture samples record?**
 Every simulation, synthesis run, trace collection, or physical-flow check is a
@@ -839,7 +844,8 @@ optimizer can act on it and a human architect can audit the result.
 Representation is the first hard problem because a method can only act on what
 the loop can see. Get it wrong and a more capable model simply moves faster in
 the wrong direction. Get it right and the loop gains a surface where valid
-actions, feedback, rejection, replay, and review can actually happen.
+actions, feedback, rejection, and review can happen, and where a runnable receipt
+can support replay.
 
 Legibility is the bar, and it sits higher than readability. A representation that
 captures winning results but not rejected alternatives, or scores but not
@@ -850,10 +856,10 @@ which means recording provenance, assumptions, costs, failures, and negative
 traces, not only the successful endpoints.
 World models, structured design data, and negative-trace corpora all serve that
 one end, turning scattered architecture experience into state a loop can read,
-replay, compare, and revise.
+compare, and revise, and that a suitable receipt can make replayable.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** Represent enough loop state that a result can be replayed, its rejected alternatives compared, and its commitment read long after the run.
-- **Reader test:** Could an automated optimizer replay both the winning and the rejected candidates six months later, compare the evidence boundaries, see who could reject the result, and read what commitment the evidence supports?
+- **Carry forward:** Represent enough loop state that rejected alternatives can be compared and the commitment read long after the run; attach a runnable receipt when replay is a requirement.
+- **Reader test:** Could an automated optimizer read both the winning and rejected candidates six months later, compare their evidence boundaries, see who could reject the result, and find the runnable environment and inputs if the record claims replayability?
 - **Up next:** Once that state exists, tools can become environments that act on it and return interpretable feedback. That is what representation buys in Architecture 2.0, constrained automated action under human-auditable authority.
 :::

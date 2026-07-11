@@ -67,9 +67,10 @@ def _(dedent, mo):
         > XR workload under a 3 W TDP in a 3 nm-class process; return a design-space
         > report with evidence and rejected alternatives.*
 
-        A good loop card fills every field so the claim is reviewable:
+        A compact loop sketch makes the core obligations visible before the full
+        twelve-field card is written:
 
-        | **Card field** | **Filled for the lighthouse prompt** |
+        | **Sketch element** | **Filled for the lighthouse prompt** |
         | --- | --- |
         | **Workload / scenario** | XRBench-class real-time mobile XR slice; latency + QoS target stated. |
         | **Legal action space** | Vector width, local memory, CPU/accelerator partition; ISA fixed. |
@@ -175,9 +176,11 @@ def _(actions, boundary, evidence, hardest, mo, workload):
         )
         status = mo.md(
             "✅ **Four-field bootstrap complete.** This exercise is a partial mapping, "
-            "not a complete canonical design-loop card. The remaining canonical fields "
-            "still need evidence, replay, rejection-authority, and ownership records."
-            + (note if hardest.value else "")
+            "not a complete canonical design-loop card. Among the still-unwritten card "
+            "fields are explicit intent and task, representation, environment, method "
+            "role and actor map, feedback budget, evidence, negative traces, rejection "
+            "authority, and human decision. Replay is not another card field; it "
+            "requires a separate runnable receipt." + (note if hardest.value else "")
         )
     status
     return

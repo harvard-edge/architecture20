@@ -323,7 +323,7 @@ This abstraction can be described as a contract. The environment is the maintain
 | **Observation schema** | Metrics, traces, logs, reports, errors, and artifacts returned after an action. | What can the loop observe after acting? |
 | **Constraints and validity** | Type checks, feasibility rules, physical/manufacturing limits, software ecosystem compatibility, and invalid-action handling. | What makes a candidate illegal before performance is considered? |
 | **Feedback budget** | Cost, latency, fidelity, determinism, parallel scalability, and sample limits for each source of feedback. | How much evidence can the loop afford? |
-| **Provenance record** | Tool versions, seeds, inputs, configuration files, assumptions, and artifact hashes. | Could a human replay or audit the result? |
+| **Provenance record** | Tool versions, seeds, inputs, configuration files, assumptions, and artifact hashes. | Could a human audit the result and locate the runnable inputs when replay is claimed? |
 | **Supply-chain and integrity record** | Dependency, dataset, model, prompt, tool-binary, receipt, and attestation identifiers. | Can the loop tell whether the evidence source changed or was tampered with? |
 | **Rejection authority** | Conditions that stop, revise, or escalate a candidate. | What can say no? |
 
@@ -334,8 +334,8 @@ Actions, observations, and rewards are useful terms, but architecture work
 also needs constraints, invalid-action semantics, provenance, and human
 decision points. A loop that proposes a cache size, vector width, chiplet
 partition, compiler flag, or RTL edit needs to know not only whether a score
-improved, but whether the candidate is legal, reproducible, comparable, and
-worth committing to a higher-fidelity stage.
+improved, but whether the candidate is legal, traceable, comparable, and worth
+escalating to a higher-fidelity evaluation.
 
 Applying this contract to the lighthouse prompt, the environment might expose actions such as
 changing vector width, local memory size, issue width, cache configuration,
@@ -387,7 +387,8 @@ anecdotal.
 
 The comparison is credible only when every AI-assisted system acts against
 compatible, or explicitly mapped, represented state, feedback records,
-invalid-action rules, escalation policy, and human-review rules, which
+invalid-action and environment-failure rules, escalation policy, and
+human-review rules, which
 @tbl-archgym-mini-contract reads as an ArchGym-style mini-contract.
 
 | **Contract field** | **ArchGym-style instance** |
@@ -396,7 +397,7 @@ invalid-action rules, escalation policy, and human-review rules, which
 | **Action space** | Architecture parameters, simulator knobs, or mapping choices the automated method is allowed to change. |
 | **Observation and reward** | Metrics returned by the simulator or tool path, with the reward derived from those observations. |
 | **Workload and tool path** | Benchmark inputs, simulator configuration, and versioned evaluation scripts. |
-| **Invalid-action behavior** | Rules for rejected parameters, failed runs, timeouts, or unsupported configurations. |
+| **Action and outcome handling** | Rules for rejected parameters and unsupported candidate states, with separate records for failed runs, timeouts, tool crashes, and other environment failures. |
 | **Feedback cost** | Approximate turnaround and sample budget for each evaluation regime. |
 | **Rejection and commitment boundary** | Independent checks that can reject a result and the strongest claim level the environment can support. |
 | **Limits** | Simplified simulators, cleaner action spaces, and missing industrial constraints can bound what the result proves. |
@@ -483,8 +484,8 @@ Once an environment is structured to support these composable agents, the
 hardest design choice is often the feedback regime, not the action schema.
 
 > **Feedback regime.** A feedback regime is a class of checks at a particular
-> fidelity, cost, and commitment level, from cheap proxies to high-commitment
-> verification, deployment, or silicon evidence.
+> fidelity and cost, from cheap proxies to implementation, deployment, or
+> silicon evidence. The commitment under review is recorded separately.
 
 Architecture feedback ranges from cheap and weak to slow
 and authoritative. A simple analytic proxy may return in milliseconds. A
@@ -511,8 +512,10 @@ When an AI method proposes a candidate, do not automatically grant it a high-fid
 - If the high-fidelity check fails, can the environment map that failure back to a specific tool action?
 :::
 
-This dynamic creates an economy of evidence. Cheap feedback buys breadth, pruning, and parallel scaling;
-expensive feedback buys stronger rejection authority. As visualized in @fig-fidelity-cost-confidence,
+This dynamic creates an economy of evidence. Cheap feedback buys breadth, pruning, and parallel scaling.
+Expensive feedback may expose behavior that cheaper checks miss, but cost or
+fidelity does not confer authority. Authority comes from the declared contract,
+scope, validation, and independence of the check. As visualized in @fig-fidelity-cost-confidence,
 this economy dictates the fundamental pressure of the design loop. As feedback moves toward implementation and
 deployment, the loop usually spends orders of magnitude more time per sample, gains less freedom to
 explore, and needs dramatically clearer justification for every action it takes. The ranges
@@ -527,17 +530,20 @@ science, where cheap, lower-fidelity models are combined with scarce,
 high-fidelity ones to keep optimization, inference, and uncertainty
 quantification affordable[^fn-stats-uncertainty-quantification] [@PeherstorferWillcoxGunzburger2018Multifidelity].
 Architecture 2.0 inherits that economy and adds two architecture-specific
-requirements: each fidelity level must carry its own rejection authority, and a
-move to a higher level crosses a commitment boundary, not merely a more accurate number.
+requirements. Each feedback level must declare what its checks may reject, under
+which validation and independence assumptions, and when escalation should spend
+a different evidence budget. Higher-fidelity feedback may be required before a
+stronger commitment, but obtaining it does not authorize that commitment by
+itself.
 
 [^fn-stats-uncertainty-quantification]: In this chapter, recording where an environment's feedback is uncertain enough to force escalation rather than commitment.
 
 ```{python}
 #| label: fig-fidelity-cost-confidence
 #| fig-cap: |
-#|   **Feedback fidelity changes the economics of search and commitment:** Low-cost feedback can screen many candidates, but implementation-adjacent feedback is scarce and more authoritative. The vertical ordering reflects rejection authority more than strict latency; the point is the shrinking sample budget, not the exact wall-clock value for any particular project.
+#|   **Feedback regimes have different costs and sample budgets:** Low-cost feedback can screen many candidates, while implementation-adjacent observations are scarce. The ordering shows representative turnaround and acquisition cost, not automatic authority or commitment; each check still needs a declared scope and validation contract.
 #| out-width: "92%"
-#| fig-alt: "Horizontal range plot comparing feedback regimes from cheap proxies to silicon deployment, showing increasing latency and rejection authority with shrinking sample budgets."
+#| fig-alt: "Horizontal range plot comparing representative turnaround ranges and shrinking sample budgets for feedback regimes from cheap proxies to silicon deployment, without treating cost or fidelity as automatic authority."
 
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style, draw_range_rows, row_axis, top_log_axis
@@ -564,7 +570,7 @@ top_log_axis(
     xlabel="representative turnaround or commitment latency",
 )
 draw_range_rows(ax, rows, low_key="low_seconds", high_key="high_seconds", label_x=-0.86, right_x=1.03, label_fontsize=6.5, note_fontsize=5.3, right_fontsize=5.9)
-add_note_box(fig, "Representative ranges only; sample budgets shrink as rejection authority rises.", xywh=(0.13, 0.035, 0.74, 0.085), fontsize=5.5)
+add_note_box(fig, "Representative ranges only; authority depends on scope, validation, and the decision contract.", xywh=(0.13, 0.035, 0.74, 0.085), fontsize=5.5)
 
 plt.show()
 plt.close(fig)
@@ -586,12 +592,12 @@ still learn the wrong lesson.
 | --- | --- | --- | --- | --- |
 | Analytic proxy or learned surrogate | Milliseconds to seconds; low direct cost but high model-risk exposure. | Thousands to millions of candidate checks, highly parallelizable. | Obvious invalidity, dominated regions, sensitivity failures, or proxy-calibration failures. | Use for pruning, active learning, and broad search, not final commitment. |
 | Trace, profile, or replay | Seconds to hours depending on capture, replay, and privacy filtering. | Tens to thousands of slices or scenarios. | Coverage gaps, stale workload versions, leakage, or mismatch to intended deployment. | Use for workload state, clustering, and targeted tests. |
-| Cycle-level simulation | Minutes to days depending on model detail and target workload. | Tens to hundreds of scoped architecture comparisons. | Simulator configuration errors, unsupported states, calibration gaps, and sensitivity checks. | Use staged design-space exploration with replay and escalation. |
+| Cycle-level simulation | Minutes to days depending on model detail and target workload. | Tens to hundreds of scoped architecture comparisons. | Declared candidate-state violations, unsupported candidate states, calibration failures, or sensitivity failures; setup and configuration errors remain environment failures. | Use staged design-space exploration with replay and escalation. |
 | Compiler/runtime measurement | Compilation, build, profiling: seconds to hours; target execution, replay, or autotuning: minutes to days. | Many local measurements, fewer portable claims. | Correctness tests, portability checks, and end-to-end software-path evidence. | Use autotuning or generation only with tests and provenance attached. |
 | RTL, synthesis, or physical feedback | Hours to weeks when timing, power, congestion, or signoff constraints enter. | Handfuls to tens of scarce high-fidelity samples. | Timing, power, area, congestion, design-rule checking, formal, or waived-warning review. | Use filters, surrogates, and human gates before spending samples. |
 | Prototype, silicon, or deployment telemetry | High setup cost; weeks to years when field evidence or silicon commitment is required. | Few high-commitment measurements plus ongoing telemetry. | Field behavior, reliability, rollback policy, incident review, and accountable human decision. | Use for calibration, validation, and drift monitoring, not blind exploration. |
 
-: **Feedback regimes create evidence economics:** A method should match the latency, sample budget, rejection authority, and commitment level of the feedback it receives. Representative ranges are project-dependent and should be replaced by local source receipts in a real loop. {#tbl-feedback-latency-fidelity tbl-colwidths="[17,19,17,22,17]"}
+: **Feedback regimes create evidence economics:** A method should match the latency and sample budget of the feedback it receives, while the loop separately declares each check's scope, rejection authority, and relationship to the proposed commitment. Representative ranges are project-dependent and should be replaced by local source receipts in a real loop. {#tbl-feedback-latency-fidelity tbl-colwidths="[17,19,17,22,17]"}
 
 However, this table must be read with a fidelity-risk rule. Lower-fidelity
 feedback can prune and prioritize, but it can also be gamed or contradicted.
@@ -610,9 +616,10 @@ generate a credible path to use it.
 This fidelity regime structure therefore drives method choice. If feedback is cheap, broad search
 or online adaptation may be reasonable. If feedback is expensive, the loop
 needs sample efficiency, priors, surrogates, active learning[^fn-ml-active-learning], staged gates, or
-stronger human filtering. If feedback is high commitment, the loop should
-become more conservative. Use AI to organize evidence, critique assumptions,
-and narrow the search, not to make unsupported final decisions.
+stronger human filtering. If the proposed decision is high consequence or hard
+to reverse, the loop should become more conservative. Use AI to organize
+evidence, critique assumptions, and narrow the search, not to make unsupported
+final decisions.
 
 [^fn-ml-active-learning]: In this chapter, a policy for choosing which scarce simulator, synthesis, human, or deployment feedback event to spend next, with the choice logged as part of the evidence ledger [@Settles2009ActiveLearning].
 
@@ -710,8 +717,8 @@ cleanly.
 3. Define the action schema by stating which fields can change, which are read-only, which combinations are legal, and which changes require human approval.
 4. Wrap the tool path, such as a simulator, compiler, profiler, RTL flow, EDA stage, runtime system, benchmark harness, or telemetry pipeline.
 5. Define observations and feedback, including metrics, traces, logs, warnings, errors, generated artifacts, cost, and fidelity level.
-6. Define invalid-action semantics, such as an illegal parameter, noncompilable artifact, nonsynthesizable design, violated constraint, timeout, simulator crash, or unsupported workload.
-7. Log provenance and negative traces, preserving tool versions, seeds, workload versions, failed candidates, rejected alternatives, and reasons for rejection.
+6. Define action and outcome semantics. Illegal parameters, candidate-caused noncompilable or nonsynthesizable artifacts, violated constraints, and unsupported workloads may invalidate a candidate. Timeouts, simulator crashes, and setup failures remain environment failures unless a declared rule assigns the candidate responsibility.
+7. Log provenance, environment failures, and negative traces, preserving tool versions, seeds, workload versions, failed runs, rejected alternatives, and reasons for each disposition.
 8. State the human decision rule, defining what the architect reviews, what can be accepted automatically, and what must escalate.
 
 Once built, the readiness test for this environment is simple. Could a second method, student, or research group
@@ -811,7 +818,7 @@ ordinary drift becomes visible before it invalidates evidence.
 | Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
 | Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, dependency, seed, configuration, and attestation versions. | Results become incomparable across runs without a clear cause, or a changed dependency silently alters the evidence source. | Treat version changes as evidence events and preserve old receipts. |
 | Action-space changes | New knobs, deprecated knobs, invalid combinations, and permission boundaries. | A method proposes actions the environment no longer supports. | Update validity checks and record invalid-action traces. |
-| Evidence and rejection rules | Fidelity labels, escalation thresholds, signoff gates, waivers, and reviewer decisions. | A proxy keeps authority after the commitment level has risen. | Recalibrate evidence levels and require higher-fidelity review. |
+| Evidence and rejection rules | Fidelity labels, escalation thresholds, signoff gates, waivers, and reviewer decisions. | A proxy keeps authority after the commitment level has risen. | Recalibrate the evidence rule and require review whose declared scope, validation, and independence support the new commitment. |
 | Human ownership | Decision owner, review date, redaction boundary, and escalation path. | Accountability disappears into scripts, tools, or automated systems. | Keep commitment decisions explicit and auditable. |
 
 : **Maintaining the environment preserves loop validity over time:** The operating discipline is to

@@ -6,6 +6,7 @@
   <a href="https://arch2.mlsysbook.ai/start.html"><b>Start with the card</b></a> ·
   <a href="https://arch2.mlsysbook.ai"><b>Website</b></a> ·
   <a href="https://arch2.mlsysbook.ai/book/"><b>Book</b></a> ·
+  <a href="https://github.com/harvard-edge/arch2/tree/main/labs"><b>Labs</b></a> ·
   <a href="https://arch2.mlsysbook.ai/tools/"><b>Tool registry</b></a> ·
   <a href="https://arch2.mlsysbook.ai/readings.html"><b>Readings</b></a> ·
   <a href="https://arch2.mlsysbook.ai/workshops.html"><b>Workshops</b></a> ·
@@ -34,7 +35,8 @@ Architecture 2.0 is part of the [mlsysbook.ai](https://mlsysbook.ai) family.
 
 | If you want to... | Go here |
 | --- | --- |
-| Complete, validate, and review a design-loop card in 30 minutes | [Start workflow](https://arch2.mlsysbook.ai/start.html) |
+| Draft and validate a Level 0 design-loop card in 30 minutes | [Start workflow](https://arch2.mlsysbook.ai/start.html) |
+| Run a tool-backed student loop and inspect its receipt | [Companion labs](https://github.com/harvard-edge/arch2/tree/main/labs) |
 | Download the machine-checkable blank card | [YAML template](https://arch2.mlsysbook.ai/design-loop-card/template.yaml) |
 | Read the core argument | [Architecture 2.0 book](https://arch2.mlsysbook.ai/book/) |
 | Find tools, simulators, benchmarks, datasets, and loop infrastructure | [Tool registry](https://arch2.mlsysbook.ai/tools/) |
@@ -68,10 +70,17 @@ The public site connects the following maintained surfaces.
 | --- | --- |
 | **Synthesis lecture** | A compact framework for auditable AI-assisted architecture loops. |
 | **Design-loop card** | A versioned twelve-field review record with machine-checkable conformance levels. |
+| **Companion labs** | A separate tool-backed practice path for producing evidence and receipts without replacing the book's constructed lighthouse example. |
 | **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, datasets, and data representations, each tied to a role in an architecture design loop. |
 | **Reading list** | A curated path through papers, SIGARCH posts, talks, datasets, and workshop writeups. |
 | **Workshop archive** | Verified active calls when available, with prior events retained as an archive. |
 | **Discussions** | A public place to propose questions and ideas when durable discussion is useful. |
+
+## Reading Formats
+
+Use the HTML or EPUB edition for reflowable reading and screen-reader semantics.
+The current Springer-layout PDF is untagged and may not work reliably with
+screen readers.
 
 ## Contributors
 

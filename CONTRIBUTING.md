@@ -7,9 +7,10 @@ of Conduct](CODE_OF_CONDUCT.md).
 
 ## Use or extend the design-loop card
 
-The [30-minute start workflow](https://arch2.mlsysbook.ai/start.html) links the
-canonical YAML and Markdown templates, the JSON Schema, and examples for Levels
-0 through 3. Validate a completed card from a repository clone.
+The [30-minute start workflow](https://arch2.mlsysbook.ai/start.html) helps a
+reader draft and validate a Level 0 card. It also links the canonical YAML and
+Markdown templates, the JSON Schema, and cumulative examples for Levels 0
+through 3. Validate any completed card from a repository clone.
 
 ```bash
 python3 -m venv .venv-card
@@ -119,8 +120,9 @@ and files issues automatically.
 ## Building the site locally
 
 The site is three Quarto projects (`www/`, `tools/`, `book/`) assembled into one.
-Install Quarto 1.9.36 separately and make `quarto` available on `PATH`. Then
-create and activate the Python environment:
+Install Quarto 1.9.36 and EPUBCheck 5.3.0 separately, then make `quarto` and
+`epubcheck` available on `PATH`. On macOS, `brew install epubcheck` installs the
+EPUB validator. Then create and activate the Python environment:
 
 ```bash
 python3.11 -m venv .venv
