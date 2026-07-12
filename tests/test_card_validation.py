@@ -180,12 +180,12 @@ def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
         "Feedback budget",
         "Evidence",
         "Failed / rejected",
-        "Rejection authority",
+        "Rejection checks + authority",
         "Commitment boundary",
         "Accountable decision",
     ]
     svg = svg_path.read_text(encoding="utf-8")
-    assert "constraint violations" in svg
+    assert "power violations" in svg
     assert "tool failures" not in svg
 
 
@@ -194,8 +194,11 @@ def test_design_loop_figure_separates_evidence_stage_from_governance() -> None:
     svg = (chapter_root / "images" / "F3-design-loop.svg").read_text(encoding="utf-8")
     chapter = (chapter_root / "index.qmd").read_text(encoding="utf-8")
     assert "evidence stages may raise fidelity and cost" in svg
-    assert "commitment boundary and allowed autonomy" in svg
-    assert "neither rises automatically with fidelity" in chapter.lower()
+    assert "decision rights and commitment boundary" in svg
+    assert (
+        "fidelity, commitment, and allowed authority remain separate choices"
+        in chapter.lower()
+    )
     assert "fidelity, cost, and commitment rise" not in svg
     assert "fidelity, cost, and commitment rise" not in chapter
 
@@ -204,8 +207,8 @@ def test_chapter_3_separates_reviewability_from_reproduction() -> None:
     chapter = (
         ROOT / "book" / "chapters" / "03-architecture-20-framework" / "index.qmd"
     ).read_text(encoding="utf-8")
-    assert "compared, inspected, and contested" in chapter
-    assert "Replay or reproduction requires a separate runnable receipt" in chapter
+    assert "Reviewability and replay remain separate" in chapter
+    assert "A runnable receipt binds executable" in chapter
     assert "compared, reproduced, and contested" not in chapter
 
 
@@ -214,7 +217,7 @@ def test_appendix_b_distinguishes_fixtures_labs_and_level_0_drafting() -> None:
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     assert "Synthetic card example" in appendix
-    assert "Separate runnable SCALE-Sim lab" in appendix
+    assert "Separate lab using SCALE-Sim" in appendix
     assert "https://github.com/harvard-edge/arch2/blob/main/labs/README.md" in appendix
     assert "30-minute Level 0 workflow" in appendix
     assert "Draft and validate context and boundaries" in appendix
@@ -227,7 +230,7 @@ def test_appendix_b_does_not_treat_logs_or_crashes_as_proof() -> None:
     normalized = re.sub(r"\s+", " ", appendix)
     assert "does not prove adequate exploration" in normalized
     assert "segfault or compile failure is an environment failure" in normalized
-    assert "rejection gate only when a predeclared rule" in normalized
+    assert "candidate-rejection check only when a predeclared rule" in normalized
     assert "simulator segfaults" not in appendix
     assert "enough to prove you explored the space" not in appendix
 

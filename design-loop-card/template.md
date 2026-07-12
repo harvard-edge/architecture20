@@ -12,9 +12,13 @@
 
 **Non-goals:**
 
-**Claim (optional):**
+**Risks (optional):**
 
-**Non-claim (optional):**
+**Deployment assumptions (optional):**
+
+**Claim (required for claim review; optional for v1.1 conformance):**
+
+**Non-claim (required for claim review; optional for v1.1 conformance):**
 
 ## Task
 
@@ -36,10 +40,10 @@
 
 ## Evidence
 
-## Failed Runs and Rejected Alternatives (`negative_traces`)
+## Failed Runs / Rejected Alternatives (`negative_traces`)
 
-## Rejection Authority
+## Rejection Checks and Authority (`rejection_authority`)
 
-## Commitment Boundary and What Would Overturn It
+## Commitment Boundary and What Would Overturn It (`commitment_boundary`)
 
 ## Accountable Decision (`human_decision`)

@@ -2460,7 +2460,7 @@ Recommended title: **How should scarce feedback be priced across performance, en
 Rationale: This treats feedback as the limiting resource and links it to
 multiobjective architecture tradeoffs.
 
-## Chapter 3: Architectural Claims and Design Loops
+## Chapter 3: Reviewable Architecture Studies
 
 Chapter role: introduce the ontology as an architecture-native review object
 grounded in workload characterization, benchmarks, baselines, design spaces,
