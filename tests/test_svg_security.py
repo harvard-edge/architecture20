@@ -20,3 +20,42 @@ def test_svg_validation_rejects_entity_declarations(tmp_path: Path) -> None:
     assert len(findings) == 1
     assert findings[0].code == "svg-parse"
     assert "EntitiesForbidden" in findings[0].message
+
+
+def test_svg_font_validation_requires_shared_stack(tmp_path: Path) -> None:
+    canonical = tmp_path / "canonical.svg"
+    canonical.write_text(
+        "<svg><style>.font { font-family: Arial, Helvetica, sans-serif; }</style></svg>",
+        encoding="utf-8",
+    )
+    outlier = tmp_path / "outlier.svg"
+    outlier.write_text(
+        "<svg><style>.font { font-family: Georgia, serif; }</style></svg>",
+        encoding="utf-8",
+    )
+
+    assert arch2_cli.svg_font_family_findings(canonical) == []
+    findings = arch2_cli.svg_font_family_findings(outlier)
+
+    assert len(findings) == 1
+    assert findings[0].code == "svg-font-family"
+    assert "Georgia, serif" in findings[0].message
+
+
+def test_svg_paths_default_to_recursive_content_roots(
+    tmp_path: Path, monkeypatch
+) -> None:
+    chapters = tmp_path / "chapters"
+    appendices = tmp_path / "appendices"
+    chapter_svg = chapters / "chapter-1" / "images" / "chapter.svg"
+    appendix_svg = appendices / "appendix-a" / "images" / "appendix.svg"
+    chapter_svg.parent.mkdir(parents=True)
+    appendix_svg.parent.mkdir(parents=True)
+    chapter_svg.write_text("<svg/>", encoding="utf-8")
+    appendix_svg.write_text("<svg/>", encoding="utf-8")
+
+    monkeypatch.setattr(arch2_cli, "CONTENT_ROOTS", (chapters, appendices))
+
+    assert arch2_cli.svg_paths() == sorted(
+        [chapter_svg.resolve(), appendix_svg.resolve()]
+    )

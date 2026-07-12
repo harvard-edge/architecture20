@@ -123,6 +123,8 @@ class LayoutPageProfile:
     captions: tuple[str, ...]
     starts_chapter: bool
     text_excerpt: str
+    content_occupancy: float | None = None
+    major_unit_kind: str | None = None
 
 
 @dataclass(frozen=True)
@@ -251,6 +253,20 @@ UNRESOLVED_REF_RE = re.compile(
 )
 PDF_CAPTION_LINE_RE = re.compile(r"\b(?P<kind>Figure|Table)\s*[A-Z]?\d+(?:\.\d+)?:")
 PDF_CHAPTER_START_RE = re.compile(r"^Chapter\s+\d+\b", re.I)
+PDF_MAJOR_UNIT_LINE_RE = re.compile(
+    r"^(?P<kind>Chapter|Appendix|Part|References)(?:\s+(?:[A-Z]|\d+|[IVXLC]+))?$",
+    re.I,
+)
+LAYOUT_USABLE_TOP = 90.0
+LAYOUT_FOOTER_BAND = 120.0
+LAYOUT_MAIN_COLUMN_LEFT_RATIO = 0.20
+LAYOUT_MAIN_COLUMN_RIGHT_RATIO = 0.80
+LAYOUT_MIN_VECTOR_DIMENSION = 4.0
+LAYOUT_MIN_VECTOR_AREA = 64.0
+LAYOUT_MAJOR_UNIT_OPENING_LINES = 12
+DEFAULT_SPARSE_CLEARANCE = 170.0
+DEFAULT_MAX_CONTENT_OCCUPANCY = 0.72
+DEFAULT_SPARSE_MIN_BODY_WORDS = 80
 CONTENT_ROOTS = (BOOK_DIR / "chapters", BOOK_DIR / "appendices")
 BOOK_FRONTMATTER = (
     BOOK_DIR / "index.qmd",
@@ -314,6 +330,9 @@ DEFINITION_RE = re.compile(
 )
 STYLE_RE = re.compile(r"\.(?P<class>[A-Za-z0-9_-]+)\s*\{(?P<body>[^}]*)\}", re.DOTALL)
 FONT_SIZE_RE = re.compile(r"font-size\s*:\s*(?P<size>[0-9.]+)px")
+SVG_FONT_FAMILY_RE = re.compile(
+    r"font-family\s*(?::|=)\s*['\"]?(?P<family>[^;\"'}]+)", re.I
+)
 TRANSLATE_RE = re.compile(
     r"translate\(\s*(?P<x>-?[0-9.]+)(?:[,\s]+(?P<y>-?[0-9.]+))?\s*\)"
 )
@@ -321,6 +340,7 @@ MIN_ARRAYSTRETCH = 1.2
 MIN_TABCOLSEP_PT = 2.5
 MIN_RECT_PADDING = 4.0
 MIN_CIRCLE_PADDING = 8.0
+CONTENT_SVG_FONT_STACK = ("Arial", "Helvetica", "sans-serif")
 DEFAULT_FONT_SIZE = 12.0
 
 
@@ -2722,6 +2742,47 @@ def svg_label_findings(
     return findings
 
 
+def normalize_svg_font_stack(value: str) -> tuple[str, ...]:
+    return tuple(part.strip().strip("'\"") for part in value.split(",") if part.strip())
+
+
+def svg_font_family_findings(path: Path) -> list[Finding]:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    stacks = {
+        normalize_svg_font_stack(match.group("family"))
+        for match in SVG_FONT_FAMILY_RE.finditer(text)
+    }
+    location = _relative(path)
+    if not stacks:
+        return [
+            Finding(
+                "error",
+                "svg-font-family",
+                location,
+                "content figure must declare the shared Arial, Helvetica, "
+                "sans-serif font stack",
+            )
+        ]
+
+    unexpected = sorted(stack for stack in stacks if stack != CONTENT_SVG_FONT_STACK)
+    if not unexpected:
+        return []
+    rendered = "; ".join(", ".join(stack) for stack in unexpected)
+    return [
+        Finding(
+            "error",
+            "svg-font-family",
+            location,
+            f"content figure uses a noncanonical font stack: {rendered}",
+        )
+    ]
+
+
+def is_content_svg(path: Path) -> bool:
+    resolved = path.resolve()
+    return any(resolved.is_relative_to(root.resolve()) for root in CONTENT_ROOTS)
+
+
 def svg_text_findings_for_file(path: Path) -> list[Finding]:
     from defusedxml import ElementTree as safe_et
     from defusedxml.common import DefusedXmlException
@@ -2739,7 +2800,10 @@ def svg_text_findings_for_file(path: Path) -> list[Finding]:
     shapes = collect_svg_shapes(root)
     labels = collect_svg_labels(root, class_sizes)
 
-    findings: list[Finding] = svg_viewbox_findings(path, root, class_sizes)
+    findings: list[Finding] = []
+    if is_content_svg(path):
+        findings.extend(svg_font_family_findings(path))
+    findings.extend(svg_viewbox_findings(path, root, class_sizes))
     for label in labels:
         shape = containing_svg_shape(label, shapes)
         if shape is None:
@@ -2749,12 +2813,12 @@ def svg_text_findings_for_file(path: Path) -> list[Finding]:
 
 
 def svg_paths(inputs: list[Path] | None = None) -> list[Path]:
-    candidates = inputs or [ROOT / "assets" / "figures" / "src"]
+    candidates = inputs or list(CONTENT_ROOTS)
     paths: list[Path] = []
     for raw_path in candidates:
         path = raw_path if raw_path.is_absolute() else ROOT / raw_path
         if path.is_dir():
-            paths.extend(sorted(path.glob("*.svg")))
+            paths.extend(sorted(path.rglob("*.svg")))
         elif path.suffix.lower() == ".svg":
             paths.append(path)
     return sorted(set(path.resolve() for path in paths))
@@ -2933,9 +2997,123 @@ def _layout_source_hints(profile: LayoutPageProfile) -> tuple[str, ...]:
     return tuple(hints)
 
 
+def _in_layout_main_column(item: dict, *, page_width: float) -> bool:
+    x0 = float(item.get("x0", 0.0) or 0.0)
+    x1 = float(item.get("x1", x0) or x0)
+    midpoint = (min(x0, x1) + max(x0, x1)) / 2.0
+    return (
+        page_width * LAYOUT_MAIN_COLUMN_LEFT_RATIO
+        <= midpoint
+        <= page_width * LAYOUT_MAIN_COLUMN_RIGHT_RATIO
+    )
+
+
+def _is_meaningful_layout_object(
+    obj: dict,
+    *,
+    collection_name: str,
+    page_width: float,
+    header_cutoff: float,
+    footer_cutoff: float,
+) -> bool:
+    if not _in_layout_main_column(obj, page_width=page_width):
+        return False
+    x0 = float(obj.get("x0", 0.0) or 0.0)
+    x1 = float(obj.get("x1", x0) or x0)
+    top = float(obj.get("top", 0.0) or 0.0)
+    bottom = float(obj.get("bottom", top) or top)
+    width = abs(x1 - x0)
+    height = abs(bottom - top)
+    if top < header_cutoff or top > footer_cutoff:
+        return False
+    if collection_name == "images":
+        return (
+            width >= LAYOUT_MIN_VECTOR_DIMENSION
+            and height >= LAYOUT_MIN_VECTOR_DIMENSION
+        )
+    return (
+        width >= LAYOUT_MIN_VECTOR_DIMENSION
+        and height >= LAYOUT_MIN_VECTOR_DIMENSION
+        and width * height >= LAYOUT_MIN_VECTOR_AREA
+    )
+
+
+def _layout_profile_content_geometry(
+    page,
+    body_words: list[dict],
+    *,
+    page_width: float,
+    header_cutoff: float,
+    footer_cutoff: float,
+) -> tuple[list[dict], list[tuple[str, dict]], float | None, float | None]:
+    main_words = [
+        word
+        for word in body_words
+        if _in_layout_main_column(word, page_width=page_width)
+    ]
+    objects: list[tuple[str, dict]] = []
+    for collection_name in ("images", "rects", "curves"):
+        for obj in getattr(page, collection_name, []) or []:
+            if _is_meaningful_layout_object(
+                obj,
+                collection_name=collection_name,
+                page_width=page_width,
+                header_cutoff=header_cutoff,
+                footer_cutoff=footer_cutoff,
+            ):
+                objects.append((collection_name, obj))
+
+    content_tops = [float(word.get("top", 0.0)) for word in main_words]
+    content_bottoms = [float(word.get("bottom", 0.0)) for word in main_words]
+    for _, obj in objects:
+        content_tops.append(max(header_cutoff, float(obj.get("top", 0.0) or 0.0)))
+        content_bottoms.append(min(footer_cutoff, float(obj.get("bottom", 0.0) or 0.0)))
+    return (
+        main_words,
+        objects,
+        min(content_tops) if content_tops else None,
+        max(content_bottoms) if content_bottoms else None,
+    )
+
+
+def _pdf_major_unit_kind(lines: list[str]) -> str | None:
+    for line in lines[:LAYOUT_MAJOR_UNIT_OPENING_LINES]:
+        match = PDF_MAJOR_UNIT_LINE_RE.fullmatch(_compact_text(line))
+        if match:
+            return match.group("kind").lower()
+    return None
+
+
 def _starts_major_unit(profile: LayoutPageProfile) -> bool:
-    return profile.starts_chapter or bool(
-        re.match(r"^(Appendix\b|References\b)", profile.text_excerpt, re.I)
+    return (
+        bool(profile.major_unit_kind)
+        or profile.starts_chapter
+        or bool(re.match(r"^(Appendix\b|References\b)", profile.text_excerpt, re.I))
+    )
+
+
+def _profile_occupancy(profile: LayoutPageProfile) -> float | None:
+    if profile.content_occupancy is not None:
+        return profile.content_occupancy
+    if profile.content_top is None or profile.content_bottom is None:
+        return None
+    usable_height = profile.usable_bottom - LAYOUT_USABLE_TOP
+    if usable_height <= 0:
+        return None
+    content_height = max(
+        0.0,
+        min(profile.content_bottom, profile.usable_bottom)
+        - max(profile.content_top, LAYOUT_USABLE_TOP),
+    )
+    return min(1.0, content_height / usable_height)
+
+
+def _is_layout_interstitial(profile: LayoutPageProfile) -> bool:
+    occupancy = _profile_occupancy(profile)
+    return (
+        not (profile.has_figure or profile.has_table)
+        and profile.word_count <= 12
+        and (occupancy is None or occupancy <= 0.08)
     )
 
 
@@ -2952,8 +3130,8 @@ def layout_page_profiles(pdf_path: Path) -> list[LayoutPageProfile]:
         for page_index, page in enumerate(pdf.pages, start=1):
             width = float(page.width)
             height = float(page.height)
-            header_cutoff = 90.0
-            footer_cutoff = height - 120.0
+            header_cutoff = LAYOUT_USABLE_TOP
+            footer_cutoff = height - LAYOUT_FOOTER_BAND
             usable_bottom = footer_cutoff
             text = page.extract_text() or ""
 
@@ -2969,42 +3147,60 @@ def layout_page_profiles(pdf_path: Path) -> list[LayoutPageProfile]:
                     continue
                 body_words.append(word)
 
-            body_lines = _word_lines(body_words)
+            (
+                main_words,
+                profile_objects,
+                content_top,
+                content_bottom,
+            ) = _layout_profile_content_geometry(
+                page,
+                body_words,
+                page_width=width,
+                header_cutoff=header_cutoff,
+                footer_cutoff=footer_cutoff,
+            )
+            body_lines = _word_lines(main_words)
             captions = _pdf_caption_snippets_from_lines(body_lines)
             if not captions:
                 captions = _pdf_caption_snippets(text)
-            starts_chapter = bool(
-                body_lines and PDF_CHAPTER_START_RE.search(body_lines[0])
-            ) or bool(PDF_CHAPTER_START_RE.search(text.strip()))
+            major_unit_kind = _pdf_major_unit_kind(body_lines)
+            starts_chapter = major_unit_kind == "chapter" or bool(
+                PDF_CHAPTER_START_RE.search(text.strip())
+            )
 
-            content_tops = [float(word.get("top", 0.0)) for word in body_words]
-            content_bottoms = [float(word.get("bottom", 0.0)) for word in body_words]
-
-            for collection_name in ("images", "rects", "curves"):
-                for obj in getattr(page, collection_name, []) or []:
-                    top = float(obj.get("top", 0.0) or 0.0)
-                    bottom = float(obj.get("bottom", 0.0) or 0.0)
-                    if top < header_cutoff or top > footer_cutoff:
-                        continue
-                    content_tops.append(top)
-                    content_bottoms.append(min(bottom, footer_cutoff))
-
-            content_top = min(content_tops) if content_tops else None
-            content_bottom = max(content_bottoms) if content_bottoms else None
             bottom_whitespace = (
                 max(0.0, usable_bottom - content_bottom)
                 if content_bottom is not None
                 else None
             )
+            usable_height = usable_bottom - header_cutoff
+            content_occupancy = (
+                max(
+                    0.0,
+                    min(content_bottom, usable_bottom)
+                    - max(content_top, header_cutoff),
+                )
+                / usable_height
+                if content_top is not None
+                and content_bottom is not None
+                and usable_height > 0
+                else None
+            )
             caption_kinds = _caption_kinds(captions)
             has_table = "table" in caption_kinds
-            has_figure = bool(page.images) or "figure" in caption_kinds
+            has_figure = (
+                any(
+                    collection_name == "images"
+                    for collection_name, _ in profile_objects
+                )
+                or "figure" in caption_kinds
+            )
             profiles.append(
                 LayoutPageProfile(
                     page=page_index,
                     width=round(width, 1),
                     height=round(height, 1),
-                    word_count=len(body_words),
+                    word_count=len(main_words),
                     content_top=(
                         round(content_top, 1) if content_top is not None else None
                     ),
@@ -3023,6 +3219,12 @@ def layout_page_profiles(pdf_path: Path) -> list[LayoutPageProfile]:
                     starts_chapter=starts_chapter,
                     text_excerpt=_compact_text(" ".join(body_lines), limit=220)
                     or _compact_text(text, limit=220),
+                    content_occupancy=(
+                        round(min(1.0, content_occupancy), 3)
+                        if content_occupancy is not None
+                        else None
+                    ),
+                    major_unit_kind=major_unit_kind,
                 )
             )
     return profiles
@@ -3268,14 +3470,129 @@ def footnote_overflow_findings(
     return findings
 
 
-def layout_findings(pdf_path: Path, *, bottom_clearance: float = 72.0) -> list[Finding]:
-    findings = scan_latex_logs()
-    findings.extend(scan_pdf_geometry(pdf_path, bottom_clearance=bottom_clearance))
-    findings.extend(footnote_overflow_findings(pdf_path))
+def sparse_page_findings(
+    pdf_path: Path,
+    *,
+    sparse_clearance: float = DEFAULT_SPARSE_CLEARANCE,
+    max_content_occupancy: float = DEFAULT_MAX_CONTENT_OCCUPANCY,
+    min_body_words: int = DEFAULT_SPARSE_MIN_BODY_WORDS,
+    profiles: list[LayoutPageProfile] | None = None,
+) -> list[Finding]:
+    """Find unexpectedly underfilled body pages in a rendered PDF.
+
+    The detector requires both a large absolute gap and low vertical occupancy,
+    then exempts front matter, major-unit openings and endings, blank pages,
+    reference pages, and the document's final page. Remaining findings block
+    the rendered-manuscript gate until the spread is rebalanced or exempted.
+    """
+    page_profiles = profiles if profiles is not None else layout_page_profiles(pdf_path)
+    if not page_profiles:
+        return []
+
+    first_body_page = min(
+        (
+            profile.page
+            for profile in page_profiles
+            if profile.starts_chapter
+            or profile.major_unit_kind in {"chapter", "appendix", "part"}
+        ),
+        default=page_profiles[0].page,
+    )
+    reference_pages: set[int] = set()
+    in_references = False
+    for profile in page_profiles:
+        if profile.major_unit_kind == "references":
+            in_references = True
+        elif profile.major_unit_kind in {"chapter", "appendix", "part"}:
+            in_references = False
+        if in_references:
+            reference_pages.add(profile.page)
+
+    findings: list[Finding] = []
+    for index, profile in enumerate(page_profiles):
+        next_index = index + 1
+        while next_index < len(page_profiles) and _is_layout_interstitial(
+            page_profiles[next_index]
+        ):
+            next_index += 1
+        next_profile = (
+            page_profiles[next_index] if next_index < len(page_profiles) else None
+        )
+        if profile.page < first_body_page:
+            continue
+        if _starts_major_unit(profile) or profile.page in reference_pages:
+            continue
+        if next_profile is None or _starts_major_unit(next_profile):
+            continue
+        if profile.bottom_whitespace is None or profile.content_bottom is None:
+            continue
+
+        occupancy = _profile_occupancy(profile)
+        if occupancy is None:
+            continue
+        if profile.bottom_whitespace < sparse_clearance:
+            continue
+        if occupancy > max_content_occupancy:
+            continue
+        next_has_float = next_profile.has_figure or next_profile.has_table
+        if profile.word_count < min_body_words and not (
+            profile.has_figure or profile.has_table or next_has_float
+        ):
+            continue
+
+        if next_has_float:
+            code = "float-induced-whitespace"
+            next_content = (
+                next_profile.captions[0]
+                if next_profile.captions
+                else "figure or table content"
+            )
+            context = (
+                f"; page {next_profile.page} contains "
+                f"{_compact_text(next_content, limit=120)}"
+            )
+        elif profile.has_figure or profile.has_table:
+            code = "sparse-float-page"
+            context = ""
+        else:
+            code = "large-bottom-whitespace"
+            context = ""
+
+        findings.append(
+            Finding(
+                "error",
+                code,
+                f"{_relative(pdf_path)}:page {profile.page}",
+                (
+                    f"content ends {profile.bottom_whitespace:g}pt above the usable "
+                    f"page bottom ({occupancy:.0%} vertical content occupancy)"
+                    f"{context}; inspect this spread for an avoidable page break"
+                ),
+            )
+        )
     return findings
 
 
-def _repair_item_for_finding(index: int, finding: Finding) -> LayoutRepairItem:
+def layout_findings(
+    pdf_path: Path,
+    *,
+    bottom_clearance: float = 72.0,
+    include_sparse_pages: bool = True,
+) -> list[Finding]:
+    findings = scan_latex_logs()
+    findings.extend(scan_pdf_geometry(pdf_path, bottom_clearance=bottom_clearance))
+    findings.extend(footnote_overflow_findings(pdf_path))
+    if include_sparse_pages:
+        findings.extend(sparse_page_findings(pdf_path))
+    return findings
+
+
+def _repair_item_for_finding(
+    index: int,
+    finding: Finding,
+    *,
+    profile: LayoutPageProfile | None = None,
+) -> LayoutRepairItem:
     guidance = {
         "overfull-hbox": (
             "A line, caption, table cell, or margin note exceeds the TeX measure.",
@@ -3305,6 +3622,18 @@ def _repair_item_for_finding(index: int, finding: Finding) -> LayoutRepairItem:
             "A rendered cross-reference or citation did not resolve.",
             "Fix the label, citation key, or source order before doing visual layout polish.",
         ),
+        "float-induced-whitespace": (
+            "A figure or table likely moved to the next page after this page's prose ended.",
+            "Inspect the spread, then move explanatory prose or the float, reduce the float height, or keep the break only when it improves the reading sequence.",
+        ),
+        "sparse-float-page": (
+            "A page containing a figure or table has substantial unused vertical space.",
+            "Check whether the float can be resized, paired with its setup prose, or moved to avoid an isolated visual island.",
+        ),
+        "large-bottom-whitespace": (
+            "The page builder ended a regular content page much earlier than the usable text block.",
+            "Inspect nearby headings, callouts, footnotes, and floats, then rebalance a short paragraph or nearby object if the spread reads unevenly.",
+        ),
     }
     likely_cause, suggested_action = guidance.get(
         finding.code,
@@ -3321,7 +3650,11 @@ def _repair_item_for_finding(index: int, finding: Finding) -> LayoutRepairItem:
         evidence=finding.message,
         likely_cause=likely_cause,
         suggested_action=suggested_action,
-        source_hints=(f"start from {finding.location}",),
+        source_hints=(
+            _layout_source_hints(profile)
+            if profile is not None
+            else (f"start from {finding.location}",)
+        ),
     )
 
 
@@ -3329,100 +3662,36 @@ def layout_repair_items(
     pdf_path: Path,
     *,
     bottom_clearance: float = 72.0,
-    sparse_clearance: float = 170.0,
-    min_body_words: int = 80,
+    sparse_clearance: float = DEFAULT_SPARSE_CLEARANCE,
+    min_body_words: int = DEFAULT_SPARSE_MIN_BODY_WORDS,
     max_items: int = 80,
     profiles: list[LayoutPageProfile] | None = None,
 ) -> list[LayoutRepairItem]:
-    items: list[LayoutRepairItem] = []
-    for finding in layout_findings(pdf_path, bottom_clearance=bottom_clearance):
-        items.append(_repair_item_for_finding(len(items) + 1, finding))
-        if len(items) >= max_items:
-            return items
-
     page_profiles = profiles if profiles is not None else layout_page_profiles(pdf_path)
-    first_chapter_page = min(
-        (profile.page for profile in page_profiles if profile.starts_chapter),
-        default=1,
+    profiles_by_page = {profile.page: profile for profile in page_profiles}
+    findings = layout_findings(
+        pdf_path,
+        bottom_clearance=bottom_clearance,
+        include_sparse_pages=False,
     )
-    for index, profile in enumerate(page_profiles):
-        if profile.bottom_whitespace is None:
-            continue
-        if profile.bottom_whitespace < sparse_clearance:
-            continue
-        if profile.word_count < min_body_words and not (
-            profile.has_figure or profile.has_table
-        ):
-            continue
-
-        next_profile = (
-            page_profiles[index + 1] if index + 1 < len(page_profiles) else None
+    findings.extend(
+        sparse_page_findings(
+            pdf_path,
+            sparse_clearance=sparse_clearance,
+            min_body_words=min_body_words,
+            profiles=page_profiles,
         )
-        next_starts_major_unit = bool(next_profile and _starts_major_unit(next_profile))
-        next_has_float = bool(
-            next_profile and (next_profile.has_figure or next_profile.has_table)
-        )
-        next_caption = (
-            next_profile.captions[0]
-            if next_profile and next_profile.captions
-            else "figure/table content"
-        )
+    )
 
-        if profile.page < first_chapter_page:
-            severity = "info"
-            code = "front-matter-whitespace"
-            likely_cause = "The page is in the front matter, where shorter pages are often intentional."
-            suggested_action = "Leave this alone unless the front-matter page looks visibly accidental in the final PDF."
-            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
-        elif _starts_major_unit(profile):
-            severity = "info"
-            code = "major-section-opening-whitespace"
-            likely_cause = "The page opens a major unit, where the design may intentionally leave more air."
-            suggested_action = "Leave this alone unless the opening page looks visibly accidental in the final PDF spread."
-            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
-        elif next_has_float:
-            severity = "warning"
-            code = "float-induced-whitespace"
-            likely_cause = "A figure or table likely floated to the next page after this page's prose ended."
-            suggested_action = "Try moving one explanatory paragraph before the float, moving the float earlier, reducing its height, or accepting the break only if the spread reads better that way."
-            evidence = (
-                f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer; "
-                f"page {next_profile.page} contains {next_caption}"
-            )
-        elif next_starts_major_unit:
-            severity = "info"
-            code = "major-section-end-whitespace"
-            likely_cause = "The page appears to end a major unit, so the remaining white space may be intentional."
-            suggested_action = "Usually leave this alone unless the preceding close can absorb a small paragraph without weakening the cadence."
-            evidence = (
-                f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer; "
-                f"page {next_profile.page} starts a new major unit"
-            )
-        elif profile.has_figure or profile.has_table:
-            severity = "warning"
-            code = "sparse-float-page"
-            likely_cause = (
-                "A figure or table page has substantial unused vertical space."
-            )
-            suggested_action = "Check whether the float can be resized, paired with its setup prose, or moved so the reader does not hit an isolated visual island."
-            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
-        else:
-            severity = "warning"
-            code = "large-bottom-whitespace"
-            likely_cause = "The page builder ended the page much earlier than the visible text block allows."
-            suggested_action = "Inspect nearby headings, callouts, footnotes, and floats; move a short paragraph or adjust a nearby object so the spread has a more even rhythm."
-            evidence = f"page {profile.page} leaves {profile.bottom_whitespace:g}pt before the footer"
-
+    items: list[LayoutRepairItem] = []
+    for finding in findings:
+        page_match = re.search(r":page\s+(\d+)$", finding.location)
+        profile = profiles_by_page.get(int(page_match.group(1))) if page_match else None
         items.append(
-            LayoutRepairItem(
-                id=f"L{len(items) + 1:03d}",
-                severity=severity,
-                code=code,
-                location=f"{_relative(pdf_path)}:page {profile.page}",
-                evidence=evidence,
-                likely_cause=likely_cause,
-                suggested_action=suggested_action,
-                source_hints=_layout_source_hints(profile),
+            _repair_item_for_finding(
+                len(items) + 1,
+                finding,
+                profile=profile,
             )
         )
         if len(items) >= max_items:
@@ -3435,8 +3704,8 @@ def layout_repair_packet(
     pdf_path: Path,
     *,
     bottom_clearance: float = 72.0,
-    sparse_clearance: float = 170.0,
-    min_body_words: int = 80,
+    sparse_clearance: float = DEFAULT_SPARSE_CLEARANCE,
+    min_body_words: int = DEFAULT_SPARSE_MIN_BODY_WORDS,
     max_items: int = 80,
 ) -> dict:
     from collections import Counter
@@ -3467,6 +3736,7 @@ def layout_repair_packet(
         "thresholds": {
             "bottom_clearance_pt": bottom_clearance,
             "sparse_clearance_pt": sparse_clearance,
+            "max_content_occupancy": DEFAULT_MAX_CONTENT_OCCUPANCY,
             "min_body_words": min_body_words,
         },
         "summary": {
@@ -3504,7 +3774,7 @@ def render_layout_repair_markdown(packet: dict) -> str:
         "",
         "1. Start with `error` items; they are structural layout failures.",
         "2. Review `warning` items visually in the PDF spread before editing.",
-        "3. Treat `info` items as context, especially major-unit whitespace.",
+        "3. Intentional title, opening, closing, blank, and reference pages are excluded from sparse-page warnings.",
         "4. After edits, rebuild the PDF and rerun `arch2 layout scan` and `arch2 layout doctor`.",
         "",
         "## Findings",
@@ -3535,6 +3805,7 @@ def render_layout_repair_markdown(packet: dict) -> str:
             lines.append(
                 f"- Page {profile['page']}: words={profile['word_count']}, "
                 f"bottom_whitespace={profile['bottom_whitespace']}, "
+                f"content_occupancy={profile['content_occupancy']}, "
                 f"figure={profile['has_figure']}, table={profile['has_table']}"
             )
             if profile["captions"]:
@@ -4952,11 +5223,11 @@ def layout_doctor(
         72.0, help="Bottom margin warning threshold in PDF points."
     ),
     sparse_clearance: float = typer.Option(
-        170.0,
+        DEFAULT_SPARSE_CLEARANCE,
         help="Advisory threshold for unused body space before the footer.",
     ),
     min_body_words: int = typer.Option(
-        80,
+        DEFAULT_SPARSE_MIN_BODY_WORDS,
         help="Minimum body words before sparse-page whitespace becomes actionable.",
     ),
     max_items: int = typer.Option(80, help="Maximum repair items to emit."),
