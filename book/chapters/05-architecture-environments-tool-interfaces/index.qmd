@@ -310,7 +310,7 @@ become evidence. It can also enforce or record declarative interface contracts:
 ISA rules, memory models, telemetry schemas, benchmark rules, and EDA
 constraints. As illustrated in @fig-environment-tool-interface, an architecture environment fundamentally reshapes this relationship. Rather than just taking inputs and returning outputs, it wraps the underlying tool with a strict contract that exposes legal actions, bounds observations, enforces physical costs, and explicitly defines rejection paths for invalid states.
 
-![**A tool becomes an environment when its contract is explicit:** A credible environment defines workload state, legal actions, observations, constraints, cost, provenance, feedback, invalid-action semantics, and rejection paths.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of a tool wrapper becoming an architecture environment by exposing workload state, legal actions, observations, costs, provenance, feedback, and rejection paths."}
+![**A tool becomes an environment when its contract is explicit:** A credible environment binds a bounded study and workload to legal actions, observations, constraints, cost, provenance, feedback, invalid-action semantics, and rejection paths.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of a tool wrapper becoming an architecture environment by binding a bounded study and workload to legal actions, observations, costs, provenance, feedback, and rejection paths."}
 
 The figure is a loop contract, not a software architecture diagram. Each
 component is useful only after the environment names the action it permits, the
@@ -460,12 +460,11 @@ which may verify, and which accountable decision is required before escalation. 
 distinction matters because a wrapper can automate one experiment, but a
 harness can accumulate reusable knowledge about a design space.
 
-A minimal implementation record for such a harness might include:
-
-> task identifier; workload version; input distribution; action fields;
-> read-only constraints; tool commands; observation fields; fidelity level;
-> runtime cost; random seed; tool versions; generated artifacts; failure status;
-> rejection reason; and accountable decision.
+A minimal implementation record for such a harness should be deliberately
+ordinary. It can include the task identifier, workload version, input
+distribution, action fields, read-only constraints, tool commands, observation
+fields, fidelity level, runtime cost, random seed, tool versions, generated
+artifacts, failure status, rejection reason, and accountable decision.
 
 That list is intentionally mundane. Mundane records are what make loops
 auditable. If a method proposes an architecture candidate, the environment
@@ -518,18 +517,18 @@ review.
 #| fig-cap: |
 #|   **Feedback regimes have different costs and sample budgets:** Low-cost feedback can screen many candidates, while implementation-adjacent observations are scarce. The ordering shows representative turnaround and acquisition cost, not automatic authority or commitment; each check still needs a declared scope and validation contract.
 #| out-width: "92%"
-#| fig-alt: "Horizontal range plot comparing representative turnaround ranges and shrinking sample budgets for feedback regimes from cheap proxies to silicon deployment, without treating cost or fidelity as automatic authority."
+#| fig-alt: "Horizontal range plot comparing representative observation latencies and shrinking sample budgets for feedback regimes from cheap proxies to silicon deployment, without treating cost or fidelity as automatic authority."
 
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style, draw_range_rows, row_axis, top_log_axis
 
 rows = [
-    {"display_label": "analytic proxy / surrogate", "display_note": "thousands to millions of checks", "low_seconds": 0.001, "high_seconds": 1, "right_label": "prune / screen", "color": COLORS["blue"]},
-    {"display_label": "trace / profile / replay", "display_note": "tens to thousands of slices", "low_seconds": 1, "high_seconds": 3600, "right_label": "workload state", "color": COLORS["green"]},
-    {"display_label": "cycle-level simulation", "display_note": "tens to hundreds of comparisons", "low_seconds": 60, "high_seconds": 86400, "right_label": "scoped DSE", "color": COLORS["orange"]},
-    {"display_label": "compiler / runtime measurement", "display_note": "many local measurements; fewer portable claims", "low_seconds": 1, "high_seconds": 3600, "right_label": "software path", "color": COLORS["purple"]},
-    {"display_label": "RTL / synthesis / physical feedback", "display_note": "handfuls to tens of scarce samples", "low_seconds": 3600, "high_seconds": 1_209_600, "right_label": "reject / gate", "color": COLORS["red"]},
-    {"display_label": "prototype / silicon / deployment", "display_note": "few high-commitment samples plus telemetry", "low_seconds": 604_800, "high_seconds": 31_536_000, "right_label": "commit / calibrate", "color": COLORS["red"]},
+    {"display_label": "analytic proxy / surrogate", "display_note": "thousands to millions of checks", "low_seconds": 0.001, "high_seconds": 1, "right_label": "screen candidates", "color": COLORS["blue"]},
+    {"display_label": "trace / profile / replay", "display_note": "tens to thousands of slices", "low_seconds": 1, "high_seconds": 3600, "right_label": "characterize workload", "color": COLORS["green"]},
+    {"display_label": "cycle-level simulation", "display_note": "tens to hundreds of comparisons", "low_seconds": 60, "high_seconds": 86400, "right_label": "compare candidates", "color": COLORS["orange"]},
+    {"display_label": "compiler / runtime measurement", "display_note": "many local measurements; fewer portable claims", "low_seconds": 1, "high_seconds": 3600, "right_label": "validate software path", "color": COLORS["purple"]},
+    {"display_label": "RTL / synthesis / physical feedback", "display_note": "handfuls to tens of scarce samples", "low_seconds": 3600, "high_seconds": 1_209_600, "right_label": "implementation evidence", "color": COLORS["red"]},
+    {"display_label": "prototype / silicon / deployment", "display_note": "few deployment observations plus telemetry", "low_seconds": 604_800, "high_seconds": 31_536_000, "right_label": "deployment evidence", "color": COLORS["red"]},
 ]
 
 apply_style()
@@ -542,7 +541,7 @@ top_log_axis(
     xlim=(5e-4, 7e7),
     xticks=[1e-3, 1, 3600, 604800, 31536000],
     xticklabels=["1 ms", "1 s", "1 h", "1 wk", "1 yr"],
-    xlabel="representative turnaround or commitment latency",
+    xlabel="representative observation latency",
 )
 draw_range_rows(ax, rows, low_key="low_seconds", high_key="high_seconds", label_x=-0.86, right_x=1.03, label_fontsize=6.5, note_fontsize=5.3, right_fontsize=5.9)
 add_note_box(fig, "Representative ranges only; authority depends on scope, validation, and the decision contract.", xywh=(0.13, 0.035, 0.74, 0.085), fontsize=5.5)
@@ -670,6 +669,9 @@ leave rejection reasons for review. The point is not to
 build a universal hardware-design platform. The point is to choose a bounded
 task where actions, observations, constraints, and rejection can be stated
 cleanly.
+
+The steps below make that tool path usable inside the bounded architecture
+study defined in @sec-architecture-20-ontology.
 
 **Environment recipe.** Constructing a small, bounded, rejectable Architecture 2.0 environment proceeds step by step.
 

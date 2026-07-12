@@ -2,7 +2,7 @@
 
 Current figures:
 
-- `F12-bootstrap-loop`: bootstrap workflow.
+- `F12-bootstrap-loop`: execution path inside a bounded bootstrap study.
 
 Needed next:
 

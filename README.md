@@ -1,6 +1,6 @@
 # Architecture 2.0
 
-*Designing AI-Assisted Loops for Computing Systems*
+*AI-Assisted Computer Architecture*
 
 <p align="center">
   <a href="https://arch2.mlsysbook.ai/start.html"><b>Start with the card</b></a> ·
