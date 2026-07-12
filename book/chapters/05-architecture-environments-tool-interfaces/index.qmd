@@ -222,13 +222,11 @@ real-time mobile XR workload" fixes the workload harness and quality-of-service
 target. "3\ W TDP target in a 3\ nm-class LP mobile process" invokes power and
 physical-design constraints.
 
-**Boundary.** When the optimizer proposes a SoC block instead of an isolated accelerator, it changes the action space. The environment must now expose memory attachment, coherence, interrupts, DMA, runtime ownership, verification scope, and the evidence needed to show that the subsystem works in the larger system, otherwise the loop will optimize blindly.
+**Boundary.** When the optimizer proposes a SoC block instead of an isolated accelerator, it changes the action space. The environment must now expose memory attachment, coherence, interrupts, DMA, runtime ownership, verification scope, and the evidence needed to show that the subsystem works in the larger system. Otherwise, the loop will optimize blindly.
 
-**Takeaway.** The environment for this prompt is a bundle of coherent
-interfaces. An AI-assisted loop can change vector width, local memory, data layout, or
-accelerator interface only inside contracts that can reject
-software-incompatible, physically implausible, or integration-breaking
-candidates.
+**Takeaway.** The environment is a bundle of interfaces whose contracts must
+reject software-incompatible, physically implausible, or integration-breaking
+changes.
 :::
 
 In practice, concrete tools instantiate this bundle of interfaces at different fidelity levels. The point
@@ -607,8 +605,10 @@ method that searches aggressively can discover weaknesses in those assumptions
 just as easily as it can discover a good architecture candidate.
 
 When the proxy is a simulator, *proxy mismatch* is the divergence between what a
-cheap stand-in metric rewards and what the true objective needs. Here it takes a
-specific form, a gap
+cheap stand-in metric rewards and what the architectural objective requires.
+When a method optimizes against that stand-in, the mismatch can produce the
+failure described by Goodhart's law, in which a measure becomes unreliable as a
+target [@Strathern1997Goodhart]. Here it takes the specific form of a gap
 between the behavior an environment reports and the behavior that would matter at
 the next stronger fidelity level, such as a more detailed simulator, synthesis,
 physical design, emulation, silicon, or deployment. The failure mode is not
@@ -750,7 +750,9 @@ To maintain this semantic link, environment validity relies on six layers:
   source and valid scope.
 - **Feedback-cost layer:** Cost and latency are visible before the loop commits
   to the next evaluation.
-- **Provenance layer:** The result can be replayed or audited.
+- **Provenance layer:** Recorded tool versions, inputs, assumptions, and outputs
+  support audit. Replay additionally requires executable bindings to the
+  declared environment and procedure.
 - **Outcome layer:** Illegal or unsupported candidates remain distinct from
   timeouts, tool crashes, setup failures, and inconclusive runs.
 
@@ -761,7 +763,7 @@ Before trusting an environment's verdict on an AI-generated candidate, confirm:
 
 - the workload, action space, and observations still match the architecture question the loop was intended to solve;
 - observation sources, their valid scope, and the cost and latency of another evaluation are explicit;
-- versions, assumptions, and rejected candidates proposed by the generative method are recorded;
+- versions, assumptions, and rejected candidates are recorded;
 - candidate failures are distinguished from tool, setup, and harness failures;
 - another team could deploy an automated optimizer in this harness without private knowledge.
 :::
