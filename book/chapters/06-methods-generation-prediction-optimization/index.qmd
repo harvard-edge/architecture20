@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Picasso's playful jab captures the exact discipline needed for AI methods in architecture. Because AI models can only supply answers (candidates and predictions), a method role is only useful when the loop can measure, reject, or bound its output. Search and reinforcement learning need measurable objectives; critique and repair need evidence that can reject their claims.
+**Author's Note:** Picasso's playful jab captures the exact discipline needed for AI methods in architecture. Because an AI system can produce an output but cannot confer authority on it, a method role is useful only when the loop can measure, reject, or bound that output. Search and reinforcement learning need measurable objectives; critique and repair need evidence that can reject their claims.
 :::
 
 ```{=latex}
@@ -292,12 +292,14 @@ changes reuse, memory traffic, interconnect demand, and which tool feedback can
 reject the proposal, so it also supplies a mechanism the study can test.
 
 ::: {.callout-failure-mode title="Treating AI generation as design"}
-It is tempting to treat a fluent AI-generated artifact, an RTL fragment, a config,
-a benchmark question, as a result. It is not. An AI-generated artifact is a
-proposal; it becomes a result only after the AI-assisted loop tests it, prices its evidence,
-compares it against a baseline, and an architect accepts the commitment.
-AI generation that is not embedded in a loop that can reject it is demonstration,
-not design.
+It is tempting to treat a plausible AI-generated artifact, such as an RTL fragment,
+a configuration, or a benchmark question, as a result. It is not. The artifact
+is a proposal. It may support a defensible study result only after the
+AI-assisted loop tests it, records the cost and limits of the resulting evidence,
+and compares it against a baseline. An architect then decides whether that
+result supports a commitment. AI generation that is not embedded in a loop that
+can reject it produces an unreviewed proposal, not a defensible architecture
+result.
 :::
 
 The strongest near-term use of generation may be breadth. It can propose
@@ -308,9 +310,9 @@ the architect more structured material to inspect. They become dangerous only
 when the loop treats them as decisions.
 
 Kernel generation is a useful concrete case because it isolates the software
-and code-generation facet of the lighthouse prompt. The XRBench subsystem only
-matters if kernels, libraries, runtime paths, and target-specific code can be
-generated, checked, and maintained. KernelBench, an evaluation framework for AI-generated code, asks whether language
+and code-generation facet of the lighthouse prompt. The lighthouse compute
+subsystem is viable only if its kernels, libraries, runtime paths, and
+target-specific code can be generated, checked, and maintained. KernelBench, an evaluation framework for AI-generated code, asks whether language
 models can generate correct and efficient GPU kernels for PyTorch workloads
 [@OuyangEtAl2025KernelBench]. The Architecture 2.0 lesson is not that
 kernel generation solves hardware/software co-design. It is that generation
@@ -593,26 +595,26 @@ assumptions.
 
 This heuristic has a formal analogue in idealized settings. Bayesian optimization makes the
 choice of the next sample an explicit acquisition function (a rule that scores
-each candidate next-sample) over a surrogate's posterior (its current
-probability estimate over outcomes), and GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper
-Confidence Bound) gives that choice a no-regret guarantee[^fn-ml-no-regret] under stated
-kernel, smoothness, and noise assumptions, so the loop can defend why it sampled where it did rather than
-appealing to intuition [@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian[^fn-ml-multi-fidelity-bo]
+each candidate point) over a surrogate's posterior (its current probability
+estimate over outcomes). GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper Confidence
+Bound) offers a formal cumulative-regret bound[^fn-ml-no-regret] under stated
+kernel, smoothness, and noise assumptions. The logged acquisition rule, not the
+bound alone, lets the loop explain why it sampled where it did
+[@SrinivasEtAl2010GPUCB]. Multi-fidelity Bayesian[^fn-ml-multi-fidelity-bo]
 optimization goes one step further and treats the fidelity level itself as a
 decision variable. It chooses not only which candidate to evaluate but whether
 to spend a cheap proxy or an expensive simulation on it, exactly the choice the
 feedback budget poses [@KandasamyEtAl2017MultiFidelityBO]. The architecture
-loop usually needs the contract more than the proof apparatus. It must record what rule chose
-the sample, what assumptions made that rule legal, what evidence came back, and
-what threshold forced escalation. The loop still has to record the acquisition
-rule, fidelity choice, assumptions, rejected alternatives, and escalation
-threshold, or the optimizer becomes another opaque source of candidates.
+loop usually needs the contract more than the proof apparatus. It must record
+the acquisition rule, fidelity choice, assumptions, returned evidence, rejected
+alternatives, and escalation threshold, or the optimizer becomes another opaque
+source of candidates.
 
 [^fn-ml-gp-ucb]: GP-UCB (Gaussian Process Upper Confidence Bound) is an acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model. Its value here is that the acquisition rule is auditable rather than ad hoc. The loop can record why uncertainty made a sample worth spending, then check the assumptions separately.
 
 [^fn-ml-multi-fidelity-bo]: Multi-fidelity Bayesian optimization jointly chooses which design to evaluate and at which fidelity level, trading information gain against cost. That is the feedback-budget decision here, whether to spend a cheap proxy or an expensive simulation on a candidate. @sec-feedback-verification-trust owns the broader ordering of feedback levels and what each can establish.
 
-[^fn-ml-no-regret]: In this chapter, a no-regret guarantee is a formal promise about a sampling rule under stated assumptions, such as a suitable kernel, bounded noise, and smoothness of the objective. It is useful only when the loop records whether those assumptions actually apply. It is what lets GP-UCB justify where the loop spent its scarce feedback rather than treating the choice as intuition.
+[^fn-ml-no-regret]: In this chapter, a no-regret guarantee is a formal promise about a sampling rule under stated assumptions, such as a suitable kernel, bounded noise, and smoothness of the objective. It is useful only when the loop records whether those assumptions actually apply. Under those assumptions, the guarantee bounds cumulative regret across the sampling sequence; the logged acquisition score explains a particular choice.
 
 These operational regimes, laid out in @tbl-sample-efficiency-regimes, use
 illustrative numbers rather than prescriptions. The core point is
@@ -796,10 +798,11 @@ commitment boundary inspectable. The questions below show how that small
 artifact could grow into research.
 
 1. **What role contracts keep AI methods inside assigned authority?**
-The decision matrix for method selection in
-@sec-choosing-a-method-under-constraints assigns generators, predictors,
-critics, and optimizers to different obligations, but runtime enforcement
-remains weak. The useful artifact is a role-contract language plus a monitor
+The role-discipline table in @tbl-method-role-discipline assigns generators,
+predictors, critics, and optimizers to different obligations, while the
+method-selection matrix in @sec-choosing-a-method-under-constraints tests the
+conditions for choosing among them. Runtime enforcement remains weak. The
+useful artifact is a role-contract language plus a monitor
 that detects when a method silently escalates its authority, such as a predictor
 turning a scoped estimate into an unsupported commitment. Public loop traces or synthetic environments should
 measure role-violation detection, false alarms, and the cost of preserving the
