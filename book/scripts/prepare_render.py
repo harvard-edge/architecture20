@@ -19,8 +19,114 @@ def image_ref_stems(text: str) -> list[str]:
     return sorted({match.group("name") for match in IMAGE_REF_RE.finditer(text)})
 
 
-def is_stale(source: Path, target: Path) -> bool:
-    return not target.exists() or source.stat().st_mtime > target.stat().st_mtime
+def _git_path(repo_root: Path, path: Path) -> str | None:
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return None
+
+
+def _git_dirty(repo_root: Path, path: Path) -> bool | None:
+    relative = _git_path(repo_root, path)
+    if relative is None:
+        return None
+    proc = subprocess.run(
+        [
+            "git",
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+            "--",
+            relative,
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return None
+    return bool(proc.stdout.strip())
+
+
+def _git_tracked(repo_root: Path, path: Path) -> bool | None:
+    relative = _git_path(repo_root, path)
+    if relative is None:
+        return None
+    proc = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", relative],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        return True
+    if proc.returncode == 1:
+        return False
+    return None
+
+
+def _git_last_change(repo_root: Path, path: Path) -> str | None:
+    relative = _git_path(repo_root, path)
+    if relative is None:
+        return None
+    proc = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", relative],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
+
+
+def _git_is_ancestor(repo_root: Path, ancestor: str, descendant: str) -> bool | None:
+    proc = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        return True
+    if proc.returncode == 1:
+        return False
+    return None
+
+
+def is_stale(source: Path, target: Path, *, repo_root: Path = REPO_ROOT) -> bool:
+    """Return whether a derived asset needs regeneration.
+
+    Git checkout mtimes depend on checkout order, so committed pairs use their
+    last-changing revisions. Files being actively edited retain the convenient
+    mtime behavior used during figure authoring.
+    """
+    if not target.exists():
+        return True
+
+    source_tracked = _git_tracked(repo_root, source)
+    target_tracked = _git_tracked(repo_root, target)
+    if source_tracked is True and target_tracked is False:
+        return True
+
+    source_dirty = _git_dirty(repo_root, source)
+    target_dirty = _git_dirty(repo_root, target)
+    if source_dirty is not None and target_dirty is not None:
+        if source_dirty:
+            if not target_dirty:
+                return True
+            return source.stat().st_mtime > target.stat().st_mtime
+        if target_dirty:
+            return False
+
+        source_change = _git_last_change(repo_root, source)
+        target_change = _git_last_change(repo_root, target)
+        if source_change and target_change:
+            synchronized = _git_is_ancestor(repo_root, source_change, target_change)
+            if synchronized is not None:
+                return not synchronized
+
+    return source.stat().st_mtime > target.stat().st_mtime
 
 
 def audit_svg_text_fit(svg: Path) -> None:
