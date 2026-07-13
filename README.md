@@ -18,16 +18,19 @@
   <a href="https://arch2.mlsysbook.ai"><img src="https://img.shields.io/badge/site-arch2.mlsysbook.ai-1f6f8b" alt="Architecture 2.0 site"></a>
 </p>
 
-**Architecture 2.0** is a public research and teaching project for AI-assisted
-computer architecture and computing-system design. Its core deliverables are a
-synthesis lecture and a versioned design-loop card for making claims, evidence,
-rejection paths, and human commitments inspectable.
+**Architecture 2.0** is the engineering discipline of using AI, grounded in
+architectural representations, tools, and experiments, to formulate, explore,
+implement, evaluate, explain, and defend computer architecture decisions. This
+public research and teaching project develops that discipline through a
+synthesis lecture, companion labs, community resources, and a versioned
+design-loop card.
 
-The core idea is simple: as AI enters workflows for chips, accelerators, memory
-systems, simulators, compilers, benchmarks, and evidence generation, the design
-loop itself becomes something we have to engineer. A credible loop must make its
-state, actions, feedback, rejection criteria, evidence, and human commitment
-visible enough for others to inspect.
+AI can assist across an architecture study, from framing a question and
+constructing alternatives to testing mechanisms and defending a bounded
+recommendation. The design loop is one execution and analysis mechanism for
+connecting that work to architectural state, tool feedback, evidence, and human
+judgment. The card makes one such study inspectable; it does not define the
+field.
 
 Architecture 2.0 is part of the [mlsysbook.ai](https://mlsysbook.ai) family.
 
@@ -68,7 +71,7 @@ The public site connects the following maintained surfaces.
 
 | Surface | Role |
 | --- | --- |
-| **Synthesis lecture** | A compact framework for auditable AI-assisted architecture loops. |
+| **Synthesis lecture** | Develops the discipline of using AI to formulate, explore, implement, evaluate, explain, and defend computer architecture decisions. |
 | **Design-loop card** | A versioned twelve-field review record with machine-checkable conformance levels. |
 | **Companion labs** | A separate tool-backed practice path for producing evidence and receipts without replacing the book's constructed lighthouse example. |
 | **Tool registry** | A maintained index of simulators, proxy models, verification harnesses, benchmarks, datasets, and data representations, each tied to a role in an architecture design loop. |
