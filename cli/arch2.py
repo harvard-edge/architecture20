@@ -1471,7 +1471,11 @@ def manifest_findings() -> list[Finding]:
                 )
             )
 
-    for path in sorted(actual_qmds - entry_set):
+    # foreword.qmd is staged on disk but held out of the manifest until its
+    # text arrives; it is neither an orphan nor required front matter.
+    optional_frontmatter = {"foreword.qmd"}
+    optional_paths = {BOOK_DIR / name for name in optional_frontmatter}
+    for path in sorted(actual_qmds - entry_set - optional_paths):
         findings.append(
             Finding(
                 "error",
@@ -1493,17 +1497,22 @@ def manifest_findings() -> list[Finding]:
         "acknowledgments.qmd",
         "about-the-author.qmd",
     ]
-    if chapter_qmds[: len(expected_frontmatter)] != expected_frontmatter:
+    present_frontmatter = [
+        name
+        for name in expected_frontmatter
+        if name not in optional_frontmatter or name in chapter_qmds
+    ]
+    if chapter_qmds[: len(present_frontmatter)] != present_frontmatter:
         findings.append(
             Finding(
                 "error",
                 "frontmatter-order",
                 _relative(quarto_path),
-                "front matter should begin with index, foreword, acknowledgments, and about-the-author",
+                "front matter should begin with index, foreword (when included), acknowledgments, and about-the-author",
             )
         )
-    if len(chapter_items) > len(expected_frontmatter):
-        separator_index = len(expected_frontmatter)
+    if len(chapter_items) > len(present_frontmatter):
+        separator_index = len(present_frontmatter)
         if chapter_items[separator_index] != "---":
             findings.append(
                 Finding(
