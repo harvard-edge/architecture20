@@ -535,8 +535,8 @@ handoffs. A loop may need to move from surrogate prediction to constrained
 optimization, from generator-critic repair to simulation, or from exploration to
 deployment guardrails as feedback latency and rollback cost rise. The evaluation
 should test whether posture changes improve loop cost, rejection quality, and
-final candidate quality across @fig-loop-pattern-spectrum while respecting the
-autonomy rule in @pri-change-autonomy.
+final candidate quality across @fig-loop-pattern-spectrum while keeping
+posture changes inside declared automation authority.
 
 4. **How can loops detect single-layer wins that fail system objectives?**
 Many cross-stack failures occur when one layer improves its local metric while
@@ -600,7 +600,7 @@ gates, and rejection rules. The evaluation should ask whether the loop makes
 fewer invalid actions, whether reviewers can trace each constraint to a human
 source or decision owner, and whether the representation preserves human
 override. Relevant anchors include @fig-tacit-extraction-bridge and
-@tbl-architect-owned-artifacts.
+@tbl-architect-responsibilities.
 
 4. **How can human stop authority survive long-horizon multi-agent loops?**
 As loops become asynchronous, distributed across tools, and maintained across
@@ -1385,8 +1385,8 @@ from exploration to critique, from proxy screening to simulation, or from
 generation to repair when measured evidence quality falls below a declared
 threshold. The evaluation should test whether the controller improves loop cost,
 rejection quality, and final candidate quality across the spectrum in
-@fig-loop-pattern-spectrum while respecting the autonomy rule in
-@pri-change-autonomy.
+@fig-loop-pattern-spectrum while keeping posture changes inside declared
+automation authority.
 
 4. **How can loops detect single-layer wins that fail system objectives?**
 Many of the chapter's failure modes occur when one layer improves its local
@@ -1454,7 +1454,7 @@ assumptions, integration risks, workload exclusions, and product-specific
 failure experience. A plausible research artifact is a tacit-constraint capture
 workflow that turns expert knowledge into reviewable environment contracts,
 hidden-state lists, evidence gates, and rejection rules, building on
-@fig-tacit-extraction-bridge and @tbl-architect-owned-artifacts. The evidence
+@fig-tacit-extraction-bridge and @tbl-architect-responsibilities. The evidence
 standard should be whether an automated loop that receives this state makes
 fewer invalid actions, whether reviewers can trace each codified constraint to a
 named human source or decision owner, and whether the representation preserves

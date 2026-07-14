@@ -3,10 +3,14 @@
 Current figures:
 
 - `F5-architecture-world-model`: architecture world-model components.
+- `F5a-trajectory-record`: two-turn trajectory record with the rejected branch kept linked.
+- `F5b-quarch-boundary-test`: QuArch paper-knowledge vs study-trajectory boundary.
 
 Executable Quarto figures in the chapter:
 
 - `fig-token-scale-contrast`: Matplotlib token-scale comparison.
+- `fig-affordable-sample-collapse`: affordable samples per feedback regime under a fixed budget (illustrative, in-cell values).
+- `fig-proxy-margin-escalation`: calibration-check escalation rule against the 3 W envelope (illustrative, in-cell values).
 
 Needed next:
 

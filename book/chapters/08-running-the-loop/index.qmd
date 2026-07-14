@@ -7,11 +7,11 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Jan L. A. van de Snepscheut, a prominent computer scientist, humorously captured the gap between theoretical models and real-world execution. This chapter uses a constructed end-to-end loop turn in which a stronger estimate is deliberately assigned costs that overturn a proxy winner. The companion SCALE-Sim lab returns a different outcome, which is the point of keeping an illustrative trace separate from empirical evidence.
+**Author's Note:** Van de Snepscheut's quip names this chapter's design. The forward turn is a constructed loop in which a stronger estimate is deliberately assigned costs that overturn a proxy winner; the companion SCALE-Sim lab returns a different outcome, which is the point of keeping an illustrative trace separate from empirical evidence.
 :::
 
 ```{=latex}
-\abstract*{The previous chapters built the parts of an Architecture 2.0 loop: representation, environment, method roles, feedback budgets, supporting evidence, and rejection authority. This chapter runs one AI-assisted architecture loop, end to end, on the lighthouse prompt. The point is not the specific numbers, which are illustrative; it is to watch a loop instantiate candidates, predict, escalate, reject, and stop at an honest commitment boundary.}
+\abstract*{The previous chapters built the parts of an Architecture 2.0 loop: representation, environment, method roles, feedback budgets, supporting evidence, and rejection authority. This chapter runs one AI-assisted architecture loop, end to end, on the lighthouse prompt. The point is not the specific numbers, which are illustrative; it is to watch a loop instantiate candidates, predict, escalate, reject, and stop at an honest commitment level.}
 ```
 
 ::: {.callout-crux}
@@ -44,13 +44,16 @@ reason for rejection.
 Bounding the task comes first. "Design a low-power XR compute subsystem" is not
 a loop; it is a wish. This chapter narrows the task to one XRBench-class[^fn-arch-xrbench-class]
 workload slice. The loop chooses among three compute organizations under a 3\ W
-power envelope and an 8\ ms per-frame deadline. The workload slice fixes that
-deadline as the frame budget for its real-time display pipeline. The loop then
+power envelope and an 8\ ms per-frame deadline.[^fn-frame-deadline] The 8\ ms
+deadline is the slice's per-frame display budget. The loop then
 returns the surviving candidate with its evidence and rejected alternatives.
 The candidates are a vector CPU extension, an accelerator deliberately left
 loosely coupled as a stress case, and a shared-memory SoC block. The loose
 accelerator is not the only accelerator realization allowed by the prompt; it
 is included so interface and data-movement costs have somewhere to show up.
+PIM (Processing-in-Memory), which moves compute inside memory chips to reduce
+interface taxes, is the natural low-data-movement contender and is deferred to
+a later turn.
 That is enough to make the loop turn.
 The worked example is therefore not a DSE recipe; it is a trace of what an
 AI-assisted architecture loop may propose, what feedback it may trust, and what
@@ -58,11 +61,15 @@ residue it must leave for an accountable owner.
 
 [^fn-arch-xrbench-class]: This chapter uses "XRBench-class" to mean a workload slice modeled on the XRBench benchmark family [@KwonEtAl2023XRBench], not measured XRBench results, which is why every number in the worked turn is illustrative rather than a benchmark score.
 
+[^fn-frame-deadline]: Commercial XR displays refresh at 72--120\ Hz; at 120\ Hz the per-frame budget is 8.3\ ms, which this slice rounds to 8\ ms [@KwonEtAl2023XRBench].
+
 ::: {.callout-field-note title="Let the evidence choose the lesson"}
 The companion SCALE-Sim lab, a runnable systolic-array exercise in the project
 repository, does not reproduce this chapter's constructed energy reversal. Its
 tool-produced result instead exposes proxy overstatement and a multiobjective
-tradeoff among latency, utilization, and hardware budget. That contrast is
+tradeoff among latency, utilization, and hardware budget. There the
+operation-count proxy overstates the largest array's speedup because it assumes
+a utilization the simulated mapping never reaches. That contrast is
 useful. A real loop must report the lesson its evidence supports rather than
 choose values that force a predetermined rejection.
 :::
@@ -76,7 +83,7 @@ next evidence stage.
 | **Workload** | One XRBench-class mobile-XR slice with a real-time frame deadline; a real loop would also record workload ID, input schema, scenario labels, coverage limits, distribution assumptions, provenance, and validity checks. |
 | **Baseline** | A bounded comparison among three compute organizations, not a full product baseline. |
 | **ISA/software assumption** | All candidates must preserve the existing 64-bit RISC-V software ecosystem to avoid rewriting the full stack from scratch; full compiler/runtime feasibility is deferred to a later stage. |
-| **Design space** | Vector CPU extension, intentionally separated accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator, CGRA (Coarse-Grained Reconfigurable Architecture), or PIM (Processing-in-Memory) search yet. PIM, an approach that moves compute inside memory chips to reduce interface taxes, is the natural low-data-movement contender, deferred to a later turn. |
+| **Design space** | Vector CPU extension, intentionally separated accelerator stress case, or shared-memory SoC block; no cache, chiplet, voltage, compiler-policy search, or full tightly coupled accelerator, CGRA (Coarse-Grained Reconfigurable Architecture), or PIM search yet. |
 | **Legal actions** | Instantiate the three candidate organization records with prompt, generator/search version, candidate IDs, invalid-action records, and selection rule; run the proxy screen, escalate all candidates to the simulation-stage estimate because the proxy has no final rejection authority, reject only on declared deadline/power gates, and advance a survivor only to RTL-level study; changing workload scope or claiming implementation readiness is outside this turn. |
 | **Physical envelope** | 3\ W power envelope and 8\ ms per-frame deadline; process and thermal assumptions are placeholders for the next stage. |
 | **Excluded evidence** | No RTL, timing, area, thermal, physical-design, deployment, silicon, carbon-footprint, or memory-consistency/coherence evidence. |
@@ -97,8 +104,8 @@ turn and read the record it leaves. That means you can:
 
 This chapter uses three related artifacts with distinct jobs. The design-loop
 card is the compact summary and index for one turn. Supporting evidence carries
-the observations, limits, and reasons that justify the card entries; the worked
-table below is one structured form. A runnable receipt binds actual inputs,
+the observations, limits, and reasons that justify the card entries;
+@tbl-worked-loop-ledger is one structured form. A runnable receipt binds actual inputs,
 configurations, commands, logs, and outputs so another team can attempt the
 declared replay. Because no external tool produced the constructed lighthouse
 values, this demonstration can supply a card and illustrative supporting
@@ -109,9 +116,9 @@ record.
 ## Round One: Generate and Screen on a Proxy
 
 The four rounds that follow are not four turns. As illustrated in
-@fig-loop-beat, they make up a single complete design-loop turn and realize its
-five beats, grouped into four rounds because generation and proxy screening
-share the first. First, a generative method[^fn-ml-generative-method] or
+@fig-loop-beat, they make up one complete design-loop turn realizing its five
+beats; generation and proxy screening share the first round. First, a
+generative method[^fn-ml-generative-method] or
 heuristic search explores the allowed action space to propose candidate designs.
 Second, these candidates are quickly screened against a low-fidelity proxy,
 giving the loop its first observation of the design's state. Third, because the
@@ -127,18 +134,19 @@ makes a bounded, documented commitment.
 ![**The AI-Assisted Architecture Loop.** The five beats of a single design-loop turn. A generative method proposes candidates (*actions allowed*), a proxy screens them (*state seen*), stronger simulation tests the survivors against constraints (*evidence*), invalid options are pruned (*alternatives rejected*), and the architect reviews the evidence to make a bounded commitment (*ownership*).](images/F8-loop-beat){#fig-loop-beat width="100%" fig-alt="Left-to-right flow of five beats (generate, proxy screen, escalate to a memory-aware simulation, reject on the 8 ms and 3 W gates, and human commit), each tagged with an execution-state field. A note shows the loosely coupled accelerator winning the cheap proxy then being rejected once data movement is charged, leaving the shared-memory SoC block as the only survivor."}
 
 The loop begins cheaply. A generative model or search method proposes the
-three organizations in a bounded candidate schema, and an analytic proxy, an
-operation-count or datapath-only estimate that counts arithmetic but not the
-traffic needed to feed it, estimates latency and energy per frame in
-milliseconds and millijoules. The proxy is fast and ignores most data movement,
+three organizations in a bounded candidate schema, and an analytic proxy
+estimates latency and energy per frame in milliseconds and millijoules. The
+proxy is an operation-count or datapath-only estimate; it counts arithmetic,
+not the traffic needed to feed it. It is fast and ignores most data movement,
 input-distribution variation, locality, runtime behavior, and coverage labels,
 so it flatters designs that keep arithmetic local. At this fidelity the loosely
 coupled accelerator looks best. It posts the lowest energy and latency because
 the proxy never charges it for moving data in and out.
 
-Instead of demonstrating a full generative search to find these three organizations, this illustrative turn simply seeds the candidate records directly. A real run would store the
-prompt, generator version, candidate IDs, invalid candidates, and selection
-rule as part of the supporting record. Regardless of how candidates are generated, a proxy result is low-fidelity feedback that becomes evidence only for the
+This turn seeds the three candidate records directly rather than demonstrating
+a full generative search; a real run would store the prompt, generator version,
+candidate IDs, invalid candidates, and selection rule as part of the supporting
+record. Regardless of how candidates are generated, a proxy result is low-fidelity feedback that becomes evidence only for the
 narrow action of deciding what to escalate.
 The AI-assisted loop records the proxy ranking and escalates.
 
@@ -150,24 +158,26 @@ The AI-assisted loop records the proxy ranking and escalates.
 ## Round Two: Escalate to a Simulation-Stage Estimate
 
 To advance beyond the proxy's blind spots, a constructed simulation-stage
-estimate assigns the first memory-*traffic* charge. The exact values and tool
-are not the lesson. This stage represents a stronger environment contract. It prices *data
+estimate assigns the first memory-*traffic* charge. This stage represents a
+stronger environment contract. It prices *data
 movement*, returns latency, energy, and power observations with provenance and
 cost, and has authority to overturn proxy rankings before commitment. Its power
 column is frame energy divided by the candidate's active compute time, a simple
 active-window power screen against the 3\ W budget. It is a screen, not a
-signoff thermal design power (TDP) verdict. Peak and transient power (such as di/dt current spikes and IR voltage drops) and sustained
-thermal behavior are deferred to later stages. This toy stage is not a claim
-that Timeloop, Aladdin, gem5, or FireSim was run here. Those tools are examples
-of the stronger model class it stands in for, including dataflow analysis
+signoff TDP verdict. Peak and transient power (such as di/dt current spikes and IR voltage drops) and sustained
+thermal behavior are deferred to later stages. Slower and scarcer than the
+proxy, the stage stands in for a stronger model class: dataflow analysis
 (e.g., Timeloop) [@ParasharEtAl2019Timeloop], calibrated pre-RTL estimation coupled to a
 full-system model (e.g., Aladdin) [@ShaoEtAl2014Aladdin; @ShaoEtAl2016Gem5Aladdin],
-cycle-accurate simulation (e.g., gem5) [@BinkertEtAl2011Gem5], and FPGA-accelerated
+cycle-level simulation (e.g., gem5) [@BinkertEtAl2011Gem5], and FPGA-accelerated
 simulation (e.g., FireSim) [@KarandikarEtAl2018FireSim].
 
-It is
-slower and scarcer than the proxy. In this toy turn all three candidates are
-escalated because proxy feedback has no final rejection authority. The result
+All three candidates are
+escalated because proxy feedback has no final rejection authority. In the
+budget terms of @sec-feedback-verification-trust, each of those checks is
+assigned a cost orders of magnitude above a proxy evaluation, an illustrative
+ratio, so the turn's feedback budget is dominated by its three escalations
+rather than its three proxy calls. The result
 is the chapter's central mechanics demonstration. The assigned values make the
 candidate that wins the cheap screen fail at the stronger stage
 (@tbl-worked-loop).
@@ -217,10 +227,15 @@ lines.append(
     f"at proxy fidelity is the {proxy_pick.lower()}, but a constructed simulation-stage estimate and the "
     f"{deadline_ms:.0f} ms / {power_budget_w:.0f} W gates reject it, and the {survivor.lower()} is the only "
     f"candidate that clears both the {deadline_ms:.0f} ms deadline and the power "
-    "envelope. Values are illustrative and computed in the chunk; active-window power is frame energy over active compute time, a screen rather than a signoff TDP verdict. {#tbl-worked-loop}"
+    "envelope. Values are illustrative and computed in the chunk; active-window power is frame energy over active compute time. {#tbl-worked-loop}"
 )
 print("\n".join(lines))
 ```
+
+Plotted as paired estimates, the same computed numbers show the reversal as
+crossing lines (@fig-proxy-mirage). The loosely coupled accelerator starts
+lowest and ends highest once the stronger stage charges data movement, while
+the shared-memory SoC block barely moves.
 
 ```{python}
 #| label: fig-proxy-mirage
@@ -248,8 +263,8 @@ for c in candidates:
     ax.plot(
         [0, 1], [c["proxy_e"], c["sim_e"]],
         marker="o", color=line_colors[c["name"]], linewidth=1.9,
-        markersize=5, markerfacecolor="#F8FAFC", markeredgewidth=1.2,
-        clip_on=False, label=c["name"],
+        markersize=5, markerfacecolor=COLORS["note_fill"], markeredgewidth=1.2,
+        clip_on=False,
     )
     misses = []
     if "deadline" in v:
@@ -257,8 +272,12 @@ for c in candidates:
     if "envelope" in v:
         misses.append(f"{c['power']:.1f} W")
     short = "rejected: " + " + ".join(misses) if misses else "survives"
-    vcolor = COLORS["purple"] if short == "survives" else COLORS["red"]
-    ax.text(1.03, c["sim_e"], short, ha="left", va="center", fontsize=6.4, fontweight="bold", color=vcolor)
+    vcolor = COLORS["evidence_ink"] if short == "survives" else COLORS["constraints_ink"]
+    ax.text(1.03, c["sim_e"] + 0.45, c["name"], ha="left", va="bottom",
+            fontsize=6.0, fontweight="bold", color=line_colors[c["name"]],
+            clip_on=False)
+    ax.text(1.03, c["sim_e"] - 0.45, short, ha="left", va="top", fontsize=6.0,
+            fontweight="bold", color=vcolor, clip_on=False)
 
 ax.set_xlim(0, 1)
 ax.set_ylim(8, 32)
@@ -268,7 +287,6 @@ ax.set_ylabel("energy per frame (mJ)", fontsize=7)
 ax.tick_params(axis="y", labelsize=6.3)
 for spine in ["top", "right"]:
     ax.spines[spine].set_visible(False)
-ax.legend(loc="upper left", fontsize=5.9, frameon=False, handlelength=1.4)
 add_note_box(
     fig,
     "In this constructed case, interface and data-movement penalties reorder the proxy ranking.",
@@ -285,12 +303,13 @@ intentionally separated accelerator stress case that won on the proxy fails unde
 constructed simulation-stage estimate. The assigned values model a case where
 data movement across the system interconnect raises its energy above every
 alternative and removes most of its latency lead. The interconnect might be a
-Network-on-Chip fabric or an AXI-based interconnect. This constructed example
+Network-on-Chip fabric or a bus built on a standard protocol such as AXI
+(Advanced eXtensible Interface). This constructed example
 does not assume a specific transport. A real study would have to model the
 topology, protocol, and implementation because those choices affect latency and
 energy. The shared-memory SoC block is assigned a smaller penalty to represent traffic that stays inside the tightly coupled on-chip hierarchy it
-shares with the CPU. These assignments make proxy mismatch concrete without
-claiming that this ranking was measured. The
+shares with the CPU. These assignments model the mismatch without claiming the
+ranking was measured. The
 vector extension, which also keeps data local, fails instead on raw throughput
 against the deadline. This is proxy mismatch made concrete
 (@fig-proxy-mirage), a problem that Roofline analysis can sometimes expose when
@@ -337,7 +356,7 @@ symptoms point to one possible cause the next evidence stage would have to verif
 Reaching the accelerator means moving data across an *interface* to off-chip or
 distant memory, and that *traffic* is expensive on every axis at once. In this
 illustrative off-chip or distant-memory assumption, a 100--160 pJ/byte movement
-cost applied to roughly 100 MB per frame lands in the 10--20 mJ range,
+cost applied to roughly 100 MB per frame lands in the 10--16 mJ range,
 arithmetically consistent with the assigned 16 mJ increase. The scale is consistent with the
 order-of-magnitude data-movement costs discussed in @sec-physical-constraints-move-into-architecture
 [@Horowitz2014Energy]. The assigned latency and energy values also push its
@@ -364,15 +383,14 @@ account as five linked statements.
 - **Hypothesis:** Interface traffic omitted by the proxy, rather than arithmetic work, causes the loosely coupled accelerator's energy and latency reversal.
 - **Directional prediction:** Holding the workload and compute mapping fixed, reducing bytes that cross the interface should reduce latency and energy and narrow the gap. Increasing those bytes should widen it. If latency remains above the deadline after traffic falls, another mechanism is still limiting.
 - **Discriminating contrast:** Sweep the external-traffic term in the diagnostic model. In a real tool path, vary a realizable factor such as buffer placement or tiling while preserving the kernel, arithmetic work, frequency, and model version, then record interface bytes and stall cycles.
-- **Observation status:** Roughly 100 MB per frame at 100--160 pJ/byte contributes 10--20 mJ, which is arithmetically consistent with the assigned 16 mJ increase. No simulator or measurement produced this observation.
+- **Observation status:** Roughly 100 MB per frame at 100--160 pJ/byte contributes 10--16 mJ, which is arithmetically consistent with the assigned 16 mJ increase. No simulator or measurement produced this observation.
 - **Validity boundary:** This chapter establishes internal consistency and a test protocol, not an empirical cause. A tested explanation requires tool-produced traffic, stall, latency, and energy observations under the declared contrast across relevant workload slices.
 :::
 
 This constructed turn can demonstrate the protocol and name the next experiment,
-but it cannot supply that observation. The companion SCALE-Sim lab is a separate
-tool-produced study and does not implement this specific contrast. It must
-report the mechanism and conclusion supported by its own results rather than be
-used to confirm the chapter's assigned reversal.
+but it cannot supply that observation; the companion SCALE-Sim lab does not
+implement this specific contrast and must report the conclusions its own
+results support.
 
 ::: {.callout-lighthouse title="Price the interface before believing the proxy"}
 **Context.** The rejection gate forces us to confront the true integration cost
@@ -401,13 +419,14 @@ envelope, the local *arithmetic* win the automation found no longer matters.
 With the rejection gates applied, one candidate survives the deadline and the envelope. It is tempting to call
 that a final result. It is not. The evidence behind it is a simulation-stage
 architectural estimate standing in for cycle-level and power feedback. This supports an
-experimental commitment, not an implementation or a tapeout. The architect's
+experimental commitment, not an implementation or a tapeout
+(@fig-evidence-commitment-ladder). The architect's
 decision is therefore bounded. Advance the surviving organization to an RTL
-study where physical design steps like logic synthesis (converting code to gates), place-and-route (laying out components and wires), exact timing closure, and a stronger physical power estimate can confirm or
+study where physical design steps like logic synthesis, place-and-route, exact timing closure, and a stronger physical power estimate can confirm or
 reject it. Because the survivor is a shared-memory block, it also owes formal
 obligations this toy loop did not discharge. Its coherence protocol would need
 explicit-state model checking, following the same environment-contract logic
-used for SLICC-style cache-coherence interfaces (a domain-specific language for specifying coherence protocols) in
+used for SLICC-style cache-coherence interfaces in
 @sec-architecture-environments-tool-interfaces [@Dill1996Murphi]. Its
 consistency model would need litmus tests (small, concurrent test programs) escalated to formal memory-model
 verification (@sec-feedback-verification-trust
@@ -417,9 +436,11 @@ trading the interface data-movement cost that sank the accelerator for on-chip
 coherence traffic the proxy never charged, so both gates stay open beyond this
 turn. The other two candidates remain recorded as rejected alternatives.
 
+![**Evidence attained authorizes commitment, one rung at a time.** The turn's evidence reaches the simulation-stage rung of the fidelity ladder, which authorizes an experimental commitment on the commitment ladder of @sec-feedback-verification-trust, advancing the survivor to an RTL study. The greyed rungs, RTL through silicon on the evidence track and implementation through irreversible on the commitment track, remain unearned and unauthorized until later turns supply stronger evidence.](images/F8b-evidence-commitment-ladder){#fig-evidence-commitment-ladder width="92%" fig-alt="Two vertical five-rung ladders side by side. The left evidence ladder rises from analytic proxy through simulation-stage estimate, RTL and synthesis, physical and thermal, to silicon; the right commitment ladder rises from exploratory through experimental, implementation, integration, to irreversible. The bottom two rungs of each ladder are highlighted, an arrow links the simulation-stage evidence rung to the experimental commitment rung with the label showing where this turn stops, and the upper three rungs of both ladders are greyed out as deferred to later turns."}
+
 Stopping at this honest boundary is the difference between an answer and a defensible AI-assisted loop turn. The result
 is a reviewable loop-turn record: the surviving state, the evidence that
-supports it, the actions and alternatives rejected, the commitment boundary,
+supports it, the actions and alternatives rejected, the commitment level,
 and the next evidence an accountable owner requires.
 
 ::: {.callout-architect-checkpoint title="The Commitment Gate"}
@@ -428,17 +449,15 @@ and the next evidence an accountable owner requires.
 :::
 
 The cost of skipping that gate is not hypothetical, and it is not unique to
-hardware. A software deployment incident makes the same commitment-boundary
+hardware. A software deployment incident makes the same commitment-gate
 habit visible, but it is an analogy for the gate, not evidence about this
 hardware estimate.
 
 ::: {.callout-field-note title="Four hundred forty million in forty-five minutes"}
 On August 1, 2012, a trading firm deployed new order-routing code, but the update reached only seven of its eight servers. The eighth still ran repurposed logic that a reused flag switched back on, and it began firing orders into the market with no position limit and nothing to halt it. No automated check verified that the right code, and only the right code, was live everywhere. In about forty-five minutes the firm lost roughly four hundred forty million dollars and nearly collapsed [@SEC2013Knight; @KnightCapital2012Loss].
 
-**Lesson.** The architecture lesson is narrower. Before a loop turns an output into a commitment, it needs a check that can verify the artifact, reject it, and stop escalation or roll back.
+**Lesson.** The architecture lesson is narrower. Before a loop turns an output into a commitment, it needs a check that can verify the artifact, reject it, and stop escalation or roll back. That halt is what keeps an AI generator from extrapolating past its authorized evidence boundary.
 :::
-
-Halting the loop here keeps the AI generator from extrapolating past its authorized evidence boundary.
 
 ::: {#pri-honest-evidence .callout-design-principle title="Stop at an honest evidence level"}
 An AI-assisted loop should report what its evidence supports, what it rejected, and what would
@@ -460,19 +479,21 @@ would reject it.
 | **Representation** | Candidate ID, candidate record, legal action taken, workload slice ID/coverage label, proxy and simulation observations, uncertainty/provenance limits, deadline, power envelope, and verdict. |
 | **Environment** | Analytic proxy followed by an illustrative simulation-stage estimate standing in for cycle-level feedback and a simple power-envelope check. |
 | **Method role** | Seed candidates, predict cheap proxy scores, escalate all candidates because the proxy has no final rejection authority, and critique proxy wins against stronger feedback. |
-| **Feedback budget** | Three cheap proxy evaluations and three illustrative simulation/power checks; no RTL, timing, thermal, or silicon evidence yet. |
+| **Feedback budget** | Three cheap proxy evaluations and three illustrative simulation/power checks, each assigned a per-evaluation cost orders of magnitude above the proxy, so the budget is dominated by the escalations; no RTL, timing, thermal, or silicon evidence yet. |
 | **Evidence** | The shared-memory SoC block is the only candidate that clears the 8\ ms deadline and 3\ W envelope in the illustrative run. This supports the illustrative gate result; it does not empirically establish the proposed data-movement mechanism. |
-| **Failed runs / rejected alternatives (`negative_traces`)** | Rejected-alternative records show that the vector CPU extension misses the latency deadline and the loosely coupled accelerator misses the deadline and exceeds the power envelope after the constructed estimate assigns a data-movement penalty. |
-| **Rejection authority** | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
-| **Commitment boundary / would overturn** | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, memory-consistency/coherence, and stronger power evidence. |
-| **Accountable decision (`human_decision`)** | Advance the shared-memory SoC block to RTL-level study and retain the other two candidates with their rejection reasons. |
+| **Failed runs / rejected alternatives** | Rejected-alternative records show that the vector CPU extension misses the latency deadline and the loosely coupled accelerator misses the deadline and exceeds the power envelope after the constructed estimate assigns a data-movement penalty. |
+| **Rejection checks and authority** | Deadline check, power-envelope check, and the stronger estimate that can overturn the proxy ranking. |
+| **Evidence-supported claim boundary** | Advance only to RTL-level study; implementation commitment would require synthesis, timing, area, thermal, compiler/runtime, memory-consistency/coherence, and stronger power evidence. |
+| **Accountable decision** | Advance the shared-memory SoC block to RTL-level study and retain the other two candidates with their rejection reasons. |
 
 : **The worked loop leaves a filled card, not just a winning row.** The card
 summarizes the bounded task, points to the supporting evidence and rejected alternatives,
 and records the rejection authority and accountable decision that another architect
 would need before continuing the loop. {#tbl-worked-loop-card tbl-colwidths="[22,66]"}
 
-A real execution would bind those summaries to runnable material. The runnable receipt
+The filled card passes that first test; its fields state what the turn did,
+at what evidence level, and what would reject it. A real execution would bind
+those summaries to runnable material. The runnable receipt
 can respect proprietary boundaries while still stating what was run, what
 failed, what is redacted, what remains non-public, and what can be independently
 tested. @tbl-loop-replay-receipt gives a minimum directory shape.
@@ -490,22 +511,20 @@ tested. @tbl-loop-replay-receipt gives a minimum directory shape.
 
 : **A runnable receipt binds executable residue.** The useful artifact is not only
 the winning candidate but the inputs, environment, commands, runs, evidence,
-failures, and decisions needed to attempt the declared replay. {#tbl-loop-replay-receipt tbl-colwidths="[24,64]"}
+failures, and decisions needed to attempt replay under the declared conditions. {#tbl-loop-replay-receipt tbl-colwidths="[24,64]"}
 
-The target receipt, visualized as a cohesive directory bundle
-(@fig-loop-receipt-bundle), shows that a winning claim cannot exist in a vacuum.
-The winning architecture only matters because the surrounding artifacts
-explicitly record what evidence supported it, what alternatives failed, and what
-accountable decisions govern its next stage.
+A winning claim cannot travel alone. It travels as one bundle, sketched in
+@fig-loop-receipt-bundle, whose artifacts record what evidence supported the
+claim, what alternatives failed, and what accountable decisions govern its
+next stage.
 
 ![**A runnable receipt binds the executable residue of one turn.** The reusable artifact is not the winning candidate alone, but the task boundary, inputs, candidate records, proxy and stronger runs, supporting evidence, and decision record that let another architect attempt replay, continue, or reject the loop.](images/F9c-loop-receipt-bundle){#fig-loop-receipt-bundle width="100%" fig-alt="Directory-style diagram showing a runnable receipt bundle with README, inputs, candidates, proxy runs, simulation runs, evidence, and decisions."}
 
-For this constructed turn, the directory bundle is a target structure, not a
-claim that those runnable files exist. The filled card and illustrative supporting evidence record
-still expose the task boundary, evidence level, rejection reasons, decision
-limit, and next evidence owner. A real execution would populate the receipt so
-another architect could attempt the declared replay as well as inspect why the
-survivor advanced.
+Here the directory bundle is a target structure; the filled card and
+supporting evidence record still expose the task boundary, evidence level,
+rejection reasons, decision limit, and next evidence owner. A real execution
+would populate the receipt so another architect could replay the turn as
+declared and inspect why the survivor advanced.
 
 For advanced loops, the receipt also says what would reopen the decision. A
 later workload shift, dependency change, field-telemetry incident, stronger
@@ -542,17 +561,20 @@ in public only on the record that travels with it.
 | **Method role** | **Present.** A reinforcement-learning policy generates placements inside a larger flow. Never disputed. | Unchanged. |
 | **Feedback budget** | **Absent.** Pretraining corpus, compute, and convergence criteria were not stated as a budget another team could match. | The dispute's center. The rebuttal is a feedback-budget argument that the critics skipped pretraining, under-trained, and used far less compute [@GoldieEtAl2024ThatChipHasSailed]. |
 | **Evidence** | **Disputed.** Comparisons were anchored to proprietary blocks and to a proxy cost later reported to correlate weakly with post-route metrics [@ChengEtAl2023AssessmentRL]. | The reassessment added open evidence on its own cases; the strongest original evidence is still not publicly replayable. |
-| **Failed runs / rejected alternatives (`negative_traces`)** | **Absent.** No failed or rejected placements, seeds, or excluded cases were published. | Still absent, on both sides. |
-| **Rejection authority** | **Absent as a shared gate.** Both sides held strong private gates (synthesis, timing, layout rules, expert review); none was common to both (@sec-loop-patterns-across-stack). | Emerging third-party gauges such as end-to-end placement benchmarks postdate the dispute [@WangEtAl2025ChiPBench]. |
-| **Commitment boundary / would overturn** | **Absent.** The strongest claim shipped with no stated evidence that would overturn it. | The addendum closed the journal's process; no public statement of an overturning condition exists [@GoldieEtAl2024AlphaChipAddendum]. |
-| **Accountable decision (`human_decision`)** | **Partial.** Deployment decisions were plainly owned inside Google; the public record does not name the review that accepted them. | Unchanged. |
+| **Failed runs / rejected alternatives** | **Absent.** No failed or rejected placements, seeds, or excluded cases were published. | Still absent, on both sides. |
+| **Rejection checks and authority** | **Absent as a shared gate.** Both sides held strong private gates (synthesis, timing, layout rules, expert review); none was common to both (@sec-loop-patterns-across-stack). | Emerging third-party gauges such as end-to-end placement benchmarks postdate the dispute [@WangEtAl2025ChiPBench]. |
+| **Evidence-supported claim boundary** | **Absent.** The strongest claim shipped with no stated evidence that would overturn it. | The addendum closed the journal's process; no public statement of an overturning condition exists [@GoldieEtAl2024AlphaChipAddendum]. |
+| **Accountable decision** | **Partial.** Deployment decisions were plainly owned inside Google; the public record does not name the review that accepted them. | Unchanged. |
 
-: **The design-loop card, filled backward from the AlphaChip public record.** The fields the 2021 record carried were never the dispute; the dispute broke out in the fields the record left empty. Field status reads the public record only, not the internal work behind it. {#tbl-alphachip-retro-card tbl-colwidths="[16,38,36]"}
+: **The design-loop card, filled backward from the AlphaChip public record.** The fields the 2021 record carried were never the dispute; the dispute broke out in the fields the record left empty. Field status reads the public record only, as of July 2026, not the internal work behind it. {#tbl-alphachip-retro-card tbl-colwidths="[16,38,36]"}
 
 The pattern in the table is the chapter's forward lesson replayed on a real
 case. The generation-side fields, intent, task, representation, and method
 role, were present in 2021 and were never the argument. The dispute broke out
-precisely in the fields the record left empty. The reassessment and the
+precisely in the fields the record left empty (@fig-alphachip-field-status).
+Read against @sec-design-loop-no-longer-scales, that pattern is the scissors
+gap in public form, generation outrunning the shared capacity to reject and
+commit. The reassessment and the
 rebuttal disagreed about the environment and the feedback budget, whether the
 method was run as published, pretrained, converged, and given comparable
 compute [@ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed]. Those
@@ -563,14 +585,195 @@ war story in @sec-loop-patterns-across-stack shows, both sides held strong
 rejection gates privately; what no card field could point to was a rejection
 authority both sides accepted.
 
+```{python}
+#| label: fig-alphachip-field-status
+#| fig-cap: |
+#|   **The dispute sits in the fields the record left empty.** Field-by-field status of the AlphaChip public record against the twelve design-loop card fields, in the two epochs of @tbl-alphachip-retro-card, which carries the per-field detail and sources. The generation-side fields were present in both epochs; the outlined fields, where the dispute broke out, were all absent when the claim was made and remain at best partial or disputed after the 2024 addendum. Statuses read the public record as of July 2026.
+#| out-width: "88%"
+#| fig-alt: "Twelve-row by two-column status grid of the design-loop card fields against the AlphaChip public record in 2021 and after the 2024 addendum. Intent, task, representation, and method role are present in both epochs; environment, feedback budget, failed runs, rejection checks and authority, and evidence-supported claim boundary are absent or disputed, and the four fields where the dispute broke out, environment, feedback budget, rejection checks and authority, and evidence-supported claim boundary, are outlined."
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Field statuses transcribed from the public-record reading in
+# @tbl-alphachip-retro-card (sources: MirhoseiniEtAl2021GraphPlacement,
+# ChengEtAl2023AssessmentRL, GoldieEtAl2024ThatChipHasSailed,
+# GoldieEtAl2024AlphaChipAddendum, GoogleDeepMind2024AlphaChip).
+# Statuses as of 2026-07-13. dispute=True marks the four fields where the
+# dispute broke out, matching the retro-card discussion.
+fields = [
+    ("Intent",                            "present",  "present",  False),
+    ("Task",                              "present",  "present",  False),
+    ("Design space",                      "partial",  "partial",  False),
+    ("Representation",                    "present",  "present",  False),
+    ("Environment",                       "absent",   "partial",  True),
+    ("Method role",                       "present",  "present",  False),
+    ("Feedback budget",                   "absent",   "disputed", True),
+    ("Evidence",                          "disputed", "disputed", False),
+    ("Failed runs / rejected alternatives", "absent", "absent",   False),
+    ("Rejection checks and authority",    "absent",   "absent",   True),
+    ("Evidence-supported claim boundary", "absent",   "absent",   True),
+    ("Accountable decision",              "partial",  "partial",  False),
+]
+
+fill = {
+    "present": "#E7F5EC",
+    "partial": "#FBF0DE",
+    "disputed": "#FDECEC",
+    "absent": "#EDF0F3",
+}
+text_color = {
+    "present": COLORS["evidence_ink"],
+    "partial": COLORS["methods_ink"],
+    "disputed": COLORS["constraints_ink"],
+    "absent": COLORS["muted"],
+}
+
+n = len(fields)
+fig, ax = plt.subplots(figsize=(4.8, 3.15))
+fig.subplots_adjust(left=0.44, right=0.985, top=0.90, bottom=0.03)
+
+for i, (name, s2021, s2024, dispute) in enumerate(fields):
+    for j, status in enumerate((s2021, s2024)):
+        ax.add_patch(Rectangle((j, i), 1, 1, facecolor=fill[status],
+                               edgecolor="#FFFFFF", linewidth=1.2))
+        ax.text(j + 0.5, i + 0.5, status, ha="center", va="center",
+                fontsize=6.0, fontweight="bold", color=text_color[status])
+    label_weight = "bold" if dispute else "normal"
+    ax.text(-0.05, i + 0.5, name, ha="right", va="center", fontsize=6.0,
+            fontweight=label_weight, color=COLORS["ink"])
+    if dispute:
+        ax.add_patch(Rectangle((0.015, i + 0.06), 1.97, 0.88, fill=False,
+                               edgecolor=COLORS["red"], linewidth=1.3, zorder=5))
+
+ax.text(0.5, -0.45, "public record, 2021", ha="center", va="center",
+        fontsize=6.6, fontweight="bold", color=COLORS["ink"])
+ax.text(1.5, -0.45, "after the 2024 addendum", ha="center", va="center",
+        fontsize=6.6, fontweight="bold", color=COLORS["ink"])
+ax.text(1.0, n + 0.55, "outlined rows mark the fields where the dispute broke out",
+        ha="center", va="center", fontsize=5.6, color=COLORS["constraints_ink"])
+
+ax.set_xlim(0, 2.0)
+ax.set_ylim(n + 1.0, -0.9)
+ax.axis("off")
+
+plt.show()
+plt.close(fig)
+```
+
+One row of that grid can also be read as measurement. The evidence row cites a
+proxy cost later reported to correlate weakly with post-route metrics; the
+reassessment's artifact record publishes the pairs behind that report, fifteen
+strong placements from Circuit Training, the open-source release of the
+AlphaChip method, on one open test case, each scored by the proxy the loop
+optimized and by the post-route metrics a signoff flow reads
+[@ChengEtAl2023AssessmentRL]. Plotted against each other, the proxy barely
+orders the outcomes (@fig-proxy-postroute-correlation). The forward turn
+earlier in this chapter constructed a proxy reversal to teach the mechanism;
+this is the same mechanism in the measured record of the case the card audits.
+
+```{python}
+#| label: fig-proxy-postroute-correlation
+#| fig-cap: |
+#|   **The weak correlation, measured.** Fifteen Circuit Training macro placements of the open Ariane133 test case on NanGate45, each scored by the proxy cost the loop optimized (lower is better) and by two post-route signoff metrics, transcribed from the ISPD 2023 reassessment's published artifact data [@ChengEtAl2023AssessmentRL]. The reassessment reports a Kendall rank correlation of 0.048 between proxy cost and each of these two metrics. The placement with the best proxy cost (filled square) is beaten on post-route total power and on total negative slack by placements the proxy ranked well behind it (outlined circles). These pairs compare placements of one test case under one flow, not results across designs.
+#| out-width: "92%"
+#| fig-alt: "Two scatter plots of fifteen macro placements of one test case. Left panel: proxy cost against post-route total power in milliwatts. Right panel: proxy cost against post-route total negative slack in nanoseconds. In both panels the points show no visible trend and the annotated Kendall rank correlation is 0.048. The best-proxy placement, a filled square, sits mid-pack on power and timing, while two outlined placements with clearly worse proxy cost achieve better power and better slack."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Source receipt: data/source-receipts/chapter8-cheng-proxy-postroute.csv
+# Cheng et al., ISPD 2023 assessment [@ChengEtAl2023AssessmentRL], Sec. 5.2.3;
+# per-run pairs published in the companion TILOS MacroPlacement artifact
+# repository (Docs/OurProgress, Question 10; accessed 2026-07-13): 15 Circuit
+# Training macro placements of Ariane133-NG45-68%-1.3ns with proxy cost < 0.9,
+# bucket-sampled by the authors from ~40 runs. Kendall values are the authors'
+# published Table 2 numbers, not recomputed here.
+runs = [
+    # (run, proxy cost, post-route total power mW, post-route TNS ns)
+    ("RUN1", 0.8949, 833.961, -135.838),
+    ("RUN2", 0.8964, 835.436, -70.139),
+    ("RUN3", 0.8861, 828.254, -25.199),
+    ("RUN4", 0.8856, 833.318, -33.755),
+    ("RUN5", 0.87405, 832.649, -68.666),
+    ("RUN6", 0.8762, 835.803, -47.430),
+    ("RUN7", 0.8675, 829.066, -14.211),
+    ("RUN8", 0.8660, 834.304, -118.130),
+    ("RUN9", 0.85705, 831.652, -96.630),
+    ("RUN10", 0.8540, 833.287, -105.577),
+    ("RUN11", 0.84665, 832.768, -152.772),
+    ("RUN12", 0.8429, 835.521, -33.286),
+    ("RUN13", 0.83745, 831.524, -79.826),
+    ("RUN14", 0.83405, 834.484, -94.025),
+    ("RUN15", 0.8285, 832.975, -27.571),
+]
+best_proxy = "RUN15"  # lowest proxy cost of the 15 runs
+counterexamples = ("RUN3", "RUN7")  # the authors' called-out runs
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(4.65, 2.0))
+fig.subplots_adjust(left=0.115, right=0.985, top=0.86, bottom=0.24, wspace=0.46)
+
+for ax, idx in ((ax1, 2), (ax2, 3)):
+    for name, proxy, power, tns in runs:
+        y = power if idx == 2 else tns
+        if name == best_proxy:
+            ax.scatter(proxy, y, s=26, marker="s", color=COLORS["red"],
+                       zorder=4)
+        elif name in counterexamples:
+            ax.scatter(proxy, y, s=24, facecolor="white",
+                       edgecolor=COLORS["evidence"], linewidth=1.1, zorder=3)
+        else:
+            ax.scatter(proxy, y, s=15, color=COLORS["blue"], zorder=2)
+    ax.text(0.97, 0.04, "Kendall $\\tau$ = 0.048", transform=ax.transAxes,
+            ha="right", va="bottom", fontsize=5.8, color=COLORS["muted"])
+    ax.set_xlim(0.822, 0.903)
+    ax.set_xticks([0.83, 0.85, 0.87, 0.89])
+    ax.set_xlabel("proxy cost (lower is better)", fontsize=6.4)
+
+ax1.annotate("best proxy", (0.8285, 832.975), textcoords="offset points",
+             xytext=(4, 6), fontsize=5.5, color=COLORS["constraints_ink"])
+ax2.annotate("best proxy", (0.8285, -27.571), textcoords="offset points",
+             xytext=(4, 4), fontsize=5.5, color=COLORS["constraints_ink"])
+# Label the two hollow counterexample circles from above, in the clear band
+# over RUN7 (0.8675, -14.2) and RUN3 (0.8861, -25.2), so the label touches no
+# data mark and stays clear of the "best proxy" label at the left.
+ax2.text(0.877, -8.5, "worse proxy, better slack", ha="center", va="bottom",
+         fontsize=5.5, color=COLORS["evidence_ink"])
+
+ax1.set_ylim(826.5, 837.5)
+ax1.set_ylabel("post-route total\npower (mW)", fontsize=6.4)
+ax1.set_title("Total power", fontsize=6.6, pad=4)
+
+ax2.set_ylim(-165, 0)
+ax2.set_ylabel("post-route TNS (ns,\ncloser to 0 is better)", fontsize=6.4)
+ax2.set_title("Total negative slack", fontsize=6.6, pad=4)
+
+for ax in (ax1, ax2):
+    ax.tick_params(axis="both", labelsize=6, length=2.5, width=0.6, pad=2)
+    ax.grid(axis="y", color=COLORS["grid"], linewidth=0.55)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color(COLORS["ink"])
+    ax.spines["bottom"].set_color(COLORS["ink"])
+
+plt.show()
+plt.close(fig)
+```
+
 In the structural-conformance terms of @sec-appendix-b-design-loop-card, the
 2021 public record can populate a Level 0 card. It also contains fragments of
-fields required at Level 1, but conformance is not fractional. The already-public
-code and the pretrained checkpoint released with the 2024 addendum add
-replay-relevant artifacts for the method [@GoogleDeepMind2024AlphaChip].
-Structural conformance, replay status, and public support for the strongest
-proprietary-block claim remain separate judgments. Those releases do not make
-that claim publicly auditable because the public record still lacks a shared
+fields required at Level 1, but conformance is not fractional.
+
+The code and the pretrained checkpoint released with the 2024 addendum add
+replay-relevant artifacts for the method [@GoogleDeepMind2024AlphaChip], but
+they do not make the strongest proprietary-block claim publicly auditable.
+Structural conformance, replay status, and public support for that claim
+remain separate judgments, and the public record still lacks a shared
 production environment contract, comparable feedback budget, and
 rejected-alternative summaries [@ChengEtAl2023AssessmentRL;
 @GoldieEtAl2024ThatChipHasSailed; @GoldieEtAl2024AlphaChipAddendum;
@@ -600,7 +803,7 @@ The worked example succeeds because the broad prompt is sliced into a task
 small enough to act on, evaluate, reject, and record. A strong research
 contribution would define methods for lowering architectural intent into a
 legal action space, workload slice, feedback budget, evidence target, and
-commitment boundary. The evaluation should ask whether different architects can
+commitment level. The evaluation should ask whether different architects can
 derive comparable loop turns from the same broad intent and whether those turns
 avoid unsupported claims.
 
@@ -672,7 +875,7 @@ decision. One loop turn stays small, bounded, and reviewable, which is exactly
 what makes it worth trusting.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** One honest loop turn stops at a commitment boundary and leaves a reviewable record of the surviving candidate, its evidence, and why the alternatives were rejected; a real execution should also bind its executable artifacts in a runnable receipt.
+- **Carry forward:** One honest loop turn stops at a declared commitment level and leaves a reviewable record of the surviving candidate, its evidence, and why the alternatives were rejected; a real execution should also bind its executable artifacts in a runnable receipt.
 - **Reader test:** Could another architect reconstruct why the surviving candidate advanced and what would overturn it?
-- **Up next:** @sec-loop-patterns-across-stack asks how this reviewable-record discipline changes across workload, software, DSE, co-design, fleet, and RTL/physical loops with different feedback budgets and rollback costs.
+- **Up next:** @sec-loop-patterns-across-stack asks how this reviewable-record discipline changes across workload, software, DSE, domain-specific architecture and code generation, co-design, fleet, and RTL/physical loops with different feedback budgets and rollback costs, and when trusted disposition rather than generation becomes the limit.
 :::

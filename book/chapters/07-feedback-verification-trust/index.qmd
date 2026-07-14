@@ -11,7 +11,7 @@
 :::
 
 ```{=latex}
-\abstract*{Architecture 2.0 does not ask architects to trust an AI-assisted system. It asks them to control how a claim moves from feedback to scoped evidence and then to an authorized commitment. The design-loop card indexes one visible decision chain: claim, supporting evidence, counterevidence and failed checks, rejection or waiver, and accountable decision. Confidence, fluent explanation, and a stronger tool result do not advance commitment on their own.}
+\abstract*{Architecture 2.0 does not ask architects to trust an AI-assisted system. It asks them to control how a claim moves from feedback to scoped evidence and then to an authorized commitment. The design-loop card indexes one visible decision chain: claim, supporting evidence, counterevidence and failed checks, disposition (rejection, revision, escalation, or waiver), and accountable decision. Confidence, fluent explanation, and a stronger tool result do not advance commitment on their own.}
 ```
 
 ::: {.callout-crux}
@@ -20,7 +20,10 @@ and who may authorize the resulting commitment?
 :::
 
 @sec-methods-generation-prediction-optimization treated methods as roles inside
-a design loop. This chapter asks when their output may support a decision. An
+a design loop. This chapter asks when their output may support a decision, and
+it opens the card's evidence and decision fields: feedback budget, evidence,
+failed runs and rejected alternatives, rejection checks and authority,
+evidence-supported claim boundary, and accountable decision. An
 Architecture 2.0 claim advances only when relevant feedback has become scoped
 evidence, counterevidence and failed checks remain visible, the rejection path
 can block the proposed transition, and a role with the required decision right
@@ -28,7 +31,7 @@ authorizes the commitment.
 
 This distinction between generated output and verified evidence is central to the book. A model can generate a plausible
 architecture description. A search method can find a strong proxy score. A
-surrogate model (a fast, learned approximation of a slow simulator) can rank candidates. A tool-using agent[^fn-ml-tool-using-agent] can call simulators and
+surrogate model can rank candidates. A tool-using agent[^fn-ml-tool-using-agent] can call simulators and
 summarize results. None of those actions authorizes commitment by itself.
 Assurance begins when the loop records what was measured, why it was relevant, how much
 it cost, what assumptions it used, where the feedback is weak, which
@@ -36,8 +39,8 @@ alternatives failed, and what can say no.
 
 [^fn-ml-tool-using-agent]: A tool-using agent is an AI system that can programmatically invoke external software tools or APIs, such as simulators or synthesis flows, to carry out a task. In this chapter its output counts as feedback rather than authorization, since the loop still has to record provenance and give an independent check the authority to reject what the agent reports.
 
-The lighthouse prompt (the book's running example of a complete design task) makes this need for evidence concrete. A proposed low-power 64-bit RISC-V
-compute subsystem for XRBench (an extended-reality benchmark) under a 3\ W, 3\ nm-class low-power mobile envelope might look reasonable under an analytic proxy, promising under
+The lighthouse prompt makes this need for evidence concrete. A proposed low-power 64-bit RISC-V
+compute subsystem for XRBench under a 3\ W, 3\ nm-class low-power mobile envelope might look reasonable under an analytic proxy, promising under
 simulation, and broken under synthesis or timing. It might meet performance
 while missing an energy or thermal target. It might pass a benchmark but fail
 a real deployment scenario. Architecture 2.0 therefore needs a commitment
@@ -59,19 +62,19 @@ authority, not a single tool category (@tbl-verification-authorities). Inside AI
 define which generated state transitions may continue, be revised, or be
 blocked.
 
-The familiar examples are prosaic for a reason. A parser rejects malformed IR (Intermediate Representation),
+The familiar examples are prosaic for a reason. A parser rejects malformed IR,
 a protocol checker rejects an illegal transaction, and a regression test blocks
 a change that breaks expected behavior. Each is valuable because it can stop
 the artifact from moving to the next state, not because it comments on quality.
 
 | **Verification authority** | **Typical evidence** | **What it can reject** |
 | --- | --- | --- |
-| **Syntax and interface checks** | Parsers, type checks, API checks, ISA (Instruction Set Architecture) or ABI (Application Binary Interface) conformance, and schema validation. | Artifacts that cannot legally enter the loop. |
-| **Functional checks** | Unit tests, reference outputs, assertions, formal equivalence checking, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
-| **Model and workload checks** | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
-| **Implementation checks** | Synthesis constraints, timing closure, power envelopes, area budgets, gate-level simulation (GLS), and design-rule checks (DRC). | Architecture candidates that violate physical limits or fail pre-silicon validation. |
-| **Operational checks** | SLOs (Service Level Objectives), canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
-| **Expert review** | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
+| Syntax and interface checks | Parsers, type checks, API checks, ISA or ABI (Application Binary Interface) conformance, and schema validation. | Artifacts that cannot legally enter the loop. |
+| Functional checks | Unit tests, reference outputs, assertions, formal equivalence checking, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
+| Model and workload checks | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
+| Implementation checks | Synthesis constraints, timing closure, power envelopes, area budgets, gate-level simulation (GLS), and design-rule checks (DRC). | Architecture candidates that violate physical limits or fail pre-silicon validation. |
+| Operational checks | SLOs (Service Level Objectives), canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
+| Expert review | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
 
 : **Verification names who or what can say no:** A credible claim should state
 which independent authority can reject syntax, function, model support,
@@ -82,9 +85,13 @@ field, a legal action, and a commitment boundary. It says which action may
 continue, which state update is invalid, and when the loop must revise or
 escalate.
 
-The chapter follows one claim-to-decision chain (@tbl-trust-record-map). The
+The chapter works through one claim-to-decision chain (@tbl-trust-record-map),
+deliberately treating commitment stakes before the rejection machinery that
+protects them. The chain itself has five links, from claim to authorized
+decision; the feedback-and-cost stage is not a sixth link but the resource
+precondition that bounds what evidence the other stages can contain. The
 design-loop card indexes the chain, while detailed cost, evidence, check, waiver,
-and decision records support it. They are not additional reader-facing schemas.
+and decision records support it.
 Proxy mismatch and security boundaries test whether the chain remains credible
 when metrics are gamed or evidence cannot be disclosed publicly.
 
@@ -103,7 +110,7 @@ and waiver decisions remain visible.
 {#tbl-trust-record-map tbl-colwidths="[22,37,31]"}
 
 The design-loop card is the summary and index for this chain. Detailed
-observations remain in supporting records, and a replay receipt bundles the
+observations remain in supporting records, and a runnable receipt bundles the
 card, inputs, runs, checks, and decision records when the loop claims
 replayability. Card conformance, evidence fidelity, and commitment strength
 remain separate claims. One does not advance automatically when another does.
@@ -133,14 +140,96 @@ evaluations, hundreds of simulations, tens of synthesis or physical-design
 runs, a few emulation opportunities, and almost no chances to learn from
 silicon or deployment mistakes. It may also have scarce human review time,
 limited tool licenses, long queue delays, confidential workloads, and
-organizational deadlines. These limits shape which methods are appropriate and
-how much autonomy is acceptable.
+organizational deadlines. @sec-design-loop-no-longer-scales already measured
+this limit. Verification staffing on IC/ASIC projects sits at rough parity
+with design staffing, and projects spend roughly half their schedule in
+verification, before any AI-generated candidate stream arrives
+(@fig-ch07-verification-economics). Trusted disposition capacity is a
+head-count, not a compute budget. These limits shape which methods are
+appropriate and how much autonomy is acceptable.
+
+```{python}
+#| label: fig-ch07-verification-economics
+#| fig-cap: |
+#|   **Verification is already where the engineers went:** Across the Wilson Research Group / Siemens EDA functional-verification study waves, mean peak verification staffing on IC/ASIC projects rose from roughly 0.6 verification engineer per design engineer in 2007 to rough parity from 2012 onward, with processor projects reaching as much as 5:1, while projects spent roughly half their schedule in verification [@Foster2022WilsonVerificationStudy]. The left panel reads the staffing ratio in levels; the head-count growth behind it is the scissors of @fig-verification-demand-scissors. The 2022 ratio derives from unlabeled study charts and is approximate; the 2022 time share is the study's reported 50-60 percent median. The rejection capacity this chapter budgets is scarce before a single AI-generated candidate arrives.
+#| out-width: "86%"
+#| fig-alt: "Two-panel plot of Wilson Research Group functional-verification study data. Left panel: verification-to-design engineer ratio on IC/ASIC projects rising from about 0.6 in 2007 to about 1.0 to 1.1 from 2012 through 2022, with a note that processor projects reach up to five to one. Right panel: share of project time spent in verification staying near 53 to 57 percent from 2014 through 2020, with a 50 to 60 percent median band for 2022."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Source receipt: data/source-receipts/chapter7-wilson-verification-economics.csv
+# Wilson Research Group / Siemens EDA functional-verification studies (IC/ASIC),
+# via Foster's published study summaries [@Foster2022WilsonVerificationStudy].
+# Left panel carries the verification-to-design staffing RATIO in levels,
+# derived from the study's printed mean-peak staffing labels (2022 from
+# chart-read bars constrained by the stated +50% design / +146% verification
+# growth since 2007). The underlying head-count pairs are receipted with the
+# ch02 scissors figure (chapter2-wilson-verification-staffing.csv); this
+# chapter reads only their ratio. Time-share values 2014-2020 are study-figure
+# annotations; 2022 is a stated 50-60% median.
+ratio_series = [
+    # (year, verification engineers per design engineer, approximate?)
+    (2007, 0.615, False),
+    (2012, 0.988, False),
+    (2016, 1.105, False),
+    (2020, 1.107, False),
+    (2022, 1.009, True),
+]
+time_share = [(2014, 57), (2016, 54), (2018, 53), (2020, 56)]
+time_2022_band = (50, 60)  # stated median range, 2022 wave
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(4.65, 1.95))
+fig.subplots_adjust(left=0.105, right=0.985, top=0.86, bottom=0.185, wspace=0.42)
+
+years = [s[0] for s in ratio_series]
+ratios = [s[1] for s in ratio_series]
+ax1.axhline(1.0, color=COLORS["grid"], linewidth=0.8, zorder=0)
+ax1.plot(years, ratios, color=COLORS["evidence"], linewidth=1.4, zorder=2)
+solid = [(y, r) for y, r, approx_flag in ratio_series if not approx_flag]
+approx = [(y, r) for y, r, approx_flag in ratio_series if approx_flag]
+ax1.scatter([p[0] for p in solid], [p[1] for p in solid], s=16,
+            color=COLORS["evidence"], zorder=3)
+ax1.scatter([p[0] for p in approx], [p[1] for p in approx], s=18,
+            facecolor="white", edgecolor=COLORS["evidence"], linewidth=1.0,
+            zorder=3)
+ax1.annotate("parity", (2007.4, 1.0), textcoords="offset points",
+             xytext=(0, 3), fontsize=5.5, color=COLORS["muted"])
+ax1.annotate("processor projects:\nup to 5:1", (2013.2, 0.68), fontsize=5.5,
+             color=COLORS["evidence_ink"])
+ax1.set_ylim(0.4, 1.35)
+ax1.set_ylabel("verification / design\nengineers (mean peak)", fontsize=6.4)
+ax1.set_xticks([2007, 2012, 2016, 2022])
+ax1.set_title("Staffing ratio, IC/ASIC projects", fontsize=6.6, pad=4)
+
+ax2.bar([t[0] for t in time_share], [t[1] for t in time_share], width=1.15,
+        color=COLORS["blue"], zorder=2)
+lo, hi = time_2022_band
+ax2.bar([2022], [hi - lo], bottom=lo, width=1.15, facecolor=COLORS["note_fill"],
+        edgecolor=COLORS["blue"], linewidth=0.8, zorder=2)
+ax2.annotate("50-60%\n(median)", (2022, hi), textcoords="offset points",
+             xytext=(0, 3), ha="center", fontsize=5.3, color=COLORS["workload_ink"])
+ax2.set_ylim(0, 78)
+ax2.set_ylabel("project time in\nverification (%)", fontsize=6.4)
+ax2.set_xticks([2014, 2018, 2022])
+ax2.set_title("Schedule share in verification", fontsize=6.6, pad=4)
+
+for ax in (ax1, ax2):
+    ax.tick_params(axis="both", labelsize=6, length=2.5, width=0.6, pad=2)
+    ax.grid(axis="y", color=COLORS["grid"], linewidth=0.55)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color(COLORS["ink"])
+    ax.spines["bottom"].set_color(COLORS["ink"])
+```
 
 The supporting cost record states which
 evaluations, measurements, tool runs, human reviews, and deployment signals are
 available, what they cost, how long they take, how reversible they are, and
-what level of decision they can support. This is not accounting bureaucracy. It
-shows what kind of learning and checking is possible. A Bayesian optimizer[^fn-ml-bayesian-optimizer-budget], reinforcement-learning policy[^fn-rl-policy],
+what level of decision they can support. The record shows what kind of learning
+and checking is possible. A Bayesian optimizer[^fn-ml-bayesian-optimizer-budget], reinforcement-learning policy[^fn-rl-policy],
 surrogate model[^fn-ml-surrogate-proxy-feedback], critic[^fn-rl-critic], or tool-using agent should behave differently when a
 feedback source takes milliseconds versus days, when a failed action is
 reversible versus costly, and when the signal is a rough proxy versus a
@@ -192,14 +281,82 @@ resulting decision value of one such evaluation. It is the per-feedback-type
 form of the sample-value rule from
 @sec-methods-generation-prediction-optimization; ordinal confidence changes or
 decision-relevance labels are often more honest than unjustified numeric
-confidence.
+confidence. The budget's shape is what makes the rule bite. As one evaluation's cost
+climbs from milliseconds at the proxy rung to months at the silicon rung, the
+affordable sample count collapses toward one (@fig-ch07-feedback-funnel).
 
-Architecture 2.0 weighs confidence gains against computational and human costs, much as the quantitative tradition weighed performance against area and power. For example, spending 100 CPU-hours ($c_i$) on a cycle-accurate simulation to gain a modest reduction in PPA (Power, Performance, and Area) uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. The notation is a question the loop designer must answer before
+```{python}
+#| label: fig-ch07-feedback-funnel
+#| fig-cap: |
+#|   **The feedback funnel sets the budget the notation formalizes:** As the cost of one evaluation rises from milliseconds for an analytic proxy to months for silicon or deployment evidence, the affordable sample count $n_i$ under a fixed budget $B = \sum_i n_i \cdot c_i$ collapses from thousands toward one. Ranges are illustrative orders of magnitude from this chapter's funnel; the cycle-level rung is anchored to the wall-clock arithmetic of @sec-data-representations-world-models (one second of a 1 GHz target at 100 kcycle/s to 10 Mcycle/s of simulator throughput).
+#| out-width: "86%"
+#| fig-alt: "Log-log plot with cost per evaluation in seconds on the horizontal axis spanning milliseconds to months, and evaluations per study on the vertical axis spanning one to one hundred thousand. Five labeled boxes descend from analytic proxy at thousands to a hundred thousand cheap evaluations, through cycle-level simulation in the hundreds, synthesis and physical design in the tens, emulation at a few, down to silicon or deployment at about one."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Illustrative orders of magnitude from this chapter's funnel sentence
+# ("thousands of cheap proxy evaluations, hundreds of simulations, tens of
+# synthesis or physical-design runs, a few emulation opportunities, and almost
+# no chances to learn from silicon"). The cycle-level cost span replicates
+# ch04's wall-clock computation T_wall = f_target * T_workload / R_sim for a
+# 1 GHz target running a 1 s workload at the mid-range illustrative
+# throughputs of its simulation-time table (100 kcycle/s and 10 Mcycle/s).
+f_target, t_workload = 1e9, 1.0
+sim_cost = (f_target * t_workload / 1e7, f_target * t_workload / 1e5)
+
+rungs = [
+    # (label, cost range in seconds, evaluations range, color key)
+    ("Analytic proxy", (1e-3, 1e0), (1e3, 1e5), "blue"),
+    ("Cycle-level simulation", sim_cost, (1e2, 1e3), "purple"),
+    ("Synthesis / physical design", (1e4, 3e5), (1e1, 1e2), "orange"),
+    ("Emulation", (1e5, 1e6), (2, 8), "red"),
+    ("Silicon / deployment", (3e6, 3e7), (1, 2), "magenta"),
+]
+
+fig, ax = plt.subplots(figsize=(4.65, 2.3))
+fig.subplots_adjust(left=0.115, right=0.97, top=0.95, bottom=0.19)
+ax.set_xscale("log")
+ax.set_yscale("log")
+
+label_offsets = {
+    "Analytic proxy": (0, 8),
+    "Cycle-level simulation": (0, 8),
+    "Synthesis / physical design": (0, 8),
+    "Emulation": (-6, 8),
+    "Silicon / deployment": (0, 8),
+}
+for label, (c_lo, c_hi), (n_lo, n_hi), key in rungs:
+    ax.fill_betweenx([n_lo, n_hi], c_lo, c_hi, facecolor=COLORS[key],
+                     alpha=0.22, edgecolor=COLORS[key], linewidth=0.9, zorder=2)
+    cx = (c_lo * c_hi) ** 0.5
+    dx, dy = label_offsets[label]
+    ax.annotate(label, (cx, n_hi), textcoords="offset points", xytext=(dx, dy),
+                ha="center", fontsize=5.7, fontweight="bold",
+                color=COLORS.get(key + "_ink", COLORS[key]))
+
+ax.set_xlim(3e-4, 3e8)
+ax.set_ylim(0.5, 4e5)
+ax.set_xticks([1e-3, 1e0, 60, 3600, 86400, 2.6e6])
+ax.set_xticklabels(["1 ms", "1 s", "1 min", "1 h", "1 day", "1 month"])
+ax.set_xlabel("cost per evaluation (log scale)", fontsize=7)
+ax.set_ylabel("evaluations per study (log scale)", fontsize=7)
+ax.tick_params(axis="both", labelsize=6, length=2.5, width=0.6, pad=2)
+ax.grid(True, which="major", color=COLORS["grid"], linewidth=0.5)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+```
+
+Architecture 2.0 weighs confidence gains against computational and human costs, much as the quantitative tradition weighed performance against area and power. For example, spending 100 CPU-hours ($c_i$) on a cycle-level simulation to gain a modest reduction in power, performance, and area (PPA) uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. The notation is a question the loop designer must answer before
 each stage. Will another simulation, synthesis run, expert review, or
 deployment experiment change a decision enough to justify its cost? @sec-running-the-loop
-makes the question concrete, spending the proxy budget freely, the cycle-level
-budget carefully, and a high-fidelity power check only on the surviving
-candidate.
+makes the question concrete, spending the proxy budget freely, spending the
+simulation-stage budget carefully, and deferring the high-fidelity power check
+to the surviving candidate's next evidence stage.
 The unit being priced is not just another evaluation. It is one part of the
 claim-to-decision chain, including the state before the action, the action
 itself, the observation it produces, any failed condition, the transition that
@@ -242,8 +399,10 @@ supporting or counterevidence, and disposition at each stage
 
 ![**The evidence chain connects an architectural claim to a decision:** Staged checks record provenance, uncertainty, counterevidence, and failed conditions while declaring which transition each check may block. The final disposition belongs to an authorized review role. Fidelity, cost, rejection, and commitment remain separate judgments; moving to a stronger check does not authorize a stronger commitment by itself.](images/F9-evidence-chain-rejection-gates){#fig-evidence-chain-rejection-gates width="100%" fig-alt="Staged architectural-claim-to-decision chain showing feedback sources, provenance, uncertainty, failed conditions, revision, rejection, escalation, and authorized review, with fidelity and cost kept separate from commitment authority."}
 
-The figure makes assurance a property of the decision chain rather than the
-model or a single score.
+In the figure, a rejection gate hangs off every intermediate stage, the
+evidence record spans the full chain beneath them, and the commitment decision
+waits behind an authorized review at the end. Assurance is therefore a
+property of the decision chain rather than the model or a single score.
 
 However, moving up the fidelity ladder is not a simple ranking from false to true. Higher fidelity is not
 automatically truth if the wrong workload, objective, constraints, or baseline
@@ -274,23 +433,25 @@ The supporting evidence record shows how strong the support for a claim is. How
 strong that support needs to be is a separate question, and assurance requirements should rise
 with commitment. A loop that generates a
 candidate simulator configuration can tolerate more automation than a loop
-that changes RTL (Register-Transfer Level code), partitions a chiplet boundary (the physical interface between separate silicon dies), selects a package interface,
+that changes RTL, partitions a chiplet boundary (the physical interface between separate silicon dies), selects a package interface,
 or recommends a deployment policy. The difference is not whether AI is
 involved. The difference is rollback cost, blast radius (how far a wrong change
 can propagate), and who bears the
 consequence when the loop is wrong.
 
 The exact
-ordering will vary across organizations, but the pattern is stable.
-Reversible exploration can use lighter evidence, while irreversible or
+ordering will vary across organizations, but the pattern is stable across the
+five commitment levels of @tbl-commitment-ladder, where each row pairs a
+level's example actions with the discipline and the decision rights it
+requires. Reversible exploration can use lighter evidence, while irreversible or
 high-blast-radius decisions require stronger evidence, independent rejection,
 and visible accountable decision rights. An escalation threshold states when
 the loop must stop relying on its current feedback source and seek stronger
 evidence, independent review, or the approval right required for the proposed
 commitment.
 
-These thresholds require visible decision rights because they depend on
-consequences, not only on model confidence. A proxy win may be enough to keep
+Escalation thresholds depend on consequences, not only on model confidence, so
+the decision rights behind them must be visible. A proxy win may be enough to keep
 exploring. It is not enough to change a subsystem interface, waive a
 verification concern, or commit to a power claim. The loop should therefore state in advance which
 events force escalation, such as uncertainty outside the calibrated range, a benchmark
@@ -318,10 +479,9 @@ decision or as an autonomous tool choice.
 This commitment structure keeps Architecture 2.0 from making a naive autonomy argument.
 Autonomy is not a virtue by itself. A loop may be highly automated for
 low-commitment exploration and deliberately conservative for high-commitment
-decisions. In fact, some of the most valuable near-term systems may not be
-systems that make final design choices. They may be systems that narrow a
-space, identify contradictions, preserve evidence, and prepare the accountable
-decision roles to make a better decision.
+decisions. In fact, the most valuable near-term systems may make no final design
+choices at all. They narrow a space, surface contradictions, preserve
+evidence, and leave the accountable roles better prepared to decide.
 
 ::: {#pri-escalate-commitment .callout-design-principle title="Escalate with commitment"}
 In an AI-assisted loop, evidence requirements should rise with rollback cost,
@@ -343,15 +503,18 @@ violation, physical limit, or policy boundary.
 Beyond preventing errors, rejection authority is one lever of adjudication
 capacity. In a rejection-bound stage with a fixed proposal stream, validated
 cheap checks can settle some cases before expensive escalation. Total capacity
-also depends on routing, audits, reference-check cost, and concurrency. A search
+also depends on routing, audits, reference-check cost, and concurrency;
+@sec-loop-patterns-across-stack turns these levers into a measurable capacity
+model. A search
 loop has another lever because a better generator may need fewer evaluations to
-reach a fixed-quality target. Rejection authority is therefore not a safeguard
-bolted onto a loop that already works, but neither is it the sole determinant of
-useful design progress.
+reach a fixed-quality target. Rejection authority is therefore a working part
+of the loop, not a bolted-on safeguard, and it is one determinant of useful
+design progress among several, not the whole story.
 
-The disposition stage of the chain should expose the six properties in
-@tbl-rejection-review-properties. They are inspectable properties of one
-decision path, not a separate schema.
+When a reviewer inspects an exercised rejection, the disposition stage of the
+chain should expose six properties, from the exact condition that failed to
+the distinct waiver right that may override it
+(@tbl-rejection-review-properties).
 
 | **Review property** | **What must be visible** |
 | --- | --- |
@@ -410,7 +573,8 @@ that evidence exists; an irreversible claim missing its accountable approval rig
 is not made. That is the whole point of writing $\tau_k$ down per level. A missing cell forces rejection or escalation, never silent commitment. And when a claim is
 meant to be comparable across teams rather than only reviewable, these
 thresholds cannot stay local judgment calls; a shared benchmark protocol has to
-fix them, or the claim is contrastable but not comparable.
+fix them, or the claim is contrastable (a reviewer can check it against its own
+declared rules) but not comparable (two teams' claims cannot be ranked).
 
 ::: {.callout-lighthouse title="Validity is a contract, not a score"}
 **Context.** The commitment rule above does not ask whether an AI-generated candidate sounds
@@ -419,10 +583,9 @@ loop proposes to authorize.
 
 **In the Lighthouse prompt.** A generative method's candidate for the "64-bit RISC-V-based compute
 subsystem" is legal only if it stays inside the declared ISA/software contract
-and does not hide an invalid memory or SoC (System-on-Chip) interface
+and does not hide an invalid memory or SoC interface
 assumption. A legal candidate can still be rejected when the evidence shows that
-it misses the XRBench-class workload obligation or the 3\ W TDP (Thermal Design
-Power) target.
+it misses the XRBench-class workload obligation or the 3\ W TDP target.
 
 **Rejection gate.** ISA compatibility, workload validity, memory/interface
 legality, power, deadline, and evidence sufficiency for the proposed decision are gates, not advisory
@@ -432,11 +595,11 @@ metrics for the generator to optimize.
 escalate rather than turn a plausible subsystem into a commitment.
 :::
 
-Once a check fails, the response to rejection should be explicit. A candidate may be discarded. A
-representation may need a new field. An environment may need a validity check.
-A method may need a smaller action space. A workload may need a better
-coverage definition. A claim may need to be weakened. An accountable decision
-role may need to escalate the case. Without this response path, rejection becomes a
+Once a check fails, the response to rejection should be explicit. A candidate
+is discarded. A representation gains a field. An environment gains a validity
+check. A method loses action space. A workload gets a sharper coverage
+definition. A claim is weakened. An accountable decision role escalates the
+case. Without this response path, rejection becomes a
 log message rather than a learning signal.
 
 This rejection authority also protects against polished but unsupported outputs.
@@ -465,7 +628,11 @@ The same rule applies when rejection is split across components. A generator,
 critic, verifier, and summarizer may be separate components in an implementation,
 but they do not become independent merely by having different prompts or names.
 Independence depends on what they share, such as training data, model family, objective,
-tool path, evidence source, or human instruction. A loop that asks several
+tool path, evidence source, or human instruction. Software fault tolerance
+learned this empirically. Knight and Leveson's multiversion-programming
+experiment found that independently developed program versions fail on
+correlated inputs far more often than an independence assumption predicts
+[@KnightLeveson1986Multiversion]. A loop that asks several
 correlated components to agree has created consensus, not rejection authority,
 unless some gate can fail in a way the generator cannot simply explain away.
 
@@ -477,7 +644,7 @@ improve while synthesis exposes timing or power problems. A benchmark result
 may improve while the real workload distribution changes. A Pareto frontier
 may look convincing because all points were evaluated under the same flawed
 proxy. An automated optimizer may appear capable because it overfits the evaluation loop,
-not because it understands the architecture problem. In the machine learning literature, this active exploitation of a flawed metric is known as *reward hacking* [@AmodeiEtAl2016ConcreteProblems] or *Goodhart's Law* [@Strathern1997Goodhart].
+not because it understands the architecture problem. In the machine-learning literature this active exploitation of a flawed metric is reward hacking (@sec-architecture-environments-tool-interfaces).
 
 Two distinct failure modes hide within this proxy mismatch, and they need different cures. First, a proxy can simply be
 miscalibrated or too narrow, mis-estimating the objective even when nothing is
@@ -495,7 +662,7 @@ produce a persuasive narrative for a proxy win unless the loop asks for
 calibration and counterevidence.
 
 ::: {.callout-war-story title="A proxy under dispute"}
-**The claim.** AlphaChip (a reinforcement learning method for macro placement) is one of the field's clearest recent disputes over whether a cheap proxy rewarded the wrong thing. Its loop optimized a fast proxy cost, a stand-in for the metrics that actually decide a chip.
+**The claim.** AlphaChip (a reinforcement-learning method for macro placement) is one of the field's clearest recent disputes over whether a cheap proxy rewarded the wrong thing. Its loop optimized a fast proxy cost, a stand-in for the metrics that actually decide a chip.
 
 **The gap.** An independent 2023 reassessment found that proxy had weak correlation with the post-route chip-quality metrics that decide a real chip, and little useful correlation with timing [@ChengEtAl2023AssessmentRL]. A candidate could look excellent on the proxy the loop used and only ordinary once a full flow charged what the proxy ignored.
 
@@ -519,7 +686,7 @@ higher-fidelity result could overturn the claim.
 Does the loop know when a generator's proxy has left calibrated support? A proxy win supports a claim only when the candidate falls within that region. If it falls outside, the loop must seek a higher-fidelity check rather than treat the prediction as evidence.
 :::
 
-Beyond model calibration, benchmark governance also matters because benchmark rules are part of the
+Benchmark rules are part of the
 loop's evidence contract. If those rules are hidden or stale, automated optimizers can
 optimize version quirks, protocol gaps, or unowned metrics while appearing to
 make progress. As @sec-design-loop-no-longer-scales and
@@ -569,13 +736,13 @@ which roles hold redaction, compliance-review, waiver, and release rights.
 :::
 
 This requirement also defines the bounds of microarchitectural security. A loop
-that optimizes Instructions Per Cycle (IPC) without an isolation constraint can
+that optimizes IPC without an isolation constraint can
 behave like an accidental adversary. It may propose structures that improve
 visible performance by sharing predictors, translation lookaside buffers (TLBs),
 caches, or buffers across trust boundaries, while the proxy leaves side-channel
-risk unpriced. Architecture 2.0 requires an early isolation screen, a cheap
-structural check that a generated layout does not silently share state across
-trust boundaries. It is necessary but not sufficient, since it misses
+risk unpriced. Architecture 2.0 requires an early isolation screen (@lst-side-channel), a
+cheap structural check that a generated layout does not silently share state
+across trust boundaries. It is necessary but not sufficient, since it misses
 contention, transient-execution, and simultaneous multithreading (SMT) channels.
 A higher-fidelity security gate must still include formal non-interference (a guarantee that a component's
 secret state cannot affect what an untrusted observer sees) [@GoguenMeseguer1982] or side-channel verification where the commitment requires it. A complete security
@@ -659,27 +826,29 @@ acceptance, rejection, or escalation.
 
 ![**Evidence disputes become tractable when support and authority are separate:** A contested architecture claim should expose its supporting evidence, fidelity and scope, provenance, baseline, counterevidence, and failed checks. A named review role, not the evidence packet itself, owns acceptance, rejection, or escalation under the declared rules.](images/F9b-evidence-dispute-anatomy){#fig-evidence-dispute-anatomy width="100%" fig-alt="Flow diagram separating a contested architecture claim's evidence packet from the named review role authorized to accept, reject, or escalate it."}
 
-The same learned-placement dispute returns here as a full evidence-dispute
-anatomy. A 2021 result reported that a reinforcement-learning method produced
-floorplans competitive with human experts in far less time
-[@MirhoseiniEtAl2021GraphPlacement]. Independent groups then disputed the claim
-on exactly the axes above: the baselines, the released code, and the
-reproducibility of the protocol [@ChengEtAl2023AssessmentRL]. The point here is
-not to adjudicate that dispute. The point is that the disagreement was never
-about whether the model ran; it was about provenance, baselines, and what
-evidence could reject the result. One constructive response
+The macro-placement dispute from the war story above returns here as a full
+evidence-dispute anatomy. Independent groups disputed the 2021 claim
+[@MirhoseiniEtAl2021GraphPlacement] on exactly the axes above, the baselines,
+the released code, and the reproducibility of the protocol
+[@ChengEtAl2023AssessmentRL]. The point here is
+not to adjudicate that dispute. The disagreement, still open as of July 2026,
+was never about whether the model ran; it was about provenance, baselines, and
+what evidence could reject the result. One constructive response
 has been to build reproducible, end-to-end benchmarks that score placement by
 final power, performance, and area rather than an intermediate proxy
 [@WangEtAl2025ChiPBench]. That is the kind of infrastructure the anatomy asks for.
 A contested claim becomes more tractable once the loop's evidence, baselines, and
 rejection authority are made explicit.
 For Architecture 2.0, the reusable lesson is not the controversy itself; it is
-that a loop claiming placement quality must expose represented floorplan state,
+that a loop claiming placement quality must expose represented placement state,
 legal move/action space, workload and PPA records, baseline records, rejected
 alternatives, and the independent authority that can block commitment. For
 placement-style AI-assisted EDA, reproducibility often depends on exact
 toolchain versions, environment constraints, seeds, legal action spaces, and
 baseline records, not just model weights.
+@sec-running-the-loop completes this move, filling all twelve card fields
+retrospectively from the same public record and showing that the dispute broke
+out exactly in the fields the record left empty.
 
 To make this dispute anatomy practical, @tbl-trust-checklist turns the same
 claim-to-decision chain into a compact review. It is
@@ -691,7 +860,7 @@ expensive commitment.
 | --- | --- | --- |
 | **What output is under review?** | Candidate, ranking, report, code/RTL change, or commitment recommendation, with generator and method role named. | The result is described only as an AI improvement. |
 | **What is the claim?** | A bounded architecture task, objective, workload, and commitment level. | Vague claims of automation or improvement. |
-| **What loop state and action contract are exposed?** | State fields, legal actions, tool or environment APIs, invalid transitions, and replay receipts. | The loop can act through hidden state or unlogged tool semantics. |
+| **What loop state and action contract are exposed?** | State fields, legal actions, tool or environment APIs, invalid transitions, and runnable receipts. | The loop can act through hidden state or unlogged tool semantics. |
 | **What evidence supports it?** | Claim-relevant metrics, tool outputs, logs, and reviews with their available evaluation resources. | Only the winning score is shown. |
 | **What weakens or blocks it?** | Counterevidence, failed runs, rejected alternatives, coverage gaps, warnings, and unresolved disagreements. | Contrary results or failed checks are omitted. |
 | **What is the fidelity?** | Proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level stated explicitly. | Treating all measurements as equivalent. |
