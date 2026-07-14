@@ -444,6 +444,78 @@ rows.append(
 print("\n".join(rows))
 ```
 
+Plotted on log-log axes, the same multiplication becomes four parallel cost
+lines, one per throughput, and a shaded one-day band shows how little of the
+table a single working day can buy (@fig-simulation-wallclock). At the
+illustrative 1 kcycle/s rate only the 1 ms workload finishes within a day; at
+100 Mcycle/s even the one-hour workload still fits.
+
+```{python}
+#| label: fig-simulation-wallclock
+#| fig-cap: |
+#|   **A one-day budget cuts across the wall-clock lines:** Each line plots the illustrative wall-clock time $T_{\mathrm{wall}} = f_{\mathrm{target}} \times T_{\mathrm{workload}} / R_{\mathrm{sim}}$ for one simulator throughput at a 1 GHz target, and the markers are the sixteen cells of @tbl-simulation-time. The shaded band marks runs that finish within one day. A faster simulator shifts its whole line down by a constant factor, so the ways to keep a workload inside the band are higher throughput, a shorter workload slice, or accepting fewer high-fidelity samples.
+#| out-width: "86%"
+#| fig-alt: "Log-log chart of wall-clock simulation time versus target execution time at 1 gigahertz, with four parallel lines for simulator throughputs from 1 kilocycle per second to 100 megacycles per second and a shaded band marking runs that finish within one day. At 1 kilocycle per second only the 1 millisecond workload stays inside the band, at about 17 minutes, while one second of target time takes 11.6 days; at 100 megacycles per second even the one-hour workload finishes in about 10 hours."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+# Same illustrative computation as @tbl-simulation-time: wall time =
+# (f_target x T_workload) / R_sim for a 1 GHz target. No external dataset;
+# every point is computed in-cell from the table's illustrative rates.
+freq = 1e9
+workloads = [("1 ms", 1e-3), ("1 s", 1.0), ("1 min", 60.0), ("1 h", 3600.0)]
+rates = [
+    ("1 kcycle/s", 1e3, COLORS["red"]),
+    ("100 kcycle/s", 1e5, COLORS["orange"]),
+    ("10 Mcycle/s", 1e7, COLORS["blue"]),
+    ("100 Mcycle/s", 1e8, COLORS["green"]),
+]
+day = 86_400.0
+
+apply_style()
+fig, ax = plt.subplots(figsize=(4.65, 2.6))
+fig.subplots_adjust(left=0.15, right=0.78, top=0.95, bottom=0.17)
+
+ax.set_xscale("log")
+ax.set_yscale("log")
+ax.set_xlim(5e-4, 7e3)
+ax.set_ylim(2e-3, 3e10)
+
+ax.axhspan(2e-3, day, facecolor=COLORS["note_fill"], zorder=0)
+ax.axhline(day, color=COLORS["note_edge"], linewidth=0.8, linestyle="--", zorder=1)
+ax.text(8e-4, day * 2.2, "one day", fontsize=5.8, color=COLORS["note_text"],
+        fontweight="bold", va="bottom")
+ax.text(2.6e-3, 4.5e-3, "finishes within one day", fontsize=5.8,
+        color=COLORS["note_text"], fontweight="bold", va="bottom")
+
+xs = [d for _, d in workloads]
+for name, rate, color in rates:
+    ys = [freq * d / rate for d in xs]
+    ax.plot(xs, ys, color=color, linewidth=1.6, zorder=2)
+    ax.scatter(xs, ys, s=14, color=color, zorder=3)
+    ax.text(3600 * 1.4, ys[-1], name, va="center", fontsize=6.0, color=color,
+            clip_on=False)
+
+ax.set_xticks([1e-3, 1.0, 60.0, 3600.0])
+ax.set_xticklabels(["1 ms", "1 s", "1 min", "1 h"])
+ax.set_yticks([1.0, 60.0, 3600.0, day, 3.156e7, 3.156e9])
+ax.set_yticklabels(["1 s", "1 min", "1 h", "1 day", "1 year", "100 years"])
+ax.minorticks_off()
+ax.set_xlabel("target execution time at 1 GHz", fontsize=7)
+ax.set_ylabel("wall-clock simulation time", fontsize=7)
+ax.tick_params(axis="both", labelsize=6.5, length=2.5, width=0.6, pad=2)
+ax.grid(axis="y", color=COLORS["grid"], linewidth=0.6)
+
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+
+plt.show()
+plt.close(fig)
+```
+
 Stack a fixed evaluation budget against these per-sample costs and the
 affordable counts collapse by almost seven orders of magnitude, from roughly
 $10^8$ analytic evaluations to about ten prototype measurements in the same

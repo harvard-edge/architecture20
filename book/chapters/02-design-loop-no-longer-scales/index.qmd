@@ -346,9 +346,119 @@ Candidate count, invalid choices, and evaluation demand grow together.
 MAESTRO's throughput also shows the trap from the other side. At 0.17M designs
 per second, the full 480M-candidate space clears in under an hour, so cheap
 analytical feedback is not the scarce resource. The scarce resource is the
-trusted disposition that each cheap winner eventually demands. The
-diagnostic asks whether the action space itself is wrong or whether the next
-bound, feedback, now limits progress.
+trusted disposition that each cheap winner eventually demands. Placed on one
+log axis against an affordable trusted-evaluation budget, only the
+deliberately conservative toy loop even approaches what trusted disposition
+can cover (@fig-search-vs-eval-gap).
+
+```{python}
+#| label: fig-search-vs-eval-gap
+#| fig-cap: |
+#|   **Search spaces outgrow affordable trusted evaluation:** The chapter's scale anchors on one log axis, from the toy SoC subsystem count computed above to Timeloop's unconstrained mapspace [@ParasharEtAl2019Timeloop; @KwonEtAl2019MAESTRO; @ChenEtAl2018AutoTVM], against a shaded band marking how many trusted dispositions one study can afford. Filled markers are stated or computed counts; the hollow marker is AutoTVM's order-of-magnitude estimate. The band is an illustrative assumption, not a measurement.
+#| out-width: "92%"
+#| fig-alt: "Log-scale strip chart plotting four search-space sizes as points: a toy SoC loop at about 13 thousand configurations, MAESTRO's 480 million candidates, AutoTVM's roughly one billion tensor programs, and Timeloop's 2.6 times ten to the eighteenth unconstrained mappings. A shaded green band from one hundred to one hundred thousand marks an illustrative affordable trusted-evaluation budget; only the toy loop falls inside it, and the Timeloop mapspace lies about thirteen orders of magnitude beyond it."
+
+from math import factorial
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, add_note_box, apply_style, row_axis, top_log_axis
+
+# Data provenance (all values transcribed or computed from this chapter's text):
+# - Toy SoC subsystem loop: 5*4*6*4*3*3*3 = 12,960, computed earlier in this chapter.
+# - MAESTRO accelerator DSE: 480M candidates, stated [@KwonEtAl2019MAESTRO].
+# - AutoTVM tensor programs: "on the order of billions" per GPU operator, stated
+#   qualitatively (order-of-magnitude, hollow marker) [@ChenEtAl2018AutoTVM].
+# - Timeloop unconstrained mapspace: (7!)^4 * (2^4)^3 ~= 2.6e18, computed from the
+#   stated expression [@ParasharEtAl2019Timeloop]. Values not recomputed from sources.
+# - Trusted-evaluation band 1e2..1e5 dispositions per study: illustrative assumption
+#   (minutes to hours per trusted disposition over a weeks-long study budget), not a
+#   measurement. As-of: 2026-07-14.
+
+toy_states = 5 * 4 * 6 * 4 * 3 * 3 * 3
+timeloop_mapspace = factorial(7) ** 4 * (2**4) ** 3
+
+rows = [
+    {"label": "Toy SoC subsystem loop", "note": "computed in this chapter", "value": toy_states, "right": "$1.3\\times10^{4}$", "stated": True},
+    {"label": "MAESTRO accelerator DSE", "note": "480M candidates, stated", "value": 4.8e8, "right": "$4.8\\times10^{8}$", "stated": True},
+    {"label": "AutoTVM tensor programs", "note": "order of billions, approximate", "value": 1e9, "right": "$\\sim\\!10^{9}$", "stated": False},
+    {"label": "Timeloop unconstrained mapspace", "note": "$(7!)^{4}\\times(2^{4})^{3}$, computed", "value": timeloop_mapspace, "right": "$2.6\\times10^{18}$", "stated": True},
+]
+
+band_low, band_high = 1e2, 1e5
+
+apply_style()
+fig, ax = plt.subplots(figsize=(4.95, 2.75))
+fig.subplots_adjust(left=0.42, right=0.82, top=0.79, bottom=0.22)
+
+row_axis(ax, len(rows))
+top_log_axis(
+    ax,
+    xlim=(2e1, 4e19),
+    xticks=[1e2, 1e5, 1e8, 1e11, 1e14, 1e17],
+    xticklabels=["$10^{2}$", "$10^{5}$", "$10^{8}$", "$10^{11}$", "$10^{14}$", "$10^{17}$"],
+    xlabel="search-space size (candidate configurations)",
+)
+
+# Affordable trusted-evaluation band: canonical evidence tint (#E7F5EC from the
+# shared tint set; no COLORS key exists for tints) paired with the evidence ink edge.
+ax.axvspan(band_low, band_high, facecolor="#E7F5EC", zorder=0)
+for edge in (band_low, band_high):
+    ax.axvline(edge, color=COLORS["evidence_ink"], linewidth=0.8, linestyle=(0, (4, 3)), zorder=1)
+ax.text(
+    (band_low * band_high) ** 0.5,
+    3.42,
+    "affordable trusted-evaluation\nband (illustrative)",
+    ha="center",
+    va="center",
+    fontsize=5.8,
+    fontweight="bold",
+    color=COLORS["evidence_ink"],
+    linespacing=1.2,
+    bbox={"facecolor": "white", "edgecolor": "none", "pad": 0.8, "alpha": 0.85},
+    zorder=4,
+)
+
+for y, row in enumerate(rows):
+    ax.axhline(y, color=COLORS["row"], linewidth=0.65, zorder=0)
+    if row["stated"]:
+        ax.scatter([row["value"]], [y], s=26, marker="o", facecolor=COLORS["designspace"], edgecolor=COLORS["designspace"], linewidth=1.0, zorder=3)
+    else:
+        ax.scatter([row["value"]], [y], s=26, marker="o", facecolors="white", edgecolors=COLORS["designspace"], linewidth=1.2, zorder=3)
+    ax.text(-0.86, y - 0.17, row["label"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=6.6, fontweight="bold", color=COLORS["ink"], clip_on=False)
+    ax.text(-0.86, y + 0.23, row["note"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.4, color=COLORS["muted"], clip_on=False)
+    ax.text(1.04, y, row["right"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=6.1, fontweight="bold", color=COLORS["designspace_ink"], clip_on=False)
+
+# Gap annotation on the widest anchor row: band edge to the Timeloop mapspace.
+ax.annotate(
+    "",
+    xy=(timeloop_mapspace / 6, 3.0),
+    xytext=(band_high, 3.0),
+    arrowprops={"arrowstyle": "<->", "color": COLORS["muted"], "linewidth": 0.8},
+)
+ax.text(
+    (band_high * timeloop_mapspace) ** 0.5,
+    2.68,
+    "$\\approx$13 orders of magnitude beyond the band",
+    ha="center",
+    va="center",
+    fontsize=5.8,
+    color=COLORS["muted"],
+)
+
+add_note_box(
+    fig,
+    "Band assumes $10^{2}$ to $10^{5}$ trusted dispositions per study (minutes to hours each over a weeks-long budget); an assumption, not a measured limit.",
+    xywh=(0.12, 0.040, 0.76, 0.085),
+    fontsize=5.4,
+)
+
+plt.show()
+plt.close(fig)
+```
+
+Every other anchor sits between roughly four and thirteen orders of magnitude
+beyond the band, so the diagnostic asks whether the action space itself is
+wrong or whether the next bound, feedback, now limits progress.
 
 ## Specialized Hardware Needs a Software Loop
 
