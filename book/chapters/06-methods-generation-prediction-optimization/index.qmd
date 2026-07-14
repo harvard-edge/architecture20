@@ -21,7 +21,8 @@ authority must remain outside it?
 
 @sec-architecture-environments-tool-interfaces defined the environment, the place where actions are taken and
 feedback is observed. This chapter asks which methods belong inside that
-environment. The answer is not a ranking of current models or automation frameworks.
+environment, opening the design-loop card's method-role and feedback-budget
+fields. The answer is not a ranking of current models or automation frameworks.
 It is a discipline for matching method roles to architecture work.
 The forcing function is that AI systems can now draft, call tools, revise
 artifacts, and recommend next actions, so the loop must say what each action is
@@ -49,8 +50,7 @@ evidence, not proposing more candidates.
 
 [^fn-rl-delayed-feedback]: For these method roles, the RL issue is delayed and invalid feedback. Placement, scheduling, and adaptive-control loops can make RL attractive, while illegal moves or late rewards make the loop's rejection gates decisive.
 
-Architecture 2.0 therefore treats methods as roles in a compound design
-system.
+Architecture 2.0 therefore treats methods as roles in a compound system.
 
 > **Method role.** A method role is the bounded job a model, search procedure,
 > tool, script, or person performs inside a design loop, together with the state
@@ -74,8 +74,9 @@ method question is therefore not "Which AI system is best?" It is "Which role
 is needed, what feedback can support it, and what evidence would make its output
 credible?"
 
-Tensor-program autotuning gives a small version of this role split. AutoTVM and
-Ansor, both automated tensor-program optimizers, generate candidate schedules, predict
+Tensor-program autotuning gives a small version of this role split. AutoTVM,
+introduced in @sec-design-loop-no-longer-scales, and the follow-on
+tensor-program optimizer Ansor generate candidate schedules, predict
 or rank promising regions, spend measured hardware feedback selectively, and
 reject candidates that fail correctness or performance checks
 [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The method is useful because the
@@ -87,7 +88,13 @@ Regression models and learned surrogates predicted performance or power, while
 predictive DSE and autotuners searched bounded spaces inside methodologies whose
 tasks, tools, workloads, and acceptance rules were specified by people
 [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE;
-@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. In those examples, learning
+@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. The lineage's clearest deployed
+success, the perceptron branch predictor [@JimenezLin2001Perceptron], shipped
+in commercial cores because its role sits at the cheap extreme of the feedback
+budget, where retirement grades every prediction against ground truth within
+cycles and rejects a weak model millions of times per second. No design-time
+role sees feedback that cheap, which is why this book takes the study, not the
+component, as its unit of analysis. In those examples, learning
 operated inside the artifact or as a bounded predictor or optimizer within a
 human-specified methodology. Current systems can also
 generate or edit artifacts, call tools, choose experiments or workload slices
@@ -127,10 +134,10 @@ This is why environment work such as ArchGym, the worked example of
 comparisons meaningful by defining tasks, actions, observations, workloads,
 and feedback [@KrishnanEtAl2023ArchGym]. But even a shared environment
 does not decide which method role is appropriate. The role depends on what
-the bounded study is trying to accomplish. A single architecture study can concurrently host several distinct method
-archetypes, such as generators to propose novelty and predictors to estimate
-cost, but each role assumes a different claim and carries a different burden of
-evidence.
+the bounded study is trying to accomplish. A single architecture study can run
+several method roles at once, such as generators to propose novelty and
+predictors to estimate cost, but each role assumes a different claim and
+carries a different burden of evidence.
 
 ![**AI methods play bounded roles inside an architecture study:** Generation, prediction, optimization, critique, repair, verification, explanation, and coordination each need explicit state, feedback, rejection, and a decision boundary. Their outputs inform accountable review of an architectural claim.](images/F7-method-role-map){#fig-method-role-map width="100%" fig-alt="Role map showing generation, prediction, optimization, critique, repair, verification, explanation, and coordination as bounded roles inside an architecture study, with their outputs feeding accountable claim review."}
 
@@ -142,9 +149,11 @@ reviewable evidence. Coordination is the routing role that keeps those actions
 attached to shared state and authority boundaries. The method selection question
 is which role the current study can support with feedback.
 
-@tbl-method-role-discipline is the chapter's primary role map. Each row binds a
-capability to the evidence that can reject it and the authority it does not
-receive merely by succeeding.
+@tbl-method-role-discipline binds each role to the evidence that can reject it
+and the authority its output does not receive merely by succeeding. The
+design-loop card records these roles in its method-role field, and the
+machine-checkable schema in @sec-appendix-b-design-loop-card documents how each
+role maps onto the card's role enum.
 
 | **Role** | **Bounded action** | **Evidence or rejection** | **Authority limit** |
 | --- | --- | --- | --- |
@@ -159,7 +168,9 @@ receive merely by succeeding.
 
 : **Each method role needs different evidence:** Generation, prediction, optimization, critique, repair, verification, explanation, and coordination make different claims and therefore require different rejection checks. {#tbl-method-role-discipline tbl-colwidths="[18,28,25,19]"}
 
-The discipline behind the table is simple.
+The discipline behind the table is visible in its last column. Each limit
+scopes a role's output to the evidence it has actually survived, and nothing a
+role achieves inside that scope extends it.
 
 ::: {.callout-engineer-move title="State every AI method claim concretely"}
 Write the AI method claim as a sentence. This method's role acts on this architecture object
@@ -174,7 +185,7 @@ concrete without defining another role taxonomy.
 
 | **Capability** | **Permitted within a bounded role** | **Does not authorize** |
 | --- | --- | --- |
-| Generate | Draft benchmark questions, legal configurations, kernels, or RTL candidates for checking. | Treating the draft as a verified artifact or architecture decision. |
+| Generate | Draft benchmark questions, where editorial review is check enough, or RTL candidates, where physical-design consequence demands tool rejection before ranking. | Treating either draft as a verified artifact or architecture decision. |
 | Predict | Rank candidates or trigger escalation inside a calibrated support region. | Claiming final power, timing, reliability, or deployment behavior. |
 | Optimize | Select the next proxy, simulation, synthesis, or measurement to spend. | Committing the winning candidate or changing the declared objective. |
 
@@ -184,8 +195,8 @@ concrete without defining another role taxonomy.
 
 Naming the architecture object a method touches raises a prior question,
 whether the method actually understands the hardware behind that object, or
-only borrows its terms. The staged view that follows makes the crux's second
-half concrete for hardware. The level of hardware awareness a method can be
+only borrows its terms. The staged view that follows asks, concretely for
+hardware, what feedback can support the role. The level of hardware awareness a method can be
 held to is set by the level of feedback that can reject its output. Hardware
 awareness is not the same as using hardware vocabulary. A generated
 proposal can mention caches, vector units, power targets, or a process node and
@@ -210,13 +221,12 @@ what evidence can reject it?
 models, tools, evidence, and commitment-boundary awareness. It is an assessment
 aid, not a monotone maturity claim. A tool wrapper may compile and profile
 without having a calibrated performance model, while a surrogate may estimate
-uncertainty without controlling a tool. Even the highest capability means the
-loop can state its authority boundary. It does not grant authority to cross it.
+uncertainty without controlling a tool. Even the highest capability only means
+the loop can state its authority boundary.
 
 The same boundary applies to proxies. The proxy mismatch first named in
 @sec-architecture-environments-tool-interfaces becomes a Goodhart-style failure
-when a method optimizes the proxy. A measure under optimization can cease to
-reflect the underlying objective [@Strathern1997Goodhart].
+when a method optimizes the proxy.
 @sec-feedback-verification-trust develops the evidence response.
 
 ::: {.callout-architect-checkpoint title="The Escalation Boundary"}
@@ -226,12 +236,12 @@ uncertainty and preserving failed runs and rejected alternatives make escalation
 authorizes the method to waive the constraint or commit the result.
 :::
 
-Functional correctness is cross-cutting, not optional, and forms the baseline for the progression shown in @fig-hardware-awareness-ladder. Once a loop changes an
+Functional correctness is the baseline at every level of @fig-hardware-awareness-ladder. Once a loop changes an
 executable or synthesizable artifact, tests, reference outputs, formal checks,
 type or interface checks, synthesis constraints, numerical tolerances, or
 expert review must be able to reject it before performance claims matter.
 
-![**Hardware awareness is a staged capability:** The assessment is not whether a method can mention hardware terms, but what it can safely change, what feedback supports the change, and what independent mechanism can reject it. Broader claims require stronger evidence, but technical capability does not create organizational authority.](images/F7b-hardware-awareness-ladder){#fig-hardware-awareness-ladder width="100%" fig-alt="Stepped ladder of hardware awareness levels from vocabulary awareness to commitment-boundary awareness, with stronger evidence required for broader claims without granting the method decision authority."}
+![**Hardware awareness is a staged capability:** The assessment is not whether a method can mention hardware terms, but what it can safely change, what feedback supports the change, and what independent mechanism can reject it. The levels are independently assessable, not a maturity sequence. Broader claims require stronger evidence, but technical capability does not create organizational authority.](images/F7b-hardware-awareness-ladder){#fig-hardware-awareness-ladder width="100%" fig-alt="Stepped ladder of hardware awareness levels from vocabulary awareness to commitment-boundary awareness, with stronger evidence required for broader claims without granting the method decision authority."}
 
 The assessment rises only when the study can show valid actions, constraint
 handling, tool feedback, calibration evidence, and a clear authority boundary.
@@ -251,6 +261,9 @@ feedback supports that change, and where its authority ends.
 
 : **Hardware awareness should be assessed by behavior, not vocabulary:** The loop must show whether a method can represent constraints, take valid actions, obtain feedback, expose evidence, and make its output rejectable by the loop. {#tbl-hardware-awareness-assessment tbl-colwidths="[18,24,27,21]"}
 
+Read down the authority-limit column and the same shape repeats at every
+level. Each capability may act inside its declared scope, and none of its
+permissions extends to certifying, waiving, or committing beyond it.
 @tbl-hardware-awareness-tests consolidates the observable tests across the
 ladder. A hardware-awareness claim remains empirical only when each applicable
 boundary can fail visibly.
@@ -321,7 +334,12 @@ and code-generation facet of the lighthouse prompt. The lighthouse compute
 subsystem is viable only if its kernels, libraries, runtime paths, and
 target-specific code can be generated, checked, and maintained. KernelBench, an evaluation framework for AI-generated code, asks whether language
 models can generate correct and efficient GPU kernels for PyTorch workloads
-[@OuyangEtAl2025KernelBench]. The Architecture 2.0 lesson is not that
+[@OuyangEtAl2025KernelBench]. Its one-shot results give the question a
+measured shape. Every task draws a fluent kernel, far fewer draw a correct
+one (never more than about two-thirds of tasks, even for the best model at
+the easiest level), and only a small fraction, peaking near one task in three,
+run faster than the baseline they were asked to beat
+(@fig-ch06-kernel-funnel). The Architecture 2.0 lesson is not that
 kernel generation solves hardware/software co-design. It is that generation
 becomes meaningful only when it is embedded in a harness that can compile,
 run, test, profile, compare against a baseline, reject wrong outputs, and
@@ -334,6 +352,61 @@ a role in a loop, not the loop itself. @sec-loop-patterns-across-stack makes the
 adjudication pressure measurable. When proposals already arrive faster than
 trusted dispositions, generating more of them grows the queue unless rejection
 capacity also improves.
+
+```{python}
+#| label: fig-ch06-kernel-funnel
+#| fig-cap: |
+#|   **Fluent is not correct, and correct is not fast:** One-shot KernelBench results for four language models across the benchmark's three difficulty levels, measured on an NVIDIA L40S GPU [@OuyangEtAl2025KernelBench]. Every task draws a fluent, plausible kernel (the dashed 100 percent line), but the harness's correctness oracle passes far fewer, and only a small fraction are both correct and faster than the PyTorch Eager baseline. The paper prints no per-model compile rates; in its 100-kernel error-analysis sample, 83 of 100 generated kernels compile and 73 execute before the correctness oracle prunes the set to 50. The collapsing funnel is why generation is a role inside a rejecting harness rather than the loop itself. Values transcribed from the paper's published single-attempt tables.
+#| out-width: "92%"
+#| fig-alt: "Three-panel grouped bar chart of one-shot KernelBench outcomes for Llama-3.1-70B, DeepSeek V3, OpenAI o1, and DeepSeek R1 at difficulty levels one, two, and three. In each panel a dashed line at one hundred percent marks generated kernels; blue bars show the share passing the correctness oracle, from zero to sixty-seven percent, and green bars show the share both correct and faster than the PyTorch Eager baseline, from zero to thirty-six percent. Both bars sit far below the dashed line everywhere, and the fast share is always well below the correct share."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Source receipt: data/source-receipts/chapter6-kernelbench-funnel.csv
+# KernelBench [@OuyangEtAl2025KernelBench], single greedy attempt on NVIDIA
+# L40S: one-shot correctness (fast_0, Tables 8 and 9) and correct-and-faster-
+# than-PyTorch-Eager (fast_1, Tables 1 and 9), percent of tasks per level.
+# Per-model compile/execution rates are not printed in the paper (its Figure 3
+# is unlabeled), so no compile-stage bars; the receipt carries the paper's
+# 100-kernel Appendix B sample (83 compile / 73 execute / 50 correct) as
+# context only.
+models = ["Llama\n3.1-70B", "DeepSeek\nV3", "OpenAI\no1", "DeepSeek\nR1"]
+correct = {1: [26, 43, 55, 67], 2: [0, 6, 56, 62], 3: [0, 30, 56, 8]}
+fast1 = {1: [3, 6, 10, 12], 2: [0, 4, 24, 36], 3: [0, 8, 12, 2]}
+
+fig, axes = plt.subplots(1, 3, figsize=(5.15, 1.95), sharey=True)
+fig.subplots_adjust(left=0.09, right=0.985, top=0.80, bottom=0.24, wspace=0.10)
+
+width = 0.36
+xs = range(len(models))
+for ax, level in zip(axes, (1, 2, 3)):
+    ax.axhline(100, color=COLORS["muted"], linewidth=0.8, linestyle=(0, (4, 3)),
+               zorder=1)
+    ax.bar([x - width / 2 for x in xs], correct[level], width=width * 0.94,
+           color=COLORS["blue"], zorder=2,
+           label="correct" if level == 1 else None)
+    ax.bar([x + width / 2 for x in xs], fast1[level], width=width * 0.94,
+           color=COLORS["evidence"], zorder=2,
+           label="correct and faster\nthan baseline" if level == 1 else None)
+    ax.set_title(f"Level {level}", fontsize=6.6, pad=3)
+    ax.set_xticks(list(xs))
+    ax.set_xticklabels(models, fontsize=5.1)
+    ax.set_ylim(0, 112)
+    ax.tick_params(axis="both", labelsize=6, length=2.5, width=0.6, pad=2)
+    ax.grid(axis="y", color=COLORS["grid"], linewidth=0.55)
+    for spine in ["top", "right"]:
+        ax.spines[spine].set_visible(False)
+    ax.spines["left"].set_color(COLORS["ink"])
+    ax.spines["bottom"].set_color(COLORS["ink"])
+axes[0].set_ylabel("share of tasks (%)", fontsize=6.4)
+axes[0].annotate("generated (all fluent)", (0.05, 100), textcoords="offset points",
+                 xytext=(0, 3), fontsize=5.4, color=COLORS["muted"])
+fig.legend(loc="upper center", ncol=2, fontsize=6, frameon=False,
+           bbox_to_anchor=(0.5, 1.0), handlelength=1.0, columnspacing=1.4)
+```
 The transferable object is the harness contract: target platform, correctness
 oracle, numerical tolerance, baseline, failed kernels, portability boundary, and
 the rejection rule that stops a fast but wrong artifact.
@@ -406,11 +479,114 @@ distribution for the surrogate, which is
 useful for architecture surrogates with awkward error shapes. But it still
 depends on the calibration assumption being meaningful; under distribution
 shift, the interval is a diagnostic that should trigger scrutiny rather than a
-promise that the proxy is safe.
+promise that the proxy is safe (@fig-ch06-conformal-coverage).
 
 [^fn-stats-conformal-prediction]: Conformal prediction is a statistical technique that wraps any model to produce prediction sets or intervals with finite-sample coverage guarantees under an exchangeability assumption. Here it turns a surrogate's point estimate into a calibrated interval the loop can act on, and only to prune, defer, or escalate, not to make an unowned commitment.
 
 [^fn-stats-exchangeability]: Exchangeability is a statistical property where the joint distribution of a sequence of random variables is invariant to their permutation, a weaker assumption than being independent and identically distributed (i.i.d.). The chapter stresses it because architecture workloads, tools, and process corners are often not exchangeable, so the conformal interval must be audited rather than trusted.
+
+```{python}
+#| label: fig-ch06-conformal-coverage
+#| fig-cap: |
+#|   **A conformal interval is a diagnostic, not a safety promise:** Constructed illustration of a split-conformal band around a latency-like surrogate. Inside the calibrated support region, empirical coverage matches the nominal 90% level; under distribution shift the band keeps its width while coverage collapses, so the interval should trigger scrutiny and escalation rather than certify the proxy. All values are synthetic and illustrative, not measurements of any real system.
+#| out-width: "92%"
+#| fig-alt: "Scatter plot of synthetic latency-like data with a fixed-width conformal prediction band around a surrogate curve. In the calibrated support region on the left, nearly all points fall inside the band; in the distribution-shift region on the right, observed behavior rises away from the unchanged band and most points escape it, showing coverage collapse."
+
+import math
+import random
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Constructed illustration: every value is synthetic, generated in this cell
+# with a fixed seed; no real system was measured. The split-conformal recipe
+# (calibration residual quantile -> fixed-width band) follows the conformal
+# prediction pattern cited in the text.
+rng = random.Random(20260713)
+SHIFT_X = 6.0
+NOISE = 0.32
+X_MAX = 10.0
+
+def surrogate(x):
+    # The pattern the surrogate learned inside the calibrated region.
+    return 4.0 + 1.8 * math.sin(0.9 * x) + 0.25 * x
+
+def truth(x):
+    # Beyond the calibrated region the workload regime changes.
+    drift = 1.1 * (x - SHIFT_X) ** 1.25 if x > SHIFT_X else 0.0
+    return surrogate(x) + drift
+
+def observe(x):
+    return truth(x) + rng.gauss(0.0, NOISE)
+
+# Split conformal: the 90% quantile of absolute calibration residuals from the
+# supported region sets a fixed band half-width q.
+cal_x = [rng.uniform(0.0, SHIFT_X) for _ in range(60)]
+cal_scores = sorted(abs(observe(x) - surrogate(x)) for x in cal_x)
+q = cal_scores[math.ceil(0.9 * (len(cal_scores) + 1)) - 1]
+
+test_in = [(x, observe(x)) for x in [0.15 + i * (SHIFT_X - 0.3) / 24 for i in range(25)]]
+test_out = [(x, observe(x)) for x in [SHIFT_X + 0.15 + i * (X_MAX - SHIFT_X - 0.3) / 24 for i in range(25)]]
+cov_in = sum(abs(y - surrogate(x)) <= q for x, y in test_in) / len(test_in)
+cov_out = sum(abs(y - surrogate(x)) <= q for x, y in test_out) / len(test_out)
+
+xs = [i * X_MAX / 400 for i in range(401)]
+fig, ax = plt.subplots(figsize=(4.9, 2.55))
+fig.subplots_adjust(left=0.11, right=0.97, top=0.86, bottom=0.19)
+
+ax.fill_between(xs, [surrogate(x) - q for x in xs], [surrogate(x) + q for x in xs],
+                color=COLORS["blue"], alpha=0.16, linewidth=0, zorder=1)
+ax.plot(xs, [surrogate(x) for x in xs], color=COLORS["blue"], linewidth=1.1, zorder=2)
+ax.plot(xs, [truth(x) for x in xs], color=COLORS["muted"], linewidth=0.9,
+        linestyle=(0, (4, 3)), zorder=2)
+
+ax.scatter([x for x, _ in test_in], [y for _, y in test_in], s=9,
+           color=COLORS["blue"], zorder=3)
+miss = [(x, y) for x, y in test_out if abs(y - surrogate(x)) > q]
+hit = [(x, y) for x, y in test_out if abs(y - surrogate(x)) <= q]
+ax.scatter([x for x, _ in hit], [y for _, y in hit], s=9, color=COLORS["blue"], zorder=3)
+ax.scatter([x for x, _ in miss], [y for _, y in miss], s=11, color=COLORS["red"], zorder=3)
+
+ax.axvline(SHIFT_X, color="#AAB4BF", linewidth=0.7, linestyle="--", zorder=1)
+ymin, ymax = ax.get_ylim()
+ax.set_ylim(ymin, ymax + 1.2)
+ax.text(SHIFT_X / 2, ax.get_ylim()[1] - 0.35, "calibrated support", ha="center",
+        va="top", fontsize=6.0, fontweight="bold", color=COLORS["workload_ink"])
+ax.text((SHIFT_X + X_MAX) / 2, ax.get_ylim()[1] - 0.35, "distribution shift",
+        ha="center", va="top", fontsize=6.0, fontweight="bold", color=COLORS["constraints_ink"])
+ax.text(SHIFT_X / 2, ax.get_ylim()[1] - 1.15,
+        f"empirical coverage ≈ {cov_in:.0%}\n(nominal 90%)", ha="center", va="top",
+        fontsize=5.4, color=COLORS["workload_ink"])
+ax.text((SHIFT_X + X_MAX) / 2, ax.get_ylim()[1] - 1.15,
+        f"same band width,\ncoverage ≈ {cov_out:.0%}", ha="center", va="top",
+        fontsize=5.4, color=COLORS["constraints_ink"])
+
+ax.annotate("surrogate ± conformal band", (1.7, surrogate(1.7) + q),
+            textcoords="offset points", xytext=(-2, 5), fontsize=5.6,
+            color=COLORS["workload_ink"])
+ax.annotate("observed behavior", (8.2, truth(8.2)), textcoords="offset points",
+            xytext=(-58, 2), fontsize=5.6, color=COLORS["muted"])
+
+ax.set_xlabel("workload / design parameter (synthetic units)", fontsize=7)
+ax.set_ylabel("latency-like metric\n(synthetic units)", fontsize=7)
+ax.set_xlim(0, X_MAX)
+ax.tick_params(axis="both", labelsize=6.5, length=2.5, width=0.6, pad=2)
+ax.grid(axis="y", color=COLORS["grid"], linewidth=0.6)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+
+plt.show()
+plt.close(fig)
+```
+
+Nothing in the surrogate's own report changes at the shift boundary in
+@fig-ch06-conformal-coverage. The band keeps its width and its nominal 90
+percent claim; only the observed points climbing out of it reveal that
+empirical coverage has collapsed, which is why the loop treats the interval as
+a tripwire for escalation rather than a certificate.
 
 For the lighthouse prompt, a predictor could help screen candidate compute
 subsystems before full simulation or synthesis. But the evidence burden
@@ -422,7 +598,7 @@ stronger the calibration and fidelity requirement.
 ## Optimization: Learning the Design Space
 
 Once candidates are generated and their behavior predicted, the loop must decide what to evaluate next. Optimization is often framed as search, finding the best point under an
-objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are often discrete, non-differentiable, and highly constrained. This makes plain gradient descent a poor default and rewards methods that handle sparse, expensive feedback and hard validity constraints. The useful goal is to
+objective. Architecture needs a richer formulation. Unlike the continuous, differentiable weight spaces of neural network training, hardware design spaces are often discrete, non-differentiable, and highly constrained, so the methods that matter are the ones built for sparse, expensive feedback and hard validity limits. The useful goal is to
 learn the design space well enough to make a defensible decision under
 limited feedback. That may mean finding a Pareto region[^fn-math-pareto-region], identifying a
 constraint boundary, understanding a sensitivity, ruling out a class of
@@ -469,7 +645,7 @@ a bounded action space lets a higher-fidelity instrument reject each candidate.
 Method choice is inseparable from what the environment can verify.
 
 ::: {.callout-war-story title="A simpler baseline kept up"}
-**The claim.** AlphaChip, the learned method that posed chip floorplanning as a graph-placement problem [@MirhoseiniEtAl2021GraphPlacement], is remembered as the reinforcement-learning result, and the learning is the part that drew the attention.
+**The claim.** AlphaChip, a reinforcement-learning method for macro placement [@MirhoseiniEtAl2021GraphPlacement], is remembered as a learning result, and the learning is the part that drew the attention.
 
 **The gap.** The point this chapter needs is quieter. When independent researchers reran the comparison, a strong simulated-annealing baseline, a classical optimizer with no learning at all, matched or beat the learned method on its own proxy cost across most modern test cases [@ChengEtAl2023AssessmentRL]. That does not make reinforcement learning the wrong tool for sequential placement, but it means the learned method's advantage over a well-tuned classical baseline could not be shown in that public evaluation.
 
@@ -477,10 +653,11 @@ Method choice is inseparable from what the environment can verify.
 :::
 
 The same baseline discipline appears in autotuning and compiler optimization.
-For example, deep reinforcement learning has been successfully applied to
-discover faster sorting algorithms from assembly instructions
-[@MankowitzEtAl2023AlphaDev] and to navigate complex high-level synthesis phase
-orderings [@HajAliEtAl2020AutoPhase]. General
+AlphaDev's discovered sorting routines entered production only after passing
+the same correctness harness applied to human-written code
+[@MankowitzEtAl2023AlphaDev], and AutoPhase's high-level synthesis phase
+orderings are scored by actual HLS runs [@HajAliEtAl2020AutoPhase]; the
+environment, not the learning, carries the claim. General
 program-autotuning frameworks such as OpenTuner [@AnselEtAl2014OpenTuner], and
 tensor-program optimizers such as AutoTVM and Ansor, share a loop structure
 worth naming. A learned cost model proposes promising candidates, the loop
@@ -525,14 +702,20 @@ costs such as expert review, tool setup, debugging, and license availability.
 
 [^fn-ml-sample-efficiency]: In this chapter, sample efficiency is the amount of decision-relevant evidence a loop gains per scarce feedback event, counting failed runs and expert rejections, not just successful simulations. Framing it this way makes it a method-selection criterion, since the loop should spend feedback where decision value per unit cost is highest rather than maximize the raw number of runs.
 
-The combinatorial explosion of architecture design spaces dwarfs the severe constraints of real-world sample budgets. @fig-evidence-gap plots that gap on a logarithmic count scale. The upper
+Architecture design spaces hold orders of magnitude more candidates than any
+real sample budget can reach. @fig-evidence-gap plots that gap on a logarithmic count scale. The upper
 rows reuse the design-space anchors from @sec-design-loop-no-longer-scales: the
 12,960-state slice computed there, the accelerator DSE scale of MAESTRO,
 AutoTVM-style operator tuning spaces, and the core mapspace expression of
 Timeloop [@KwonEtAl2019MAESTRO; @ChenEtAl2018AutoTVM; @ParasharEtAl2019Timeloop]. The
-lower rows reuse the representative feedback budgets from @sec-architecture-environments-tool-interfaces. This is not a direct quantitative comparison between identical scientific quantities. It is scale intuition. High-fidelity architecture evidence can touch only a tiny slice of
-the plausible candidate space, so methods must decide what can be screened by
-proxies, what should be escalated, and what rejected regions must be recorded.
+lower rows reuse the representative feedback budgets from @sec-architecture-environments-tool-interfaces. High-fidelity architecture evidence can touch only a tiny slice of
+the plausible candidate space. Between the more than $10^{18}$ candidates in
+the Timeloop mapspace and the one to five silicon or deployment checks a study
+can afford, the gap spans roughly eighteen orders of magnitude, so methods
+must decide what can be screened by proxies, what should be escalated, and
+what rejected regions must be recorded.
+The gap is why sample-efficient methods exist, not a proof that the search is
+hopeless.
 
 ```{python}
 #| label: fig-evidence-gap
@@ -572,12 +755,12 @@ top_log_axis(
     tick_fontsize=6.0,
 )
 
-ax.axhline(4.45, color="#AAB4BF", linewidth=0.65, linestyle="--", zorder=0)
-ax.text(-0.88, -0.55, "design-space anchors", transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.8, fontweight="bold", color="#8A5310", clip_on=False)
-ax.text(-0.88, 5.10, "affordable feedback budgets", transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.8, fontweight="bold", color=COLORS["note_text"], clip_on=False)
+ax.axhline(4.45, color=COLORS["muted"], linewidth=0.65, linestyle="--", zorder=0)
+ax.text(-0.74, -0.55, "design-space anchors", transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.8, fontweight="bold", color=COLORS["methods_ink"], clip_on=False)
+ax.text(-0.74, 5.10, "affordable feedback budgets", transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.8, fontweight="bold", color=COLORS["note_text"], clip_on=False)
 
-draw_range_rows(ax, rows, low_key="count_low", high_key="count_high", label_x=-0.82, right_x=1.04, label_fontsize=6.15, right_fontsize=5.85, y_positions=y_positions, show_notes=False)
-add_note_box(fig, "Counts are comparable only as scale intuition;\nhigh-fidelity evidence samples a tiny slice.", xywh=(0.12, 0.035, 0.76, 0.10), fontsize=5.4)
+draw_range_rows(ax, rows, low_key="count_low", high_key="count_high", label_x=-0.68, right_x=1.04, label_fontsize=6.15, right_fontsize=5.85, y_positions=y_positions, show_notes=False)
+add_note_box(fig, "High-fidelity evidence samples a tiny slice\nof the plausible candidate space.", xywh=(0.12, 0.035, 0.76, 0.10), fontsize=5.4)
 
 plt.show()
 plt.close(fig)
@@ -629,8 +812,9 @@ source of candidates.
 
 [^fn-ml-no-regret]: In this chapter, a no-regret guarantee is a formal promise about a sampling rule under stated assumptions, such as a suitable kernel, bounded noise, and smoothness of the objective. It is useful only when the loop records whether those assumptions actually apply. Under those assumptions, the guarantee bounds cumulative regret across the sampling sequence; the logged acquisition score explains a particular choice.
 
-These operational regimes, laid out in @tbl-sample-efficiency-regimes, use
-illustrative numbers rather than prescriptions. The core point is
+The feedback budget falls into a few operational regimes, laid out in
+@tbl-sample-efficiency-regimes with illustrative numbers rather than
+prescriptions. The core point is
 that method choice must change fundamentally when feedback is measured in milliseconds,
 minutes, hours, weeks, or silicon cycles.
 Choosing among feedback levels is a budget discipline in which cheap levels buy
@@ -695,7 +879,11 @@ This makes critique a throughput role, not merely a review convenience. In a
 rejection-bound loop, a critic that catches a missing workload record, unsupported
 proxy claim, stale tool version, or invalid action before an expensive run can
 improve the loop more than another generator. It raises the rate at which weak
-claims are rejected safely.
+claims are rejected safely. The pattern is already deployed in adjacent loops.
+Critic models trained to find bugs in generated code catch substantially more
+inserted bugs than unassisted human reviewers [@McAleeseEtAl2024CriticGPT], and
+ML-assisted resolution of code-review comments runs at production scale at
+Google [@FroemmgenEtAl2024CodeReview].
 
 Repair is the constructive side of critique. A method can propose a corrected
 configuration, fix a malformed constraint or tool-syntax error, patch a test
@@ -726,9 +914,9 @@ read and write? What environment does it act in? What feedback can it afford?
 What evidence would support its output? What can reject it? What happens if
 it is wrong?
 
-The decision matrix in @tbl-method-selection-matrix is not meant to produce an
-automatic answer, but to prevent method selection from being driven by
-algorithmic fashion. Each question forces the architect to confront the structural realities of their specific loop.
+The decision matrix in @tbl-method-selection-matrix does not produce an
+automatic answer. Each question forces the architect to confront the structural
+realities of the specific loop.
 
 | **Question** | **If the answer is favorable** | **If the answer is unfavorable** |
 | --- | --- | --- |
@@ -740,7 +928,7 @@ algorithmic fashion. Each question forces the architect to confront the structur
 | Is the commitment reversible? | Higher autonomy may be acceptable. | Require stronger evidence and an accountable decision. |
 | Is provenance recorded? | Claims can be traced and audited; a runnable receipt can additionally support replay. | Do not make strong comparative claims. |
 
-: **Method selection follows loop conditions:** The right method posture depends on action validity, feedback cost, fidelity, rollback cost, and rejection authority, not on whether a technique is fashionable. {#tbl-method-selection-matrix tbl-colwidths="[20,31,31]"}
+: **Method selection follows loop conditions:** The right method posture depends on action validity, feedback cost, fidelity, rollback cost, and rejection authority. {#tbl-method-selection-matrix tbl-colwidths="[20,31,31]"}
 
 Favorable answers expand what a method can do inside the loop. They do not, by
 themselves, expand what the loop may commit.
@@ -781,10 +969,11 @@ space, this feedback budget, this evidence burden, and this rejection authority.
 If that sentence cannot be written, the method choice is probably floating above
 the architecture problem.
 
-The same rule covers multi-participant implementations. Splitting work across a planner,
-generator, predictor, critic, verifier, and evidence writer may improve
-throughput, specialization, or coverage, but it does not itself strengthen the
-claim. The loop still has to say which participant owns which role, what shared state
+The same rule covers multi-participant implementations. Splitting work across a
+generator, a predictor, a critic, a verifier, an explainer that keeps the
+evidence record legible, and a coordinator that routes state and work may
+improve throughput, specialization, or coverage, but it does not itself
+strengthen the claim. The loop still has to say which participant owns which role, what shared state
 they read and write, which actions are legal for each, which outputs require
 independent rejection, and which named role holds the next decision. More participants
 without that role contract only multiply unreviewable state transitions.
@@ -886,5 +1075,5 @@ architects learn the design space, not merely search it harder.
 ::: {.callout-carry-forward}
 - **Carry forward:** Method choice is a role-and-budget decision, not a leaderboard. Capability inside a role does not authorize a stronger commitment.
 - **Reader test:** For a given loop, can you name each method's role, feedback budget, rejection path, and authority limit?
-- **Up next:** Once models and methods can act, the next question is whether their feedback becomes evidence strong enough to support trust.
+- **Up next:** Once models and methods can act, the next question is whether their feedback becomes evidence strong enough to support a commitment.
 :::

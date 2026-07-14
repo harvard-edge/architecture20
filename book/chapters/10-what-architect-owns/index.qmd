@@ -45,8 +45,8 @@ tool-backed work, interpret evidence, and accept commitments.
 ## The Architect Is an Accountable Role
 
 AI assistance broadens the architect's responsibility across the study, but not
-every check has to move through one person's hands. Simulators, policy checks, regression suites, and
-declared checks may reject candidates or advance routine transitions
+every check has to move through one person's hands. Simulators, policy checks,
+and regression suites may reject candidates or advance routine transitions
 automatically. The accountable architect or organizational role defines the
 scope of that automation, the authority each check carries, the evidence needed
 for each class of decision, the escalation and waiver paths, and the point at
@@ -64,8 +64,12 @@ as work crosses models, tools, teams, and abstraction levels.
 That responsibility is especially sharp near silicon commitment. A generative
 model or an automated optimizer is not answerable for a tapeout decision. Some software
 systems are also hard to roll back, but tapeout makes the commitment unusually
-durable. A bug committed to silicon can require a costly respin and substantial
-schedule delay. A named tapeout or product role therefore has
+durable. A bug committed to silicon can require a respin and substantial
+schedule delay against a design investment that industry estimates put at
+roughly \$725M at 2\ nm [@InternationalBusinessStrategies2024ChipDesignCost].
+The 2024 Wilson Research Group study reports first-silicon success at 14
+percent, so most projects already absorb at least one respin
+[@Foster2025WilsonVerification2024]. A named tapeout or product role therefore has
 to own the acceptance criteria, unresolved waivers, and commitment explicitly.
 The architect may no longer craft every artifact by hand. The role still helps
 formulate the architecture question, shape consequential alternatives,
@@ -113,7 +117,7 @@ conditions for rejecting inputs outside the represented workload distribution.
 "64-bit RISC-V-based" means the AI-assisted environment
 needs access to correct compiler toolchains, simulators, and instruction semantics,
 rather than just generating text that looks like RISC-V. The fragment "vector-capable CPU,
-accelerator, or SoC (System-on-Chip) block" defines the system's allowed action space. The environment
+accelerator, or SoC block" defines the system's allowed action space. The environment
 must be given explicit rules about which integration paths it can explore and
 which interfaces are fixed.
 
@@ -128,18 +132,118 @@ advance candidates automatically, and what evidence is sufficient for a
 consequential commitment.
 :::
 
-This need for explicit evidence introduces a hierarchy of commitment. As an
+Making evidence explicit exposes a hierarchy of commitment. As an
 AI-assisted study explores candidates, it can draw on different levels of
-fidelity, from fast, imprecise proxies to cycle-accurate simulation, Register
-Transfer Level (RTL) verification, emulation, synthesis, place-and-route, and
+fidelity, from fast, imprecise proxies to cycle-level simulation, RTL
+verification, emulation, synthesis, place-and-route, and
 signoff checks. The accountable role defines which evidence is required for
 each proposed decision and may delegate that mapping through policy and
-automated checks. Strong evidence can inform an exploratory decision, and no
+automated checks. Strong evidence does not oblige a stronger commitment, and no
 amount of fidelity silently authorizes an irreversible action. Decision
 consequences form the commitment ladder, while evidence sources remain a
 separate axis mapped to each proposed decision (@fig-commitment-ladder).
 
 ![**Evidence and commitment are separate:** Four representative evidence-source families do not align one to one with the five commitment levels. Evidence differs in fidelity, cost, scope, and validation, while decisions differ in consequence and reversibility. The accountable mapping states the required evidence, challenge conditions, owner, and strongest supported commitment for each claim or decision. Stronger evidence does not authorize stronger commitment by itself.](images/F10-commitment-ladder){#fig-commitment-ladder width="100%" fig-alt="Two-column diagram separating evidence available to a bounded study from five commitment levels. Both feed an accountable mapping that states required evidence, challenge conditions, owner, and strongest supported commitment."}
+
+The ladder's levels are also not priced evenly. At the exploratory level,
+swinging Wright's wrecking bar costs compute time, and a proxy-backed sweep of
+several thousand configurations can be re-run in days
+[@KrishnanEtAl2023ArchGym]. Near silicon, the cited record stops pricing
+individual reversals and instead prices what a reversal puts at stake, the
+accumulated design investment (@fig-ch10-cost-of-reversal). That asymmetry,
+not any general distrust of automation, is why decision rights concentrate at
+the high-commitment end of the ladder.
+
+```{python}
+#| label: fig-ch10-cost-of-reversal
+#| fig-cap: |
+#|   **The wrecking bar grows more expensive with commitment:** Cited anchors for what reversing a decision involves at each commitment level of @fig-commitment-ladder. An exploratory reversal is a compute-only re-run; an ArchGym proxy sweep re-ran roughly 4,000 experiments in about two days [@KrishnanEtAl2023ArchGym]. Experimental rework is absorbed as verification effort, already a 50-60 percent median share of project schedule [@Foster2022WilsonVerificationStudy]. No cited source prices a single implementation reversal or a mask set; the bands instead show the design investment that public node estimates put at risk, roughly $175M at 10 nm to $725M at 2 nm [@BauerEtAl2020SemiconductorDesignManufacturing; @InternationalBusinessStrategies2024ChipDesignCost]. That exposure is routine, since 76 percent of ASIC projects needed two or more spins in 2022 [@Foster2022WilsonVerificationStudy] and first-silicon success fell to 14 percent in 2024 [@Foster2025WilsonVerification2024]. Past deployment, Intel's Pentium FDIV recall took a $475M charge for one escaped defect [@IntelPentiumFDIV]. Bands are investment at risk, never per-event reversal prices.
+#| out-width: "92%"
+#| fig-alt: "Five-row chart of the commitment ladder levels against a logarithmic dollar axis. The exploratory and experimental rows carry text noting compute time and engineer time with no cited dollar figure. The implementation row shows a band from about 175 to 725 million dollars of design investment at risk, the integration row a band from about 590 to 725 million dollars exposed at a respin, and the irreversible row a single 475 million dollar recall-charge marker."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, add_note_box, apply_style, row_axis, top_log_axis
+
+apply_style()
+
+# Source receipt: data/source-receipts/chapter10-cost-of-reversal.csv
+# Cited reversal anchors per commitment level, all from sources already in
+# references.bib. Only the exploratory and irreversible levels have direct
+# per-event anchors (an ArchGym proxy sweep of ~4,000 experiments re-ran in
+# about two days; Intel's Pentium FDIV recall took a $475M charge). The
+# implementation and integration bands are the design investment public node
+# estimates put at risk ($175M at 10 nm to $725M at 2 nm; $590M/$725M at
+# 3 nm/2 nm), never per-event reversal prices; no cited source prices a mask
+# set, a respin, or a fleet rollback, so those rows carry text instead of
+# fabricated bands.
+M = 1e6
+rows = [
+    {"label": "Exploratory", "note": "re-run the search",
+     "kind": "text",
+     "text": "compute time only; a ~4,000-experiment proxy\nsweep re-ran in about two days (ArchGym)",
+     "right": "no dollar\nfigure cited", "color": COLORS["muted"]},
+    {"label": "Experimental", "note": "rework lands in verification",
+     "kind": "text",
+     "text": "engineer time; verification already takes a\n50-60% median share of project schedule",
+     "right": "no dollar\nfigure cited", "color": COLORS["muted"]},
+    {"label": "Implementation", "note": "late reversal risks the\ndesign investment",
+     "kind": "band", "low": 175 * M, "high": 725 * M,
+     "right": "~$175M-725M\nat risk", "color": COLORS["designspace"]},
+    {"label": "Integration", "note": "respin exposes the investment;\nmask-set price uncited",
+     "kind": "band", "low": 590 * M, "high": 725 * M,
+     "right": "~$590M-725M\nexposed", "color": COLORS["methods"]},
+    {"label": "Irreversible", "note": "field recall or rollback",
+     "kind": "point", "low": 475 * M, "high": 475 * M,
+     "right": "$475M\nrecall charge", "color": COLORS["constraints"]},
+]
+
+fig, ax = plt.subplots(figsize=(4.9, 3.0))
+fig.subplots_adjust(left=0.30, right=0.82, top=0.85, bottom=0.21)
+
+row_axis(ax, len(rows))
+top_log_axis(
+    ax,
+    xlim=(1.0 * M, 2500 * M),
+    xticks=[1 * M, 10 * M, 100 * M, 1000 * M],
+    xticklabels=["$1M", "$10M", "$100M", "$1B"],
+    xlabel="cited dollar exposure when a decision is reversed",
+)
+
+for y, row in enumerate(rows):
+    ax.axhline(y, color=COLORS["row"], linewidth=0.65, zorder=0)
+    if row["kind"] == "band":
+        ax.hlines(y, row["low"], row["high"], color=row["color"],
+                  linewidth=2.2, zorder=2)
+        ax.scatter([row["low"], row["high"]], [y, y], marker="s", s=17,
+                   facecolor=COLORS["note_fill"], edgecolor=row["color"],
+                   linewidth=0.9, zorder=3)
+    elif row["kind"] == "point":
+        ax.scatter([row["low"]], [y], marker="s", s=26,
+                   facecolor=COLORS["note_fill"], edgecolor=row["color"],
+                   linewidth=1.1, zorder=3)
+    else:
+        ax.text(1.3 * M, y, row["text"], ha="left", va="center",
+                fontsize=5.3, style="italic", color=COLORS["muted"], zorder=2)
+    ax.text(-0.415, y - 0.17, row["label"],
+            transform=ax.get_yaxis_transform(), ha="left", va="center",
+            fontsize=6.6, fontweight="bold", color=COLORS["ink"], clip_on=False)
+    ax.text(-0.415, y + 0.26, row["note"],
+            transform=ax.get_yaxis_transform(), ha="left", va="center",
+            fontsize=5.3, color=COLORS["muted"], clip_on=False)
+    ax.text(1.03, y, row["right"], transform=ax.get_yaxis_transform(),
+            ha="left", va="center", fontsize=5.9, fontweight="bold",
+            color=row["color"], clip_on=False)
+
+add_note_box(
+    fig,
+    "Bands are public design-investment estimates at risk in a late reversal, not per-event prices; no cited source prices a mask set, a respin, or a fleet rollback.",
+    xywh=(0.14, 0.035, 0.72, 0.075),
+    fontsize=5.5,
+)
+
+plt.show()
+plt.close(fig)
+```
 
 The requested deliverable also matters. A design-space report is different
 from an RTL artifact. RTL functional verification is different from a
@@ -151,8 +255,10 @@ research prototype, a simulator-backed design-space exploration, or a
 high-commitment implementation study. Treating all of those deliverables as
 the same is one of the fastest ways to overclaim.
 
-To avoid this overclaiming, the framework developed here turns the prompt into a
-set of explicit questions:
+To avoid this overclaiming, the framework developed here turns the prompt into
+the design-loop card's fields in question form (@sec-architecture-20-ontology,
+@sec-appendix-b-design-loop-card), with the mechanism-account question added as
+a review requirement rather than a card field:
 What task is being solved? What representation is available? What assumptions
 shape the execution mechanism? What artifact makes the claim testable? What
 tools can the system act on? What method roles are allowed? What feedback is
@@ -228,7 +334,11 @@ likely failure modes well enough to set acceptance criteria, challenge
 anomalous results, judge a waiver, and know when a stronger check is required.
 A program that cannot produce someone who can explain what an automated check
 establishes, what it misses, and why it may advance a claim cannot responsibly
-delegate authority to that check.
+delegate authority to that check. That requirement runs into a classic irony of
+automation. Delegation removes the routine work that once trained the experts
+the delegation still requires [@Bainbridge1983Ironies], which is why the
+education agenda later in this chapter is a dependency of the framework rather
+than an appendix to it.
 
 This makes the accountable work explicitly cross-layer. A future architect may
 not be only a CPU architect, accelerator architect, compiler specialist, or
@@ -261,11 +371,15 @@ certification violation and for any waiver that permits the design to advance.
 
 ![**Accountable decision rights remain visible across AI-assisted architecture work:** Within a bounded study, AI systems, tools, and specialists may assist formulation, exploration, implementation, evaluation, explanation, and defense. The architectural claim remains the unit of review, while decision rights for scope, abstraction, evidence, automation, exceptions, commitment, and reopening remain assigned.](images/F11-architect-owned-boundary){#fig-architect-owned-boundary width="100%" fig-alt="Bounded architecture study containing the six architecture capabilities, delegated assistance, an architectural claim for review, supporting instruments, and a full-width band of accountable decision rights."}
 
-This distinction becomes a practical review object in
-@tbl-architect-responsibilities. It is not meant to romanticize human judgment,
-which can be biased, inconsistent, and incomplete. The point is to assign
-decision rights and leave records that expose how technical claims connect to
-organizational, economic, ethical, and deployment consequences.
+Decision rights span the whole study rather than attaching to any single
+capability, and that distinction becomes a practical review object in
+@tbl-architect-responsibilities. Semiconductor programs already run signoff
+checklists at stage boundaries, but those gates govern the artifact. The rights
+in the table govern the claim-producing work upstream of the gates, which is
+where AI participation now concentrates and where existing signoff is silent.
+The point is to assign decision rights and leave records that expose how
+technical claims connect to organizational, economic, ethical, and deployment
+consequences.
 
 | **Decision right** | **Why accountable assignment matters** | **What may be automated or delegated** | **Inspectable record** |
 | --- | --- | --- | --- |
@@ -276,8 +390,6 @@ organizational, economic, ethical, and deployment consequences.
 | **Consequential commitment and answerability** | Product, tapeout, deployment, safety, security, cost, and lifecycle consequences need an answerable owner. | Summarize tradeoffs, check completeness, monitor drift, and trigger rollback or revalidation. | Decision note, accepted and rejected alternatives, residual risks, commitment level, ownership transfer, and reopening condition. |
 
 : **Accountable decision rights become explicit study obligations:** Execution may be automated or delegated, while scope, authority, evidence sufficiency, escalation, waivers, consequential commitment, and answerability remain visibly assigned. {#tbl-architect-responsibilities tbl-colwidths="[18,26,27,29]"}
-
-<span id="tbl-architect-owned-artifacts"></span>
 
 This boundary also clarifies the word *agentic*. The book is not arguing
 that every architecture study should become agentic or autonomous. Agentic
@@ -331,8 +443,6 @@ enters represented study state.
 That validation bridges the gap between undocumented organizational wisdom and
 represented study state (@fig-tacit-extraction-bridge).
 
-![**Tacit knowledge requires elicitation and accountable validation:** AI can help elicit and organize domain knowledge, but it has no direct authority path into represented study state. An accountable domain role validates constraints, assumptions, and rejection conditions, and conflicts, expiry, or new evidence trigger revalidation.](images/F10-tacit-extraction-bridge){#fig-tacit-extraction-bridge width="100%" fig-alt="Diagram showing domain knowledge passing through AI-assisted elicitation and accountable validation before entering represented study state, with conflict, expiry, and new evidence returning the record for revalidation."}
-
 Translating hallway conversations and senior-engineer judgment into environment
 contracts and rejection conditions allows bounded automation to reject invalid
 designs before they consume expensive simulation or implementation time.
@@ -341,8 +451,11 @@ An automated participant cannot treat an elicited statement as authority merely
 because it can ask for one. The accountable process must resolve conflicts,
 record scope and ownership, and explicitly bound the environment. In Architecture 2.0,
 eliciting and validating tacit knowledge is an engineering step for bounded
-automation. The record must also state when the knowledge expires, conflicts
-with another domain, or requires revalidation.
+automation. The record must also state when the knowledge expires, conflicts with another
+domain, or requires revalidation, the conditions that send a record back
+through accountable validation in @fig-tacit-extraction-bridge.
+
+![**Tacit knowledge requires elicitation and accountable validation:** AI can help elicit and organize domain knowledge, but it has no direct authority path into represented study state. An accountable domain role validates constraints, assumptions, and rejection conditions, and conflicts, expiry, or new evidence trigger revalidation.](images/F10-tacit-extraction-bridge){#fig-tacit-extraction-bridge width="100%" fig-alt="Diagram showing domain knowledge passing through AI-assisted elicitation and accountable validation before entering represented study state, with conflict, expiry, and new evidence returning the record for revalidation."}
 
 ## The Strongest Objections
 
@@ -354,19 +467,11 @@ objections plainly.
 The first objection is that Architecture 2.0 is just good experimental
 methodology with new names. Provenance, baselines, rejection criteria, and
 held-out validation[^fn-ml-held-out-validation] are not new. That objection is
-correct about the lineage. This is not the first time machine learning has
-entered computer architecture. Learned predictors and prefetchers,
-reinforcement-learning controllers, surrogate models, predictive design-space
-exploration, and autotuners placed learning inside mechanisms or bounded
-human-specified methods [@ChenPenneyJimenez2020AIArchitecture;
-@IpekEtAl2006PredictiveDSE; @ChenEtAl2018AutoTVM]. Those uses remain important.
-
-The current shift is broader when an AI system can help formulate the question,
-propose or edit mechanisms, call tools, choose experiments, adapt to simulator
-feedback, interpret results, and influence which candidate reaches review. AI
-is no longer only inside the design. It can also participate in producing the
-claim about the design. The difference is not that human practice was always
-rigorous or that current AI is uniquely error-prone. More of the claim-producing
+correct about the lineage. As @sec-moonshot argued, machine learning first
+entered computer architecture inside mechanisms and bounded human-specified
+methods [@ChenPenneyJimenez2020AIArchitecture], and those uses remain
+important. The shift comes when AI also participates in producing the claim
+about the design, not only in the design itself. More of the claim-producing
 work can now be delegated, so its scope, transformations, evidence limits, and
 decision authority must remain inspectable.
 
@@ -384,7 +489,7 @@ has to build for itself.
 [^fn-ml-multi-fidelity]: Here multi-fidelity modeling is the ancestor of the book's fidelity ladder, the architect-owned choice among cheap proxies and higher-cost evidence. The commitment boundary remains a separate decision about what that evidence authorizes.
 
 The second objection is that AI for systems design is overhyped, and a flagship
-result in learned chip placement is contested. That is true, and this book
+result in learned macro placement is contested. That is true, and this book
 treats it as evidence rather than embarrassment. The placement dispute in
 @sec-feedback-verification-trust is exactly why the field needs reproducible, end-to-end benchmarks and
 shared evaluation and adjudication. An honest framework predicts that some flagship
@@ -423,8 +528,8 @@ field's intellectual endpoint.
 Making one bounded study reviewable is a start, not a field. Architecture 2.0
 becomes cumulative when tasks, environments, evaluations, and claims can be
 compared across projects while decision rights remain visible, without
-pretending that every artifact can be public. The required infrastructure is a stack, not another
-reader-facing framework. Its layers have different maintainers and failure
+pretending that every artifact can be public. The required infrastructure is a
+stack. Its layers have different maintainers and failure
 modes, and progress at one layer cannot substitute for a missing layer above or
 below it. Independent evaluation can sometimes examine protected artifacts
 without turning them into a public warehouse, but that arrangement still needs
@@ -450,8 +555,6 @@ assemble.
 
 : **Field building requires a connected stack:** Data, environments, methods, evaluation, reporting, institutions, incentives, and education must reinforce one another if AI-assisted architecture work is to become comparable and cumulative. {#tbl-field-building-stack tbl-colwidths="[22,40,30]"}
 
-![**A field advances when its shared layers reinforce one another:** Datasets and environments, methods and reference practices, evaluation and challenge, and durable institutions exchange common task, interface, evidence, and reporting semantics. Together they support AI-assisted architecture studies that are comparable, cumulative, and contestable.](images/F11a-field-building-roadmap){#fig-field-building-roadmap width="100%" fig-alt="Reciprocal four-part field-building map connecting shared foundations, methods and reference practices, evaluation and challenge, and institutional durability around common interfaces and a joint outcome of comparable, cumulative, contestable studies."}
-
 The useful data unit is not a dump of model reasoning or an undifferentiated
 collection of logs. It is a versioned study trajectory that connects a question
 and baseline to represented state, candidate actions, tool observations, failed
@@ -459,7 +562,9 @@ and rejected alternatives, mechanism-level interpretation, and a bounded
 decision. Logs can supply observations and provenance. They do not supply the
 architecture question, the semantics of a rejection, or the scope of the claim.
 
-The dependencies in @fig-field-building-roadmap matter. Data without tool contracts carry ambiguous
+The stack's layers group into four interlocking parts that exchange shared
+interfaces and depend on one another in both directions
+(@fig-field-building-roadmap). Data without tool contracts carry ambiguous
 outcomes. Harnesses without held-out evaluation can turn setup differences into
 apparent method gains. Reporting formats without credible challenge standardize
 paperwork rather than evidence. Repositories preserve artifacts, while
@@ -467,6 +572,8 @@ maintained institutions define versions, comparison rules, conflicts, appeals,
 and what can settle a disputed claim. Standards should stabilize interfaces and
 evidence meaning after useful practices repeat, not freeze today's models or
 methods before the field understands their failure modes.
+
+![**A field advances when its shared layers reinforce one another:** Datasets and environments, methods and reference practices, evaluation and challenge, and durable institutions exchange common task, interface, evidence, and reporting semantics. Together they support AI-assisted architecture studies that are comparable, cumulative, and contestable.](images/F11a-field-building-roadmap){#fig-field-building-roadmap width="100%" fig-alt="Reciprocal four-part field-building map connecting shared foundations, methods and reference practices, evaluation and challenge, and institutional durability around common interfaces and a joint outcome of comparable, cumulative, contestable studies."}
 
 The stack does not require raw proprietary design disclosure. Its reporting
 layer can begin with bounded records that state the task, versions, exposed
@@ -486,11 +593,12 @@ One possible mechanism is a redacted failure record linked to an open or
 synthetic proxy. When an industrial AI-assisted study rejects a candidate
 because of a proprietary physical-design constraint, its execution mechanism
 might map the failure to a public task that preserves the rejection lesson
-without exposing the design rule. The public record could report a relative
-failure when the mapping preserves the rejection condition. It must not imply
+without exposing the design rule. The public record could report the failure
+relative to the mapped public task when the mapping preserves the rejection
+condition. It must not imply
 that the public proxy is equivalent to the proprietary physical-design result.
 
-```{.yaml #lst-redacted-trace include="../../../examples/design-loop-cards/redacted-level-0.yaml" lst-cap="**Redacted Rejected-Alternative Record:** A schema-valid Level 0 context card shares a rejected design path without disclosing protected physical-design rules. It bounds the public claim but does not claim replayability."}
+```{.yaml #lst-redacted-trace include="../examples/design-loop-cards/redacted-level-0.yaml" lst-cap="**Redacted Rejected-Alternative Record:** A schema-valid Level 0 context card shares a rejected design path without disclosing protected physical-design rules. It bounds the public claim but does not claim replayability."}
 ```
 
 This context-only pattern (@lst-redacted-trace) shows how a study can record the
@@ -533,10 +641,10 @@ environments, while QuArch [@PrakashEtAl2025QuArch;
 @PrakashEtAl2025QuArchReasoning] contributes expert-validated architecture
 knowledge and reasoning questions. CircuitNet, a dataset for machine learning
 in physical design, contributes physical-design features and labels for
-cross-stage prediction [@ChaiEtAl2022CircuitNet]. ChiPBench, an end-to-end
-placement benchmark, evaluates placement algorithms through final power,
-performance, and area and exposes cases where intermediate metrics do not
-survive the end-to-end flow [@WangEtAl2025ChiPBench].
+cross-stage prediction [@ChaiEtAl2022CircuitNet]. ChiPBench
+(@sec-feedback-verification-trust) evaluates placement algorithms through final
+power, performance, and area and exposes cases where intermediate metrics do
+not survive the end-to-end flow [@WangEtAl2025ChiPBench].
 The common test is whether an AI-assisted architecture claim can show the
 question it addresses, where AI participated, what state and tools it used,
 what failed, what evidence supports the result, and who owned the commitment.
@@ -572,7 +680,7 @@ rejection should be retired rather than repeated forever.
 
 A team need not wait for the whole stack. The minimum useful target is one
 reviewable study attached to a design review, design-space exploration, or
-paper. It should satisfy five checks:
+paper. It should satisfy five study checks:
 
 - **Decision scope:** Name the task and the decision it can inform.
 - **Tool path:** Connect at least one tool path to a versioned environment
@@ -583,7 +691,8 @@ paper. It should satisfy five checks:
 
 If a second person can reconstruct what was tried, what failed, what advanced
 automatically, what required review, and who remains answerable, the record is
-already useful.
+already useful. @sec-appendix-a-bootstrapping turns this minimum target into a
+step-by-step bootstrap path, with five post-run checks on the execution record.
 
 The study record also carries the lifecycle boundary. A shared failure record needs
 reuse limits, revalidation rules, and a retirement path so a local rejection
@@ -653,15 +762,15 @@ contributions easier to inspect (@tbl-architecture-20-design-principles).
 
 | **Principle** | **Where it comes from** | **What to check** |
 | --- | --- | --- |
-| **Bound the study, not only the artifact.** | @sec-moonshot | A prompt or generated artifact is not enough. The study must connect the question, alternatives, tool path, evidence, explanation, and decision. |
-| **Diagnose the execution mechanism before adding AI.** | @sec-design-loop-no-longer-scales | More candidates do not help if representation, action, feedback, rejection, or commitment is the actual bound. |
+| **Design the AI-assisted study, not only the generator.** | @sec-moonshot | A prompt or generated artifact is not enough. The study must connect the question, alternatives, tool path, evidence, explanation, and decision. |
+| **Diagnose the loop before adding AI.** | @sec-design-loop-no-longer-scales | More candidates do not help if representation, action, feedback, rejection, or commitment is the actual bound. |
 | **State the claim as a review object.** | @sec-architecture-20-ontology | A result should name workload, baseline, design space, objective, constraints, evidence, rejection rule, and decision owner. |
-| **Make architecture work legible.** | @sec-data-representations-world-models | Data must include provenance, assumptions, costs, failed runs, and rejected alternatives, not only successful endpoints. |
+| **Make architecture work legible to the automated loop.** | @sec-data-representations-world-models | Data must include provenance, assumptions, costs, failed runs, and rejected alternatives, not only successful endpoints. |
 | **Turn tools into environments.** | @sec-architecture-environments-tool-interfaces | A wrapper is credible only when it defines legal actions, observations, costs, invalid states, and rejection paths. |
 | **Match methods to roles.** | @sec-methods-generation-prediction-optimization | Choose a method for the architecture work it can improve, then compare it against suitable conventional and no-AI baselines. |
-| **Match evidence to the claim and consequence.** | @sec-feedback-verification-trust | Evidence requirements should rise with claim scope, rollback cost, blast radius, and the need for independent challenge. |
+| **Escalate with commitment.** | @sec-feedback-verification-trust | Evidence requirements should rise with claim scope, rollback cost, blast radius, and the need for independent challenge. |
 | **Stop at an honest evidence level.** | @sec-running-the-loop | The study should report what its evidence supports, what it rejected, and what would overturn the decision. |
-| **Recognize the rejection-bound regime when it applies.** | @sec-loop-patterns-across-stack | When proposals outpace trusted dispositions, improve validated rejection coverage and adjudication capacity before adding more candidates. |
+| **Recognize the rejection-bound regime.** | @sec-loop-patterns-across-stack | When proposals outpace trusted dispositions, improve validated rejection coverage and adjudication capacity before adding more candidates. |
 | **Keep accountable decision rights visible.** | @sec-what-architect-owns | The record must show who or what may advance, reject, escalate, or waive, and which accountable role remains answerable for consequential commitment. |
 
 : **Architecture 2.0 design principles are review checks:** Each principle asks whether a bounded study has made enough of the architecture problem explicit for another architect to inspect, reject, or extend it. Replay and reproduction require the additional artifacts appropriate to those claims. {#tbl-architecture-20-design-principles tbl-colwidths="[28,20,42]"}

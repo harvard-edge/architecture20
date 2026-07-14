@@ -21,15 +21,14 @@ reviewer can trust?
 :::
 
 @sec-data-representations-world-models argued that a loop can only act on what it represents. This chapter
-asks where the loop acts. In Architecture 1.0, tools often sit behind the
+asks where the loop acts and opens the design-loop card's environment field. In Architecture 1.0, tools often sit behind the
 architect. Simulators, scripts, compilers, profilers, spreadsheets, RTL flows,
 EDA tools, dashboards, and deployment logs are the means by which a human
 expert gathers evidence. In Architecture 2.0, those same tools should be treated
 as explicit environments when they sit inside AI-assisted design loops. They
 define what actions are legal, what observations are returned, how expensive
-feedback is, which assumptions are baked in, what state is logged, what can
-reject a candidate, and what commitment the environment can support before the
-loop spends more effort.
+feedback is, which assumptions are baked in, what state is logged, and what can
+reject a candidate.
 
 > **Architecture environment.** An architecture environment is the executable,
 > tool-facing part of a bounded architecture study's loop contract. It specifies
@@ -37,6 +36,10 @@ loop spends more effort.
 > observations and feedback costs, logged state and provenance, rejection
 > conditions, and failure or escalation paths for the tools a design loop acts
 > through.
+
+The loop contract is the study-level term @sec-architecture-20-ontology defines
+beside the design loop; the environment contract this chapter develops is its
+tool-facing subset, the part a harness can execute and enforce.
 
 The boundary with the previous chapter is deliberate. A world model predicts or
 constrains the consequences of actions. An environment defines which actions are
@@ -58,8 +61,9 @@ A benchmark harness makes the distinction concrete. The benchmark program is
 not the environment by itself. The environment is the maintained bundle of
 allowed inputs, run rules, scripts, versions, result checks, and disclosure
 requirements that lets another team decide whether the run means the same
-thing. MLPerf, an AI-systems benchmark suite with submission harnesses and
-reporting rules, shows this pattern [@MattsonEtAl2020MLPerf]. An Architecture
+thing. MLPerf (@sec-design-loop-no-longer-scales) shows this pattern; its
+submission harnesses and reporting rules are what let another team make that
+judgment [@MattsonEtAl2020MLPerf]. An Architecture
 2.0 environment applies the same discipline to design actions, tool feedback,
 and rejection records.
 
@@ -76,10 +80,10 @@ require compatible, or explicitly mapped, workload definitions, action schemas,
 evaluation costs, invalid-action rules, provenance records, and claim limits.
 Otherwise a result may compare private worlds rather than architecture methods.
 
-The lighthouse prompt makes the point concrete. "Design a low-power,
-64-bit RISC-V-based compute subsystem for an XRBench real-time mobile XR
-workload under a 3\ W, 3\ nm-class low-power mobile envelope" is not one call
-to one tool. It needs a workload harness, software stack, ISA and vector
+The lighthouse prompt makes the point concrete. The request, a low-power,
+64-bit RISC-V-based compute subsystem for an XRBench-class real-time mobile XR
+workload under a 3\ W TDP target in a 3\ nm-class LP mobile process, is not one
+call to one tool. It needs a workload harness, software stack, ISA and vector
 assumptions, candidate architecture representation, simulator or estimator,
 power model, compiler/runtime interface, validity checks, provenance log, and
 a way to record rejected alternatives. If any of those pieces are implicit,
@@ -141,7 +145,7 @@ software.
 For Architecture 2.0, that statement has an operational meaning. Interfaces
 are where actions become legal or illegal, observations become meaningful or
 misleading, and evidence becomes portable or trapped inside one tool script.
-An ISA, compiler IR, Domain-Specific Language (DSL) like SLICC for cache coherence, memory model, accelerator runtime, simulator API, benchmark harness, EDA handoff, or telemetry schema is not just a convenience for implementation. It defines what a loop can change and what can reject the change. When the claim depends on coherence, scheduling, memory semantics, or physical constraints, the loop should act through the interface or schema that owns those semantics. Unstructured C++ or RTL becomes a review risk when it bypasses modular contracts, not because it is invalid by default.
+None of these boundaries is just a convenience for implementation. Each one, whether an ISA, a compiler IR, a Domain-Specific Language (DSL) like SLICC for cache coherence, a memory model, an accelerator runtime, a simulator API, a benchmark harness, an EDA handoff, or a telemetry schema, defines what a loop can change and what can reject the change. When the claim depends on coherence, scheduling, memory semantics, or physical constraints, the loop should act through the interface or schema that owns those semantics. Unstructured C++ or RTL becomes a review risk when it bypasses modular contracts, not because it is invalid by default.
 
 This is why tool interfaces belong in the architecture argument rather than in
 an appendix. A generator that emits a schedule must know the schedule
@@ -173,8 +177,10 @@ problem the human intended to solve.
 : **Architecture interfaces define action and evidence boundaries:** Each interface tells the loop what can be changed, what can be observed, what feedback is meaningful, and what can reject an invalid action. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
 
 The EDA handoff row is worth making concrete, because it is where a wrapper does
-the most work. Validity comes in two tiers, and honest environments separate
-them. *Schema legality* is cheap and checkable up front, asking whether the
+the most work. Candidate validity comes in two tiers, and honest environments
+separate them; environment validity, whether the harness still preserves the
+question, is a different matter (@sec-archops-operating-discipline). *Schema
+legality* is cheap and checkable up front, asking whether the
 parameters, clocks, and interfaces are well formed. *Physical feasibility* is
 late and expensive, because routability, timing closure, congestion, and IR drop
 often surface only at synthesis or place-and-route. A late failure must map back
@@ -194,16 +200,16 @@ That realism also limits what Architecture 2.0 should try to standardize. The
 field does not need a universal vendor API or an open substitute for every
 foundry rule. It needs stable contract surfaces that let reviewers see what was
 changed, what was observed, what stayed confidential, and what could reject the
-claim, while leaving proprietary implementation details protected.
-That split is summarized in @tbl-standardizable-proprietary-contract.
+claim, while leaving proprietary implementation details protected
+(@tbl-standardizable-proprietary-contract).
 
 | **Contract layer** | **Can be standardized** | **Usually remains proprietary** |
 | --- | --- | --- |
-| **Action schema** | Task identifiers, legal edit classes, invalid-action categories, and stage labels. | Vendor command syntax, internal scripts, and product-specific flow recipes. |
-| **Observation schema** | Metric names, fidelity labels, report hashes, warning classes, and failure categories. | Full report bodies, foundry rule details, and confidential workload traces. |
-| **Feedback record** | Tool/version hashes, seed records, queue or license state, elapsed time, and artifact pointers. | License-server behavior, internal tool telemetry, and nonpublic debug artifacts. |
-| **Stop and escalation interface** | Gate type, reviewer role, escalation condition, waiver status, and claim level blocked. | Product review details, customer commitments, waiver rationale, and named approvers. |
-| **Disclosure boundary** | Redaction reason, disclosure tier, reviewer authority, and attestation handle. | Raw PDK contents, proprietary RTL, private baselines, and customer data. |
+| Action schema | Task identifiers, legal edit classes, invalid-action categories, and stage labels. | Vendor command syntax, internal scripts, and product-specific flow recipes. |
+| Observation schema | Metric names, fidelity labels, report hashes, warning classes, and failure categories. | Full report bodies, foundry rule details, and confidential workload traces. |
+| Feedback record | Tool/version hashes, seed records, queue or license state, elapsed time, and artifact pointers. | License-server behavior, internal tool telemetry, and nonpublic debug artifacts. |
+| Stop and escalation interface | Gate type, reviewer role, escalation condition, waiver status, and claim level blocked. | Product review details, customer commitments, waiver rationale, and named approvers. |
+| Disclosure boundary | Redaction reason, disclosure tier, reviewer authority, and attestation handle. | Raw PDK contents, proprietary RTL, private baselines, and customer data. |
 
 : **Closed flows can still expose review contracts:** Architecture 2.0 should converge on records, field names, and review semantics around commercial EDA and foundry flows where possible, without prescribing vendor implementations, foundry-rule semantics, signoff meaning, or protected design state. {#tbl-standardizable-proprietary-contract tbl-colwidths="[18,34,38]"}
 
@@ -236,9 +242,9 @@ that environment can observe, and what authority its feedback has (@tbl-environm
 
 | **Environment instance** | **Action boundary** | **Feedback and evidence** | **Loop lesson** |
 | --- | --- | --- | --- |
-| gem5-style cycle or full-system simulation (e.g., using gem5, a cycle-accurate architectural simulator) [@BinkertEtAl2011Gem5] | Core, cache, memory-system, ISA, and workload configuration. | Statistics, traces, timing-model behavior, simulator warnings, and scoped performance comparisons. | Strong for controlled DSE; bounded by model fidelity and configuration state. |
-| Verilator-style compiled RTL simulation [@Veripool2026Verilator] (Verilator, an open-source RTL-to-C++ simulation compiler) | RTL modules, test benches, assertions, generated C++/SystemC models, and debug hooks. | Functional behavior, waveform/debug evidence, assertion failures, and implementation-adjacent traces. | Moves closer to implementation but narrows throughput and increases debug cost. |
-| FireSim-style FPGA-accelerated simulation (using FireSim, an open-source FPGA simulation platform) [@KarandikarEtAl2018FireSim] | RTL target, workload image, network model, FPGA mapping, and runtime configuration. | Faster cycle-exact feedback, workload-scale behavior, instrumented counters, and deployment-like experiments. | Speed changes sample economics, but setup and observability become part of the evidence. |
+| Cycle-level or full-system simulation (e.g., gem5) [@BinkertEtAl2011Gem5] | Core, cache, memory-system, ISA, and workload configuration. | Statistics, traces, timing-model behavior, simulator warnings, and scoped performance comparisons. | Strong for controlled DSE; bounded by model fidelity and configuration state. |
+| Compiled RTL simulation (e.g., Verilator) [@Veripool2026Verilator] | RTL modules, test benches, assertions, generated C++/SystemC models, and debug hooks. | Functional behavior, waveform/debug evidence, assertion failures, and implementation-adjacent traces. | Moves closer to implementation but narrows throughput and increases debug cost. |
+| FPGA-accelerated simulation (e.g., FireSim) [@KarandikarEtAl2018FireSim] | RTL target, workload image, network model, FPGA mapping, and runtime configuration. | Faster cycle-exact feedback, workload-scale behavior, instrumented counters, and deployment-like experiments. | Speed changes sample economics, but setup and observability become part of the evidence. |
 | Synthesis, place-and-route, and signoff flow [@MirhoseiniEtAl2021GraphPlacement; @SemiconductorIndustryAssociation2026ChipDesign; @BauerEtAl2020SemiconductorDesignManufacturing] | RTL, constraints, floorplan hints, clocks, power intent, libraries, and process assumptions. | Area, timing, power, congestion, rule violations, waived warnings, and closure failures. | High-fidelity samples are scarce; use them as rejection gates, not blind search targets. |
 
 : **Concrete tools instantiate the environment contract:** A credible loop should name the simulator, RTL flow, emulation path, EDA stage, or deployment harness it is acting through, because each one exposes different actions, observations, costs, and failure paths. {#tbl-environment-instances tbl-colwidths="[22,24,26,18]"}
@@ -250,10 +256,11 @@ runs, waivers, escalation condition, and accountable owner.
 In practice these environments are rarely used in isolation. Open frameworks
 integrate them. Chipyard, an open-source framework for generating and evaluating
 RISC-V systems-on-chip, wraps a configuration system, Chisel-based RTL
-generators such as the Rocket and BOOM cores, and a FIRRTL compiler path
-together with the simulation, synthesis, and FPGA-emulation
-backends the table lists, so one configuration can be carried reproducibly from a
-generated design to each evaluation path (@fig-chipyard-framework) [@chipyard].
+generators such as the Rocket and BOOM cores and the Hwacha vector unit, and
+a FIRRTL compiler path.
+It ties these to the simulation, synthesis, and FPGA-emulation backends the
+table lists, so one configuration is carried reproducibly from a generated
+design to each evaluation path (@fig-chipyard-framework) [@chipyard].
 For an AI-assisted loop, the useful property is where the
 loop actually runs. The automated optimizer acts at the configuration boundary, editing one
 configuration under a set of legal actions; each backend, whether simulation,
@@ -317,9 +324,9 @@ feedback it returns, and which outcomes that feedback may reject. That
 is why two projects can use the same simulator but define different architecture
 environments.
 
-This abstraction can be described as a contract. The environment is the maintained interface around tool calls, legal actions, observations, failures, costs, provenance, and rejection paths. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking[^fn-ml-reward-hacking], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract).
+The abstraction is a contract. The environment is the maintained interface around tool calls, legal actions, observations, failures, costs, provenance, and rejection paths. An environment may expose a scalar objective to a method, but it should not collapse the architecture claim into that scalar. The contract must preserve raw observations and cost telemetry, such as cycle counts, gate area, test failures, invalid actions, and stronger rejection checks. Otherwise the loop invites reward hacking[^fn-ml-reward-hacking], where a method optimizes for simulator bugs instead of physical reality. The contract requires that the loop make a small set of obligations explicit (@tbl-environment-contract). These eight fields are what the design-loop card's environment field points to when a study is reviewed.
 
-[^fn-ml-reward-hacking]: Reward hacking occurs when an AI method finds an unintended shortcut that maximizes its reward signal without solving the underlying problem. Inside an architecture environment that shortcut usually means exploiting a simulator or proxy bug instead of improving the hardware, so the contract keeps raw observations and rejection checks rather than collapsing to a lone scalar.
+[^fn-ml-reward-hacking]: The proxy-gaming section later in this chapter defines reward hacking in full, with the simulator case and its machine-learning-safety source.
 
 | **Field** | **What it defines** | **Question it answers** |
 | --- | --- | --- |
@@ -353,10 +360,10 @@ provenance, the loop cannot reason about sample efficiency or evidence.
 
 ## ArchGym as a Worked Example
 
-ArchGym, which frames architecture design as a gymnasium for
-machine-learning-assisted design where automated methods interact with architecture
-environments through defined interfaces [@KrishnanEtAl2023ArchGym], makes the
-environment idea concrete in the architecture domain. The name is
+ArchGym, a project from the author's group, makes the environment idea
+concrete in the architecture domain. It frames bounded architecture tasks as
+gym-style environments that automated methods act in through defined
+interfaces [@KrishnanEtAl2023ArchGym]. The name is
 deliberate. It borrows from OpenAI Gym, which standardized the agent-environment
 interface in reinforcement learning. Just as one learning algorithm can drive
 many Gym environments, an ArchGym user can swap a memory-controller simulator for
@@ -380,10 +387,99 @@ of asking whether one optimizer beat another under a private script, the
 community can ask which task was defined, which action space was exposed, what
 feedback was available, what workloads were used, and which tools or methods
 were compared under the same conditions. That makes method claims less
-anecdotal.
+anecdotal. ArchGym's own headline experiment makes the stakes concrete. Run
+inside the same environments under equal sample budgets, different families of
+search algorithms converged to designs of comparable quality
+(@fig-ch05-archgym-equal-budget), and differences that private setups would
+have reported as method wins traced instead to hyperparameter and budget
+choices [@KrishnanEtAl2023ArchGym].
+
+```{python}
+#| label: fig-ch05-archgym-equal-budget
+#| fig-cap: |
+#|   **Equal budgets dissolve method wins:** Mean normalized reward (higher is better) reached by five search-algorithm families inside the same ArchGym DRAM memory-controller environment at equal simulator-sample budgets [@KrishnanEtAl2023ArchGym]. Whiskers reproduce the published variability extents, and they overlap across families at every budget. At the budgets a slow simulator can actually afford, even a random walker matches or beats the learned methods, and reinforcement learning pulls ahead only once samples are plentiful. The same study reports up to a 90 percent interquartile spread in outcome across hyperparameter choices for this task, so a private-setup "method win" often reflects the setup, budget, or hyperparameter lottery rather than the method. Values are digitized transcriptions of the paper's Figure 7(a) at its plotted resolution; reinforcement learning shows no bar at the two smallest budgets in the source.
+#| out-width: "88%"
+#| fig-alt: "Grouped bar chart with error whiskers showing mean normalized reward for five search-algorithm families, ACO, BO, GA, RL, and RW, at simulator-sample budgets from one hundred to two hundred fifty thousand in the ArchGym DRAM memory-controller environment. Whisker intervals overlap across families at every budget. The random walker is among the strongest families at the middle budgets, while reinforcement learning has no bar at the two smallest budgets, is near zero at ten thousand samples, and leads only at the largest budget."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Source receipt: data/source-receipts/chapter5-archgym-equal-budget.csv
+# ArchGym ISCA 2023 [@KrishnanEtAl2023ArchGym], Fig. 7(a): mean normalized
+# reward vs. simulator-sample budget for DRAM memory-controller design
+# (DRAMGym, DRAMSys). Means and whisker extents are programmatically
+# digitized from the published figure's native-resolution raster (arXiv
+# 2306.08888v1 PDF, accessed 2026-07-13; axis-calibration residual <= 0.002
+# reward units, reading uncertainty ~ +/-0.003). RL bars are absent in the
+# source at the 100 and 1,000-sample budgets and are omitted, not zeroed.
+budgets = ["100", "1K", "10K", "100K", "250K"]
+agents = [
+    ("ACO", COLORS["blue"]),
+    ("BO", COLORS["orange"]),
+    ("GA", COLORS["green"]),
+    ("RL", COLORS["red"]),
+    ("RW", COLORS["purple"]),
+]
+# (mean, whisker low, whisker high) per budget; None = not plotted in source
+dram = {
+    "ACO": [(0.026, 0.017, 0.037), (0.034, 0.024, 0.046), (0.045, 0.033, 0.058),
+            (0.030, 0.021, 0.041), (0.051, 0.039, 0.065)],
+    "BO": [(0.046, 0.025, 0.064), (0.112, 0.042, 0.182), (0.112, 0.042, 0.182),
+           (0.112, 0.042, 0.182), (0.115, 0.048, 0.182)],
+    "GA": [(0.043, 0.025, 0.070), (0.083, 0.053, 0.110), (0.098, 0.070, 0.124),
+           (0.097, 0.062, 0.124), (0.107, 0.081, 0.125)],
+    "RL": [None, None, (0.007, 0.003, 0.013),
+           (0.111, 0.062, 0.208), (0.154, 0.134, 0.168)],
+    "RW": [(0.027, 0.019, 0.032), (0.027, 0.014, 0.037), (0.132, 0.112, 0.153),
+           (0.132, 0.117, 0.147), (0.132, 0.121, 0.142)],
+}
+
+fig, ax = plt.subplots(figsize=(4.7, 2.25))
+fig.subplots_adjust(left=0.105, right=0.985, top=0.83, bottom=0.19)
+
+width = 0.15
+for k, (name, color) in enumerate(agents):
+    xs, ys, err_lo, err_hi = [], [], [], []
+    for i, v in enumerate(dram[name]):
+        if v is None:
+            continue
+        xs.append(i + (k - 2) * width)
+        ys.append(v[0])
+        err_lo.append(v[0] - v[1])
+        err_hi.append(v[2] - v[0])
+    ax.bar(xs, ys, width=width * 0.9, color=color, zorder=2, label=name)
+    ax.errorbar(xs, ys, yerr=[err_lo, err_hi], fmt="none",
+                ecolor=COLORS["ink"], elinewidth=0.7, capsize=1.4,
+                capthick=0.7, zorder=3)
+
+ax.set_xticks(range(len(budgets)))
+ax.set_xticklabels(budgets)
+ax.set_xlabel("simulator-sample budget", fontsize=7)
+ax.set_ylabel("mean normalized reward", fontsize=7)
+ax.set_ylim(0, 0.23)
+ax.set_yticks([0.0, 0.05, 0.10, 0.15, 0.20])
+ax.tick_params(axis="both", labelsize=6.5, length=2.5, width=0.6, pad=2)
+ax.grid(axis="y", color=COLORS["grid"], linewidth=0.55)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+fig.legend(loc="upper center", ncol=5, fontsize=6.2, frameon=False,
+           bbox_to_anchor=(0.53, 1.0), handlelength=1.0, columnspacing=1.2)
+
+plt.show()
+plt.close(fig)
+```
+
+Whether a reported difference is a method win or a budget artifact is a cheap
+question inside a shared gym and an expensive one outside it. When the setups
+are private and the stakes are production silicon, the same question hardens
+into a dispute.
 
 ::: {.callout-war-story title="Two teams, two private setups"}
-**The claim.** The AlphaChip dispute, concerning a reinforcement-learning method for chip placement, is at bottom a story about missing shared conditions. The original Google team and the independent groups that later reassessed the result did not disagree only about a number. They ran the method in different setups, on different test cases, with different baselines and compute budgets, and each read the result through its own script [@ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed].
+**The claim.** The AlphaChip dispute, concerning a reinforcement-learning method for macro placement, is at bottom a story about missing shared conditions. The original Google team and the independent groups that later reassessed the result did not disagree only about a number. They ran the method in different setups, on different test cases, with different baselines and compute budgets, and each read the result through its own script [@ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed].
 
 **The gap.** When two parties compare under private, non-shared setups, there is no way to separate a real difference from a difference in conditions. Workload IDs, action schemas, tool versions, seeds, compute budgets, baseline harnesses, and post-route checks all become part of the claim. The authors could argue the critics had not run the method as published, and the critics could argue the method did not beat a strong baseline, and both could be right about their own environment. The setup ambiguity made the algorithm comparison hard to interpret.
 
@@ -393,18 +489,21 @@ anecdotal.
 The comparison is credible only when every AI-assisted system acts against
 compatible, or explicitly mapped, represented state, feedback records,
 invalid-action and environment-failure rules, escalation policy, and
-human-review rules, which
-@tbl-archgym-mini-contract reads as an ArchGym-style mini-contract.
+human-review rules. @tbl-archgym-mini-contract reads ArchGym in exactly those
+terms, mapping its rows onto the contract fields of @tbl-environment-contract
+at a research gym's granularity. Task and limits bound the claim, provenance
+folds into the versioned tool path, and the supply-chain and integrity record
+is the one contract field such a gym typically lacks.
 
 | **Contract field** | **ArchGym-style instance** |
 | --- | --- |
 | **Task** | Search or tune a bounded architecture design space under a declared workload and metric. |
-| **Action space** | Architecture parameters, simulator knobs, or mapping choices the automated method is allowed to change. |
+| **Action schema** | Architecture parameters, simulator knobs, or mapping choices the automated method is allowed to change. |
 | **Observation and reward** | Metrics returned by the simulator or tool path, with the reward derived from those observations. |
 | **Workload and tool path** | Benchmark inputs, simulator configuration, and versioned evaluation scripts. |
 | **Action and outcome handling** | Rules for rejected parameters and unsupported candidate states, with separate records for failed runs, timeouts, tool crashes, and other environment failures. |
-| **Feedback cost** | Approximate turnaround and sample budget for each evaluation regime. |
-| **Failure and review path** | Independent checks that can reject a result, environment failures that require repair, and the strongest claim this setup can support. |
+| **Evaluation cost** | Approximate turnaround and sample budget for each evaluation regime. |
+| **Failure and review paths** | Independent checks that can reject a result, environment failures that require repair, and the strongest claim this setup can support. |
 | **Limits** | Simplified simulators, cleaner action spaces, and missing industrial constraints can bound what the result proves. |
 
 : **A worked environment example is a contract, not only a benchmark:** ArchGym is useful for Architecture 2.0 because it makes the task, action space, feedback, comparison setting, and limits discussable. {#tbl-archgym-mini-contract tbl-colwidths="[24,66]"}
@@ -473,7 +572,8 @@ warnings, and the conditions under which the candidate would be rejected.
 
 This focus on composability also changes how we interpret AI-assisted systems. A compound
 design system may have a planner, code generator, simulator caller, surrogate
-model, evidence critic, and human reviewer. Those components can coordinate
+model, evidence critic, and human reviewer, components that instantiate the
+roles above at one system's granularity. Those components can coordinate
 only if the environment gives them a shared state representation and stable
 interfaces. If those components are implemented as several agents, the need for
 an environment contract does not shrink; it grows. The harness has to record
@@ -491,8 +591,9 @@ require days to months. If these differences remain hidden, a fast method can
 overwhelm an expensive tool path or compare measurements that do not mean the
 same thing.
 
-@fig-fidelity-cost-confidence records representative ranges. They are not
-universal measurements, and higher cost does not make an observation
+@fig-fidelity-cost-confidence records representative ranges and pins two of
+them with measured anchors from published tool reports. The ranges themselves
+are not universal measurements, and higher cost does not make an observation
 automatically authoritative. The requirement here is narrower: label the
 tool stage, version, elapsed cost, fidelity, raw observations, and outcome
 class, and map a failed run back to the action that caused it when possible.
@@ -514,9 +615,9 @@ review.
 ```{python}
 #| label: fig-fidelity-cost-confidence
 #| fig-cap: |
-#|   **Feedback regimes have different costs and sample budgets:** Low-cost feedback can screen many candidates, while implementation-adjacent observations are scarce. The ordering shows representative turnaround and acquisition cost, not automatic authority or commitment; each check still needs a declared scope and validation contract.
+#|   **Feedback regimes have different costs and sample budgets:** Low-cost feedback can screen many candidates, while implementation-adjacent observations are scarce. The ordering shows representative turnaround and acquisition cost, not automatic authority or commitment; each check still needs a declared scope and validation contract. Ink diamonds add published measured anchors. FireSim simulates 1,024 nodes cycle-exactly at 3.4 MHz, under 1,000 times slower than the 3.2 GHz targets it models, where single-server software simulators run at 5 to 100 KIPS [@KarandikarEtAl2018FireSim]. A macro-placement re-evaluation measured 11 hours per design for simulated annealing and 38 to 55 hours for the reinforcement-learning flow, against under 12 hours of expert effort, for one physical-design stage evaluated through a commercial post-route flow [@ChengEtAl2023MacroPlacement].
 #| out-width: "92%"
-#| fig-alt: "Horizontal range plot comparing representative observation latencies and shrinking sample budgets for feedback regimes from cheap proxies to silicon deployment, without treating cost or fidelity as automatic authority."
+#| fig-alt: "Horizontal range plot comparing representative observation latencies and shrinking sample budgets for feedback regimes from cheap proxies to silicon deployment, without treating cost or fidelity as automatic authority. Ink diamond markers add measured anchors, a FireSim cycle-exact simulation point at just under one thousand times real time on the cycle-level simulation row, and macro-placement turnaround points from eleven to fifty-five hours per design on the physical-feedback row."
 
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, add_note_box, apply_style, draw_range_rows, row_axis, top_log_axis
@@ -542,12 +643,46 @@ top_log_axis(
     xticklabels=["1 ms", "1 s", "1 h", "1 wk", "1 yr"],
     xlabel="representative observation latency",
 )
-draw_range_rows(ax, rows, low_key="low_seconds", high_key="high_seconds", label_x=-0.86, right_x=1.03, label_fontsize=6.5, note_fontsize=5.3, right_fontsize=5.9)
-add_note_box(fig, "Representative ranges only; authority depends on scope, validation, and the decision contract.", xywh=(0.13, 0.035, 0.74, 0.085), fontsize=5.5)
+draw_range_rows(ax, rows, low_key="low_seconds", high_key="high_seconds", label_x=-0.90, right_x=1.03, label_fontsize=6.5, note_fontsize=5.3, right_fontsize=5.9)
+
+# Measured anchors (source receipt:
+# data/source-receipts/chapter5-measured-feedback-anchors.csv).
+# FireSim ISCA 2018 [@KarandikarEtAl2018FireSim]: 1,024-node cycle-exact
+# simulation at 3.4 MHz vs. 3.2 GHz targets, "less than 1,000x slowdown over
+# real-time" -> ~941 s to observe one second of target execution; the paper
+# also gives per-node 10s-100s MHz and 5-100 KIPS for single-server software
+# simulators (rates only, cited in the caption, no latency marker).
+# Cheng et al. ISPD 2023 [@ChengEtAl2023MacroPlacement], Table IV, CT-Ariane:
+# macro placement evaluated through a commercial post-route flow, SA 11.13 h,
+# RL 37.89-55.16 h, human expert <12 h per design. Accessed 2026-07-13.
+# The Verilator anchor is dropped: its only absolute measured rate is outside
+# the bibliography.
+firesim_x = 3.2e9 / 3.4e6  # ~941 s per second of target execution
+sa_x = 11.13 * 3600
+rl_lo_x, rl_hi_x = 37.89 * 3600, 55.16 * 3600
+# The RL 38-55 h range is anchored by ink diamonds at both endpoints so every
+# measured anchor uses the same diamond vocabulary as the note box.
+ax.scatter([firesim_x, sa_x, rl_lo_x, rl_hi_x], [2, 4, 4, 4], marker="D",
+           s=11, color=COLORS["ink"], zorder=4)
+ax.text(firesim_x, 2.34,
+        "FireSim, 1,024 nodes, cycle-exact:\n<1,000$\\times$ real time",
+        ha="center", va="center", fontsize=5.3, color=COLORS["muted"],
+        linespacing=1.15, clip_on=False)
+ax.text(3.2e4, 4.34,
+        "macro placement, measured:\nSA 11 h, RL 38$-$55 h, expert <12 h",
+        ha="center", va="center", fontsize=5.3, color=COLORS["muted"],
+        linespacing=1.15, clip_on=False)
+
+add_note_box(fig, "Representative ranges only; ink diamonds mark published measured anchors; authority depends on scope, validation, and the decision contract.", xywh=(0.13, 0.035, 0.74, 0.085), fontsize=5.5)
 
 plt.show()
 plt.close(fig)
 ```
+
+The measured anchors show the top of that spread is not hypothetical. One
+post-route evaluation already consumes eleven to fifty-five hours of tool time
+per design, which is why the physical-feedback rows budget handfuls of samples
+rather than thousands.
 
 @tbl-feedback-latency-fidelity turns the sample-cost inventory in
 @tbl-sample-cost-regimes into an environment checklist. Its concern is what the
@@ -608,7 +743,7 @@ When the proxy is a simulator, *proxy mismatch* is the divergence between what a
 cheap stand-in metric rewards and what the architectural objective requires.
 When a method optimizes against that stand-in, the mismatch can produce the
 failure described by Goodhart's law, in which a measure becomes unreliable as a
-target [@Strathern1997Goodhart]. Here it takes the specific form of a gap
+target [@Goodhart1975MonetaryManagement; @Strathern1997Goodhart]. Here it takes the specific form of a gap
 between the behavior an environment reports and the behavior that would matter at
 the next stronger fidelity level, such as a more detailed simulator, synthesis,
 physical design, emulation, silicon, or deployment. The failure mode is not
@@ -730,8 +865,6 @@ provenance. A command that returns a number is not yet an environment a loop
 can act in.
 :::
 
-[]{#pri-maintain-environment}
-
 ## Environment Validity and Lifecycle {#sec-archops-operating-discipline}
 
 An environment is useful only if it preserves the semantics of the
@@ -765,7 +898,7 @@ Before trusting an environment's verdict on an AI-generated candidate, confirm:
 - observation sources, their valid scope, and the cost and latency of another evaluation are explicit;
 - versions, assumptions, and rejected candidates are recorded;
 - candidate failures are distinguished from tool, setup, and harness failures;
-- another team could deploy an automated optimizer in this harness without private knowledge.
+- another team could deploy an automated optimizer in this harness (the readiness test above).
 :::
 
 Ordinary lifecycle practice keeps those layers aligned over time. Versioning,
@@ -792,6 +925,12 @@ ordinary drift must become visible before it changes what an observation means.
 version workloads, tools, actions, observation and review rules, and ownership so that drift
 does not silently change what a loop result means. {#tbl-archops-operating-discipline tbl-colwidths="[18,25,25,22]"}
 
+Read down the failure column and the rows share one shape. Something changed,
+nothing recorded it, and a loop result quietly stopped meaning what a claim
+assumed it meant. The operating responses answer in kind, treating each change
+as something to record and re-check rather than as background noise, and those
+mundane records are what keep a long-lived harness comparable over time.
+
 ## Open Research Questions
 
 The concepts in this chapter establish the foundation for AI-assisted
@@ -804,9 +943,8 @@ An environment contract should name the task boundary, legal actions,
 observations, constraints, feedback types, invalid-action semantics, provenance
 and integrity records, and stop or review paths. A strong
 contribution would define this contract for a simulator, compiler, commercial
-EDA flow, or deployment setting and test whether another method can act in the
-same harness without private
-knowledge from the original author. The fields in @tbl-environment-contract
+EDA flow, or deployment setting and test whether it passes the readiness test
+above with an independent method. The fields in @tbl-environment-contract
 give the concrete starting point.
 
 2. **How can legacy tool traces suggest environment contracts?**
@@ -859,7 +997,7 @@ provenance, and route illegal, unsupported, or under-evidenced candidates to a
 declared stop or review path. That is the whole content of turning a tool into
 an environment.
 
-An environment is only as good as the architectural question it preserves. If
+An environment earns trust only while it still preserves the architectural question. If
 the workload is unrepresentative, the action space omits the real decision, the
 proxy is uncalibrated, or failed candidates go unlogged, the loop just becomes
 more efficient at producing weak evidence. Validity therefore has to be checked
@@ -877,6 +1015,6 @@ thing.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** An environment is a contract over legal actions, returned observations, provenance, and failure paths. That contract lets another method act in the same harness.
-- **Reader test:** Could another method act in the same harness without private knowledge from the original author, judged by loop conditions rather than fashion?
+- **Reader test:** Could another method act in the same harness without private knowledge from the original author?
 - **Up next:** Once the environment defines what action and feedback mean, @sec-methods-generation-prediction-optimization can ask which methods belong inside the loop.
 :::
