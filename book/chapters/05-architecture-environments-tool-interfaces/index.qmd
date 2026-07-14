@@ -38,8 +38,9 @@ reject a candidate.
 > through.
 
 The loop contract is the study-level term @sec-architecture-20-ontology defines
-beside the design loop; the environment contract this chapter develops is its
-tool-facing subset, the part a harness can execute and enforce.
+beside the design loop, the full set of commitments a bounded study makes; the
+environment contract this chapter develops is its tool-facing subset, the part a
+harness can execute and enforce.
 
 The boundary with the previous chapter is deliberate. A world model predicts or
 constrains the consequences of actions. An environment defines which actions are
@@ -145,7 +146,7 @@ software.
 For Architecture 2.0, that statement has an operational meaning. Interfaces
 are where actions become legal or illegal, observations become meaningful or
 misleading, and evidence becomes portable or trapped inside one tool script.
-None of these boundaries is just a convenience for implementation. Each one, whether an ISA, a compiler IR, a Domain-Specific Language (DSL) like SLICC for cache coherence, a memory model, an accelerator runtime, a simulator API, a benchmark harness, an EDA handoff, or a telemetry schema, defines what a loop can change and what can reject the change. When the claim depends on coherence, scheduling, memory semantics, or physical constraints, the loop should act through the interface or schema that owns those semantics. Unstructured C++ or RTL becomes a review risk when it bypasses modular contracts, not because it is invalid by default.
+None of these boundaries is just a convenience for implementation. Each one defines what a loop can change and what can reject the change, whether it is an ISA, a compiler IR, a Domain-Specific Language (DSL) such as SLICC for cache coherence, a memory model, an accelerator runtime, a simulator API, a benchmark harness, an EDA handoff, or a telemetry schema. When the claim depends on coherence, scheduling, memory semantics, or physical constraints, the loop should act through the interface or schema that owns those semantics. The corollary is that unstructured C++ or RTL becomes a review risk when it bypasses those modular contracts, not because it is invalid by default.
 
 This is why tool interfaces belong in the architecture argument rather than in
 an appendix. A generator that emits a schedule must know the schedule
@@ -256,8 +257,9 @@ runs, waivers, escalation condition, and accountable owner.
 In practice these environments are rarely used in isolation. Open frameworks
 integrate them. Chipyard, an open-source framework for generating and evaluating
 RISC-V systems-on-chip, wraps a configuration system, Chisel-based RTL
-generators such as the Rocket and BOOM cores and the Hwacha vector unit, and
-a FIRRTL compiler path.
+generators (Chisel is a hardware construction language) such as the Rocket and
+BOOM cores and the Hwacha vector unit, and a FIRRTL compiler path (FIRRTL is its
+intermediate representation).
 It ties these to the simulation, synthesis, and FPGA-emulation backends the
 table lists, so one configuration is carried reproducibly from a generated
 design to each evaluation path (@fig-chipyard-framework) [@chipyard].
@@ -314,7 +316,7 @@ a proposed action, checks whether that action is meaningful, calls one or more
 tools, collects observations, logs provenance, and returns feedback that can
 become evidence. It can also enforce or record declarative interface contracts:
 ISA rules, memory models, telemetry schemas, benchmark rules, and EDA
-constraints. As illustrated in @fig-environment-tool-interface, an architecture environment fundamentally reshapes this relationship. Rather than just taking inputs and returning outputs, it wraps the underlying tool with a strict contract that exposes legal actions, bounds observations, enforces physical costs, and explicitly defines rejection paths for invalid states.
+constraints. An architecture environment fundamentally reshapes this relationship (@fig-environment-tool-interface). Rather than just taking inputs and returning outputs, it wraps the underlying tool with a strict contract that exposes legal actions, bounds observations, enforces physical costs, and explicitly defines rejection paths for invalid states.
 
 ![**A tool becomes an environment when its contract is explicit:** A credible environment binds a bounded study and workload to legal actions, observations, constraints, cost, provenance, feedback, invalid-action semantics, and rejection paths.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of a tool wrapper becoming an architecture environment by binding a bounded study and workload to legal actions, observations, costs, provenance, feedback, and rejection paths."}
 
@@ -584,7 +586,8 @@ system.
 
 ## Feedback Latency and Fidelity
 
-An environment contract must expose the cost and fidelity of its observations.
+An inspectable loop still has to price what it inspects. An environment contract
+must expose the cost and fidelity of its observations.
 An analytic proxy may return in milliseconds, a cycle-level simulation may take
 minutes or hours, and physical implementation or silicon measurements may
 require days to months. If these differences remain hidden, a fast method can
@@ -592,7 +595,8 @@ overwhelm an expensive tool path or compare measurements that do not mean the
 same thing.
 
 @fig-fidelity-cost-confidence records representative ranges and pins two of
-them with measured anchors from published tool reports. The ranges themselves
+them, cycle-level simulation and physical feedback, with measured anchors from
+published tool reports. The ranges themselves
 are not universal measurements, and higher cost does not make an observation
 automatically authoritative. The requirement here is narrower: label the
 tool stage, version, elapsed cost, fidelity, raw observations, and outcome
@@ -873,7 +877,8 @@ important decision, the simulator hides a constraint, the proxy is
 uncalibrated, or the logging drops failed candidates, the loop may become more
 efficient at producing weak evidence.
 
-To maintain this semantic link, environment validity relies on six layers:
+To maintain this semantic link, environment validity is checked along the
+contract fields that can go stale, six layers in practice:
 
 - **Workload layer:** The inputs, distributions, and software stack match the
   intended use.
