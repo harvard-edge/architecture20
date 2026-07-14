@@ -68,11 +68,13 @@ def render_nav_item(item: dict, *, indent: str = "        ") -> list[str]:
         return render_dropdown(item, indent=indent)
     text = str(item["text"])
     href = str(item["href"])
+    icon = str(item.get("icon", ""))
+    icon_html = f'<i class="bi bi-{html.escape(icon)}"></i> ' if icon else ""
     return [
         f'{indent}<li class="nav-item">',
         (
             f'{indent}  <a class="nav-link" {attrs_for_href(href)}>'
-            f'<span class="menu-text">{html.escape(text)}</span></a>'
+            f'{icon_html}<span class="menu-text">{html.escape(text)}</span></a>'
         ),
         f"{indent}</li>",
     ]
@@ -120,6 +122,12 @@ def render_navbar(navbar: dict) -> str:
         [
             "      </ul>",
             "    </div>",
+            (
+                '    <button type="button" class="btn quarto-color-scheme-toggle arch2-hub-search" '
+                'aria-label="Toggle dark mode" onclick="window.quartoToggleColorScheme();">'
+            ),
+            '      <i class="bi" aria-hidden="true"></i>',
+            "    </button>",
             (
                 '    <button type="button" class="btn quarto-search-button arch2-hub-search" '
                 'aria-label="Search" onclick="window.quartoOpenSearch();">'
