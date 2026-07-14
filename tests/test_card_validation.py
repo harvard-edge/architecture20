@@ -181,7 +181,7 @@ def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
         "Evidence",
         "Failed / rejected",
         "Rejection checks + authority",
-        "Commitment boundary",
+        "Evidence-supported claim boundary",
         "Accountable decision",
     ]
     svg = svg_path.read_text(encoding="utf-8")
@@ -208,7 +208,7 @@ def test_chapter_3_separates_reviewability_from_reproduction() -> None:
         ROOT / "book" / "chapters" / "03-architecture-20-framework" / "index.qmd"
     ).read_text(encoding="utf-8")
     assert "Reviewability and replay remain separate" in chapter
-    assert "A runnable receipt binds executable" in chapter
+    assert "runnable receipt binds executable" in chapter
     assert "compared, reproduced, and contested" not in chapter
 
 
@@ -242,7 +242,7 @@ def test_appendix_b_keeps_card_evidence_and_receipt_contained() -> None:
     normalized = re.sub(r"\s+", " ", appendix)
     assert "card is a compact summary and index" in normalized
     assert "Detailed observations belong in a supporting evidence record" in normalized
-    assert "belong in a replay receipt" in normalized
+    assert "belong in a runnable receipt" in normalized
     assert "The review rubric separates support from polish" in normalized
     assert "card acts as a shareable evidence ledger" not in normalized
     assert 'do not need separate "claim cards" or "evidence ledgers"' not in normalized
