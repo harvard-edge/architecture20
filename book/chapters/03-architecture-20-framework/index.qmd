@@ -7,7 +7,11 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** George E. P. Box, a British statistician who made major contributions to time-series analysis, famously noted that while all models are flawed, the good ones are practically useful. Fast proxies and surrogate models can help architects narrow a search, provided that their scope, calibration, and failure modes are clear. They cannot, on their own, justify a design decision.
+**Author's Note:** George E. P. Box's point applies to more than prediction
+models. A task description, benchmark, simulator, power model, or test suite
+always leaves something out. Each can still be useful when its scope and
+failure modes are clear and when the decision does not reach beyond the
+evidence it provides.
 :::
 
 ```{=latex}
@@ -102,22 +106,54 @@ tool result its meaning.
 ![**An AI-assisted architecture study connects intent to implementation evidence.** The bounded study contains the scope, architectural claim, execution and analysis process, and evidence needed for review. Iterative work uses a design loop. A compact card indexes these records without replacing them.](images/F4d-structured-layer-above-rtl){#fig-structured-layer-above-rtl width="100%" fig-alt="Three-layer diagram showing architecture intent and judgment flowing into a structured architecture study, which connects to executable tools and returns implementation evidence."}
 
 Coding agents provide a familiar example of why this middle layer matters.
-SWE-agent lets a language-model agent navigate a repository, edit files, and
-run tests or other programs. OpenHands similarly lets an agent write code, use
-a command line, and execute work inside a sandboxed environment
-[@YangEtAl2024SWEAgent; @WangEtAl2024OpenHands]. The agent does not
-become useful merely by generating code. A bug report or feature request bounds
-the immediate task. The repository provides visible state, editing and
-command-line tools provide permitted actions, and tests provide executable
-feedback. The resulting change remains available for review.
 
-An architecture study follows the same general pattern, but its working state
-is spread across specifications, traces, simulator settings, compiler paths,
-RTL, physical-design reports, and earlier decisions. It also lacks a single
-test suite that can settle performance, power, software support, physical
-feasibility, and product risk. @fig-structured-layer-above-rtl shows the
-structure needed to connect that scattered state and tool feedback to the
-architecture question and the decision it can support.
+::: {.callout-field-note title="What Coding-Agent Benchmarks Made Explicit"}
+SWE-bench turns repository-level coding into a bounded task. Each problem starts
+with an issue description and a fixed repository state. An agent edits the
+repository, and hidden tests check whether the issue was fixed without breaking
+existing behavior [@JimenezEtAl2024SWEBench]. This is more useful than testing
+code generation in isolation because it connects a request, working state,
+allowed changes, executable checks, and a reviewable result.
+
+The interface around the model matters too. SWE-agent gives an agent a
+purpose-built way to navigate a repository, edit files, and run tests or other
+programs, and its authors found that interface design substantially affected
+performance. OpenHands similarly lets an agent write code, use a command line,
+and execute work inside a sandboxed environment
+[@YangEtAl2024SWEAgent; @WangEtAl2024OpenHands]. In both cases, the model was
+only one part of the working system. Clearer state, actions, and feedback also
+shaped the result.
+
+The benchmark itself also had to improve. Some original SWE-bench issues did not
+provide enough information, some tests rejected otherwise valid fixes, and
+environment differences could cause failures. SWE-bench Verified used repeated
+human review and containerized environments to remove many problematic tasks.
+A later audit still found flawed tests and evidence that frontier models had
+seen benchmark problems during training, making the score less reliable as a
+measure of current coding capability [@OpenAI2026SWEBenchLimits]. The lesson is
+not that the benchmark failed. Its scope, checks, and provenance had to change
+as the systems and the questions being asked of them changed.
+
+Terminal-Bench 2.0 extends the pattern beyond repository repair. It pairs each
+terminal task with its own environment, a human-written solution, and tests for
+verification [@MerrillEtAl2026TerminalBench]. That shared task contract makes
+model-agent combinations easier to compare.
+:::
+
+Architecture can borrow this structure without pretending the domains are the
+same. A software issue or terminal task can often end with tests of the final
+state. An architecture study may have no single test that settles performance,
+power, physical feasibility, software support, and product risk.
+
+The study's working state is also spread across specifications, traces,
+simulator settings, compiler paths, RTL, physical-design reports, and earlier
+decisions. Its evidence comes from tools with different costs and fidelity, and
+some decisions are expensive to reverse. An AI-assisted architecture study
+needs the explicit task, state, actions, tools, and checks used by coding-agent
+evaluations, plus a bounded architectural claim, evidence at the right fidelity,
+and a named decision owner.
+@fig-structured-layer-above-rtl shows how those pieces connect to the
+architecture question and the decision the evidence can support.
 
 This chapter distinguishes the parts inside that structure. The bounded
 architecture study is the unit of work, and it may produce understanding,
@@ -239,13 +275,12 @@ limited to those traces, simulator settings, and power assumptions. That is its
 claim boundary. It would not yet establish post-layout power, timing closure,
 or product readiness.
 
-> **Rejection conditions, checks, and authority.** A rejection condition says
-> what result would rule out a candidate or narrow a claim. A rejection check is
-> the test, tool, rule, or review used to look for that result. Rejection
-> authority identifies the person or agreed policy allowed to stop or redirect
-> the work. An automated rule may do so under that policy, but the named decision
-> owner remains responsible for exceptions, waivers, and decisions with larger
-> consequences.
+> **Rejection authority.** A rejection condition says what result would rule out
+> a candidate or narrow a claim. A rejection check is the test, tool, rule, or
+> review used to look for that result. Rejection authority identifies the person
+> or agreed policy allowed to stop or redirect the work. An automated rule may
+> do so under that policy, but the named decision owner remains responsible for
+> exceptions, waivers, and decisions with larger consequences.
 
 For the cache study, the stated rules might reject any configuration that
 exceeds the 3\ W envelope under the agreed power model. The power-model run is
