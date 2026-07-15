@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. For us, this is a reminder that there is no monolithic AI solution for the entire computing stack; different layers, from compiler to RTL to SoC, often need different feedback budgets, rejection checks, and decision boundaries.
+**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. His warning applies directly to AI-assisted architecture. Studies can operate with very different feedback budgets, rejection checks, and decision rights, from reversible compiler tuning to silicon-facing RTL and SoC work. No single AI method fits all those conditions.
 :::
 
 ```{=latex}
@@ -21,7 +21,8 @@ study moves into a different operating regime?
 
 The executed study in @sec-running-the-loop used cheap-to-discard candidate
 proposals and deterministic, replayable SCALE-Sim evaluations. Its recommendation
-stopped short of implementation, and the commit decision remains pending. That contract would be inadequate if
+stopped short of implementation, and the commit decision remains pending. Those
+evidence and decision rules would be inadequate if
 the same array geometry were about to change an RTL interface or enter a
 physical-design flow. The task may look similar while the evidence burden and
 decision rights change.
@@ -72,7 +73,7 @@ The design-loop card records the answers; it does not determine the regime.
 @tbl-loop-patterns compares the four regimes. The columns describe typical
 conditions, not fixed ranks. Fast feedback does not make a study low risk, and
 silicon-facing work does not forbid useful automation. The next decision and
-its consequences determine the contract.
+its consequences determine the required evidence and decision rights.
 
 | **Operating regime** | **Feedback and reversibility** | **Interface span and check independence** | **Evidence and decision requirements** |
 | --- | --- | --- | --- |
@@ -88,6 +89,12 @@ needs. The regimes are not a maturity ladder. {#tbl-loop-patterns tbl-colwidths=
 ```{=latex}
 \Needspace{11\baselineskip}
 ```
+
+The contrast is clearest at the endpoints. A local software change can often be
+executed and rolled back under close tests, while a silicon-facing change needs
+independent checks and named waiver and commit holders before it advances. The
+two middle regimes separate feedback cost from interface ownership, which is why
+stack position alone cannot classify a study.
 
 The cases that follow should be read through three questions:
 
@@ -113,9 +120,11 @@ scale, the system needs continuous cross-checking because even the assumption
 that the hardware computes correctly must be tested.
 :::
 
-@tbl-loop-pattern-decision recommends a first artifact for each regime. If two
-rows apply, begin with the more demanding requirements until evidence supports
-the narrower case.
+The fleet case shows why check independence belongs in regime classification.
+A project's first artifact should expose which failures its checks can actually
+observe. @tbl-loop-pattern-decision recommends that artifact for each regime. If
+two rows apply, begin with the more demanding requirements until evidence
+supports the narrower case.
 
 | **Observed condition** | **Regime to start with** | **First artifact to build** | **Claim not yet earned** |
 | --- | --- | --- | --- |
@@ -127,6 +136,11 @@ the narrower case.
 : **A starting artifact for each regime.** Begin with the feedback conditions
 and the next decision, then create the records needed to test the proposed claim.
 {#tbl-loop-pattern-decision tbl-colwidths="[27,19,30,16]"}
+
+The artifact changes with the source of uncertainty. A versioned test packet can
+expose local coverage gaps. Cross-interface deployment also needs named owners
+and rollback triggers, while high-consequence work needs independent checks and
+explicit waiver and commit rights.
 
 ### Method Roles Within Each Regime
 
@@ -225,13 +239,13 @@ profilers, telemetry, or canary deployment[^fn-systems-canary-deployment].
 
 [^fn-systems-canary-deployment]: A canary deployment is a controlled, partial rollout that exposes a change to a small slice of traffic to catch regressions before a system-wide release. It is one of the cheap, reversible rejectors that let a fast software loop iterate quickly, since a bad change can be caught and rolled back before a wider rollout is authorized.
 
-This is the regime where stronger automation is often plausible. Autotuning
+Close feedback lets a software-tuning loop automate search more aggressively. Autotuning
 systems and learned tensor-program optimizers[^fn-ml-tensor-program-optimizers] show how search spaces, cost
 models, measurements, and scheduling can be combined to improve software
 performance across targets
-[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. An Architecture 2.0 loop can
-learn from that design without pretending that all hardware work is equally
-reversible.
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. That combination is useful for
+AI-assisted architecture when generation is limited to artifacts with
+executable checks and cheap rollback.
 
 [^fn-ml-tensor-program-optimizers]: Tensor-program optimizers automate the search for efficient execution schedules of tensor operations on a target, using cost models and on-device measurements to steer the search. They are a template a fast software loop can borrow, since their feedback is cheap enough to support aggressive automated search without treating every hardware decision as equally reversible.
 
@@ -243,24 +257,22 @@ a fast software loop because correctness tests, compilation, profiling, and
 microbenchmark feedback are close to the generated artifact. It also touches
 hardware/software co-design because performance depends on memory layout,
 parallelism, numerical precision, backend behavior, and target-specific
-hardware resources. Multi-platform kernel-generation work (often targeting GPU-programming layers like OpenAI's Triton, a Python-embedded GPU-kernel DSL, or NVIDIA's CUDA) makes that bridge
-concrete by separating the core benchmark from target backends
+hardware resources. Multi-platform kernel-generation work exposes this
+cross-layer dependency by separating the core benchmark from target backends
+such as Triton, a Python-embedded GPU-kernel DSL, and CUDA
 [@WenEtAl2025MultiKernelBench].
 For an automated optimizer, the benchmark object needs more than a prompt and
 a score. It should record kernel IDs, input-shape distributions, correctness
 oracles, target metadata, failed compiles and profiles, and rejected variants.
 
-For bounded code generation or tuning, the study records source code, compiler
-IR, tests, target metadata, profiles, and the compiler and runtime versions used
-to obtain them. Cheap feedback permits more automated iteration, but
-correctness, compilation, portability, regressions, and maintainability can
-still reject a candidate. A named owner must approve a local kernel change
-before it becomes part of a wider software or hardware interface.
-
-Automation can do more in this regime because many failures are observable and
-reversible. A generated kernel can be tested, a compiler flag reverted, and a
-runtime policy tried in a canary. Benchmarks and deployment guards return
-feedback close to the change that caused it.
+For bounded code generation or tuning, the study keeps the source code, compiler
+IR, tests, target metadata, profiles, and exact compiler and runtime versions.
+Compilation, tests, and profiles return quickly on the artifact. A generated
+kernel can be tested, a compiler flag reverted, and a runtime policy tried in a
+canary. This proximity permits more automated iteration, while correctness,
+compilation, portability, regressions, and maintainability can still reject a
+candidate. A named owner must approve a local kernel change before it enters a
+wider software or hardware interface.
 
 ::: {.callout-failure-mode title="Fast feedback is not complete truth"}
 Treating fast feedback as complete truth is the trap for the optimizer. An AI-generated kernel that
@@ -278,8 +290,8 @@ may explore accelerator organization, vector width, cache hierarchy, local
 memory, interconnect, chiplet partitioning, and package assumptions. It may
 also choose how work is divided across CPUs, accelerators, and SoC blocks.
 Feedback is slower than software tests and less definitive than silicon.
-Actions can be invalid. Proxies can lie. The space is too large for exhaustive
-enumeration.
+Actions can violate design constraints, and proxies can fail outside the region
+where they were calibrated. The space is too large for exhaustive enumeration.
 
 These studies require an explicit representation of architecture state, legal
 actions, and tool observations. Methods may generate candidates, predict
@@ -294,8 +306,8 @@ dataset's schema, sampled-region coverage, tool versions, invalid-action labels,
 rejected regions, and proxy calibration.
 
 Chiplet studies add partitioning and die-to-die interfaces to the available
-design choices. For a UCIe-class interface (Universal Chiplet Interconnect
-Express), the study should specify what may be split across dies, the bandwidth,
+design choices. For a UCIe-class interface, the study should specify what may be
+split across dies, the bandwidth,
 latency, power, and thermal measurements returned by the tools, the fixed
 package and software assumptions, and the evidence required before a candidate
 can advance [@UCIeConsortium2026Spec].
@@ -328,10 +340,11 @@ Specialization can improve efficiency, but a domain is not one knob. It may be
 a kernel or model family, data type, memory pattern, programming model,
 deployment regime, latency envelope, product vertical, or software ecosystem.
 The golden-age argument for specialization [@HennessyPatterson2019GoldenAge]
-therefore becomes a loop question. Which properties are stable enough to
-specialize, and which must remain programmable?
+therefore requires a study to establish which properties are stable enough to
+specialize and which must remain programmable.
 
-The first rejection test prices the interface. Amdahl's law
+Before a local speedup can support a system claim, the study must account for
+the interface and software path. Amdahl's law
 [@Amdahl1967ValiditySingleProcessor], its multicore reinterpretation
 [@HillMarty2008AmdahlMulticore], and the accelerator-focused LogCA model
 [@AltafWood2017LogCA] all prevent a local speedup from standing in for an
@@ -444,20 +457,20 @@ properties determine which design changes and conclusions are valid.
 Once the domain requirements are clear, the software path determines whether
 the workload can use the specialized hardware. Halide-style
 algorithm/schedule separation, AutoTVM/Ansor-style measured schedules, and
-MLIR-style representations (Multi-Level Intermediate Representation) make the
-mapping choices explicit and allow compiler checks to reject invalid paths
+MLIR-style representations make the mapping choices explicit and allow
+compiler checks to reject invalid paths
 [@RaganKelleyEtAl2017HalideCACM; @ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor;
 @LattnerEtAl2020MLIR]. Programming models,
-compiler IRs, libraries, runtimes, and generated code sit between domain intent
-and hardware or deployment evidence, forming the narrow waist every architecture
-claim must pass through (@fig-codegen-narrow-waist).
+compiler IRs, libraries, runtimes, and generated code connect domain intent to
+hardware or deployment evidence (@fig-codegen-narrow-waist).
 
 
-Generative methods may work at this waist because kernel-generation benchmarks
-keep correctness, compilation, profiling, and target behavior close to the
-artifact [@OuyangEtAl2025KernelBench; @WenEtAl2025MultiKernelBench]. Architecture
-claims need the wider path. The loop card records the domain requirements, kernel
-family, data layout, compiler IR, runtime interface, backend capabilities,
+Generative methods can help produce kernels and schedules because
+kernel-generation benchmarks keep correctness, compilation, profiling, and
+target behavior close to the artifact [@OuyangEtAl2025KernelBench;
+@WenEtAl2025MultiKernelBench]. An architecture claim also needs end-to-end
+software and hardware evidence. The loop card records the domain requirements,
+kernel family, data layout, compiler IR, runtime interface, backend capabilities,
 tests, portability limits, and maintenance evidence. Its feedback budget is
 split. Declared automation may tune cheap, reversible kernel and schedule
 choices, while interface decisions require end-to-end evidence and a named
@@ -474,8 +487,9 @@ them. A local kernel improvement does not by itself justify an interface
 change.
 :::
 
-Without that boundary, a local benchmark win can look like an architectural
-result even when the compiler and the complete system cannot use it.
+Without a declared hardware-interface authorization boundary, a local benchmark
+win can look like an architectural result even when the compiler and the
+complete system cannot use it.
 
 ::: {.callout-failure-mode title="The accelerator that won in isolation"}
 An AI-generated block posts a large kernel speedup, but the compiler cannot keep
@@ -577,29 +591,25 @@ deployment measurements may all contribute evidence. A local improvement
 cannot advance when it violates a system objective, and cross-layer changes
 require approval from the responsible owners.
 
-Many Architecture 2.0 loops are even less static than this summary suggests.
 In early accelerator, compiler, runtime, or system-interface work, the hardware
-target and the software path may both be changing. The loop manages their
+target and the software path may both be changing. The study must evaluate their
 co-evolution instead of searching a fixed space. A new
 instruction, tensor unit, scratchpad policy, data layout, or runtime interface
 changes what software can express, while compiler, kernel, and workload
-feedback changes which hardware feature is worth keeping. The supporting
-evidence must record that co-evolution by tracking what hardware state existed when the software
-was generated, which examples or optimization rules were available, which
-correctness checks and performance measurements returned, and which hardware
-or software assumption was revised after rejection.
+feedback changes which hardware feature is worth keeping.
 
-Software feedback becomes architecture evidence only when the study keeps
-the hardware target, code path, tests, performance counters, rejected variants,
-and decision role tied together. Without that record, a strong generated
-kernel or library path may only prove that one software artifact matched one
-hardware snapshot. Because the hardware side and software side may both change,
-the evidence record must preserve the versions, measurements, failed runs, and rejected variants that
-connect them (@fig-hardware-software-coevolution). Otherwise, the study cannot say
-whether the architecture improved or only whether one generated path happened to
-work.
+Software feedback supports an architecture claim only when the study ties each
+code path to the hardware snapshot it targeted and the compiler rules that
+produced it, the checks and measurements returned, the failed runs and variants
+rejected, and the owner who reviewed the result.
+@fig-hardware-software-coevolution shows those two changing histories joined by
+one claim. Without that link, a strong generated kernel may prove only that one
+artifact matched one snapshot, not that the architecture improved.
 
 ![**Recording hardware and software changes together.** Early architecture work often changes the hardware target and software path at the same time. Both sides should be versioned with their artifacts, tests, measurements, rejected variants, architecture claim, and decision review.](images/F10c-hardware-software-coevolution){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware target state and software path state evolving together through a shared study record and review of an architectural claim by a named decision holder."}
+
+A rejection on either side must invalidate the paired claim or trigger a new
+evaluation against the revised hardware and software state.
 
 ### Deployment Feedback and Migration
 
@@ -650,7 +660,7 @@ particular model.
 | **Environment** | Build-and-test repair loop plus production monitoring on the new target. |
 | **Method role** | Propose bounded software repairs and route failed cases toward owners. |
 | **Rejection checks and authority** | Build failures, test failures, sanitizer failures, crash loops, slow jobs, and monitor-triggered evictions. |
-| **Decision and owner** | Automated repair can clear only the cases its declared checks settle; application owners receive the exceptions. |
+| **Accountable decision** | Automated repair can clear only the cases its declared checks settle; application owners receive the exceptions. |
 
 : **Records for an ISA migration.** The study requires represented state,
 independent checks, preserved failed cases, and application-owned exceptions.
@@ -766,7 +776,7 @@ only when the study shows which software survives that contract and which cases
 reach their application owner.
 
 For deployment-facing work, the card should include operational state, workload
-drift, service-level objectives[^fn-systems-slo], resource contention, user
+drift, SLOs[^fn-systems-slo], resource contention, user
 constraints, and rollback mechanisms. Evaluation may use a simulator, test
 cluster, replay harness, staging system, or guarded production system. Automated
 actions should remain narrow, such as adjusting a scheduler weight, proposing a
@@ -774,9 +784,9 @@ canary, changing an admission threshold, or selecting a replay cohort. Each
 action should identify its telemetry, rollback trigger, automation limit, and
 owner.
 
-[^fn-systems-slo]: Service-level objectives (SLOs) are target values for system reliability and performance that teams use to manage operational tradeoffs [@BeyerEtAl2016SRE]. In a deployment-facing loop they act as an operational rejection authority, since a proposed policy change that would breach an SLO can be stopped before it commits.
+[^fn-systems-slo]: In a deployment-facing loop, SLOs provide operational rejection conditions. A proposed policy change that would breach a target can be stopped before it commits [@BeyerEtAl2016SRE].
 
-Operational checks include service-level objectives, canary guards, alerts,
+Operational checks include SLOs, canary guards, alerts,
 safety policies, privacy constraints, and review by the responsible operator.
 For datacenter-scale claims, network congestion and tail latency may matter as
 much as average throughput or node-level power. Rollback reduces risk but does
@@ -802,23 +812,21 @@ as a clean causal measurement.
 High-consequence work includes RTL changes, generator-level edits, physical
 design, timing closure, layout, power analysis (including IR drop and thermal
 integrity), Design Rule Checking (DRC), formal verification, signoff, and other
-silicon-facing decisions. These changes are expensive to evaluate and costly
-to get wrong. Feedback is delayed. Tool
-flows are complex. Evidence must survive independent checks. Errors are costly,
-and a named role must authorize the next transition.
+silicon-facing decisions. Tool flows are complex, feedback is delayed, and an
+error can require another implementation cycle or survive into silicon.
+Evidence must survive independent checks, and a named role must authorize the
+next transition.
 
 For any subsystem study, this is the point where a candidate stops
 being a plausible design-space result and starts making claims that must
 survive RTL checks, physical constraints, power analysis, verification, and
 integration review.
 
-This does not make AI assistance irrelevant. It changes which roles are useful.
-In high-consequence work, the most valuable roles may be
-critique, search narrowing, evidence organization, bounded repair, test
-generation, report summarization, and inconsistency detection. A system that
-finds missing assumptions, organizes tool evidence, explains why a candidate
-failed, or narrows a physical-design search space may be more useful than one
-that claims authority to make final decisions.
+AI assistance is most useful here in critique, search narrowing, evidence
+organization, bounded repair, test generation, report summarization, and
+inconsistency detection. Finding a missing assumption, organizing tool results,
+explaining why a candidate failed, or narrowing a physical-design search space
+can remove real bottlenecks while named reviewers retain final authority.
 
 Learning-assisted chip placement is a prominent example of a design subflow
 being formulated as a learning problem [@MirhoseiniEtAl2021GraphPlacement].
@@ -853,7 +861,8 @@ rules, signoff flows, integration review, and expert judgment. A failure at
 this stage requires the study to revise its representation, action space,
 method, or claim.
 
-The AlphaChip record shows what can happen even when those checks exist.
+The public AlphaChip disagreement provides a neutral test of what
+high-consequence review must align before different teams can compare results.
 
 ::: {.callout-war-story title="Strong checks still produced incompatible conclusions"}
 **The claim.** The original AlphaChip team and later independent groups used synthesis, timing,
@@ -1008,11 +1017,16 @@ plt.show()
 plt.close(fig)
 ```
 
+Within each cost ratio, the solid curve assumes perfect routing with $a=f$,
+while the dashed curve charges the cheap check to every candidate with $a=1$.
+Both remain below the same coverage ceiling, so lowering check cost cannot
+compensate for low validated coverage.
+
 The model holds review concurrency fixed because trusted review often scales
-differently from generation. Reference checks are scarce or
-licensed, decision authority cannot be split across anonymous reviewers, and,
-as the AlphaChip audit in @sec-alphachip-public-record-audit showed, different
-reference flows cannot simply be pooled.
+differently from generation. Reference checks may be scarce or licensed, and
+named decision authority does not scale simply by adding reviewers. As the
+AlphaChip audit in @sec-alphachip-public-record-audit showed, different reference
+flows cannot simply be pooled.
 
 The model measures review service cost, not useful design progress.
 Its $f$ counts only outcomes that agree with the declared high-fidelity
@@ -1021,11 +1035,12 @@ cheap rejects need sampled escalation to measure false passes and false rejects,
 and those audits belong in the cost. Independence reduces correlated
 blind spots, but does not establish accuracy by itself.
 
-This restriction matters. For an exogenous proposal stream, faster generation
-cannot increase review capacity. A search method is
-different. A better generator can reduce evaluations to a fixed-quality target
-without changing $f$. Search quality, evaluations to target, and review
-service cost therefore need separate measurements.
+Separating review cost from search quality matters. When proposals arrive
+independently of the reviewer, faster generation cannot increase review
+capacity. Adaptive search changes the proposal stream. A better generator can
+reduce evaluations to a fixed-quality target without changing $f$. Search
+quality, evaluations to target, and review service cost therefore need separate
+measurements.
 
 ```{=latex}
 \Needspace{30\baselineskip}
@@ -1087,10 +1102,11 @@ not transfer automatically is the authority of a workload assumption, baseline,
 proxy, failed run, or prior acceptance.
 
 The regime changes when feedback latency, reversibility, consequence, interface
-span, or check independence changes. The contract must change with it. Cheap
-feedback and local rollback can justify more bounded execution. Expensive,
-irreversible, or system-wide decisions shift useful method work toward critique,
-evidence, independent challenge, and named decision rights.
+span, or check independence changes. The study's evidence and decision rights
+must change with it. Cheap feedback and local rollback can justify granting
+automation more execution rights. Expensive, irreversible, or system-wide
+decisions shift useful method work toward critique, evidence, independent
+challenge, and named decision rights.
 
 ## Transfer Tests for a New Regime
 
@@ -1111,7 +1127,8 @@ or commit-right holder even when the method and artifact remain unchanged.
 These tests catch two common failures. A single-layer improvement can violate
 a system objective, and apparently current evidence can expire as the hardware
 target, compiler, runtime, or workload distribution changes. Transfer means
-re-earning scope and authority, not copying a record forward.
+re-earning scope and authority rather than copying prior results and approvals
+forward.
 
 ## Open Research Questions
 

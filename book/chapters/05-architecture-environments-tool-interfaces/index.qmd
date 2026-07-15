@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** John Culkin, an influential American media scholar, observed that our tools reshape our own behavior. In Architecture 2.0, any tool placed inside an AI-assisted architecture loop has to be treated as part of the study's execution specification. The wrapper shapes what actions are legal, what evidence is returned, and what can be rejected.
+**Author's Note:** John Culkin, an influential American media scholar, observed that our tools reshape our own behavior. In Architecture 2.0, any tool placed inside an AI-assisted architecture loop has to be treated as part of the study's execution specification. Its environment contract defines what actions are legal, what observations are returned, and what can be rejected.
 :::
 
 
@@ -84,7 +84,7 @@ The executed study in @sec-executed-scale-study makes the point concrete. It was
 not one model call followed by one simulator call. It joined a structured
 proposal interface, schema and legality checks, a frozen workload harness,
 SCALE-Sim, a result parser, equal-budget comparison rules, a mechanism probe,
-and a replayable evidence packet. The interfaces, not the prompt, made the
+an evidence record, and a replay package. The interfaces, not the prompt, made the
 study possible.
 
 ::: {.callout-learning-objectives}
@@ -123,11 +123,11 @@ measurement [@HennessyPatterson2017QuantitativeApproach]. Architecture 2.0
 therefore requires researchers to document the measurement interface itself,
 including its inputs, outputs, assumptions, and unsupported cases.
 
-This level of explicitness matters because generative and learning-based methods are literal about
-interfaces. A human architect can sometimes infer that a simulator result is
+AI-assisted methods can act only on the interface state they receive. A human
+architect can sometimes infer that a simulator result is
 out of distribution, that a benchmark run used a stale configuration, or that
 a reported improvement is not meaningful because the compiler changed. A
-method acting through an environment will not infer those facts unless the
+method acting through an environment cannot use those facts unless the
 environment represents them. The environment must provide enough state for
 useful action and enough constraints for safe rejection.
 
@@ -180,11 +180,11 @@ problem the human intended to solve.
 
 : **Architecture interfaces define action and evidence boundaries:** Each interface tells the loop what can be changed, what can be observed, what feedback is meaningful, and what can reject an invalid action. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
 
-The EDA handoff row is worth making concrete, because it is where a wrapper does
-the most work. Candidate validity comes in two tiers, and well-specified environments
-separate them; environment validity, whether the harness still preserves the
-question, is a different matter (@sec-environment-lifecycle). *Schema
-legality* is cheap and checkable up front, asking whether the
+The EDA handoff row is worth making concrete because its wrapper must translate
+between proposed changes and several tool stages. Candidate validity has two
+tiers. Environment validity, whether the harness still preserves the question,
+is a separate matter (@sec-environment-lifecycle). *Schema legality* is cheap
+and checkable up front, asking whether the
 parameters, clocks, and interfaces are well formed. *Physical feasibility* is
 late and expensive, because routability, timing closure, congestion, and IR drop
 often surface only at synthesis or place-and-route. A late failure must map back
@@ -217,7 +217,9 @@ claim, while leaving proprietary implementation details protected
 
 : **Review records for closed tool flows.** Commercial EDA and foundry flows can use common record fields and review semantics without disclosing vendor implementations, foundry rules, signoff details, or protected design state. {#tbl-standardizable-proprietary-contract tbl-colwidths="[18,34,38]"}
 
-The executed study uses the same split.
+Across all five layers, schemas and review records can be standardized while
+tool commands, protected data, and implementation details remain private. The
+executed study uses the same split.
 
 ::: {.callout-note title="One study, several interfaces"}
 The proposal schema defined the model's action surface. The validator rejected
@@ -248,10 +250,9 @@ workloads, results, failures, and owners.
 
 In practice these environments are rarely used in isolation. Open frameworks
 integrate them. Chipyard, an open-source framework for generating and evaluating
-RISC-V systems-on-chip, wraps a configuration system, Chisel-based RTL
-generators (Chisel is a hardware construction language) such as the Rocket and
-BOOM cores and the Hwacha vector unit, and a FIRRTL compiler path (FIRRTL is its
-intermediate representation).
+RISC-V systems-on-chip, connects a configuration system, Chisel-based RTL
+generators such as the Rocket and BOOM cores and the Hwacha vector unit, and a
+FIRRTL compiler path.
 It ties these to simulation, synthesis, and FPGA-emulation backends, so each
 evaluation begins from the same configuration (@fig-chipyard-framework)
 [@chipyard]. An optimizer edits a validated configuration. Simulation,
@@ -261,7 +262,7 @@ decides whether any result justifies further work.
 
 ![**An integrated environment ties the backends together:** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="100%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
 
-However, even the broad categories in @tbl-environment-instances hide internal ladders of fidelity. Post-synthesis timing, for
+However, even the broad categories in @tbl-environment-instances contain several fidelity levels. Post-synthesis timing, for
 example, is often a useful surrogate for post-route timing, but routing
 congestion, IR drop, clocking, and signoff checks can still reject a candidate
 that looked acceptable at synthesis. A study can begin with a cheaper tool, but
@@ -313,13 +314,12 @@ feedback it returns, and which outcomes that feedback may reject. That
 is why two projects can use the same simulator but define different architecture
 environments.
 
-The environment is the maintained interface around tool calls, legal actions,
-observations, failures, costs, provenance, and rejection paths. It may return a
-scalar objective to a method, but the study should also retain the underlying
+An environment may return a scalar objective to a method, but the study should
+also retain the underlying
 observations and cost data, such as cycle counts, gate area, test failures,
 invalid actions, and stronger checks. Otherwise, a method may exploit simulator
-bugs or omitted costs instead of improving the physical design, a failure known
-as reward hacking[^fn-ml-reward-hacking]. @tbl-environment-contract lists the
+bugs or omitted costs instead of improving the physical
+design.[^fn-ml-reward-hacking] @tbl-environment-contract lists the
 information the design-loop card should reference.
 
 [^fn-ml-reward-hacking]: The proxy-gaming section later in this chapter defines reward hacking in full, with the simulator case and its machine-learning-safety source.
@@ -469,8 +469,9 @@ plt.show()
 plt.close(fig)
 ```
 
-ArchGym shows what a shared environment makes possible. The AlphaChip record
-provides a contrasting case.
+ArchGym shows what a shared environment makes possible. The AlphaChip dispute
+provides a contrasting case for examining method comparison across unmatched
+environments.
 
 ::: {.callout-war-story title="Different setups produced different answers"}
 **The claim.** The original AlphaChip work and later reassessments reported different placement results
@@ -495,8 +496,8 @@ evaluation budget, parser, and objective. It records every input, output, and
 hash. The result is narrow, but the comparison is interpretable because the
 environment is shared.
 
-The comparison is credible only when every AI-assisted system acts against
-compatible, or explicitly mapped, represented state, feedback records,
+The comparison is credible only when each method operates on compatible, or
+explicitly mapped, represented state, feedback records,
 invalid-action and environment-failure rules, escalation policy, and
 human-review rules. ArchGym can be described using the contract fields in
 @tbl-environment-contract (@tbl-archgym-mini-contract). Its tasks and limits
@@ -532,9 +533,8 @@ not include proprietary physical-design constraints, confidential workloads,
 tool-license behavior, workload drift, failed-run capture, or deployment
 telemetry. Its action spaces may be cleaner than industrial design spaces. Its
 feedback may be faster and more standardized than the feedback available in
-late-stage silicon work. Those limitations are not reasons to dismiss the
-environment pattern. They are reasons to make environment validity a first-class
-concern.
+late-stage silicon work. The study must therefore check environment validity
+explicitly.
 
 ## Interfaces Make Loops Composable
 
@@ -547,11 +547,10 @@ verifiers, and human reviewers can be swapped or combined without rewriting
 the whole loop.
 
 This is how architecture environments can become community infrastructure. As
-@sec-design-loop-no-longer-scales argued for benchmark governance, useful
-infrastructure such as MLPerf does more than name workloads. It creates rules,
-versions, metrics, submissions, and comparison conventions that help a community
-interpret results [@MattsonEtAl2020MLPerf]. Benchmark governance governs
-comparisons; environment governance must also govern what AI-assisted systems may try, which
+@sec-design-loop-no-longer-scales argued, benchmark governance provides rules,
+versions, metrics, submissions, and comparison conventions that help a
+community interpret results [@MattsonEtAl2020MLPerf]. Environment governance
+must also specify what AI-assisted systems may try, which
 actions are invalid, what feedback means, and what can stop the loop. A useful
 environment publishes both a script and the contract
 under which actions are legal, observations are valid, and evidence can be
@@ -577,9 +576,10 @@ should preserve not only the winning score but also the command that produced
 it, the workload revision, the tool version, the failed alternatives, the
 warnings, and the conditions under which the candidate would be rejected.
 
-A compound design system may have a planner, code generator, simulator caller,
-surrogate model, evidence critic, and human reviewer. These components need
-shared state and stable interfaces. If several agents implement them, the
+A compound design system may assign generation, prediction, critique,
+verification, and coordination to separate components, with a human reviewer
+retaining decision authority. These components need shared state and stable
+interfaces. If several agents implement them, the
 harness should record which state each agent read, which action it took, which
 evidence it used, and which check reviewed its output.
 
@@ -737,11 +737,11 @@ state, cache initialization, interconnect models, and sampling choices. A
 method that searches aggressively can discover weaknesses in those assumptions
 just as easily as it can discover a good architecture candidate.
 
-When the proxy is a simulator, *proxy mismatch* is the divergence between what a
-cheap stand-in metric rewards and what the architectural objective requires.
-When a method optimizes against that stand-in, the mismatch can produce the
-failure described by Goodhart's law, in which a measure becomes unreliable as a
-target [@Goodhart1975MonetaryManagement; @Strathern1997Goodhart]. Here it takes the specific form of a gap
+*Proxy mismatch* is the divergence between what a cheap stand-in metric rewards
+and what the architectural objective requires. When a method optimizes against
+that stand-in, the mismatch can produce the failure described by Goodhart's law,
+in which a measure becomes unreliable as a target
+[@Goodhart1975MonetaryManagement; @Strathern1997Goodhart]. For a simulator, it takes the specific form of a gap
 between the behavior an environment reports and the behavior that would matter at
 the next stronger fidelity level, such as a more detailed simulator, synthesis,
 physical design, emulation, silicon, or deployment. The failure mode is not
@@ -755,20 +755,19 @@ a partition that hides latency in the simulator's memory model, only for
 place-and-route to expose severe congestion when thousands of wires must cross
 the die, preventing timing closure. A workload harness may reward one benchmark
 version while hiding drift in the software stack.
-A run that does not crash is not the same as hardware validity; the environment has
-to define which illegal states, unsupported configurations, and silent
-out-of-model behaviors it can actually reject.
+A successful simulator run establishes only that the environment accepted the
+configuration. The contract must state which illegal states, unsupported
+configurations, and silent out-of-model behaviors the environment can reject.
 
-A common failure pattern is not that the tool is useless. The loop can learn
-exactly what the tool rewards. This is a local instance of proxy mismatch, the
-architecture version of what machine-learning safety calls *specification
-gaming* or *reward hacking* [@AmodeiEtAl2016ConcreteProblems]. A candidate can
-improve a proxy by choosing an unsupported parameter corner, relying on a stale
-workload slice, or shifting cost into a compiler/runtime path the current
-harness does not measure. The environment should record that failure
-through invalid-action checks, baseline replay, sensitivity tests, and
-escalation to a stronger feedback source. @sec-feedback-verification-trust
-treats proxy mismatch and its calibration defenses in full.
+When a method actively exploits this mismatch, machine-learning safety calls
+the failure *specification gaming* or *reward hacking*
+[@AmodeiEtAl2016ConcreteProblems]. A candidate can improve a proxy by choosing
+an unsupported parameter corner, relying on a stale workload slice, or shifting
+cost into a compiler/runtime path the current harness does not measure. The
+environment should record that failure through invalid-action checks, baseline
+replay, sensitivity tests, and escalation to a stronger feedback source.
+@sec-feedback-verification-trust develops the calibration and evidence checks
+for these failures.
 
 The adversarial version is sharper. A loop may be pressured through prompt
 injection, poisoned traces, compromised baselines, dependency updates, tampered

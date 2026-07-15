@@ -12,17 +12,17 @@ and tell which role may authorize the next action.
 
 The **design-loop card** is a compact summary and index into that review packet.
 It applies whether a study runs one evaluation or many iterations. The card
-names the study boundary, records typed claim and evidence links, summarizes
-failed or rejected work, and points to deeper artifacts. Detailed observations
-belong in a supporting evidence record. Executable commands, environment
-bindings, inputs, and outputs belong in a replay package. The card does not
-replace either one.
+names the study boundary, records typed claims and their evidence links,
+summarizes failed or rejected work, and points to deeper artifacts. Detailed
+observations belong in a supporting evidence record. Executable commands,
+environment bindings, inputs, and outputs belong in a replay package. The card
+does not replace either one.
 
 The card should remain short enough to use. One page is a good first pass. A
 few linked records can contain disputed evidence, raw tool output, or protected
-details. A long form that nobody completes and a vague form that conceals the
-study fail for the same reason. Neither helps another architect make a bounded
-judgment.
+details. A form that is too long often goes unfinished. One that is too vague
+hides the study boundary and evidence. Neither helps another architect make a
+bounded judgment.
 
 ## Why a Card, Not a Paper Summary
 
@@ -55,14 +55,21 @@ bindings [@MattsonEtAl2020MLPerf; @SPDX2021Standard; @SLSA2026Framework].
 
 : **Precedents for the design-loop card.** These formats show how a short record can state scope, evidence, limits, alternatives, and provenance. {#tbl-card-precedents tbl-colwidths="[23,32,35]"}
 
-Filling the card does not make a result credible. It makes missing structure
-harder to hide.
+Each precedent contributes a different part of the review. Scope and use conditions
+bound the claim, provenance and run rules make the evidence inspectable, and
+alternatives and authority connect the evidence to a decision.
+These entries make missing structure harder to hide while leaving the reviewer
+to judge whether the evidence supports the claim.
 
 ## The Twelve Review Fields
 
-The human-facing card keeps twelve review fields. Schema 2.0 represents some
-of them with more than one machine key because review and authority should not
-be compressed into a single prose string.
+The human-facing card keeps twelve review fields. Before execution, a study
+owner can use them to bound the work and state the proposed claim. During
+execution, the owner adds evidence, failed or rejected work, and rejection-check
+results. At review, the owner records the supported claim boundary and
+accountable decision. Schema 2.0 represents some fields with more than one
+machine key because claim support and decision authority require separate
+records rather than a single prose string.
 @tbl-design-loop-card-fields gives the review question and schema representation for each
 field.
 
@@ -79,14 +86,13 @@ field.
 | **Failed runs / rejected alternatives** | What was an environment failure, invalid candidate, rejected alternative, failed rejection check, or superseded record, and which evidence or check explains the outcome? |
 | **Rejection checks and authority** | The schema calls each predeclared pass/fail check a `gate`. Its record includes the criterion, result, authority, waiver rule, evidence links, and outcome. `decision_rights` separately names who may propose, execute, reject, waive, recommend, and commit. |
 | **Evidence-supported claim boundary** | Each entry in `claims` states a type, statement, baseline or comparator, outcome, scope, non-claims, status, and evidence links. Architecture outcomes and AI contributions remain separate claims. |
-| **Decision and owner** | What action is pending, authorized, rejected, deferred, or superseded; who holds the commit right; what scope is authorized; and what would reopen the decision? |
+| **Accountable decision** | What action is pending, authorized, rejected, deferred, or superseded; who holds the commit right; what scope is authorized; and what would reopen the decision? |
 
-: **Twelve fields for reviewing a study.** Together they describe the study from intent through authorized action. Completing the fields does not establish that the evidence is adequate for the claim. {#tbl-design-loop-card-fields tbl-colwidths="[23,64]"}
+: **Twelve fields for reviewing a study.** Together they let a reviewer trace the study from intent through authorized action and assess whether the linked evidence supports each claim. {#tbl-design-loop-card-fields tbl-colwidths="[23,64]"}
 
-The human-facing label **Decision and owner** corresponds to the stable machine
-schema key `accountable_decision`. The key is retained for compatibility; the
-record itself must name the holder, action, scope, rationale, claim links, and
-conditions for reopening the decision.
+The display label **Accountable decision** maps to the stable machine schema key
+`accountable_decision`. The record names the holder, action, scope, rationale,
+claim links, and conditions for reopening the decision.
 
 The claim boundary is essential. A study may show an architecture outcome
 without showing that AI helped. If authors claim both, schema 2.0 expects two
@@ -104,9 +110,10 @@ never be presented as an empirical result.
 
 ## Blank Template
 
-The one-page form in @tbl-blank-design-loop-card is enough to begin. A study
-owner can fill context and a proposed claim before execution, then complete
-other profiles only as supporting records become available.
+The one-page form in @tbl-blank-design-loop-card is enough to begin. Copy it
+when the study is proposed, record the initial boundary and claim, and update
+its links as evidence and decisions accumulate. Keep detailed observations in
+the evidence record and executable details in the replay package.
 
 | **Field** | **Entry** |
 | --- | --- |
@@ -121,7 +128,7 @@ other profiles only as supporting records become available.
 | **Failed runs / rejected alternatives** |  |
 | **Rejection checks and authority** |  |
 | **Evidence-supported claim boundary** |  |
-| **Decision and owner** |  |
+| **Accountable decision** |  |
 
 : **The blank card provides a reusable study index.** It applies to a paper, tool, benchmark, project proposal, class exercise, or internal study. {#tbl-blank-design-loop-card tbl-colwidths="[23,64]"}
 
@@ -138,9 +145,11 @@ replaces the executed AI-assisted study in @sec-running-the-loop.
 
 ## Machine Contract 2.0
 
-[JSON Schema version 2.0](https://arch2.mlsysbook.ai/schemas/design-loop-card.v2.schema.json)
-is the canonical machine contract. The outline below shows the required
-structure without repeating every conditional rule.
+Use the one-page card to draft and review a study. Use
+[JSON Schema version 2.0](https://arch2.mlsysbook.ai/schemas/design-loop-card.v2.schema.json),
+the canonical machine contract, when software needs to validate a card, check
+links among records, or exchange the card across tools. The outline below shows
+the required structure without repeating every conditional rule.
 
 ```yaml
 schema_version: "2.0"
@@ -201,28 +210,37 @@ design_loop_card:
                 release_boundary_or_compliance_review_id }
 ```
 
+The outline abbreviates the `roles` definition. Its compact core enum is
+`generate`, `predict`, `optimize`, `critique`, `verify`, `plan`, `tool_call`,
+and `coordinate`. The eight roles in
+@sec-methods-generation-prediction-optimization form the teaching taxonomy for
+work inside a study. Mapping the machine enum to that taxonomy remains a
+separate implementation question.
+
 The schema requires at least one typed claim. A proposed or untested claim may
 have an empty `evidence_refs` array. Every stronger status requires at least one
 evidence link. The validator also checks that referenced claim, evidence, and
-rejection-check IDs exist. A status remains an author assertion, however. Validation
-cannot decide whether the cited evidence really supports the statement.
+rejection-check IDs exist. These checks establish structural consistency and
+reference integrity. They do not decide whether the linked evidence supports
+the statement.
 
 The machine schema retains the key `gates` for compatibility. Here it means only
 a predeclared pass/fail check; it never means a design change, workflow stage,
 reviewer, or general quality goal. Every entry has a typed category, a decidable
 criterion, result, authority, waiver rule, evidence links, and outcome. Free
-prose can add context under `notes`, but it cannot replace those fields. A tool crash should normally be
-recorded as an `environment_failure`. It becomes a candidate-rejection check
-only when a predeclared rule makes that failure disqualifying for the candidate
-rather than evidence that the tool setup is broken.
+prose can add context under `notes`, but it cannot replace those fields. A tool
+crash should normally be recorded as an `environment_failure`. It becomes a
+candidate-rejection check only when a predeclared rule makes that failure
+disqualifying for the candidate rather than evidence that the tool setup is
+broken.
 
-The decision-right model is deliberately not a human-versus-machine switch. A
-model, tool, pipeline, policy, team, or person may hold a scoped propose,
-execute, reject, waive, or recommend right. A complete decision-right profile
-must assign all six actions, including `commit`. The decision record names
-the holder of that commit right and the bounded organizational action. Evidence
-does not authorize itself, and organizational authority cannot strengthen weak
-evidence.
+Decision rights are assigned by action and scope, not by a human-versus-machine
+classification. A model, tool, pipeline, policy, team, or person may hold a
+scoped right to propose, execute, reject, waive, or recommend. A complete
+decision-right profile must assign a holder for all six actions, including
+`commit`. The decision record names the holder of that commit right and the
+bounded organizational action. A reviewer must assess the evidence separately
+from whether that holder has authority to act.
 
 ### Independent Profiles, Not a Maturity Ladder
 
@@ -252,7 +270,7 @@ as complete only when commands, an environment binding, inputs, outputs,
 expected status, observed status, hashes, and a verified result are present.
 The command-line validator checks hashes for local card-relative artifacts. It
 cannot fetch and revalidate remote or protected artifacts. Successful replay
-shows that the named packet ran in the declared environment. Broader
+shows that the named replay package ran in the declared environment. Broader
 reproducibility or transfer requires a separate evaluation.
 
 ### Extensions and Compatibility
@@ -270,11 +288,11 @@ The migration command maps only content with a direct meaning.
 ./arch2 migrate card old-card.yaml --output old-card.v2-migration-draft.yaml
 ```
 
-The output is a migration draft, not a valid v2 card. It lists missing
+The output is a migration draft, not a valid v2 card. It lists unresolved
 semantics such as comparator, outcome, claim status, evidence status, typed
-rejection checks, replay validation, and decision rights. This is intentional. A migration
-that invented those meanings would produce a cleaner file and a less truthful
-record.
+rejection checks, replay validation, and decision rights. The migration cannot
+recover those meanings from a legacy card. Inventing them would misrepresent
+the study.
 
 ## Review Rubric
 
@@ -288,11 +306,11 @@ is meant to catch.
 | **Intent, task, and design space** | The record states the architecture question, choices, constraints, and stopping boundary. | The task is merely "use AI," or legal and invalid actions are ambiguous. |
 | **Representation and environment** | The record states relevant state, actions, observations, uncertainty, fidelity, and blast radius. | Hidden defaults or wrappers determine the outcome without appearing in the record. |
 | **Method roles and feedback budget** | The record states each actor's job, limitations, evaluations, latency, cost, and human attention. | A method is chosen for novelty, or its evaluation advantage is hidden. |
-| **Claims** | Statement, comparator, outcome, scope, non-claims, status, and evidence links agree. AI contribution is separate from architecture outcome. | A broad claim rests on a narrow benchmark, or AI receives credit without a matched no-AI or conventional comparison. |
+| **Evidence-supported claim boundary** | Statement, comparator, outcome, scope, non-claims, status, and evidence links agree. AI contribution is separate from architecture outcome. | A broad claim rests on a narrow benchmark, or AI receives credit without a matched no-AI or conventional comparison. |
 | **Evidence** | Producer, status, tool version, artifacts, provenance, uncertainty, and limitations are available at the fidelity appropriate to the action. | A proxy is treated as truth, an illustrative packet as measurement, or hashes as proof of adequacy. |
 | **Failed or rejected work** | Environment failures, invalid candidates, failed rejection checks, and rejected alternatives are distinguished and preserved. | Only successful candidates appear, or a tool failure is mislabeled as architectural evidence. |
-| **Rejection checks and decision rights** | Criteria, results, authority, waivers, evidence, outcomes, and all six rights are stated. | A plausible but wrong result has no stopping path, or a recommender is treated as the decision owner. |
-| **Decision and owner** | Status, holder, action, rationale, scope, claim links, and reopen conditions match the evidence. | Evidence is self-authorizing, the authorized scope exceeds support, or no role is responsible for the action. |
+| **Rejection checks and authority** | Criteria, results, authority, waivers, evidence, outcomes, and all six rights are stated. | A plausible but wrong result has no stopping path, or a recommender is treated as the decision owner. |
+| **Accountable decision** | Status, holder, action, rationale, scope, claim links, and reopen conditions match the evidence. | Evidence is self-authorizing, the authorized scope exceeds support, or no role is responsible for the action. |
 
 : **The review rubric separates support from polish.** Reviewers judge whether claim, evidence, rejection structure, and authority agree, not whether the card sounds confident. {#tbl-design-loop-card-rubric tbl-colwidths="[19,36,35]"}
 
@@ -341,10 +359,14 @@ adequacy.
 | --- | --- | --- |
 | **Access and disclosure** | Which records are public, restricted, confidential, or redacted, and who may inspect protected material. | Access says nothing by itself about adequacy, replay, or independence. |
 | **Evidence depth** | Whether the release contains context, a card, evidence summaries, or underlying run artifacts, with named omissions. | Audit is bounded by the observations and provenance actually available. |
-| **Replay result** | Whether replay was not attempted, failed, or succeeded in a named environment, and who performed it. | Successful replay applies to that packet and environment only. |
+| **Replay result** | Whether replay was not attempted, failed, or succeeded in a named environment, and who performed it. | Successful replay applies to that replay package and environment only. |
 | **Review independence** | Who reviewed, what organizational separation exists, and which tools, data, or conflicts are shared. | Independence extends only to the disclosed organizational and technical boundary. |
 
 : **Disclosure, evidence depth, replay, and review remain separate facts.** Do not turn them into one ordinal confidence label. {#tbl-evidence-disclosure-tiers tbl-colwidths="[22,39,29]"}
+
+These dimensions can point in different directions. A public packet may lack
+the artifacts needed for replay, while a restricted packet may support an
+independent review by authorized reviewers. Report each dimension separately.
 
 ## Paper-to-Study Exercise
 
@@ -369,8 +391,9 @@ actionable omission, ask whether it earned its review cost.
 
 ## Executed Study Card Sketch
 
-@tbl-executed-study-card-sketch condenses the executed study into the card's
-human-facing fields. The linked replay package contains the detailed machine records.
+@tbl-executed-study-card-sketch shows how the executed systolic-array study in
+@sec-running-the-loop appears in the card's human-facing fields. The linked
+replay package contains the detailed machine records.
 
 | **Field** | **Sketch** |
 | --- | --- |
@@ -378,10 +401,10 @@ human-facing fields. The linked replay package contains the detailed machine rec
 | **Design space** | Row and column dimensions from 8, 16, 32, 64, and 128 whose product does not exceed 1,024; 32 by 32 is the mandatory baseline. |
 | **Representation and environment** | Versioned workload and transposed probe, SCALE-Sim 3.0.0, fixed dataflow and memory settings, structured model prompt and schema, candidate records, and replay bindings. |
 | **Method roles and feedback budget** | The model proposes three candidates and one mechanism under one initial call and one possible repair. A frozen heuristic supplies the conventional arm. Each arm receives four SCALE-Sim evaluations, with four shared probe runs. |
-| **Claims and evidence** | The architecture claim requires a nonbaseline candidate to beat the baseline by at least 1 percent. The separate AI-contribution claim requires the model arm to beat the conventional arm under equal budgets. Neither claim is supported; the mechanism is falsified. |
+| **Evidence-supported claim boundary** | The architecture claim requires a nonbaseline candidate to beat the baseline by at least 1 percent. The separate AI-contribution claim requires the model arm to beat the conventional arm under equal budgets. Neither claim is supported; the mechanism is falsified. |
 | **Failed or rejected work** | The run archive distinguishes a pre-inference response-schema service failure from architecture outcomes and preserves dominated legal candidates. |
-| **Rejection checks and decision rights** | Geometry and deadline criteria can reject candidates. The model may propose but may not execute, reject, waive, recommend, or commit; those rights remain separately assigned. |
-| **Decision and owner** | The evidence supports retaining 32 by 32 and stopping. The recorded status remains `awaiting_author_confirmation`, keeping recommendation separate from the commit decision. |
+| **Rejection checks and authority** | Geometry and deadline criteria can reject candidates. The model may propose but may not execute, reject, waive, recommend, or commit; those rights remain separately assigned. |
+| **Accountable decision** | The evidence supports retaining 32 by 32 and stopping. The recorded status remains `awaiting_author_confirmation`, keeping recommendation separate from the commit decision. |
 
 : **The executed study card keeps negative outcomes distinct.** A tie, a falsified mechanism, dominated candidates, and an environment failure remain separate records with a bounded recommendation and pending decision. {#tbl-executed-study-card-sketch tbl-colwidths="[23,64]"}
 
@@ -408,7 +431,8 @@ The card is most useful when it reveals failures early.
 - **Unowned authority.** A recommendation is treated as a commit decision, a waiver
   has no holder, or the authorized action exceeds the declared evidence.
 
-These are study-design failures with consequences beyond documentation.
+These failures affect the study itself. They can change which claim is supported
+or which action may be authorized, so correcting the card alone is not enough.
 
 Solo researchers can address them without building a large review process.
 
@@ -421,13 +445,13 @@ to diagnose. It becomes a candidate-rejection check only when a predeclared
 rule makes that outcome disqualifying.
 
 The decision holder can be a student, advisor, reviewer, or project lead.
-The important step is naming who may reject, waive, recommend, and commit, and
-keeping each right within a declared scope.
+Name who may propose, execute, reject, waive, recommend, and commit, and keep
+each right within a declared scope.
 
 For an optional tool-backed replay activity, follow the
 [Architecture 2.0 labs](https://github.com/harvard-edge/arch2/blob/main/labs/README.md).
 :::
 
-The small record is a starting point, not evidence that the study is complete.
-Its value is that it gives later review, replay, and expansion a reliable place
-to begin.
+As the study grows, add links to the evidence record and replay package rather
+than expanding the card into an archive. The card then remains a reliable index
+for later review.
