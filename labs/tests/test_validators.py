@@ -60,7 +60,7 @@ def _set_lab_id(receipt_dir: Path, record: str, value: str | None) -> None:
         target = data
     else:
         filename = {
-            "evidence": "evidence_ledger.json",
+            "evidence": "evidence_record.json",
             "recommendation": "recommendation.json",
         }[record]
         path = receipt_dir / filename
@@ -87,15 +87,8 @@ def test_validator_accepts_complete_receipt(valid_receipt: Path) -> None:
 def test_card_validator_keeps_v1_0_legacy_dispatch() -> None:
     labs_root = Path(__file__).resolve().parents[1]
     card = yaml.safe_load(
-        (
-            labs_root
-            / "examples"
-            / "scale_proxy_mirage"
-            / "starter_receipt"
-            / "card.yaml"
-        ).read_text()
+        (labs_root.parent / "tests/fixtures/cards/valid-v1.0-legacy.yaml").read_text()
     )
-    card["schema_version"] = "1.0"
 
     assert _card_errors(card) == []
 
@@ -245,11 +238,11 @@ def test_validator_rejects_baseline_drift(valid_receipt: Path, record: str) -> N
     if record == "card":
         path = valid_receipt / "card.yaml"
         data = yaml.safe_load(path.read_text())
-        data["design_loop_card"]["evidence"]["baseline_id"] = "tiny_8x8"
+        data["design_loop_card"]["evidence"]["x-arch2-labs"]["baseline_id"] = "tiny_8x8"
         path.write_text(yaml.safe_dump(data, sort_keys=False))
     else:
         filename = {
-            "evidence": "evidence_ledger.json",
+            "evidence": "evidence_record.json",
             "recommendation": "recommendation.json",
         }[record]
         path = valid_receipt / filename
@@ -274,16 +267,16 @@ def test_validator_rejects_baseline_drift(valid_receipt: Path, record: str) -> N
 def test_validator_rejects_rejected_candidate_as_objective_winner(
     valid_receipt: Path, objective: str
 ) -> None:
-    path = valid_receipt / "evidence_ledger.json"
-    ledger = json.loads(path.read_text())
-    ledger["objective_rankings"][objective]["candidate_id"] = "proxy_hero_64x64"
-    path.write_text(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+    path = valid_receipt / "evidence_record.json"
+    evidence = json.loads(path.read_text())
+    evidence["objective_rankings"][objective]["candidate_id"] = "proxy_hero_64x64"
+    path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
     _reseal(valid_receipt)
 
     errors = validate_receipt(valid_receipt)
 
     assert any(
-        f"objective ranking {objective} does not select a gate-passing candidate"
+        f"objective ranking {objective} does not select a candidate that passed the declared checks"
         in error
         for error in errors
     )
@@ -385,9 +378,7 @@ def test_validator_cross_checks_scalesim_version(
     else:
         path = valid_receipt / "card.yaml"
         card = yaml.safe_load(path.read_text())
-        card["design_loop_card"]["evidence"]["records"][0]["provenance"][
-            "tool_version"
-        ] = "SCALE-Sim 999.0"
+        card["design_loop_card"]["evidence"]["records"][0]["tool"]["version"] = "999.0"
         path.write_text(yaml.safe_dump(card, sort_keys=False))
         _reseal(valid_receipt)
 
@@ -401,29 +392,42 @@ def test_validator_cross_checks_card_and_run_config_hash(
 ) -> None:
     path = valid_receipt / "card.yaml"
     card = yaml.safe_load(path.read_text())
-    card["design_loop_card"]["evidence"]["records"][0]["provenance"][
-        "parameter_hash"
-    ] = f"sha256:{'9' * 64}"
+    inputs = card["design_loop_card"]["evidence"]["records"][0]["inputs"]
+    config = next(
+        artifact for artifact in inputs if artifact["artifact_id"].endswith("-config")
+    )
+    config["integrity"]["sha256"] = f"sha256:{'9' * 64}"
     path.write_text(yaml.safe_dump(card, sort_keys=False))
     _reseal(valid_receipt)
 
     errors = validate_receipt(valid_receipt)
 
-    assert any("parameter hash does not match run config" in error for error in errors)
+    assert any(
+        "config binding does not match run" in error or "sha256 mismatch" in error
+        for error in errors
+    )
 
 
 def test_validator_cross_checks_card_replay_source(valid_receipt: Path) -> None:
     path = valid_receipt / "card.yaml"
     card = yaml.safe_load(path.read_text())
-    card["design_loop_card"]["evidence"]["records"][0]["provenance"][
-        "source_uri"
-    ] = "evidence/not-the-run.json"
+    outputs = card["design_loop_card"]["evidence"]["records"][0]["outputs"]
+    compute = next(
+        artifact
+        for artifact in outputs
+        if artifact["uri"].endswith("/COMPUTE_REPORT.csv")
+    )
+    compute["uri"] = "evidence/not-the-run.json"
     path.write_text(yaml.safe_dump(card, sort_keys=False))
     _reseal(valid_receipt)
 
     errors = validate_receipt(valid_receipt)
 
-    assert any("replay source does not match run output" in error for error in errors)
+    assert any(
+        "compute output does not match run" in error
+        or "local artifact is missing" in error
+        for error in errors
+    )
 
 
 def test_validator_rejects_undeclared_payload(valid_receipt: Path) -> None:

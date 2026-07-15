@@ -3,7 +3,6 @@
 Current figures:
 
 - `F1-moonshot-stack`: lighthouse prompt decomposition.
-- `F1a-foundation-wall-stack`: foundation-wall framing from inputs to use cases.
 - `F1b-architecture-development-triad`: generation, prediction, and optimization.
 - `F2a-design-loop-breaks`: Architecture 1.0 versus Architecture 2.0 loop state.
 

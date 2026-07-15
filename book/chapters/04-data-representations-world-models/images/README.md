@@ -10,7 +10,6 @@ Executable Quarto figures in the chapter:
 
 - `fig-token-scale-contrast`: Matplotlib token-scale comparison.
 - `fig-affordable-sample-collapse`: affordable samples per feedback regime under a fixed budget (illustrative, in-cell values).
-- `fig-proxy-margin-escalation`: calibration-check escalation rule against the 3 W envelope (illustrative, in-cell values).
 
 Needed next:
 
@@ -19,4 +18,4 @@ Needed next:
 - Keep token-scale claims transparent: source, caveat, and uncertainty should
   travel with the plot.
 - Add future data-scale or representation-coverage plots only when backed by a
-  checked-in CSV/JSON receipt.
+  checked-in CSV/JSON source record.

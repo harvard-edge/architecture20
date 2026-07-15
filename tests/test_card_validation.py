@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -12,6 +13,7 @@ import pytest
 import yaml
 from jsonschema import Draft202012Validator
 
+from cli.card_migration import migrate_v1_1_to_v2_draft
 from cli.arch2 import (
     CARD_SCHEMA_PATHS,
     CARD_SCHEMA_VERSION,
@@ -39,16 +41,21 @@ def test_schema_is_valid_draft_2020_12(schema_path: Path) -> None:
         "redacted-level-0.yaml",
     ],
 )
-def test_valid_conformance_fixture(filename: str) -> None:
+def test_legacy_v1_1_fixture_remains_valid_for_one_release(filename: str) -> None:
     path = VALID_CARD_DIR / filename
-    assert (
-        yaml.safe_load(path.read_text(encoding="utf-8"))["schema_version"]
-        == CARD_SCHEMA_VERSION
-    )
+    assert yaml.safe_load(path.read_text(encoding="utf-8"))["schema_version"] == "1.1"
     assert card_validation_findings(path) == []
 
 
-def test_examples_preserve_one_case_as_conformance_increases() -> None:
+def test_canonical_v2_fixture_validates_with_local_integrity_checks() -> None:
+    path = VALID_CARD_DIR / "array-study-v2.yaml"
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert CARD_SCHEMA_VERSION == "2.0"
+    assert document["schema_version"] == CARD_SCHEMA_VERSION
+    assert card_validation_findings(path) == []
+
+
+def test_legacy_examples_preserve_one_case_as_levels_increase() -> None:
     cards = []
     for level, filename in enumerate(
         [
@@ -113,46 +120,39 @@ def test_examples_preserve_one_case_as_conformance_increases() -> None:
         assert f'{aggregate["pe_utilization_percent"]:.6f}%' in record["kind"]
 
 
-def test_start_path_separates_drafting_from_evidence_progression() -> None:
+def test_start_path_separates_context_drafting_from_supported_profiles() -> None:
     start = (ROOT / "www" / "start.qmd").read_text(encoding="utf-8")
-    assert "Draft Level 0 in 30 minutes" in start
-    assert "Progress with existing evidence" in start
-    assert "Do not invent evidence to raise the level." in start
-    for filename in (
-        "level-0-context.yaml",
-        "level-1-auditable.yaml",
-        "level-2-replayable.yaml",
-        "level-3-independent.yaml",
-    ):
-        assert f"/examples/design-loop-cards/{filename}" in start
+    assert "Draft the context profile in 30 minutes" in start
+    assert "Complete profiles independently" in start
+    assert "A partial profile must name its gaps." in start
+    assert "Do not ask them to fabricate evidence" in start
+    assert "/examples/design-loop-cards/array-study-v2.yaml" in start
+    assert "old-card.v2-migration-draft.yaml" in start
 
 
 def test_start_path_keeps_fixtures_labs_and_lighthouse_distinct() -> None:
     start = (ROOT / "www" / "start.qmd").read_text(encoding="utf-8")
-    assert "Practice in the real labs" in start
+    assert "Practice with executed evidence" in start
     assert "https://github.com/harvard-edge/arch2/tree/main/labs" in start
-    assert "do not replace empirical lab work" in start
+    assert "does not replace empirical lab work" in start
     assert "/book/chapters/08-running-the-loop/" in start
-    assert "Neither replaces Chapter 8's constructed lighthouse example." in start
+    assert "None substitutes for another." in start
 
     examples_readme = (VALID_CARD_DIR / "README.md").read_text(encoding="utf-8")
-    assert "These synthetic packets teach schema progression" in examples_readme
+    assert "synthetic packets teach the schema" in examples_readme
     assert "https://github.com/harvard-edge/arch2/tree/main/labs" in examples_readme
-    assert "They do not replace empirical lab work" in examples_readme
-    assert (
-        "Neither replaces Chapter 8's constructed lighthouse example" in examples_readme
-    )
+    assert "do not replace empirical lab work" in examples_readme
+    assert "Chapter 8 study" in examples_readme
 
 
-def test_start_path_separates_card_level_from_evidence_and_commitment() -> None:
+def test_start_path_separates_profiles_from_evidence_and_commitment() -> None:
     start = (ROOT / "www" / "start.qmd").read_text(encoding="utf-8")
-    for heading in ("Conformance", "Evidence fidelity", "Commitment"):
+    for heading in ("Profile completeness", "Evidence fidelity", "Commitment"):
         assert f"<strong>{heading}</strong>" in start
-    assert "A Level 3 card can still contain proxy evidence." in start
-    assert "Schema validation proves structure, not evidence quality." in start
-    assert "It does not prove that the evidence is adequate" in start
-    assert "a referenced replay succeeds" in start
-    assert "independent reviewers agree" in start
+    assert "A complete profile says that named bindings exist." in start
+    assert "Schema validation proves structure and local bindings" in start
+    assert "It does not prove that the workload is representative" in start
+    assert "One profile never implies another." in start
 
 
 def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
@@ -182,7 +182,7 @@ def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
         "Failed / rejected",
         "Rejection checks + authority",
         "Evidence-supported claim boundary",
-        "Accountable decision",
+        "Decision and owner",
     ]
     svg = svg_path.read_text(encoding="utf-8")
     assert "power violations" in svg
@@ -208,19 +208,19 @@ def test_chapter_3_separates_reviewability_from_reproduction() -> None:
         ROOT / "book" / "chapters" / "03-architecture-20-framework" / "index.qmd"
     ).read_text(encoding="utf-8")
     assert "Reviewability and replay remain separate" in chapter
-    assert "runnable receipt binds executable" in chapter
+    assert "A replay package records executable inputs" in chapter
     assert "compared, reproduced, and contested" not in chapter
 
 
-def test_appendix_b_distinguishes_fixtures_labs_and_level_0_drafting() -> None:
+def test_appendix_b_distinguishes_fixture_lab_and_context_drafting() -> None:
     appendix = (
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     assert "Synthetic card example" in appendix
-    assert "Separate lab using SCALE-Sim" in appendix
+    assert "Deterministic course lab using SCALE-Sim" in appendix
     assert "https://github.com/harvard-edge/arch2/blob/main/labs/README.md" in appendix
-    assert "30-minute Level 0 workflow" in appendix
-    assert "Draft and validate context and boundaries" in appendix
+    assert "30-minute context workflow" in appendix
+    assert "Draft and validate the study boundary" in appendix
 
 
 def test_appendix_b_does_not_treat_logs_or_crashes_as_proof() -> None:
@@ -240,30 +240,32 @@ def test_appendix_b_keeps_card_evidence_and_receipt_contained() -> None:
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     normalized = re.sub(r"\s+", " ", appendix)
-    assert "card is a compact summary and index" in normalized
+    assert "compact summary and index" in normalized.lower()
     assert "Detailed observations belong in a supporting evidence record" in normalized
-    assert "belong in a runnable receipt" in normalized
-    assert "The review rubric separates support from polish" in normalized
+    assert "belong in a replay package" in normalized
+    assert "review rubric separates support from polish" in normalized.lower()
     assert "card acts as a shareable evidence ledger" not in normalized
     assert 'do not need separate "claim cards" or "evidence ledgers"' not in normalized
 
 
-def test_appendix_b_bounds_conformance_claims() -> None:
+def test_appendix_b_bounds_profile_and_replay_claims() -> None:
     appendix = (
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     normalized = re.sub(r"\s+", " ", appendix)
-    assert "locate inputs and attempt replay" in normalized
-    assert "replay result must be checked separately" in normalized
-    assert "a boolean field cannot establish that relationship" in normalized
-    assert "judge, challenge, reject, or extend" in normalized
-    assert "successful replay shows that the named packet ran" in normalized
-    assert "broader reproducibility or transfer needs its own protocol" in normalized
-    assert "judge, repeat, reject, or extend" not in normalized
+    assert "profiles are non-ordinal" in normalized.lower()
+    assert "A `partial` profile must list its missing bindings" in normalized
+    assert "commands, an environment binding, inputs, outputs" in normalized
+    assert "The command-line validator checks hashes for local" in normalized
+    assert "successful replay shows that the named packet ran" in normalized.lower()
+    assert "broader reproducibility or transfer requires a separate evaluation" in (
+        normalized.lower()
+    )
     assert (
-        "simulator and dispatch failures remain environment-failure traces"
+        "a tool crash should normally be recorded as an `environment_failure`"
         in normalized.lower()
     )
+    assert "one profile never implies another" not in normalized.lower()
     assert "blob/main/labs/README.md" in normalized
 
 
@@ -279,7 +281,7 @@ def test_explicit_legacy_contract_reports_its_own_version() -> None:
     assert any("contract '1.0'" in finding.message for finding in findings)
 
 
-def test_level_0_template_validates_after_only_level_0_fields_are_filled(
+def test_context_template_validates_without_claiming_other_profiles(
     tmp_path: Path,
 ) -> None:
     template_path = ROOT / "design-loop-card" / "template.yaml"
@@ -287,20 +289,43 @@ def test_level_0_template_validates_after_only_level_0_fields_are_filled(
     card = document["design_loop_card"]
     assert set(card) == {
         "card_id",
-        "conformance_level",
+        "profiles",
+        "profile_gaps",
         "intent",
         "task",
         "design_space",
+        "claims",
+        "evidence",
+        "failed_or_rejected",
+        "gates",
+        "decision_rights",
+        "accountable_decision",
     }
-    card["card_id"] = "starter-level-0"
+    card["card_id"] = "starter-context-card"
     card["intent"]["objective"] = "Bound a first architecture experiment."
     card["intent"]["constraints"] = ["Hold the workload constant."]
     card["intent"]["non_goals"] = ["Authorize implementation."]
     card["design_space"]["legal"] = ["Compare two fixed candidates."]
     card["design_space"]["invalid"] = ["Change the workload."]
     card["design_space"]["deferred"] = ["Physical design."]
+    card["task"]["kind"] = "bounded_experiment"
+    card["task"]["description"] = "Compare two fixed candidates."
+    claim = card["claims"][0]
+    claim["claim_id"] = "claim-first-experiment"
+    claim["statement"] = "One candidate may merit a bounded experiment."
+    claim["baseline_or_comparator"] = "The fixed baseline candidate."
+    claim["outcome"] = "Not tested."
+    claim["scope"] = "The declared workload and two candidates."
+    claim["non_claims"] = ["The candidate is implementation-ready."]
+    decision = card["accountable_decision"]
+    decision["holder_id"] = "architecture-owner"
+    decision["action"] = "Decide whether to execute the experiment."
+    decision["rationale"] = "The context is ready for review; evidence is pending."
+    decision["claim_refs"] = ["claim-first-experiment"]
+    decision["authorized_scope"] = "No execution is authorized by this draft."
+    decision["reopen_conditions"] = ["Evidence becomes available."]
 
-    completed = tmp_path / "level-0.yaml"
+    completed = tmp_path / "context-card.yaml"
     completed.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
     assert card_validation_findings(completed) == []
 
@@ -331,6 +356,8 @@ def test_start_workflow_uses_minimal_version_bounded_requirements() -> None:
         ("invalid-level-1-missing-evidence.yaml", "level 1 requires 'evidence'"),
         ("invalid-level-3-dependent-gate.yaml", "True was expected"),
         ("invalid-top-level-claim.yaml", "use intent.claim_boundary.claim"),
+        ("invalid-v2-claim-missing-comparator.yaml", "baseline_or_comparator"),
+        ("invalid-v2-unknown-evidence-ref.yaml", "unknown evidence reference"),
         ("invalid-version.yaml", "unsupported schema version"),
     ],
 )
@@ -347,7 +374,7 @@ def test_cli_reports_success_and_failure() -> None:
             str(ROOT / "cli" / "arch2.py"),
             "validate",
             "card",
-            str(VALID_CARD_DIR / "level-3-independent.yaml"),
+            str(VALID_CARD_DIR / "array-study-v2.yaml"),
         ],
         cwd=ROOT,
         text=True,
@@ -431,3 +458,111 @@ def test_level_2_requires_digest_and_replay_pointer() -> None:
     assert "parameter_hash" in messages
     assert "sha256:" in messages
     assert "source_uri" in messages
+
+
+def _copy_v2_example(tmp_path: Path) -> Path:
+    copied = tmp_path / "design-loop-cards"
+    shutil.copytree(VALID_CARD_DIR, copied)
+    return copied / "array-study-v2.yaml"
+
+
+def test_v2_claims_ai_contribution_separately_from_architecture_outcome(
+    tmp_path: Path,
+) -> None:
+    path = _copy_v2_example(tmp_path)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document["design_loop_card"]["claims"].append(
+        {
+            "claim_id": "claim-ai-contribution",
+            "claim_type": "ai_contribution",
+            "statement": "No AI method contributed to this illustrative result.",
+            "baseline_or_comparator": "The same deterministic workflow without AI.",
+            "outcome": "Both arms are identical because model_calls is zero.",
+            "scope": "This constructed card example only.",
+            "non_claims": ["AI is generally ineffective for architecture work."],
+            "status": "null_result",
+            "evidence_refs": [
+                "illustrative-array-summary-16x16",
+                "illustrative-array-summary-32x8",
+            ],
+        }
+    )
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    assert card_validation_findings(path) == []
+
+
+def test_v2_complete_decision_rights_require_all_six_actions(tmp_path: Path) -> None:
+    path = _copy_v2_example(tmp_path)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    rights = document["design_loop_card"]["decision_rights"]
+    document["design_loop_card"]["decision_rights"] = [
+        right for right in rights if right["action"] != "waive"
+    ]
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    findings = card_validation_findings(path)
+    assert findings
+    assert any("decision_rights" in finding.location for finding in findings)
+
+
+def test_v2_replay_profile_verifies_local_hashes(tmp_path: Path) -> None:
+    path = _copy_v2_example(tmp_path)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document["design_loop_card"]["replay"]["environment_binding"]["sha256"] = (
+        "sha256:" + "0" * 64
+    )
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    findings = card_validation_findings(path)
+    assert any(finding.code == "card-artifact-hash" for finding in findings)
+    assert any("SHA-256 mismatch" in finding.message for finding in findings)
+
+
+def test_v2_profiles_are_independent_not_cumulative(tmp_path: Path) -> None:
+    path = _copy_v2_example(tmp_path)
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    card = document["design_loop_card"]
+    card["profiles"]["replay"] = "not_claimed"
+    card.pop("replay")
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    assert card_validation_findings(path) == []
+
+
+def test_v1_1_migration_is_deterministic_and_does_not_invent_semantics() -> None:
+    source = yaml.safe_load(
+        (VALID_CARD_DIR / "level-3-independent.yaml").read_text(encoding="utf-8")
+    )
+    first = migrate_v1_1_to_v2_draft(source)
+    second = migrate_v1_1_to_v2_draft(source)
+    assert first == second
+    assert first["status"] == "requires_author_input"
+    assert "schema_version" not in first
+    claim = first["mapped_design_loop_card"]["claims"][0]
+    assert set(claim) == {"statement", "non_claims"}
+    missing = {entry["target"] for entry in first["missing_semantics"]}
+    assert "design_loop_card.claims[0].status" in missing
+    assert "design_loop_card.profiles" in missing
+    assert "design_loop_card.decision_rights" in missing
+    assert "design_loop_card.replay" in missing
+
+
+def test_migration_cli_writes_an_explicit_draft(tmp_path: Path) -> None:
+    target = tmp_path / "migration-draft.yaml"
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "cli" / "arch2.py"),
+            "migrate",
+            "card",
+            str(VALID_CARD_DIR / "level-1-auditable.yaml"),
+            "--output",
+            str(target),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "requires author input" in completed.stdout
+    draft = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert draft["target_schema_version"] == "2.0"
+    assert draft["status"] == "requires_author_input"

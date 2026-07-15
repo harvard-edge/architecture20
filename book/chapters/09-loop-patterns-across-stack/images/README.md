@@ -2,7 +2,6 @@
 
 Current figures:
 
-- `F10-loop-pattern-spectrum`: recurring loop patterns across the stack.
 - `F10a-domain-specificity-shapes`: domain-specific architecture shapes.
 - `F10b-codegen-narrow-waist`: code generation as the DSA bottleneck.
 - `F10c-hardware-software-coevolution`: hardware target state and software

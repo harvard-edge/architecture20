@@ -11,12 +11,12 @@ from arch2_labs.presentation import (
 )
 
 
-def test_objective_presentation_executes_against_generated_ledger(
+def test_objective_presentation_executes_against_generated_evidence_record(
     draft_receipt: Path,
 ) -> None:
-    ledger = json.loads((draft_receipt / "evidence_ledger.json").read_text())
+    evidence = json.loads((draft_receipt / "evidence_record.json").read_text())
 
-    rendered = render_objective_summary(ledger)
+    rendered = render_objective_summary(evidence)
 
     assert "Lowest latency" in rendered
     assert "Lowest first-order energy" in rendered
@@ -34,7 +34,7 @@ def test_objective_presentation_rejects_stale_contract() -> None:
 def test_receipt_validation_never_renders_errors_as_green() -> None:
     rendered = render_receipt_validation(["manifest hash mismatch"])
 
-    assert "Receipt invalid" in rendered
+    assert "Run archive invalid" in rendered
     assert "manifest hash mismatch" in rendered
     assert "✅" not in rendered
 
@@ -42,5 +42,5 @@ def test_receipt_validation_never_renders_errors_as_green() -> None:
 def test_receipt_validation_renders_clean_receipt_as_green() -> None:
     rendered = render_receipt_validation([])
 
-    assert "Receipt valid" in rendered
+    assert "Run archive valid" in rendered
     assert "✅" in rendered

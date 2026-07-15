@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render and verify the self-contained Level 2/3 example replay packets."""
+"""Render and verify the self-contained design-loop-card replay packets."""
 
 from __future__ import annotations
 

@@ -79,9 +79,9 @@ def _(dedent, mo, warmup_unlocked):
         | **Legal action space** | Vector width, local memory, CPU/accelerator partition; ISA fixed. |
         | **Environment / tool path** | Analytic proxy → cycle simulator → (later) P&R; each with a cost. |
         | **Feedback budget** | Many proxy evals, few simulator runs, ~0 P&R runs this turn. |
-        | **Evidence & rejection gate** | 3 W envelope, latency deadline, silicon budget; reject on any. |
+        | **Evidence and rejection checks** | 3 W envelope, latency deadline, silicon budget; reject on any. |
         | **Commitment boundary** | Advance to a next-fidelity study only; no RTL/product claim. |
-        | **Accountable decision owner** | The architect signs the commitment; the method proposes. |
+        | **Decision owner** | The architect authorizes the action; the method proposes. |
 
         Notice the card exposes *how the answer could be wrong*, not just what it is.
         """
@@ -118,10 +118,10 @@ def _(example_ready, mo):
                 options=[
                     "Workload / scenario",
                     "Legal action space",
-                    "Evidence & rejection gate",
+                    "Evidence and rejection checks",
                     "Commitment boundary",
                 ],
-                label="**Predict.** Which field will be hardest to fill honestly?",
+                label="**Predict.** Which field will be hardest to support with specific information?",
             ),
             "confidence": mo.ui.dropdown(
                 options={
@@ -184,7 +184,7 @@ def _(mo, prediction_locked, prediction_snapshot):
                 rows=2,
                 placeholder="What may the method change; what is fixed or deferred?",
             ),
-            "Evidence & rejection gate": mo.ui.text_area(
+            "Evidence and rejection checks": mo.ui.text_area(
                 rows=2,
                 placeholder="What evidence is owed; what can reject a candidate?",
             ),
@@ -222,8 +222,8 @@ def _(card_form, mo, prediction_snapshot):
         "not a complete canonical design-loop card. Among the still-unwritten card "
         "fields are explicit intent and task, representation, environment, method "
         "role and actor map, feedback budget, evidence, failed runs and rejected "
-        "alternatives, rejection authority, and accountable decision. Replay is not another card field; it "
-        f"requires a separate runnable receipt. {note}"
+        "alternatives, rejection authority, and decision owner. Replay is not another card field; it "
+        f"requires a separate replayable run archive. {note}"
     )
     card_ready = True
     return card_ready, card_snapshot

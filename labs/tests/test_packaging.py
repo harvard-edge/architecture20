@@ -13,6 +13,7 @@ def test_packaged_card_schema_matches_canonical_source() -> None:
     for name in (
         "design-loop-card.v1.schema.json",
         "design-loop-card.v1.1.schema.json",
+        "design-loop-card.v2.schema.json",
     ):
         canonical = labs_root.parent / "schemas" / name
         packaged = labs_root / "arch2_labs" / "resources" / name
@@ -98,5 +99,5 @@ print(json.dumps({
     assert result["fixture_field_count"] == 12
     assert result["candidate_count"] == 4
     assert result["schema_title"] == "Architecture 2.0 Design-Loop Card"
-    assert result["schema_version"] == "1.1"
+    assert result["schema_version"] == "2.0"
     assert result["card_errors"] == []

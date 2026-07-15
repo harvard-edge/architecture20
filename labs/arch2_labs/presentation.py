@@ -9,8 +9,8 @@ OBJECTIVE_LABELS = {
 }
 
 
-def render_objective_summary(ledger: dict[str, Any]) -> str:
-    rankings = ledger.get("objective_rankings")
+def render_objective_summary(evidence: dict[str, Any]) -> str:
+    rankings = evidence.get("objective_rankings")
     if not isinstance(rankings, dict):
         raise ValueError("supporting evidence record has no objective rankings")
     lines = []
@@ -23,15 +23,16 @@ def render_objective_summary(ledger: dict[str, Any]) -> str:
         lines.append(
             f"- **{label}.** `{ranking['candidate_id']}` ({ranking['value']})."
         )
-    return """### No Single Metric Owns the Commitment
+    return """### Candidate Rankings After the Rejection Checks
 
-Each ranking below considers only candidates that passed the declared gates.
+Each ranking below considers only candidates that passed the declared area and
+deadline checks.
 
 {rankings}
 
-The machine recommendation follows the gate-filtered latency objective. A human
-may choose another gate passer only by recording an explicit, justified objective
-override.
+The program recommends the lowest-latency candidate in that set. A decision
+owner may choose another candidate only after naming the governing objective and
+explaining the change.
 """.format(
         rankings="\n".join(lines)
     )
@@ -41,10 +42,10 @@ def render_receipt_validation(errors: list[str]) -> str:
     if errors:
         details = "\n".join(f"- `{error}`" for error in errors)
         return (
-            "🛑 **Receipt invalid.** The decision could not be completed or the "
-            f"resulting receipt failed validation.\n\n{details}"
+            "🛑 **Run archive invalid.** The decision could not be completed or the "
+            f"resulting archive failed validation.\n\n{details}"
         )
     return (
-        "✅ **Receipt valid.** Your explicit objective, candidate choice, rationale, "
-        "and commitment are persisted separately from the machine recommendation."
+        "✅ **Run archive valid.** Your objective, candidate choice, rationale, "
+        "and authorized next step are stored separately from the machine recommendation."
     )

@@ -4,17 +4,19 @@ These ten chapter-aligned activities provide selected, deterministic practice
 in AI-assisted computer architecture. Learners formulate bounded study records,
 inspect alternatives, connect configurations to a real simulator, evaluate
 evidence, explain selected results, and defend limited decisions. The design
-loop is the execution and analysis mechanism used in the activities, not the
-whole discipline or its intended outcome.
+loop organizes execution and analysis in these activities; it is not the whole
+discipline or its intended outcome.
 
-The current suite invokes no live AI model. Its runnable example records
-`model_calls = 0` and uses fixed heuristic, human-seeded, and negative-control
-candidates so that every learner can inspect the same evidence without an API
-key or network dependency. This supports controlled practice with study
-mechanics and review. It does not compare AI with a conventional method or
-establish that AI improves architecture work. The simulator-backed activities
-use SCALE-Sim, but the goal is architectural understanding and a supported
-decision, not the fastest simulator row.
+The chapter activities require no live AI model. Their runnable course example
+records `model_calls = 0` and uses fixed heuristic, human-seeded, and
+negative-control candidates so that every learner can inspect the same evidence
+without an API key or network dependency. The separate Chapter 8 study records
+one real, bounded model interaction and compares it with a deterministic
+conventional heuristic at the same SCALE-Sim budget. Its complete response and
+provenance are committed, so the required replay remains network-free. An
+optional live adapter can produce a new proposal without overwriting the book's
+result. The recorded comparison is a single trace, not evidence that AI
+generally improves architecture work.
 
 The complete activity map, expected duration, and output of each lab are in
 [`notebooks/README.md`](notebooks/README.md).
@@ -62,55 +64,68 @@ simulator-backed activity, lives with its packaged example:
 Every activity begins with retrieval and a submitted prediction. Evidence stays
 hidden until the required response is complete. Later activities inspect or
 produce cards, supporting evidence records, failed-run and rejected-alternative
-records, environment records, and runnable receipts.
+records, environment records, and replayable run archives.
 
-The Chapter 8 activity is a separate real-tool exercise. It does not replace the
-book's constructed lighthouse example, and its measured outcome is allowed to
-differ.
+The Chapter 8 activity practices the same evidence and decision mechanics used
+by the recorded study. The chapter retains a short illustrative lighthouse
+prelude, then centers the real model-plus-SCALE-Sim comparison. The constructed
+prelude and computed simulator evidence remain explicitly separate.
 
-## Receipt Workflow
+## Recorded Chapter 8 Study
 
-For this course exercise, the simulator runner deliberately stops after
-generating a Level 2 draft. A learner must inspect the machine recommendation
-and evidence, supply an explicit accountable decision, and then validate the
-completed Level 3 receipt. The interactive Lab 06 and Lab 08 activities guide
-that process and provide the completed artifact for review. Requiring Level 3 is
-the exercise's submission rule, not a claim that every low-consequence loop
-needs independent review or a Level 3 card.
+The study protocol, complete model record, raw SCALE-Sim summary reports, and
+replay instructions are in
+[`examples/ai_systolic_array_study/`](examples/ai_systolic_array_study/). Its
+recorded outcome is a null architecture result, an AI-versus-heuristic tie, and
+a falsified model-proposed mechanism. That adverse result is retained rather
+than reframed as a model success.
+
+## Run-Archive Workflow
+
+For this course exercise, the simulator runner deliberately stops with a schema
+2.0 card whose inspectability, disclosure, and decision-right profiles are
+complete, whose replay profile is partial with verified bindings, and whose
+decision remains pending. A learner must
+inspect the machine recommendation and evidence, supply a decision, and
+validate the resealed run archive. The independent-review profile remains
+`not_claimed`; recording a decision does not pretend that the learner reviewed
+their own work independently. The interactive Lab 06 and Lab 08 activities
+guide this transition.
 
 The command-line equivalent is useful for instructors and reproducibility jobs:
 
 ```bash
 ../.venv/bin/python -m arch2_labs.scale_env \
   --example scale_proxy_mirage \
-  --out /tmp/arch2_proxy_mirage_receipt
-# Inspect recommendation.json, evidence_ledger.json, and raw reports first.
+  --out /tmp/arch2_proxy_mirage_run
+# Inspect recommendation.json, evidence_record.json, and raw reports first.
 ../.venv/bin/python -m arch2_labs.decisions \
-  /tmp/arch2_proxy_mirage_receipt \
+  /tmp/arch2_proxy_mirage_run \
   examples/scale_proxy_mirage/human_decision.example.yaml
 ../.venv/bin/python -m arch2_labs.validators \
-  /tmp/arch2_proxy_mirage_receipt
+  /tmp/arch2_proxy_mirage_run
 ```
 
-`human_decision.example.yaml` uses the released v1.1 compatibility key and is a named course-staff fixture for automated
-reproduction. It is not the learner assignment and must not be presented as the
-learner's judgment.
+`human_decision.example.yaml` is a separate decision record and a
+named course-staff fixture for automated reproduction. It is not the learner
+assignment and must not be presented as the learner's judgment.
 
-A complete course receipt contains a hash-sealed manifest, canonical design-loop card,
-environment contract, candidates, raw simulator provenance and output hashes,
-a supporting evidence record (stored as `evidence_ledger.json` for compatibility),
-failed-run and rejected-alternative records, a noncommitting machine recommendation,
-and a separate accountable decision record. Validation checks receipt integrity,
-cross-record candidate identities, supported commitment levels, and the
+A complete course run archive contains a hash-sealed manifest, canonical
+design-loop card, environment contract, candidates, raw simulator provenance
+and output hashes, `evidence_record.json`, failed-run and
+rejected-alternative records, a noncommitting machine recommendation, and a
+separate decision record. Validation checks archive integrity, cross-record
+candidate identities, the declared decision scope, and the
 separation between recommendation and decision.
 
 ## Instructor Judgment
 
-The validator checks structural conformance, required fields, cross-record
-identities, integrity bindings, supported commitment levels, and separation of
-the machine recommendation from the accountable decision. A passing receipt is
-inspectable. It is not proof that the architecture reasoning is correct or that
-the learner has mastered the six capabilities.
+The validator checks declared profiles, typed claims and evidence, decision
+rights, cross-record identities, integrity bindings, the authorized decision
+scope, and separation of the machine recommendation from the decision. A
+passing run archive has internally consistent records and valid local hashes. It is
+not proof that the architecture reasoning is correct or that the learner has
+mastered the six capabilities.
 
 After validation, assess the learner's record with the following judgment
 rubric. Use the rows together rather than adding field-presence points.
@@ -150,5 +165,5 @@ source distribution, and smoke-tests the installed wheel outside the checkout.
 - Run `python -m pip check` after installation.
 - Treat a simulator crash as an environment failure to diagnose. It is not a
   candidate rejection unless a declared rule explicitly makes it disqualifying.
-- Keep generated receipts outside the repository unless they are intentional,
+- Keep generated run archives outside the repository unless they are intentional,
   reviewed fixtures.

@@ -2,7 +2,9 @@
 
 **Card ID:**
 
-**Conformance level:** 0 / 1 / 2 / 3
+**Profiles:** context / inspectability / replay / independent review / disclosure / decision-right completeness
+
+**Partial-profile gaps:**
 
 ## Intent
 
@@ -16,11 +18,11 @@
 
 **Deployment assumptions (optional):**
 
-**Claim (required for claim review; optional for v1.1 conformance):**
-
-**Non-claim (required for claim review; optional for v1.1 conformance):**
-
 ## Task
+
+**Open task kind:**
+
+**Bounded task description:**
 
 ## Design Space
 
@@ -32,18 +34,59 @@
 
 ## Representation
 
+**State schema and abstraction:**
+
+**Reads, writes, and uncertainties:**
+
 ## Environment
 
-## Method Role
+**Allowed and invalid actions:**
+
+**Observations, fidelity, and blast-radius limit:**
+
+## Method Roles
+
+**Actors, roles, reads, writes, and limitations:**
 
 ## Feedback Budget
 
+**Evaluation count, latency, tool or compute cost, human review, and fidelity:**
+
 ## Evidence
 
-## Failed Runs / Rejected Alternatives (`negative_traces`)
+For each record, name the producer, kind, evidence status, tool and version,
+input and output artifacts, scope, uncertainty or limitation, and content hashes.
 
-## Rejection Checks and Authority (`rejection_authority`)
+## Failed Runs / Rejected Alternatives
 
-## Commitment Boundary and What Would Overturn It (`commitment_boundary`)
+Distinguish environment failures, invalid candidates, rejected alternatives,
+failed rejection checks, and superseded records.
 
-## Accountable Decision (`human_decision`)
+## Rejection Checks (`gates` in the Machine Schema)
+
+Each entry is one predeclared pass/fail check that may reject a candidate or
+block a claim. Record its category, criterion, result, authority, waiver rule,
+evidence links, and disposition. Do not use this field for workflow stages,
+design changes, reviewers, or general quality goals.
+
+## Claims
+
+For each architectural or AI-contribution claim, record its ID, type, statement,
+baseline or comparator, outcome, scope, non-claims, status, and evidence links.
+
+## Decision Rights
+
+Name who may propose, execute, reject, waive, recommend, and commit, including
+the scope and conditions of each right.
+
+## Decision and Owner
+
+Record status, holder, action, rationale, claim links, authorized scope,
+timestamp when decided, and conditions that would reopen the decision. The
+machine schema stores this record under `accountable_decision`.
+
+## Replay / Independent Review / Disclosure
+
+Complete only the profile blocks actually supported by existing records. A
+complete replay profile requires commands, an environment binding, hashed
+inputs and outputs, expected and observed status, and a verified result.

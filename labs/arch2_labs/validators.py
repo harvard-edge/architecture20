@@ -5,6 +5,7 @@ import json
 from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 import yaml
 from jsonschema import Draft202012Validator, FormatChecker
@@ -24,6 +25,7 @@ LABS_ROOT = Path(__file__).resolve().parents[1]
 CARD_SCHEMA_SOURCES = {
     "1.0": LABS_ROOT.parent / "schemas" / "design-loop-card.v1.schema.json",
     "1.1": LABS_ROOT.parent / "schemas" / "design-loop-card.v1.1.schema.json",
+    "2.0": LABS_ROOT.parent / "schemas" / "design-loop-card.v2.schema.json",
 }
 
 REQUIRED_FILES = [
@@ -33,7 +35,7 @@ REQUIRED_FILES = [
     "environment.yaml",
     "candidates.jsonl",
     "runs.jsonl",
-    "evidence_ledger.json",
+    "evidence_record.json",
     "negative_traces.jsonl",
     "recommendation.json",
     "decision.yaml",
@@ -116,7 +118,7 @@ def _manifest_errors(receipt_dir: Path, manifest: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _card_schema(version: str = "1.1") -> dict[str, Any]:
+def _card_schema(version: str = "2.0") -> dict[str, Any]:
     source = CARD_SCHEMA_SOURCES.get(version)
     if source is None:
         raise ValueError(f"unsupported design-loop card schema: {version}")
@@ -125,18 +127,19 @@ def _card_schema(version: str = "1.1") -> dict[str, Any]:
     filename = {
         "1.0": "design-loop-card.v1.schema.json",
         "1.1": "design-loop-card.v1.1.schema.json",
+        "2.0": "design-loop-card.v2.schema.json",
     }[version]
     resource = files("arch2_labs").joinpath("resources", filename)
     return json.loads(resource.read_text())
 
 
-def _card_errors(card: Any) -> list[str]:
+def _card_errors(card: Any, base_dir: Path | None = None) -> list[str]:
     version = card.get("schema_version") if isinstance(card, dict) else None
     try:
         schema = _card_schema(version)
     except ValueError as exc:
         return [f"card.yaml <root>: {exc}"]
-    schemas = [_card_schema("1.0"), _card_schema("1.1")]
+    schemas = [_card_schema("1.0"), _card_schema("1.1"), _card_schema("2.0")]
     registry = Registry()
     for registered_schema in schemas:
         registry = registry.with_resource(
@@ -149,7 +152,196 @@ def _card_errors(card: Any) -> list[str]:
     for error in sorted(validator.iter_errors(card), key=lambda item: list(item.path)):
         location = ".".join(str(part) for part in error.absolute_path) or "<root>"
         messages.append(f"card.yaml {location}: {error.message}")
+    if not messages and version == "2.0":
+        messages.extend(_card_v2_semantic_errors(card, base_dir))
     return messages
+
+
+def _card_v2_semantic_errors(
+    document: dict[str, Any], base_dir: Path | None
+) -> list[str]:
+    """Check v2 references, authority bindings, and local content hashes."""
+    errors: list[str] = []
+    card = document["design_loop_card"]
+
+    def duplicate_errors(
+        records: list[dict[str, Any]], key: str, path: str
+    ) -> set[str]:
+        identifiers: set[str] = set()
+        for index, record in enumerate(records):
+            identifier = record[key]
+            if identifier in identifiers:
+                errors.append(
+                    f"card.yaml {path}[{index}].{key}: duplicate identifier {identifier}"
+                )
+            identifiers.add(identifier)
+        return identifiers
+
+    evidence_records = card["evidence"]["records"]
+    claims = card["claims"]
+    gates = card["gates"]
+    rejected = card["failed_or_rejected"]
+    evidence_ids = duplicate_errors(
+        evidence_records, "evidence_id", "design_loop_card.evidence.records"
+    )
+    claim_ids = duplicate_errors(claims, "claim_id", "design_loop_card.claims")
+    gate_ids = duplicate_errors(gates, "gate_id", "design_loop_card.gates")
+    duplicate_errors(rejected, "record_id", "design_loop_card.failed_or_rejected")
+
+    def refs(values: list[str], known: set[str], path: str, label: str) -> None:
+        for index, value in enumerate(values):
+            if value not in known:
+                errors.append(
+                    f"card.yaml {path}[{index}]: unknown {label} reference {value}"
+                )
+
+    for index, claim in enumerate(claims):
+        refs(
+            claim["evidence_refs"],
+            evidence_ids,
+            f"design_loop_card.claims[{index}].evidence_refs",
+            "evidence",
+        )
+    for index, gate in enumerate(gates):
+        refs(
+            gate["evidence_refs"],
+            evidence_ids,
+            f"design_loop_card.gates[{index}].evidence_refs",
+            "evidence",
+        )
+    for index, record in enumerate(rejected):
+        refs(
+            record["evidence_refs"],
+            evidence_ids,
+            f"design_loop_card.failed_or_rejected[{index}].evidence_refs",
+            "evidence",
+        )
+        gate_ref = record.get("gate_ref")
+        if gate_ref is not None and gate_ref not in gate_ids:
+            errors.append(
+                "card.yaml "
+                f"design_loop_card.failed_or_rejected[{index}].gate_ref: "
+                f"unknown gate reference {gate_ref}"
+            )
+
+    recommendation = card.get("recommendation")
+    if recommendation:
+        refs(
+            recommendation["claim_refs"],
+            claim_ids,
+            "design_loop_card.recommendation.claim_refs",
+            "claim",
+        )
+    decision_record = card["accountable_decision"]
+    refs(
+        decision_record["claim_refs"],
+        claim_ids,
+        "design_loop_card.accountable_decision.claim_refs",
+        "claim",
+    )
+    review = card.get("independent_review")
+    if review:
+        refs(
+            review["claim_refs"],
+            claim_ids,
+            "design_loop_card.independent_review.claim_refs",
+            "claim",
+        )
+        refs(
+            review["evidence_refs"],
+            evidence_ids,
+            "design_loop_card.independent_review.evidence_refs",
+            "evidence",
+        )
+
+    rights = {
+        (right["holder_id"], right["action"]) for right in card["decision_rights"]
+    }
+    if card["profiles"]["decision_rights"] == "complete":
+        for index, gate in enumerate(gates):
+            if (gate["authority_id"], "reject") not in rights:
+                errors.append(
+                    "card.yaml "
+                    f"design_loop_card.gates[{index}].authority_id: "
+                    "rejection-check authority lacks a declared reject right"
+                )
+            waiver = gate["waiver_rule"]
+            if waiver["allowed"] and (waiver["authority_id"], "waive") not in rights:
+                errors.append(
+                    "card.yaml "
+                    f"design_loop_card.gates[{index}].waiver_rule.authority_id: "
+                    "waiver authority lacks a declared waive right"
+                )
+        if (
+            recommendation
+            and (recommendation["recommender_id"], "recommend") not in rights
+        ):
+            errors.append(
+                "card.yaml design_loop_card.recommendation.recommender_id: "
+                "recommender lacks a declared recommend right"
+            )
+        if (decision_record["holder_id"], "commit") not in rights:
+            errors.append(
+                "card.yaml design_loop_card.accountable_decision.holder_id: "
+                "decision owner lacks a declared commit right"
+            )
+
+    if base_dir is None:
+        return errors
+
+    def verify_artifact(uri: str, expected: str, path: str) -> None:
+        parsed = urlsplit(uri)
+        if parsed.scheme or parsed.netloc:
+            return
+        if parsed.query or parsed.fragment:
+            errors.append(f"card.yaml {path}: local URI has query or fragment")
+            return
+        target = _safe_payload_path(base_dir, unquote(parsed.path))
+        if target is None:
+            errors.append(f"card.yaml {path}: local artifact path is unsafe")
+            return
+        if not target.is_file():
+            errors.append(f"card.yaml {path}: local artifact is missing: {uri}")
+            return
+        observed = f"sha256:{sha256_file(target)}"
+        if observed != expected:
+            errors.append(
+                f"card.yaml {path}: sha256 mismatch for {uri}: "
+                f"{expected} != {observed}"
+            )
+
+    for record_index, record in enumerate(evidence_records):
+        for collection in ("inputs", "outputs"):
+            for artifact_index, artifact in enumerate(record[collection]):
+                digest = artifact["integrity"].get("sha256")
+                if digest:
+                    verify_artifact(
+                        artifact["uri"],
+                        digest,
+                        (
+                            "design_loop_card.evidence.records"
+                            f"[{record_index}].{collection}[{artifact_index}].uri"
+                        ),
+                    )
+
+    replay = card.get("replay")
+    if replay:
+        artifacts = [("environment_binding", replay["environment_binding"])]
+        artifacts.extend(
+            (f"inputs[{index}]", artifact)
+            for index, artifact in enumerate(replay["inputs"])
+        )
+        artifacts.extend(
+            (f"outputs[{index}]", artifact)
+            for index, artifact in enumerate(replay["outputs"])
+        )
+        for suffix, artifact in artifacts:
+            verify_artifact(
+                artifact["uri"],
+                artifact["sha256"],
+                f"design_loop_card.replay.{suffix}.uri",
+            )
+    return errors
 
 
 def _validate_run_files(
@@ -306,26 +498,78 @@ def _provenance_errors(
                 f"card evidence is missing for successful run: {candidate_id}"
             )
             continue
-        provenance = card_record.get("provenance", {})
-        if not isinstance(provenance, dict):
-            provenance = {}
-        expected_tool = f"SCALE-Sim {expected_scale_version}"
-        if provenance.get("tool_version") != expected_tool:
-            errors.append(
-                f"card evidence {evidence_id} tool version does not match manifest/run"
-            )
         inputs = run.get("inputs", {})
         config_hash = inputs.get("config_sha256") if isinstance(inputs, dict) else None
-        if provenance.get("parameter_hash") != f"sha256:{config_hash}":
-            errors.append(
-                f"card evidence {evidence_id} parameter hash does not match run config"
-            )
         expected_source = (
             f"runs/{candidate_id}/scalesim-results/{candidate_id}/COMPUTE_REPORT.csv"
         )
-        if provenance.get("source_uri") != expected_source:
+        provenance = card_record.get("provenance")
+        if isinstance(provenance, dict):
+            expected_tool = f"SCALE-Sim {expected_scale_version}"
+            if provenance.get("tool_version") != expected_tool:
+                errors.append(
+                    f"card evidence {evidence_id} tool version does not match manifest/run"
+                )
+            if provenance.get("parameter_hash") != f"sha256:{config_hash}":
+                errors.append(
+                    f"card evidence {evidence_id} parameter hash does not match run config"
+                )
+            if provenance.get("source_uri") != expected_source:
+                errors.append(
+                    f"card evidence {evidence_id} replay source does not match run output"
+                )
+            continue
+
+        card_tool = card_record.get("tool", {})
+        if (
+            not isinstance(card_tool, dict)
+            or card_tool.get("name") != "SCALE-Sim"
+            or card_tool.get("version") != expected_scale_version
+        ):
             errors.append(
-                f"card evidence {evidence_id} replay source does not match run output"
+                f"card evidence {evidence_id} tool version does not match manifest/run"
+            )
+        card_inputs = {
+            artifact.get("artifact_id"): artifact
+            for artifact in card_record.get("inputs", [])
+            if isinstance(artifact, dict)
+        }
+        for name in ("config", "topology", "layout"):
+            artifact = card_inputs.get(f"{candidate_id}-{name}", {})
+            expected_uri = f"runs/{candidate_id}/inputs/{'scale.cfg' if name == 'config' else name + '.csv'}"
+            expected_digest = f"sha256:{inputs.get(f'{name}_sha256')}"
+            if (
+                artifact.get("uri") != expected_uri
+                or artifact.get("integrity", {}).get("sha256") != expected_digest
+            ):
+                errors.append(
+                    f"card evidence {evidence_id} {name} binding does not match run"
+                )
+        card_outputs = card_record.get("outputs", [])
+        compute_output = next(
+            (
+                artifact
+                for artifact in card_outputs
+                if isinstance(artifact, dict) and artifact.get("uri") == expected_source
+            ),
+            None,
+        )
+        raw_files = run.get("outputs", {}).get("raw_files", [])
+        expected_compute_hash = next(
+            (
+                raw.get("sha256")
+                for raw in raw_files
+                if Path(str(raw.get("path"))).name == "COMPUTE_REPORT.csv"
+            ),
+            None,
+        )
+        if (
+            not isinstance(compute_output, dict)
+            or compute_output.get("integrity", {}).get("sha256")
+            != f"sha256:{expected_compute_hash}"
+        ):
+            errors.append(
+                f"card evidence {evidence_id} compute output does not match run"
             )
 
     extra_card_ids = set(card_by_id) - expected_evidence_ids
@@ -338,9 +582,9 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
     errors: list[str] = []
     receipt_dir = receipt_dir.expanduser().absolute()
     if receipt_dir.is_symlink():
-        return [f"receipt directory must not be a symbolic link: {receipt_dir}"]
+        return [f"run archive directory must not be a symbolic link: {receipt_dir}"]
     if not receipt_dir.is_dir():
-        return [f"receipt directory does not exist: {receipt_dir}"]
+        return [f"run archive directory does not exist: {receipt_dir}"]
 
     for name in REQUIRED_FILES:
         if not (receipt_dir / name).is_file():
@@ -360,7 +604,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         if manifest:
             errors.extend(_manifest_errors(receipt_dir, manifest))
     if manifest.get("status") != "complete":
-        errors.append("course receipt awaits its required accountable decision")
+        errors.append("course run archive awaits its required decision record")
 
     def present(name: str) -> bool:
         return (receipt_dir / name).is_file()
@@ -385,8 +629,8 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         else []
     )
     evidence = (
-        _load_json(receipt_dir / "evidence_ledger.json", errors)
-        if present("evidence_ledger.json")
+        _load_json(receipt_dir / "evidence_record.json", errors)
+        if present("evidence_record.json")
         else {}
     )
     recommendation = (
@@ -401,7 +645,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
     )
 
     if isinstance(card, dict):
-        errors.extend(_card_errors(card))
+        errors.extend(_card_errors(card, receipt_dir))
     else:
         errors.append("card.yaml must contain a mapping")
     lab_card = card.get("design_loop_card", {}) if isinstance(card, dict) else {}
@@ -502,9 +746,12 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
                 errors.append(
                     f"rejected-alternative record {candidate_id} missing field: {field}"
                 )
+    card_trace_records = lab_card.get(
+        "failed_or_rejected", lab_card.get("negative_traces", [])
+    )
     card_negative_ids = {
         trace.get("candidate_id")
-        for trace in lab_card.get("negative_traces", [])
+        for trace in card_trace_records
         if isinstance(trace, dict)
     }
     if card_negative_ids != rejected_ids:
@@ -514,7 +761,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         stages = {stage.get("stage") for stage in evidence.get("stages", [])}
         for stage in ("proxy", "scalesim"):
             if stage not in stages:
-                errors.append(f"evidence_ledger.json has no {stage} evidence stage")
+                errors.append(f"evidence_record.json has no {stage} evidence stage")
         if evidence.get("recommendation_evidence_source") != "scalesim":
             errors.append(
                 "machine recommendation must cite SCALE-Sim as its evidence source"
@@ -551,7 +798,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             )
             if ranked_id not in accepted_ids or ranked_id in rejected_ids:
                 errors.append(
-                    f"objective ranking {objective} does not select a gate-passing candidate: {ranked_id}"
+                    f"objective ranking {objective} does not select a candidate that passed the declared checks: {ranked_id}"
                 )
         for field in ("machine_recommendation", "proxy_winner"):
             candidate_id = evidence.get(field)
@@ -565,11 +812,18 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
             )
 
     card_evidence = lab_card.get("evidence", {})
+    card_evidence_extension = (
+        card_evidence.get("x-arch2-labs", {}) if isinstance(card_evidence, dict) else {}
+    )
     baseline_records = {
         "candidates": baseline_id,
-        "card": card_evidence.get("baseline_id")
-        if isinstance(card_evidence, dict)
-        else None,
+        "card": (
+            card_evidence.get("baseline_id")
+            if isinstance(card_evidence, dict) and "baseline_id" in card_evidence
+            else card_evidence_extension.get("baseline_id")
+            if isinstance(card_evidence_extension, dict)
+            else None
+        ),
         "evidence": evidence.get("baseline_id") if isinstance(evidence, dict) else None,
         "recommendation": recommendation.get("baseline_id")
         if isinstance(recommendation, dict)
@@ -579,7 +833,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         value != baseline_id for value in baseline_records.values()
     ):
         errors.append(
-            f"baseline_id mismatch across receipt records: {baseline_records}"
+            f"baseline_id mismatch across run-archive records: {baseline_records}"
         )
 
     recommended_id = (
@@ -593,9 +847,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         errors.append(f"recommendation selects a rejected candidate: {recommended_id}")
     if isinstance(recommendation, dict):
         if recommendation.get("human_decision") is not False:
-            errors.append(
-                "recommendation must state that it is not an accountable decision"
-            )
+            errors.append("recommendation must state that it is not a final decision")
         if recommendation.get("commitment") != "none":
             errors.append("machine recommendation must not claim commitment authority")
         if evidence and recommendation.get("candidate_id") != evidence.get(
@@ -613,7 +865,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         )
         if recommendation.get("candidate_id") != latency_ranking.get("candidate_id"):
             errors.append(
-                "machine recommendation must match the gate-filtered latency ranking"
+                "machine recommendation must match the check-filtered latency ranking"
             )
         if evidence and recommendation.get("proxy_winner") != evidence.get(
             "proxy_winner"
@@ -642,7 +894,7 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
         if isinstance(decision, dict):
             selected_id = decision.get("selected_candidate_id")
             if decision.get("lab_id") != expected_lab_id:
-                errors.append("decision lab_id does not match the receipt")
+                errors.append("decision lab_id does not match the run archive")
             if selected_id not in declared_ids:
                 errors.append(
                     "decision selected_candidate_id is not a declared candidate: "
@@ -681,8 +933,14 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
                     )
 
     if manifest.get("status") == "complete":
-        if lab_card.get("conformance_level") != 3:
-            errors.append("complete receipt card must have conformance_level 3")
+        card_decision = lab_card.get("accountable_decision", {})
+        if (
+            not isinstance(card_decision, dict)
+            or card_decision.get("status") != "authorized"
+        ):
+            errors.append(
+                "completed run archive must contain an authorized accountable_decision field"
+            )
         learner = card_extension.get("learner_decision", {})
         for field in ("governing_objective", "selected_candidate_id", "rationale"):
             if not isinstance(learner, dict) or not learner.get(field):
@@ -701,41 +959,42 @@ def validate_receipt(receipt_dir: Path) -> list[str]:
                     errors.append(
                         f"card learner decision does not match decision.yaml: {learner_field}"
                     )
-        card_human = lab_card.get("human_decision", {})
         if isinstance(decision, dict):
-            if not isinstance(card_human, dict) or card_human.get(
-                "owner"
+            if not isinstance(card_decision, dict) or card_decision.get(
+                "holder_id"
             ) != decision.get("human_owner"):
-                errors.append(
-                    "card accountable decision owner does not match decision.yaml"
-                )
-            card_boundary = lab_card.get("commitment_boundary", {})
-            if not isinstance(card_boundary, dict) or card_boundary.get(
-                "would_overturn"
-            ) != decision.get("would_overturn"):
+                errors.append("card decision owner does not match decision.yaml")
+            reopen_conditions = (
+                card_decision.get("reopen_conditions", [])
+                if isinstance(card_decision, dict)
+                else []
+            )
+            if decision.get("would_overturn") not in reopen_conditions:
                 errors.append(
                     "card commitment overturn condition does not match decision.yaml"
                 )
+            if card_decision.get("rationale") != decision.get("rationale"):
+                errors.append("card decision rationale does not match decision.yaml")
 
     return errors
 
 
 def validate_decision_draft(receipt_dir: Path) -> dict[str, Any]:
-    """Require an intact Level 2 draft before a human-decision state transition."""
+    """Require an intact evidence-bound v2 draft before a decision transition."""
     receipt_dir = receipt_dir.expanduser().absolute()
     try:
         manifest = verify_receipt_integrity(
             receipt_dir, expected_status="awaiting_human_decision"
         )
     except ValueError as exc:
-        raise ValueError(f"draft receipt failed integrity: {exc}") from exc
+        raise ValueError(f"draft run archive failed integrity: {exc}") from exc
 
     forbidden = [
         name
         for name in ("decision.yaml", "decision.md")
         if (receipt_dir / name).exists()
     ]
-    errors = [f"draft receipt already contains {name}" for name in forbidden]
+    errors = [f"draft run archive already contains {name}" for name in forbidden]
     card_path = receipt_dir / "card.yaml"
     try:
         card = yaml.safe_load(card_path.read_text())
@@ -743,16 +1002,33 @@ def validate_decision_draft(receipt_dir: Path) -> dict[str, Any]:
     except (OSError, yaml.YAMLError, KeyError, TypeError) as exc:
         errors.append(f"draft card is unreadable: {exc}")
         card_body = {}
-    if card_body.get("conformance_level") != 2:
-        errors.append("draft card must have conformance_level 2")
-    for field in ("rejection_authority", "commitment_boundary", "human_decision"):
-        if field in card_body:
-            errors.append(f"draft card must not contain Level 3 field: {field}")
+    profiles = card_body.get("profiles", {})
+    for profile in ("inspectability", "disclosure", "decision_rights"):
+        if not isinstance(profiles, dict) or profiles.get(profile) != "complete":
+            errors.append(f"draft card must complete the {profile} profile")
+    if not isinstance(profiles, dict) or profiles.get("replay") != "partial":
+        errors.append(
+            "draft card must mark replay partial until a separate replay succeeds"
+        )
+    replay = card_body.get("replay", {})
+    if (
+        not isinstance(replay, dict)
+        or replay.get("validation_status") != "bindings_verified"
+    ):
+        errors.append("draft card must verify its replay bindings")
+    decision_record = card_body.get("accountable_decision", {})
+    if (
+        not isinstance(decision_record, dict)
+        or decision_record.get("status") != "pending"
+    ):
+        errors.append("draft card accountable_decision must remain pending")
+    if isinstance(decision_record, dict) and "recorded_at" in decision_record:
+        errors.append("draft card accountable_decision must not have recorded_at")
 
     expected_incomplete_errors = {
         "missing required file: decision.yaml",
         "missing required file: decision.md",
-        "course receipt awaits its required accountable decision",
+        "course run archive awaits its required decision record",
     }
     errors.extend(
         error
@@ -760,13 +1036,13 @@ def validate_decision_draft(receipt_dir: Path) -> dict[str, Any]:
         if error not in expected_incomplete_errors
     )
     if errors:
-        raise ValueError("draft receipt failed integrity: " + "; ".join(errors))
+        raise ValueError("draft run archive failed integrity: " + "; ".join(errors))
     return manifest
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Validate an Architecture 2.0 runnable receipt."
+        description="Validate an Architecture 2.0 run archive."
     )
     parser.add_argument("receipt_dir", type=Path)
     args = parser.parse_args(argv)
@@ -775,7 +1051,7 @@ def main(argv: list[str] | None = None) -> int:
         for error in errors:
             print(f"ERROR: {error}")
         return 1
-    print(f"receipt ok: {args.receipt_dir.resolve()}")
+    print(f"run archive ok: {args.receipt_dir.resolve()}")
     return 0
 
 

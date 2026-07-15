@@ -154,7 +154,7 @@ def _(Path, hashlib, json, prediction_snapshot):
         "Failed runs / rejected alternatives",
         "Rejection authority",
         "Commitment boundary / would overturn",
-        "Accountable decision",
+        "Decision and owner",
     ]
     actual_fields = [row["field"] for row in source_fixture["card_fields"]]
     if actual_fields != expected_fields:
@@ -193,7 +193,7 @@ def _(fixture_loaded, mo, prediction_snapshot, source_fixture):
             mo.ui.table(audit_rows, selection=None, pagination=True),
             mo.md(
                 f"""
-                ### Reconcile
+                ### Compare With the Public Record
 
                 You selected the **{prediction_snapshot['choice']}** cluster at
                 **{prediction_snapshot['confidence']}% confidence** and wrote:
@@ -222,7 +222,7 @@ def _(audit_revealed, mo):
         if value["boundary"] != "context_only":
             return "The fixed public packet does not license that conclusion."
         if not str(value.get("human_owner", "")).strip():
-            return "Name the accountable owner of the audit judgment."
+            return "Name the owner of the audit judgment."
         if not str(value.get("rationale", "")).strip():
             return "Explain why the boundary follows from the twelve fields."
         if not str(value.get("would_strengthen", "")).strip():
@@ -241,7 +241,7 @@ def _(audit_revealed, mo):
             ),
             "human_owner": mo.ui.text(
                 label="**Human audit owner** (required)",
-                placeholder="Your name or accountable review role",
+                placeholder="Your name or review role",
             ),
             "rationale": mo.ui.text_area(
                 label="**Rationale** (required)",
@@ -250,7 +250,7 @@ def _(audit_revealed, mo):
             ),
             "would_strengthen": mo.ui.text_area(
                 label="**Would strengthen public adjudication** (required)",
-                placeholder="Name a shared environment, matched budget, evidence packet, or accepted rejection gate.",
+                placeholder="Name a shared environment, matched budget, evidence packet, or agreed rejection check.",
                 rows=2,
             ),
         }
@@ -314,7 +314,7 @@ def _(
 def _(artifact_ready, mo):
     assert artifact_ready
     reflection_form = mo.ui.text_area(
-        label="**Reflect.** Which one shared artifact or gate would most improve this public audit, and what claim would it still not settle?",
+        label="**Reflect.** Which one shared artifact or rejection check would most improve this public audit, and what claim would it still not settle?",
         placeholder="Name both the improvement and its remaining scope limit.",
         rows=3,
     ).form(

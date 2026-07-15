@@ -1,0 +1,148 @@
+schema_version: arch2-study-preregistration/v1
+study_id: arch2_scale_ai_study_v1
+frozen_at_utc: '2026-07-14T18:19:48Z'
+status: frozen_before_model_call_and_simulation
+question: >-
+  Which legal systolic-array shape should be advanced for the declared compact
+  GEMM workload under a fixed 1,024-processing-element budget and fixed
+  SCALE-Sim configuration, and what mechanism explains the result?
+claims:
+  architecture_outcome:
+    statement: >-
+      At least one legal candidate improves the preregistered local decision
+      score over the 32x32 baseline for the frozen workload and simulator
+      configuration.
+    support_rule: >-
+      The best nonbaseline candidate that passes both rejection checks must
+      have a decision score at least 1 percent lower than the baseline.
+    non_claims:
+      - full-XR performance
+      - implementation or RTL readiness
+      - physical feasibility
+      - measured energy or power
+      - product fitness
+  ai_contribution:
+    statement: >-
+      At the same four-evaluation domain-tool budget, the recorded model arm
+      finds a candidate with a lower decision score than the deterministic
+      conventional arm.
+    disposition_rule: >-
+      Support requires the model arm's best score to be at least 1 percent
+      lower. Differences within 1 percent are a tie. A higher model-arm score
+      is an adverse result. Validity, repair use, and candidate overlap are
+      reported separately and cannot convert a tie or loss into support.
+    non_claims:
+      - population-level model superiority
+      - superiority on other workloads, simulators, or search budgets
+      - labor, schedule, or total-cost reduction
+fixed_inputs:
+  workload:
+    path: workloads/xr_slice_gemm.csv
+    sha256: 1af36f6949c08c760114ae872071cb163e2aa0b88ec0f0a25e4a407ce7e57caf
+    scope: compact XR-like three-layer GEMM slice
+  transposed_workload:
+    path: workloads/xr_slice_gemm_transposed.csv
+    sha256: 587d2928504bd2a2eee3fa87d8e4d6fbb50276188062b08d9f42c8694bf76117
+    scope: mechanism probe with M and N exchanged
+  layout:
+    path: layouts/default_layout.csv
+    sha256: a1e897c25fd07e7a06765d29940f03c047faf92c3f658f7badb513b090cd65d7
+  model_prompt:
+    path: context/model_prompt.md
+    sha256: ec12df200a134532942ce0120bbb5694bc657c0e13cf88654631db42aa76fbca
+  model_output_schema:
+    path: context/model_output.schema.json
+    sha256: badb5ebf6f2da2177e2105c42eb1daf41309b80635a6337a18f4756425fd5ecc
+fixed_environment:
+  simulator: SCALE-Sim 3.0.0
+  interface: gemm
+  dataflow: ws
+  sram_kib_each: 128
+  interface_bandwidth_words_per_cycle: 64
+  clock_mhz_for_derived_latency: 800
+  area_budget_pes: 1024
+  deadline_cycles: 90000
+  dimensions: [8, 16, 32, 64, 128]
+  mandatory_baseline: [32, 32]
+  legal_shape_rule: >-
+    Both dimensions must be in the declared set, their product must not exceed
+    1,024, and model proposals must not duplicate the mandatory baseline.
+budgets:
+  model_calls:
+    initial: 1
+    repair_if_invalid: 1
+    maximum: 2
+  model_arm_scalesim_evaluations: 4
+  conventional_arm_scalesim_evaluations: 4
+  shared_mechanism_probe_evaluations: 4
+  replacement_rule: >-
+    Invalid or duplicate model proposals consume the initial call. At most one
+    repair call may replace the full proposal. No post-simulation repair or
+    replacement is allowed.
+conventional_arm:
+  algorithm_version: aggregate-aspect-ratio-v1
+  rule: >-
+    Exclude the mandatory baseline. Rank every legal shape first by descending
+    PE count, then by absolute log2 distance between its columns-to-rows ratio
+    and the aggregate workload N-to-M ratio, then by ascending rows and
+    columns. Select the first three shapes.
+  frozen_candidates:
+    - [16, 64]
+    - [8, 128]
+    - [64, 16]
+  tuning_after_model_or_simulator_output: prohibited
+model_arm:
+  requested_candidates: 3
+  baseline_inserted_by_runner: true
+  hidden_from_model:
+    - conventional candidates
+    - simulator outputs
+    - candidate rankings
+  permitted_role: structured proposal and mechanism hypothesis
+  prohibited_authority:
+    - invoke the simulator
+    - waive a rejection check
+    - select the final recommendation
+    - make the final decision
+evaluation:
+  gate_order:
+    - array_rows_times_array_cols_lte_1024
+    - total_cycles_lte_90000
+  decision_score: total_cycles / (average_layer_utilization_percent / 100)
+  score_direction: lower_is_better
+  interpretation: >-
+    The score is a local preregistered selection rule. It is not presented as a
+    universal architecture metric or as a measured physical quantity.
+  arm_comparison: best check-passing score at the same four-run budget
+mechanism_test:
+  shapes:
+    - [16, 64]
+    - [64, 16]
+  workloads:
+    - workloads/xr_slice_gemm.csv
+    - workloads/xr_slice_gemm_transposed.csv
+  rule: >-
+    Compare the mirrored shapes on the original and M/N-transposed workloads.
+    Evaluate the directional predictions and falsifier stated in the recorded
+    model output. These shared probes do not count toward either proposal arm.
+decision_boundary: >-
+  The evidence may authorize only a next bounded, higher-fidelity study of a
+  selected geometry. It cannot authorize RTL implementation, tapeout, or a
+  product decision.
+reporting_rules:
+  - Report every evaluated candidate, including dominated and failed runs.
+  - Separate the architecture-outcome and AI-contribution dispositions.
+  - Preserve the original model output and any repair output.
+  - Label simulator metrics as computed by SCALE-Sim, not measured silicon data.
+  - Label first-order energy estimates as estimates, never measurements.
+  - Publish a null, tie, invalid, or adverse model result without reframing.
+amendments:
+  - amended_at_utc: '2026-07-14T18:21:41Z'
+    stage: before_model_inference
+    reason: >-
+      The response-format service rejected the original JSON Schema because two
+      constant string properties omitted an explicit type. No model output or
+      usage was produced.
+    old_schema_sha256: e776edab096070420d5aa3d59328d1f63748c8d4432f5aa93c4ec000744bcd22
+    new_schema_sha256: badb5ebf6f2da2177e2105c42eb1daf41309b80635a6337a18f4756425fd5ecc
+    substantive_protocol_change: false

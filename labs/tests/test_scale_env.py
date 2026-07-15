@@ -21,7 +21,7 @@ def _human_decision(candidate_id: str) -> dict[str, str]:
         "objective_override": False,
         "override_reason": None,
         "commitment_level": "next_fidelity_study",
-        "rationale": "This candidate survives both declared gates with the lowest measured latency.",
+        "rationale": "This candidate passes both rejection checks with the lowest measured latency.",
         "residual_risk": "The compact workload omits compiler and physical-design behavior.",
         "would_overturn": "A fuller workload or physical evidence that invalidates the gate result.",
     }
@@ -73,9 +73,9 @@ def test_run_example_and_validate_receipt(tmp_path: Path) -> None:
         for candidate in candidates
         if candidate["is_baseline"]
     ] == ["balanced_16x16"]
-    ledger = json.loads((out_dir / "evidence_ledger.json").read_text())
-    assert ledger["baseline_id"] == "balanced_16x16"
-    assert set(ledger["objective_rankings"]) == {
+    evidence = json.loads((out_dir / "evidence_record.json").read_text())
+    assert evidence["baseline_id"] == "balanced_16x16"
+    assert set(evidence["objective_rankings"]) == {
         "latency_under_declared_gates",
         "energy_under_declared_gates",
         "area_efficiency_under_declared_gates",
@@ -86,14 +86,24 @@ def test_run_example_and_validate_receipt(tmp_path: Path) -> None:
     }
     assert all(
         ranking["candidate_id"] not in rejected
-        for ranking in ledger["objective_rankings"].values()
+        for ranking in evidence["objective_rankings"].values()
     )
     card = yaml.safe_load((out_dir / "card.yaml").read_text())
-    assert card["schema_version"] == "1.1"
+    assert card["schema_version"] == "2.0"
     for record in card["design_loop_card"]["evidence"]["records"]:
-        provenance = record["provenance"]
-        assert provenance["source_uri"].endswith("/COMPUTE_REPORT.csv")
-        assert len(provenance["parameter_hash"]) == len("sha256:") + 64
+        assert record["tool"]["name"] == "SCALE-Sim"
+        config = next(
+            artifact
+            for artifact in record["inputs"]
+            if artifact["artifact_id"].endswith("-config")
+        )
+        compute = next(
+            artifact
+            for artifact in record["outputs"]
+            if artifact["uri"].endswith("/COMPUTE_REPORT.csv")
+        )
+        assert len(config["integrity"]["sha256"]) == len("sha256:") + 64
+        assert len(compute["integrity"]["sha256"]) == len("sha256:") + 64
 
     decision = (out_dir / "decision.yaml").read_text()
     assert "Architecture lab test author" in decision
@@ -131,9 +141,8 @@ def test_run_without_human_decision_emits_noncommitting_draft(tmp_path: Path) ->
     assert (out_dir / "recommendation.json").is_file()
     assert not (out_dir / "decision.yaml").exists()
     assert not (out_dir / "decision.md").exists()
-    assert (
-        "course receipt awaits its required accountable decision"
-        in validate_receipt(out_dir)
+    assert "course run archive awaits its required decision record" in validate_receipt(
+        out_dir
     )
 
 
@@ -145,7 +154,7 @@ def test_gate_passing_subset_cannot_publish_invalid_level_two_draft(
 
     with pytest.raises(
         ValueError,
-        match="must include at least one candidate rejected by a declared gate",
+        match="must include at least one candidate rejected by a declared rejection check",
     ):
         run_example(
             "scale_proxy_mirage",

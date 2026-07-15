@@ -49,7 +49,7 @@ def test_record_decision_refuses_tampered_draft_without_writing(
     environment.write_text(environment.read_text() + "tampered: true\n")
     before = _snapshot(draft_receipt)
 
-    with pytest.raises(ValueError, match="draft receipt failed integrity"):
+    with pytest.raises(ValueError, match="draft run archive failed integrity"):
         record_human_decision(draft_receipt, _decision())
 
     assert _snapshot(draft_receipt) == before
@@ -90,7 +90,7 @@ def test_decision_module_attaches_decision_to_intact_draft(
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert "accountable decision recorded" in completed.stdout
+    assert "decision recorded" in completed.stdout
     assert validate_receipt(draft_receipt) == []
 
 
@@ -103,7 +103,7 @@ def test_decision_module_help_is_discoverable() -> None:
     )
 
     assert completed.returncode == 0
-    assert "Attach an explicit accountable decision" in completed.stdout
+    assert "Attach a decision record" in completed.stdout
     assert "receipt_dir" in completed.stdout
     assert "decision_file" in completed.stdout
 
@@ -119,8 +119,8 @@ def test_decision_module_help_is_discoverable() -> None:
 def test_each_objective_accepts_its_gate_filtered_winner(
     draft_receipt: Path, objective: str
 ) -> None:
-    ledger = json.loads((draft_receipt / "evidence_ledger.json").read_text())
-    winner = ledger["objective_rankings"][objective]["candidate_id"]
+    evidence = json.loads((draft_receipt / "evidence_record.json").read_text())
+    winner = evidence["objective_rankings"][objective]["candidate_id"]
 
     record_human_decision(draft_receipt, _decision(winner, objective))
 

@@ -64,7 +64,7 @@ def _(dedent, mo):
         > **Recap.** A tool becomes an environment when it declares legal actions,
         > observations, invalid-action semantics, cost, provenance, and rejection authority.
         > Refusing an undeclared action protects the action boundary. A tool failure is an
-        > environment trace to diagnose. A candidate rejection requires a declared gate that
+        > environment trace to diagnose. A candidate rejection requires a declared check that
         > applies to the candidate and its observations.
         """
         ).strip()
@@ -133,7 +133,7 @@ def _(
         f"- **{stage}:** {', '.join(values)}"
         for stage, values in environment_contract["observations"].items()
     )
-    gate_rows = "\n".join(
+    check_rows = "\n".join(
         f"- `{entry['gate']}` at `{entry['threshold']}`"
         for entry in environment_contract["rejection_authority"]
     )
@@ -154,10 +154,10 @@ def _(
 
         **Candidate rejection authority**
 
-        {gate_rows}
+        {check_rows}
 
         The action validator below reads this object. The notebook does not maintain a
-        second copy of the legal sets or hard-gate thresholds.
+        second copy of the legal sets or rejection thresholds.
         """
     )
     contract_ready = True
@@ -278,7 +278,7 @@ def _(environment_contract, mo, prediction_snapshot, validate_action):
     calibration = (
         "Your prediction matched the contract."
         if predicted_legal == action_legal
-        else "Reconcile your prediction against the loaded legal-action sets."
+        else "Compare your prediction with the loaded legal-action sets."
     )
     mo.md(
         f"""
@@ -449,12 +449,12 @@ def _(mo, outcome_record):
     elif outcome_kind == "candidate_rejection":
         _rejection_detail = outcome_record["candidate_rejection"]
         detail = (
-            f"The tool returned observations, then `{_rejection_detail['gate']}` rejected the "
+            f"The tool returned observations, then the `{_rejection_detail['gate']}` check rejected the "
             f"candidate at {_rejection_detail['observed']} versus threshold {_rejection_detail['threshold']}."
         )
         provenance_text = "The complete tool provenance is preserved below."
     else:
-        detail = "The legal action produced observations and cleared the declared hard gates."
+        detail = "The legal action produced observations and passed the declared rejection checks."
         provenance_text = "The complete tool provenance is preserved below."
 
     _display_provenance = outcome_record.get("provenance")
@@ -492,7 +492,7 @@ def _(mo, outcome_record):
         | --- | --- |
         | Environment refusal | Proposed action is outside the declared action contract; tool not invoked. |
         | Tool failure | Legal action did not yield a usable observation; diagnose the environment. |
-        | Candidate rejection | A declared gate rejects the candidate using applicable state or observations. |
+        | Candidate rejection | A declared rejection check excludes the candidate using applicable state or observations. |
         """
     )
     outcome_revealed = True
@@ -505,7 +505,7 @@ def _(mo, outcome_record, outcome_revealed):
     expected_commitment = {
         "environment_refusal": "Record an environment refusal; revise the action or contract before any tool run.",
         "tool_failure": "Record a tool failure; diagnose the environment before judging the candidate.",
-        "candidate_rejection": "Record a candidate rejection under the named gate; do not promote the candidate.",
+        "candidate_rejection": "Record a candidate rejection under the named check; do not promote the candidate.",
         "accepted_observation": "Record an accepted observation; it supports this bounded simulation result, not RTL or product commitment.",
     }[outcome_record["kind"]]
 

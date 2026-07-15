@@ -2045,8 +2045,8 @@ to\z@{\kern0.55\wd0\vrule\@height0.45\ht0\hss}\box0}}}}
 \newif\ifsn@showpublisherimprint
 \sn@showpublisherimprinttrue
 \def\SuppressSpringerImprint{\sn@showpublisherimprintfalse}
-\def\ArchTwoPreviewVersion{}
-\def\SetArchTwoPreviewVersion#1{\gdef\ArchTwoPreviewVersion{#1}}
+\def\ArchTwoEditionLabel{}
+\def\SetArchTwoEditionLabel#1{\gdef\ArchTwoEditionLabel{#1}}
 
 \def\@maketitle{\newpage
  \null
@@ -2067,8 +2067,8 @@ to\z@{\kern0.55\wd0\vrule\@height0.45\ht0\hss}\box0}}}}
    {\LARGE\ignorespaces\@subtitle \par}
    \vskip 1cm                % Vertical space after subtitle.
   \fi
-  \ifx\ArchTwoPreviewVersion\@empty\else
-    {\large \ArchTwoPreviewVersion}%
+  \ifx\ArchTwoEditionLabel\@empty\else
+    {\large \ArchTwoEditionLabel}%
     \par
     \vskip 1.5em
   \fi

@@ -58,10 +58,10 @@ def _(dedent, mo):
 
         **You can, after this lab:** allocate a small incremental evaluation budget,
         preserve a fixed comparison baseline, inspect where expensive runs were
-        wasted, and complete a receipt without weakening its evidence invariants.
+        wasted, and complete a run archive without weakening the comparison.
 
         > **Recap.** Expensive feedback changes the order of work. A declared
-        > baseline remains mandatory for comparison, while cheap, validated gates can
+        > baseline remains mandatory for comparison, while cheap, validated checks can
         > screen incremental candidates before costly evaluation. A cheap filter is
         > useful only within its stated scope; it is not permission to discard
         > candidates silently.
@@ -116,7 +116,7 @@ def _(mo, warmup_unlocked):
         if value.get("confidence") is None:
             return "Record your confidence."
         if not str(value.get("reason", "")).strip():
-            return "Explain which cheap fact or stronger gate drives the prediction."
+            return "Explain which cheap fact or stronger check drives the prediction."
         return None
 
     prediction_form = mo.ui.dictionary(
@@ -131,7 +131,7 @@ def _(mo, warmup_unlocked):
             ),
             "choice": mo.ui.dropdown(
                 options={"Neither survives": 0, "One survives": 1, "Both survive": 2},
-                label="**Predict.** How many of those two incremental candidates pass both declared gates?",
+                label="**Predict.** How many of those two incremental candidates pass both declared rejection checks?",
             ),
             "confidence": mo.ui.dropdown(
                 options={
@@ -199,22 +199,22 @@ def _(
     baseline_id = "balanced_16x16"
     incremental_ids = allocation_map[prediction_snapshot["allocation"]]
     selected_ids = {baseline_id, *incremental_ids}
-    receipt_dir = Path(tempfile.mkdtemp(prefix="arch2_lab09_")) / "receipt"
+    run_dir = Path(tempfile.mkdtemp(prefix="arch2_lab09_")) / "run"
     summary = run_example(
         "scale_proxy_mirage",
-        receipt_dir,
+        run_dir,
         force=True,
         candidate_ids=selected_ids,
     )
-    ledger = json.loads((receipt_dir / "evidence_ledger.json").read_text())
+    evidence = json.loads((run_dir / "evidence_record.json").read_text())
     negative_traces = [
         json.loads(line)
-        for line in (receipt_dir / "negative_traces.jsonl").read_text().splitlines()
+        for line in (run_dir / "negative_traces.jsonl").read_text().splitlines()
         if line.strip()
     ]
     accepted_ids = [
         outcome["candidate_id"]
-        for outcome in ledger["candidate_outcomes"]
+        for outcome in evidence["candidate_outcomes"]
         if outcome["accepted"]
     ]
     incremental_survivors = [
@@ -227,14 +227,14 @@ def _(
         "incremental_survivors": incremental_survivors,
         "accepted_ids": accepted_ids,
         "rejected_ids": [trace["candidate_id"] for trace in negative_traces],
-        "machine_recommendation": ledger["machine_recommendation"],
+        "machine_recommendation": evidence["machine_recommendation"],
     }
-    return ledger, negative_traces, receipt_dir, run_snapshot
+    return evidence, negative_traces, run_dir, run_snapshot
 
 
 @app.cell
 def _(
-    ledger,
+    evidence,
     mo,
     negative_traces,
     prediction_snapshot,
@@ -246,7 +246,7 @@ def _(
     rejection_rows = [
         {
             "candidate": trace["candidate_id"],
-            "gate": trace["gate"],
+            "rejection check": trace["gate"],
             "observed": trace["observed"],
             "threshold": trace["threshold"],
         }
@@ -258,7 +258,7 @@ def _(
         if candidate_id in run_snapshot["rejected_ids"]
     ]
     cheap_screen_note = (
-        "The 64×64 area violation was knowable before simulation. Its costly run could have been screened by the declared 1024-PE gate."
+        "The 64×64 area violation was knowable before simulation. The declared 1024-PE check could have screened it before the costly run."
         if "proxy_hero_64x64" in wasted
         else "Your allocation did not spend a run on the already-known 64×64 area violation."
     )
@@ -266,14 +266,14 @@ def _(
         [
             mo.md(
                 f"""
-                ### Reconcile the Budget
+                ### Compare the Allocation With the Result
 
                 The fixed baseline was `{run_snapshot['fixed_baseline']}`. Your two
                 incremental runs were `{run_snapshot['incremental_candidates'][0]}` and
                 `{run_snapshot['incremental_candidates'][1]}`. **{actual_count} of the two
                 survived.** You predicted **{prediction_snapshot['choice']}** at
                 **{prediction_snapshot['confidence']}% confidence**.
-                {"Your prediction matched." if hit else "Your prediction did not match the declared gates."}
+                {"Your prediction matched." if hit else "Your prediction did not match the declared rejection checks."}
 
                 Your submitted reason was: *{prediction_snapshot['reason']}*
 
@@ -281,7 +281,7 @@ def _(
                 """
             ),
             mo.ui.table(rejection_rows, selection=None),
-            mo.md(render_objective_summary(ledger)),
+            mo.md(render_objective_summary(evidence)),
         ]
     )
     evidence_revealed = True
@@ -289,13 +289,13 @@ def _(
 
 
 @app.cell
-def _(evidence_revealed, ledger, mo, run_snapshot):
+def _(evidence_revealed, evidence, mo, run_snapshot):
     assert evidence_revealed
     eligible = run_snapshot["accepted_ids"]
 
     def validate_decision(value):
         if value is None:
-            return "Complete the budget policy and accountable decision."
+            return "Complete the budget policy and decision record."
         required = [
             value.get("budget_policy"),
             value.get("objective"),
@@ -309,14 +309,16 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             return "Complete every required field."
         if value["budget_policy"] != "baseline_then_screen":
             return (
-                "Keep the fixed baseline and apply validated cheap gates before "
+                "Keep the fixed baseline and apply validated cheap checks before "
                 "costly incremental runs."
             )
         expected = (
-            ledger["objective_rankings"].get(value["objective"], {}).get("candidate_id")
+            evidence["objective_rankings"]
+            .get(value["objective"], {})
+            .get("candidate_id")
         )
         if value["choice"] != expected and not value["objective_override"]:
-            return "Record an explicit override when choosing another gate-passing candidate."
+            return "State why you chose another candidate that passed the checks."
         if value["choice"] == expected and value["objective_override"]:
             return (
                 "Do not mark an override when the choice matches the objective ranking."
@@ -332,7 +334,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
         {
             "budget_policy": mo.ui.dropdown(
                 options={
-                    "Keep the fixed baseline, apply validated cheap gates before costly runs, and preserve every screened rejection.": "baseline_then_screen",
+                    "Keep the fixed baseline, apply validated cheap checks before costly runs, and preserve every screened rejection.": "baseline_then_screen",
                     "Drop the baseline whenever feedback is expensive.": "drop_baseline",
                     "Trust the proxy and eliminate stronger evaluation.": "proxy_only",
                 },
@@ -340,19 +342,19 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
             "objective": mo.ui.dropdown(
                 options={
-                    "Minimize latency under declared gates": "latency_under_declared_gates",
-                    "Minimize first-order energy under declared gates": "energy_under_declared_gates",
-                    "Maximize area efficiency under declared gates": "area_efficiency_under_declared_gates",
+                    "Minimize latency among candidates that passed the checks": "latency_under_declared_gates",
+                    "Minimize first-order energy among candidates that passed the checks": "energy_under_declared_gates",
+                    "Maximize area efficiency among candidates that passed the checks": "area_efficiency_under_declared_gates",
                 },
                 label="**Governing objective**",
             ),
             "choice": mo.ui.dropdown(
                 options=eligible,
-                label="**Human choice.** Which gate-passing candidate advances?",
+                label="**Human choice.** Which candidate that passed both checks advances?",
             ),
             "human_owner": mo.ui.text(
-                label="**Accountable decision owner** (required)",
-                placeholder="Your name or accountable review role",
+                label="**Decision owner** (required)",
+                placeholder="Your name or review role",
             ),
             "rationale": mo.ui.text_area(
                 label="**Rationale** (required)",
@@ -365,7 +367,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
             "override_reason": mo.ui.text_area(
                 label="**Override reason** (required only for an override)",
-                placeholder="Why should another gate passer override the selected objective?",
+                placeholder="Why does another check-passing candidate better serve the stated objective?",
                 rows=2,
             ),
             "residual_risk": mo.ui.text_area(
@@ -380,7 +382,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
         }
     ).form(
-        submit_button_label="Record budget policy and accountable decision",
+        submit_button_label="Record budget policy and decision",
         clear_on_submit=False,
         validate=validate_decision,
     )
@@ -393,7 +395,7 @@ def _(
     datetime,
     decision_form,
     mo,
-    receipt_dir,
+    run_dir,
     record_human_decision,
     render_receipt_validation,
     timezone,
@@ -401,14 +403,12 @@ def _(
 ):
     mo.stop(
         decision_form.value is None,
-        mo.md(
-            "*Submit the budget policy and accountable decision to complete the receipt.*"
-        ),
+        mo.md("*Submit the budget policy and decision to complete the run archive.*"),
     )
     decision_snapshot = dict(decision_form.value)
     try:
         record_human_decision(
-            receipt_dir,
+            run_dir,
             {
                 "schema_version": "arch2-human-decision/v0.2",
                 "lab_id": "scale_proxy_mirage",
@@ -427,7 +427,7 @@ def _(
                 "would_overturn": str(decision_snapshot["would_overturn"]).strip(),
             },
         )
-        receipt_errors = validate_receipt(receipt_dir)
+        receipt_errors = validate_receipt(run_dir)
     except ValueError as exc:
         receipt_errors = [str(exc)]
     mo.stop(receipt_errors, mo.md(render_receipt_validation(receipt_errors)))
@@ -445,14 +445,14 @@ def _(
     json,
     mo,
     prediction_snapshot,
-    receipt_dir,
+    run_dir,
     run_snapshot,
     validate_receipt,
     zipfile,
 ):
     assert decision_complete
-    final_errors = validate_receipt(receipt_dir)
-    mo.stop(final_errors, mo.md("*The completed receipt no longer validates.*"))
+    final_errors = validate_receipt(run_dir)
+    mo.stop(final_errors, mo.md("*The completed run archive no longer validates.*"))
 
     learning_record = {
         "schema_version": "arch2-activity-record/v1",
@@ -461,36 +461,36 @@ def _(
         "run_summary": run_snapshot,
         "budget_policy": decision_snapshot["budget_policy"],
         "human_decision": decision_snapshot,
-        "receipt_validation": "passed",
+        "run_archive_validation": "passed",
     }
-    attach_activity_record(receipt_dir, learning_record)
-    final_errors = validate_receipt(receipt_dir)
-    mo.stop(final_errors, mo.md("*The activity-bound receipt does not validate.*"))
+    attach_activity_record(run_dir, learning_record)
+    final_errors = validate_receipt(run_dir)
+    mo.stop(
+        final_errors,
+        mo.md("*The run archive with the activity record does not validate.*"),
+    )
 
     archive_buffer = io.BytesIO()
     with zipfile.ZipFile(archive_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(receipt_dir.rglob("*")):
+        for path in sorted(run_dir.rglob("*")):
             if path.is_file() and not path.is_symlink():
                 archive.write(
                     path,
-                    arcname=(
-                        "arch2-lab09-receipt/"
-                        + path.relative_to(receipt_dir).as_posix()
-                    ),
+                    arcname=("arch2-lab09-run/" + path.relative_to(run_dir).as_posix()),
                 )
     mo.vstack(
         [
             mo.md(
-                "### Complete Budgeted-Turn Receipt\n\n"
+                "### Complete Budgeted-Run Archive\n\n"
                 "The ZIP preserves the fixed baseline, both incremental runs, declared "
-                "rejections, objective rankings, accountable decision, and the manifest-bound "
+                "rejections, objective rankings, decision record, and the manifest-bound "
                 "Lab 09 activity record."
             ),
             mo.download(
                 data=archive_buffer.getvalue(),
                 filename="arch2-lab09-feedback-costs.zip",
                 mimetype="application/zip",
-                label="Download validated Lab 09 receipt",
+                label="Download validated Lab 09 run archive",
             ),
         ]
     )
@@ -502,8 +502,8 @@ def _(
 def _(artifact_ready, mo):
     assert artifact_ready
     reflection_form = mo.ui.text_area(
-        label="**Reflect.** Which cheap gate in your own loop could move earlier without silently narrowing the search?",
-        placeholder="Name the gate, its scope, and the evidence you would retain for screened candidates.",
+        label="**Reflect.** Which cheap rejection check in your own study could run earlier without silently narrowing the search?",
+        placeholder="Name the check, its scope, and the evidence you would retain for screened candidates.",
         rows=3,
     ).form(
         submit_button_label="Record reflection",
@@ -527,7 +527,7 @@ def _(mo, reflection_form):
     mo.md(
         "**Activity complete.** You preserved a comparison baseline, allocated "
         "incremental feedback, recorded candidate rejections, committed to a "
-        "cheap-first policy, and completed the receipt."
+        "cheap-first policy, and completed the run archive."
     )
     return
 

@@ -12,11 +12,14 @@ ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "publish-site.yml"
 VALIDATE_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "validate.yml"
 REPLAY_ASSETS = (
+    "examples/design-loop-cards/array-study-v2.yaml",
+    "examples/design-loop-cards/replay-environment.json",
     "examples/design-loop-cards/replay.py",
     "examples/design-loop-cards/workloads/illustrative-conv-layer-set-v1.json",
     "examples/design-loop-cards/evidence/illustrative-array-summary-16x16.json",
     "examples/design-loop-cards/evidence/illustrative-array-summary-32x8.json",
 )
+REGISTRY_SNAPSHOT = "tools/snapshots/registry-2026-07-14.yml"
 
 
 def run_git(cwd: Path, *args: str) -> str:
@@ -63,6 +66,25 @@ class PublishSiteContractTests(unittest.TestCase):
             self.assertIn(f"test -f _site/{relative_path}", publish_script)
         self.assertNotIn("scale-sim-summary", source_script)
         self.assertNotIn("scale-sim-summary", publish_script)
+
+    def test_frozen_registry_snapshot_is_required_in_source_and_publish_payload(
+        self,
+    ) -> None:
+        source_steps = self.validate_workflow["jobs"]["render"]["steps"]
+        source_script = next(
+            step["run"]
+            for step in source_steps
+            if step["name"] == "Validate public artifact sources"
+        )
+        publish_steps = self.workflow["jobs"]["build"]["steps"]
+        publish_script = next(
+            step["run"]
+            for step in publish_steps
+            if step["name"] == "Validate Pages payload"
+        )
+
+        self.assertIn(f"test -f {REGISTRY_SNAPSHOT}", source_script)
+        self.assertIn(f"test -f _site/{REGISTRY_SNAPSHOT}", publish_script)
 
     def run_guard(
         self, cwd: Path, ref: str, revision: str

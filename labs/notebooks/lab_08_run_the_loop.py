@@ -56,14 +56,14 @@ def _(dedent, mo):
             """
         # Lab 08 · Run One Complete Loop Turn · Chapter 8
 
-        **You can, after this lab:** run one bounded loop turn, inspect its evidence
-        and rejections, make an explicit objective-based decision, and export a
-        complete receipt that another reviewer can validate.
+        **You can, after this lab:** run one scoped study turn, inspect its evidence
+        and rejections, make an objective-based decision, and export a complete
+        run archive that another reviewer can validate.
 
         > **Recap.** A tool may recommend a candidate, but it does not own the
-        > commitment. The receipt must keep objective rankings, machine
-        > recommendation, declared rejections, and the accountable decision separate. A
-        > different gate-passing choice requires an explicit, justified override.
+        > decision. The run archive keeps objective rankings, the machine
+        > recommendation, declared rejections, and the human decision separate.
+        > Choosing a different check-passing candidate requires a stated reason.
         """
         ).strip()
     )
@@ -75,7 +75,7 @@ def _(mo):
     warmup = mo.ui.radio(
         options={
             "The simulator finishes and returns its fastest candidate.": "simulator",
-            "Evidence and rejections are recorded, then a human owns a bounded decision and the completed receipt validates.": "right",
+            "Evidence and rejections are recorded, then a named owner decides and the completed run archive validates.": "right",
             "Every objective ranking names the same candidate.": "ranking",
         },
         label="**Warm-up.** When is this loop turn complete?",
@@ -93,7 +93,7 @@ def _(mo, warmup):
         ),
     )
     mo.md(
-        "For this exercise, the receipt is complete only after the accountable decision is recorded."
+        "For this exercise, the run archive is complete only after the decision owner records an action."
     )
     warmup_unlocked = True
     return (warmup_unlocked,)
@@ -105,11 +105,11 @@ def _(mo, warmup_unlocked):
 
     def validate_prediction(value):
         if value is None or value.get("choice") is None:
-            return "Predict how many candidates pass both declared gates."
+            return "Predict how many candidates pass both declared rejection checks."
         if value.get("confidence") is None:
             return "Record your confidence."
         if not str(value.get("reason", "")).strip():
-            return "Name which candidates or gates drive the prediction."
+            return "Name which candidates or checks drive the prediction."
         return None
 
     prediction_form = mo.ui.dictionary(
@@ -129,7 +129,7 @@ def _(mo, warmup_unlocked):
             ),
             "reason": mo.ui.text_area(
                 label="**Reason** (required)",
-                placeholder="Which candidate fails which gate?",
+                placeholder="Which candidate fails which check?",
                 rows=2,
             ),
         }
@@ -151,7 +151,7 @@ def _(mo, prediction_form):
     prediction_snapshot = dict(prediction_form.value)
     mo.md(
         f"Prediction locked at **{prediction_snapshot['confidence']}% confidence**. "
-        "The receipt draft remains ungenerated until you run the turn."
+        "No run archive exists until you run the turn."
     )
     return (prediction_snapshot,)
 
@@ -169,31 +169,31 @@ def _(Path, json, mo, prediction_snapshot, run_button, run_example, tempfile):
     assert prediction_snapshot
     mo.stop(not run_button.value, mo.md("*Run the loop turn to reveal its evidence.*"))
 
-    receipt_dir = Path(tempfile.mkdtemp(prefix="arch2_lab08_")) / "receipt"
-    summary = run_example("scale_proxy_mirage", receipt_dir, force=True)
-    ledger = json.loads((receipt_dir / "evidence_ledger.json").read_text())
+    run_dir = Path(tempfile.mkdtemp(prefix="arch2_lab08_")) / "run"
+    summary = run_example("scale_proxy_mirage", run_dir, force=True)
+    evidence = json.loads((run_dir / "evidence_record.json").read_text())
     negative_traces = [
         json.loads(line)
-        for line in (receipt_dir / "negative_traces.jsonl").read_text().splitlines()
+        for line in (run_dir / "negative_traces.jsonl").read_text().splitlines()
         if line.strip()
     ]
     accepted_ids = [
         outcome["candidate_id"]
-        for outcome in ledger["candidate_outcomes"]
+        for outcome in evidence["candidate_outcomes"]
         if outcome["accepted"]
     ]
     run_snapshot = {
         "draft_status": summary["status"],
         "accepted_ids": accepted_ids,
         "rejected_ids": [trace["candidate_id"] for trace in negative_traces],
-        "machine_recommendation": ledger["machine_recommendation"],
+        "machine_recommendation": evidence["machine_recommendation"],
     }
-    return ledger, negative_traces, receipt_dir, run_snapshot
+    return evidence, negative_traces, run_dir, run_snapshot
 
 
 @app.cell
 def _(
-    ledger,
+    evidence,
     mo,
     negative_traces,
     prediction_snapshot,
@@ -205,7 +205,7 @@ def _(
     rejection_rows = [
         {
             "candidate": trace["candidate_id"],
-            "gate": trace["gate"],
+            "rejection check": trace["gate"],
             "observed": trace["observed"],
             "threshold": trace["threshold"],
         }
@@ -215,21 +215,21 @@ def _(
         [
             mo.md(
                 f"""
-                ### Reconcile the Prediction
+                ### Compare the Prediction With the Result
 
-                **{survivor_count} candidates passed both gates.** You predicted
+                **{survivor_count} candidates passed both rejection checks.** You predicted
                 **{prediction_snapshot['choice']}** at
                 **{prediction_snapshot['confidence']}% confidence**.
-                {"Your count matched." if prediction_hit else "Your count did not match; inspect the gate records below."}
+                {"Your count matched." if prediction_hit else "Your count did not match; inspect the rejection records below."}
 
                 Your submitted reason was: *{prediction_snapshot['reason']}*
                 """
             ),
             mo.ui.table(rejection_rows, selection=None),
-            mo.md(render_objective_summary(ledger)),
+            mo.md(render_objective_summary(evidence)),
             mo.md(
                 f"The draft records `{run_snapshot['machine_recommendation']}` as a "
-                "machine recommendation. That recommendation is not yet an accountable decision."
+                "machine recommendation. The named decision owner has not yet acted on it."
             ),
         ]
     )
@@ -238,13 +238,13 @@ def _(
 
 
 @app.cell
-def _(evidence_revealed, ledger, mo, run_snapshot):
+def _(evidence_revealed, evidence, mo, run_snapshot):
     assert evidence_revealed
     eligible = run_snapshot["accepted_ids"]
 
     def validate_decision(value):
         if value is None:
-            return "Complete the accountable decision."
+            return "Complete the decision record."
         required = [
             value.get("objective"),
             value.get("choice"),
@@ -256,10 +256,12 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
         if not all(required):
             return "Complete every required decision field."
         expected = (
-            ledger["objective_rankings"].get(value["objective"], {}).get("candidate_id")
+            evidence["objective_rankings"]
+            .get(value["objective"], {})
+            .get("candidate_id")
         )
         if value["choice"] != expected and not value["objective_override"]:
-            return "Record an explicit override when choosing another gate-passing candidate."
+            return "State why you chose another candidate that passed the checks."
         if value["choice"] == expected and value["objective_override"]:
             return (
                 "Do not mark an override when the choice matches the objective ranking."
@@ -275,19 +277,19 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
         {
             "objective": mo.ui.dropdown(
                 options={
-                    "Minimize latency under declared gates": "latency_under_declared_gates",
-                    "Minimize first-order energy under declared gates": "energy_under_declared_gates",
-                    "Maximize area efficiency under declared gates": "area_efficiency_under_declared_gates",
+                    "Minimize latency among candidates that passed the checks": "latency_under_declared_gates",
+                    "Minimize first-order energy among candidates that passed the checks": "energy_under_declared_gates",
+                    "Maximize area efficiency among candidates that passed the checks": "area_efficiency_under_declared_gates",
                 },
                 label="**Commit.** Which objective governs the decision?",
             ),
             "choice": mo.ui.dropdown(
                 options=eligible,
-                label="**Human choice.** Which gate-passing candidate advances?",
+                label="**Human choice.** Which candidate that passed both checks advances?",
             ),
             "human_owner": mo.ui.text(
-                label="**Accountable decision owner** (required)",
-                placeholder="Your name or accountable review role",
+                label="**Decision owner** (required)",
+                placeholder="Your name or review role",
             ),
             "rationale": mo.ui.text_area(
                 label="**Rationale** (required)",
@@ -300,7 +302,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
             "override_reason": mo.ui.text_area(
                 label="**Override reason** (required only for an override)",
-                placeholder="Name the architect-owned reason for choosing another gate passer.",
+                placeholder="Explain why another check-passing candidate better serves the stated objective.",
                 rows=2,
             ),
             "residual_risk": mo.ui.text_area(
@@ -315,7 +317,7 @@ def _(evidence_revealed, ledger, mo, run_snapshot):
             ),
         }
     ).form(
-        submit_button_label="Record my accountable decision",
+        submit_button_label="Record my decision",
         clear_on_submit=False,
         validate=validate_decision,
     )
@@ -328,7 +330,7 @@ def _(
     datetime,
     decision_form,
     mo,
-    receipt_dir,
+    run_dir,
     record_human_decision,
     render_receipt_validation,
     timezone,
@@ -336,12 +338,12 @@ def _(
 ):
     mo.stop(
         decision_form.value is None,
-        mo.md("*Submit the accountable decision to complete the receipt.*"),
+        mo.md("*Submit the decision to complete the run archive.*"),
     )
     decision_snapshot = dict(decision_form.value)
     try:
         record_human_decision(
-            receipt_dir,
+            run_dir,
             {
                 "schema_version": "arch2-human-decision/v0.2",
                 "lab_id": "scale_proxy_mirage",
@@ -360,7 +362,7 @@ def _(
                 "would_overturn": str(decision_snapshot["would_overturn"]).strip(),
             },
         )
-        receipt_errors = validate_receipt(receipt_dir)
+        receipt_errors = validate_receipt(run_dir)
     except ValueError as exc:
         receipt_errors = [str(exc)]
     mo.stop(receipt_errors, mo.md(render_receipt_validation(receipt_errors)))
@@ -378,14 +380,14 @@ def _(
     json,
     mo,
     prediction_snapshot,
-    receipt_dir,
+    run_dir,
     run_snapshot,
     validate_receipt,
     zipfile,
 ):
     assert decision_complete
-    final_errors = validate_receipt(receipt_dir)
-    mo.stop(final_errors, mo.md("*The completed receipt no longer validates.*"))
+    final_errors = validate_receipt(run_dir)
+    mo.stop(final_errors, mo.md("*The completed run archive no longer validates.*"))
 
     learning_record = {
         "schema_version": "arch2-activity-record/v1",
@@ -393,36 +395,36 @@ def _(
         "prediction": prediction_snapshot,
         "run_summary": run_snapshot,
         "human_decision": decision_snapshot,
-        "receipt_validation": "passed",
+        "run_archive_validation": "passed",
     }
-    attach_activity_record(receipt_dir, learning_record)
-    final_errors = validate_receipt(receipt_dir)
-    mo.stop(final_errors, mo.md("*The activity-bound receipt does not validate.*"))
+    attach_activity_record(run_dir, learning_record)
+    final_errors = validate_receipt(run_dir)
+    mo.stop(
+        final_errors,
+        mo.md("*The run archive with the activity record does not validate.*"),
+    )
 
     archive_buffer = io.BytesIO()
     with zipfile.ZipFile(archive_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(receipt_dir.rglob("*")):
+        for path in sorted(run_dir.rglob("*")):
             if path.is_file() and not path.is_symlink():
                 archive.write(
                     path,
-                    arcname=(
-                        "arch2-lab08-receipt/"
-                        + path.relative_to(receipt_dir).as_posix()
-                    ),
+                    arcname=("arch2-lab08-run/" + path.relative_to(run_dir).as_posix()),
                 )
     mo.vstack(
         [
             mo.md(
-                "### Complete, Validated Receipt\n\n"
-                "The ZIP contains the hash-sealed replay receipt and its manifest-bound "
-                "Lab 08 activity record. The receipt keeps the machine recommendation "
-                "and accountable decision separate."
+                "### Complete, Validated Run Archive\n\n"
+                "The ZIP contains the hash-sealed run files and its manifest-bound "
+                "Lab 08 activity record. The archive keeps the machine recommendation "
+                "and the decision owner's action separate."
             ),
             mo.download(
                 data=archive_buffer.getvalue(),
                 filename="arch2-lab08-complete-turn.zip",
                 mimetype="application/zip",
-                label="Download validated Lab 08 receipt",
+                label="Download validated Lab 08 run archive",
             ),
         ]
     )
@@ -435,7 +437,7 @@ def _(artifact_ready, mo):
     assert artifact_ready
     reflection_form = mo.ui.text_area(
         label="**Reflect.** What is the smallest evidence or objective change that could alter your decision?",
-        placeholder="Name the change and explain whether it changes a ranking, a gate, or the commitment boundary.",
+        placeholder="Name the change and explain whether it changes a ranking, a rejection check, or the authorized action.",
         rows=3,
     ).form(
         submit_button_label="Record reflection",
@@ -457,8 +459,8 @@ def _(mo, reflection_form):
         mo.md("*Submit the reflection to finish the activity.*"),
     )
     mo.md(
-        "**Activity complete.** One honest turn produced evidence, declared rejections, "
-        "an owned commitment, and a validated receipt."
+        "**Activity complete.** You recorded a prediction, inspected the evidence and "
+        "rejections, named the decision owner, and validated the run archive."
     )
     return
 

@@ -47,13 +47,13 @@ def _(dedent, mo):
         # Lab 04 | Represent and Replay | Chapter 4
 
         **You can, after this lab:** distinguish evidence from replayability, inspect the
-        bindings in a real draft receipt, and state exactly what an attempted replay would
+        bindings in a real draft run archive, and state exactly what an attempted replay would
         and would not establish.
 
         > **Recap.** Evidence can support a bounded claim even when a public replay packet
         > is unavailable. Replayability is a separate property. It requires runnable inputs,
         > configuration, environment and tool versions, commands, outputs, and integrity
-        > bindings. A receipt can make an attempted replay possible; only an actual replay
+        > bindings. A run archive can make an attempted replay possible; only an actual replay
         > result establishes that the packet ran in the declared environment.
         """
         ).strip()
@@ -92,9 +92,9 @@ def _(mo, warmup_unlocked):
         r"""
         ## The task
 
-        The lab will run the checked-in SCALE-Sim example and produce its current Level 2
-        draft receipt. A Level 2 card binds replay material, but this exercise's draft still awaits an
-        accountable decision. You will inspect the packet before deciding what it supports.
+        The lab will run the checked-in SCALE-Sim example and produce a schema 2.0
+        draft run archive. Its replay profile is partial with verified bindings, while its
+        decision remains pending. You will inspect the packet before deciding what it supports.
         """
     )
     brief_ready = True
@@ -152,7 +152,7 @@ def _(brief_ready, mo):
 def _(mo, prediction_form):
     mo.stop(
         prediction_form.value is None,
-        mo.md("Submit a binding, confidence, and reason before running the receipt."),
+        mo.md("Submit a binding, confidence, and reason before running the study."),
     )
     prediction_snapshot = dict(prediction_form.value)
     mo.md(f"Prediction locked at **{prediction_snapshot['confidence']}% confidence**.")
@@ -162,11 +162,11 @@ def _(mo, prediction_form):
 @app.cell
 def _(mo, prediction_snapshot):
     assert prediction_snapshot
-    run_receipt = mo.ui.run_button(
-        label="Run the loop turn and build its draft receipt"
+    run_study = mo.ui.run_button(
+        label="Run the study turn and build its draft run archive"
     )
-    run_receipt
-    return (run_receipt,)
+    run_study
+    return (run_study,)
 
 
 @app.cell
@@ -175,21 +175,19 @@ def _(
     json,
     mo,
     run_example,
-    run_receipt,
+    run_study,
     tempfile,
     validate_decision_draft,
     yaml,
 ):
-    mo.stop(
-        not run_receipt.value, mo.md("Run the turn to inspect its receipt bindings.")
-    )
-    receipt_dir = Path(tempfile.mkdtemp(prefix="arch2_replay_")) / "receipt"
-    run_summary = run_example("scale_proxy_mirage", receipt_dir, force=True)
-    draft_manifest = validate_decision_draft(receipt_dir)
-    card = yaml.safe_load((receipt_dir / "card.yaml").read_text())
+    mo.stop(not run_study.value, mo.md("Run the turn to inspect its archive bindings."))
+    run_dir = Path(tempfile.mkdtemp(prefix="arch2_replay_")) / "run"
+    run_summary = run_example("scale_proxy_mirage", run_dir, force=True)
+    draft_manifest = validate_decision_draft(run_dir)
+    card = yaml.safe_load((run_dir / "card.yaml").read_text())
     run_records = [
         json.loads(line)
-        for line in (receipt_dir / "runs.jsonl").read_text().splitlines()
+        for line in (run_dir / "runs.jsonl").read_text().splitlines()
         if line.strip()
     ]
     sim_record = next(
@@ -200,9 +198,9 @@ def _(
     lab_card = card["design_loop_card"]
     raw_files = sim_record["outputs"]["raw_files"]
     binding_audit = {
-        "receipt_status": draft_manifest["status"],
+        "archive_status": draft_manifest["status"],
         "runner_status": run_summary["status"],
-        "card_conformance_level": lab_card["conformance_level"],
+        "card_profiles": lab_card["profiles"],
         "environment_id": lab_card["environment"]["environment_id"],
         "candidate_id": sim_record["candidate_id"],
         "tool": sim_record["tool"],
@@ -212,13 +210,13 @@ def _(
         "raw_outputs": raw_files,
         "negative_trace_count": sum(
             1
-            for line in (receipt_dir / "negative_traces.jsonl").read_text().splitlines()
+            for line in (run_dir / "negative_traces.jsonl").read_text().splitlines()
             if line.strip()
         ),
         "replay_attempted": False,
     }
-    mo.md(f"Draft receipt built at `{receipt_dir}`.")
-    return binding_audit, receipt_dir
+    mo.md(f"Draft run archive built at `{run_dir}`.")
+    return binding_audit, run_dir
 
 
 @app.cell
@@ -231,12 +229,12 @@ def _(binding_audit, mo, prediction_snapshot):
     )
     mo.md(
         f"""
-        ### Receipt binding audit
+        ### Run-Archive Binding Audit
 
         | **Binding** | **Recorded value** |
         | --- | --- |
-        | Draft status | `{binding_audit['receipt_status']}` |
-        | Card conformance | Level {binding_audit['card_conformance_level']} |
+        | Draft status | `{binding_audit['archive_status']}` |
+        | Complete card profiles | {', '.join(name for name, status in binding_audit['card_profiles'].items() if status == 'complete')} |
         | Environment | `{binding_audit['environment_id']}` |
         | Tool | `{binding_audit['tool']['name']} {binding_audit['tool']['version']}` |
         | Python runtime | `{binding_audit['runtime']['python']}` |
@@ -251,7 +249,7 @@ def _(binding_audit, mo, prediction_snapshot):
 
         {"Your prediction identified the runnable bundle." if predicted_bindings else "A conclusion or screenshot cannot reconstruct the execution; the packet needs the runnable bundle shown above."}
 
-        This receipt contains evidence and passes the draft-receipt audit. It also binds the
+        This run archive contains evidence and passes the draft audit. It also binds the
         material needed to attempt replay. It does **not** claim that replay has been
         attempted, that another environment will reproduce the result, or that the evidence
         authorizes a human commitment. Those are separate judgments.
@@ -272,11 +270,11 @@ def _(audit_revealed, mo):
 
     commitment_form = mo.ui.dropdown(
         options=[
-            "Evidence-bearing Level 2 draft with replay bindings; replay is not attempted and the accountable decision is pending.",
+            "Evidence-bearing v2 draft with verified replay bindings; replay is not attempted and the decision is pending.",
             "Independently reproduced result ready for implementation.",
-            "No evidence exists because the receipt is not yet complete.",
+            "No evidence exists because the run archive is not yet complete.",
         ],
-        label="**Commit.** What status does the inspected packet support?",
+        label="**Decide.** What status does the inspected packet support?",
     ).form(
         submit_button_label="Record packet status",
         clear_on_submit=False,
@@ -293,10 +291,10 @@ def _(commitment_form, mo):
         mo.md("Choose and submit the packet status."),
     )
     mo.stop(
-        not commitment_form.value.startswith("Evidence-bearing Level 2 draft"),
+        not commitment_form.value.startswith("Evidence-bearing v2 draft"),
         mo.md(
             "That status collapses evidence, replay, and commitment. The packet carries "
-            "evidence and replay bindings, but no replay result or accountable decision."
+            "evidence and replay bindings, but no replay result or recorded decision."
         ),
     )
     packet_status = commitment_form.value
@@ -305,7 +303,7 @@ def _(commitment_form, mo):
 
 
 @app.cell
-def _(binding_audit, json, mo, packet_status, prediction_snapshot, receipt_dir, shutil):
+def _(binding_audit, json, mo, packet_status, prediction_snapshot, run_dir, shutil):
     audit_record = {
         "schema_version": "arch2-replay-binding-audit/v0.1",
         "lab_id": "lab_04_represent_and_replay",
@@ -314,12 +312,12 @@ def _(binding_audit, json, mo, packet_status, prediction_snapshot, receipt_dir, 
         "review_status": packet_status,
     }
     audit_bytes = (json.dumps(audit_record, indent=2, sort_keys=True) + "\n").encode()
-    archive_path = receipt_dir.with_suffix(".zip")
-    shutil.make_archive(str(archive_path.with_suffix("")), "zip", root_dir=receipt_dir)
+    archive_path = run_dir.with_suffix(".zip")
+    shutil.make_archive(str(archive_path.with_suffix("")), "zip", root_dir=run_dir)
     mo.vstack(
         [
             mo.md(
-                "### Auditable artifacts\n\nDownload either the binding audit or the sealed draft receipt it describes."
+                "### Auditable Artifacts\n\nDownload either the binding audit or the sealed draft run archive it describes."
             ),
             mo.download(
                 data=audit_bytes,
@@ -329,9 +327,9 @@ def _(binding_audit, json, mo, packet_status, prediction_snapshot, receipt_dir, 
             ),
             mo.download(
                 data=lambda: archive_path.read_bytes(),
-                filename="lab_04_draft_receipt.zip",
+                filename="lab_04_draft_run_archive.zip",
                 mimetype="application/zip",
-                label="Download draft receipt",
+                label="Download draft run archive",
             ),
         ]
     )

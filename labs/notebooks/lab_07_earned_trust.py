@@ -282,7 +282,7 @@ def _(evidence_revealed, mo):
         if value["decision"] != "reject_bandwidth_claim":
             return "The evidence does not clear the bandwidth-1 configuration for advancement."
         if not str(value.get("human_owner", "")).strip():
-            return "Name the accountable owner of the commitment."
+            return "Name the owner of the decision."
         if not str(value.get("rationale", "")).strip():
             return "Explain why the scoped check supports the commitment."
         if not str(value.get("would_overturn", "")).strip():
@@ -300,8 +300,8 @@ def _(evidence_revealed, mo):
                 label="**Commit.** What does this evidence license?",
             ),
             "human_owner": mo.ui.text(
-                label="**Accountable decision owner** (required)",
-                placeholder="Your name or accountable review role",
+                label="**Decision owner** (required)",
+                placeholder="Your name or review role",
             ),
             "rationale": mo.ui.text_area(
                 label="**Rationale** (required)",
@@ -348,7 +348,7 @@ def _(commitment_form, json, mo, prediction_snapshot, probe_result):
                 "### Auditable Chapter Record\n\n"
                 "This JSON preserves the submitted prediction, tool observations, "
                 "analytic check, dependence disclosure, and human commitment. It is a "
-                "learning record, not a replay receipt."
+                "learning record, not a replayable run archive."
             ),
             mo.download(
                 data=record_text.encode(),

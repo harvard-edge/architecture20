@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import os
 import re
@@ -19,10 +20,16 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Iterator
+from urllib.parse import unquote, urlsplit
 
 import typer
 from rich.console import Console
 from rich.table import Table
+
+try:
+    from cli.card_migration import migrate_v1_1_to_v2_draft
+except ModuleNotFoundError:  # Support direct execution as python cli/arch2.py.
+    from card_migration import migrate_v1_1_to_v2_draft
 
 ROOT = Path(__file__).resolve().parents[1]
 BOOK_DIR = ROOT / "book"
@@ -35,10 +42,11 @@ LOG_DIR = BUILD_DIR / "logs"
 DEFAULT_REVIEW_WORKBENCH = ROOT.parent.parent / "PaperReviewWorkbench"
 LOOP_DIR = ROOT / ".arch2" / "reviews" / "loop"
 DEFAULT_GEMINI_MODEL = "gemini-3.1-pro-preview"
-CARD_SCHEMA_VERSION = "1.1"
+CARD_SCHEMA_VERSION = "2.0"
 CARD_SCHEMA_PATHS = {
     "1.0": ROOT / "schemas" / "design-loop-card.v1.schema.json",
     "1.1": ROOT / "schemas" / "design-loop-card.v1.1.schema.json",
+    "2.0": ROOT / "schemas" / "design-loop-card.v2.schema.json",
 }
 CARD_SCHEMA_PATH = CARD_SCHEMA_PATHS[CARD_SCHEMA_VERSION]
 
@@ -80,6 +88,10 @@ check_app = typer.Typer(
 validate_app = typer.Typer(
     help="Validate source files without requiring a render.", no_args_is_help=True
 )
+migrate_app = typer.Typer(
+    help="Create explicit migration drafts for versioned artifacts.",
+    no_args_is_help=True,
+)
 verify_app = typer.Typer(
     help="Verify rendered artifacts against manuscript sources.", no_args_is_help=True
 )
@@ -94,6 +106,7 @@ loop_app = typer.Typer(
 )
 app.add_typer(check_app, name="check")
 app.add_typer(validate_app, name="validate")
+app.add_typer(migrate_app, name="migrate")
 app.add_typer(verify_app, name="verify")
 app.add_typer(layout_app, name="layout")
 app.add_typer(review_app, name="review")
@@ -463,6 +476,217 @@ def _card_schema_message(
     return message
 
 
+def _card_v2_semantic_findings(card: dict[str, Any], card_path: Path) -> list[Finding]:
+    """Check v2 relationships and local integrity bindings JSON Schema cannot express."""
+    findings: list[Finding] = []
+    location = _relative(card_path)
+    loop_card = card["design_loop_card"]
+
+    def add(code: str, json_path: str, message: str) -> None:
+        findings.append(Finding("error", code, f"{location}:{json_path}", message))
+
+    def indexed_ids(
+        records: list[dict[str, Any]], key: str, json_path: str
+    ) -> set[str]:
+        identifiers: set[str] = set()
+        for index, record in enumerate(records):
+            identifier = record[key]
+            if identifier in identifiers:
+                add(
+                    "card-duplicate-id",
+                    f"{json_path}[{index}].{key}",
+                    f"duplicate {key} {identifier!r}",
+                )
+            identifiers.add(identifier)
+        return identifiers
+
+    evidence_records = loop_card["evidence"]["records"]
+    claims = loop_card["claims"]
+    gates = loop_card["gates"]
+    rejected = loop_card["failed_or_rejected"]
+    evidence_ids = indexed_ids(
+        evidence_records, "evidence_id", "$.design_loop_card.evidence.records"
+    )
+    claim_ids = indexed_ids(claims, "claim_id", "$.design_loop_card.claims")
+    gate_ids = indexed_ids(gates, "gate_id", "$.design_loop_card.gates")
+    indexed_ids(rejected, "record_id", "$.design_loop_card.failed_or_rejected")
+
+    def check_refs(
+        refs: list[str], known: set[str], json_path: str, label: str
+    ) -> None:
+        for index, reference in enumerate(refs):
+            if reference not in known:
+                add(
+                    "card-unknown-reference",
+                    f"{json_path}[{index}]",
+                    f"unknown {label} reference {reference!r}",
+                )
+
+    for index, claim in enumerate(claims):
+        check_refs(
+            claim["evidence_refs"],
+            evidence_ids,
+            f"$.design_loop_card.claims[{index}].evidence_refs",
+            "evidence",
+        )
+    for index, gate in enumerate(gates):
+        check_refs(
+            gate["evidence_refs"],
+            evidence_ids,
+            f"$.design_loop_card.gates[{index}].evidence_refs",
+            "evidence",
+        )
+    for index, record in enumerate(rejected):
+        check_refs(
+            record["evidence_refs"],
+            evidence_ids,
+            f"$.design_loop_card.failed_or_rejected[{index}].evidence_refs",
+            "evidence",
+        )
+        gate_ref = record.get("gate_ref")
+        if gate_ref is not None and gate_ref not in gate_ids:
+            add(
+                "card-unknown-reference",
+                f"$.design_loop_card.failed_or_rejected[{index}].gate_ref",
+                f"unknown gate reference {gate_ref!r}",
+            )
+
+    recommendation = loop_card.get("recommendation")
+    if recommendation:
+        check_refs(
+            recommendation["claim_refs"],
+            claim_ids,
+            "$.design_loop_card.recommendation.claim_refs",
+            "claim",
+        )
+    decision_record = loop_card["accountable_decision"]
+    check_refs(
+        decision_record["claim_refs"],
+        claim_ids,
+        "$.design_loop_card.accountable_decision.claim_refs",
+        "claim",
+    )
+    review = loop_card.get("independent_review")
+    if review:
+        check_refs(
+            review["claim_refs"],
+            claim_ids,
+            "$.design_loop_card.independent_review.claim_refs",
+            "claim",
+        )
+        check_refs(
+            review["evidence_refs"],
+            evidence_ids,
+            "$.design_loop_card.independent_review.evidence_refs",
+            "evidence",
+        )
+
+    rights = {
+        (right["holder_id"], right["action"]) for right in loop_card["decision_rights"]
+    }
+    if loop_card["profiles"]["decision_rights"] == "complete":
+        for index, gate in enumerate(gates):
+            if (gate["authority_id"], "reject") not in rights:
+                add(
+                    "card-decision-right",
+                    f"$.design_loop_card.gates[{index}].authority_id",
+                    "gate authority must hold a declared reject right",
+                )
+            waiver = gate["waiver_rule"]
+            if waiver["allowed"] and (waiver["authority_id"], "waive") not in rights:
+                add(
+                    "card-decision-right",
+                    f"$.design_loop_card.gates[{index}].waiver_rule.authority_id",
+                    "waiver authority must hold a declared waive right",
+                )
+        if (
+            recommendation
+            and (recommendation["recommender_id"], "recommend") not in rights
+        ):
+            add(
+                "card-decision-right",
+                "$.design_loop_card.recommendation.recommender_id",
+                "recommender must hold a declared recommend right",
+            )
+        if (decision_record["holder_id"], "commit") not in rights:
+            add(
+                "card-decision-right",
+                "$.design_loop_card.accountable_decision.holder_id",
+                "decision holder must hold a declared commit right",
+            )
+
+    def verify_local_artifact(raw_uri: str, digest: str, json_path: str) -> None:
+        parsed = urlsplit(raw_uri)
+        if parsed.scheme or parsed.netloc:
+            return
+        if parsed.query or parsed.fragment:
+            add(
+                "card-artifact-uri",
+                json_path,
+                "local artifact URI must not contain a query or fragment",
+            )
+            return
+        base = card_path.parent.resolve()
+        target = (base / unquote(parsed.path)).resolve()
+        try:
+            target.relative_to(base)
+        except ValueError:
+            add(
+                "card-artifact-escape",
+                json_path,
+                "local artifact URI escapes the card directory",
+            )
+            return
+        if not target.is_file():
+            add(
+                "card-artifact-missing",
+                json_path,
+                f"local artifact does not exist: {raw_uri}",
+            )
+            return
+        observed = f"sha256:{hashlib.sha256(target.read_bytes()).hexdigest()}"
+        if observed != digest:
+            add(
+                "card-artifact-hash",
+                json_path,
+                f"SHA-256 mismatch for {raw_uri!r}: declared {digest}, observed {observed}",
+            )
+
+    for record_index, record in enumerate(evidence_records):
+        for collection in ("inputs", "outputs"):
+            for artifact_index, artifact in enumerate(record[collection]):
+                sha256 = artifact["integrity"].get("sha256")
+                if sha256:
+                    verify_local_artifact(
+                        artifact["uri"],
+                        sha256,
+                        (
+                            "$.design_loop_card.evidence.records"
+                            f"[{record_index}].{collection}[{artifact_index}].uri"
+                        ),
+                    )
+
+    replay = loop_card.get("replay")
+    if replay:
+        replay_artifacts = [("environment_binding", replay["environment_binding"])]
+        replay_artifacts.extend(
+            (f"inputs[{index}]", artifact)
+            for index, artifact in enumerate(replay["inputs"])
+        )
+        replay_artifacts.extend(
+            (f"outputs[{index}]", artifact)
+            for index, artifact in enumerate(replay["outputs"])
+        )
+        for suffix, artifact in replay_artifacts:
+            verify_local_artifact(
+                artifact["uri"],
+                artifact["sha256"],
+                f"$.design_loop_card.replay.{suffix}.uri",
+            )
+
+    return findings
+
+
 def card_validation_findings(
     card_path: Path,
     *,
@@ -595,7 +819,7 @@ def card_validation_findings(
             error.message,
         ),
     )
-    return [
+    findings = [
         Finding(
             "error",
             "card-schema",
@@ -604,6 +828,9 @@ def card_validation_findings(
         )
         for error in errors
     ]
+    if not findings and declared_version == "2.0":
+        findings.extend(_card_v2_semantic_findings(card, card_path))
+    return findings
 
 
 def run_card_check(card_path: Path) -> None:
@@ -1471,8 +1698,8 @@ def manifest_findings() -> list[Finding]:
                 )
             )
 
-    # foreword.qmd is staged on disk but held out of the manifest until its
-    # text arrives; it is neither an orphan nor required front matter.
+    # A finalized foreword may be added before the acknowledgments, but it is
+    # not required front matter.
     optional_frontmatter = {"foreword.qmd"}
     optional_paths = {BOOK_DIR / name for name in optional_frontmatter}
     for path in sorted(actual_qmds - entry_set - optional_paths):
@@ -2112,13 +2339,13 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
 
     text = html_path.read_text(encoding="utf-8", errors="replace")
     findings: list[Finding] = []
-    if "arch2-preview-meta" not in text or "Architecture-2.0.pdf" not in text:
+    if "arch2-release-meta" not in text or "Architecture-2.0.pdf" not in text:
         findings.append(
             Finding(
                 "error",
-                "html-preview-meta",
+                "html-release-meta",
                 _relative(html_path),
-                "preview HTML is missing the version/date/download metadata strip",
+                "HTML is missing the release/date/download metadata strip",
             )
         )
 
@@ -2151,6 +2378,21 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
                 )
                 break
     return findings
+
+
+def normalize_html_hub_links(html_root: Path = BUILD_DIR) -> int:
+    """Restore canonical root links that Quarto rewrites inside the book."""
+    pattern = re.compile(r'href="[^"]*"(?=\s+data-arch2-href="(?P<href>/[^"]+)")')
+    changed = 0
+    for page_path in sorted(html_root.rglob("*.html")):
+        text = page_path.read_text(encoding="utf-8")
+        normalized, count = pattern.subn(
+            lambda match: f'href="{match.group("href")}"', text
+        )
+        if count:
+            page_path.write_text(normalized, encoding="utf-8")
+            changed += count
+    return changed
 
 
 def _epub_visible_text(payload: bytes) -> str:
@@ -2315,7 +2557,7 @@ def epub_findings(epub_path: Path = EPUB_PATH) -> list[Finding]:
 
 
 def normalize_epub_xhtml(epub_path: Path = EPUB_PATH) -> int:
-    """Remove invalid duplicate alt attributes from EPUB figure wrappers."""
+    """Normalize Quarto XHTML attributes that are invalid in EPUB."""
     original_mode = epub_path.stat().st_mode & 0o777
     xhtml_namespace = "http://www.w3.org/1999/xhtml"
     ET.register_namespace("", xhtml_namespace)
@@ -2335,6 +2577,16 @@ def normalize_epub_xhtml(epub_path: Path = EPUB_PATH) -> int:
 
         root = ET.fromstring(payload)
         document_changed = False
+        for element in root.iter():
+            for attribute in list(element.attrib):
+                if not attribute.startswith("data-") or attribute == attribute.lower():
+                    continue
+                normalized_attribute = attribute.lower()
+                if normalized_attribute not in element.attrib:
+                    element.attrib[normalized_attribute] = element.attrib[attribute]
+                del element.attrib[attribute]
+                changed += 1
+                document_changed = True
         for wrapper in root.iter(f"{{{xhtml_namespace}}}div"):
             if "alt" in wrapper.attrib:
                 del wrapper.attrib["alt"]
@@ -4114,9 +4366,9 @@ def _concept_ledger_markdown(
     paths: list[Path], concepts: tuple[str, ...] = DEFAULT_LOOP_CONCEPTS
 ) -> str:
     lines = [
-        "## Progressive-Disclosure Ledger",
+        "## Concept Introduction Report",
         "",
-        "This ledger is mechanical: it shows where load-bearing concepts appear so a reviewer can decide whether each one is previewed, defined, deepened, applied, and synthesized in the right order.",
+        "This report lists where the book's defined concepts appear so a reviewer can check their order of introduction, definition, development, application, and synthesis.",
         "",
         "| Concept | First occurrence | Total uses | Chapters/appendices | First context |",
         "| --- | --- | ---: | --- | --- |",
@@ -4570,7 +4822,7 @@ def build_learning_report(triage_text: str, *, triage_path: Path) -> str:
             "- If the issue is deterministic and cheap to detect, add or extend an `arch2 validate ...` or `arch2 check ...` path in `cli/arch2.py`.",
             "- If the issue requires taste or thesis judgment, keep it as an author decision and do not turn it into a brittle check.",
             "",
-            "## Next Loop Contract",
+            "## Next Revision Pass",
             "",
             "1. Pick one high-value issue class.",
             "2. Patch the manuscript or artifact.",
@@ -4674,10 +4926,10 @@ def _render_book_navbar() -> None:
 
 
 @contextmanager
-def _temporary_version_tex(path: Path, preview_label: str) -> Iterator[None]:
+def _temporary_version_tex(path: Path, release_label: str) -> Iterator[None]:
     original = path.read_bytes() if path.exists() else None
     path.write_text(
-        f"\\def\\ArchTwoReleaseVersion{{{preview_label}}}\n", encoding="utf-8"
+        f"\\def\\ArchTwoReleaseVersion{{{release_label}}}\n", encoding="utf-8"
     )
     try:
         yield
@@ -4752,19 +5004,19 @@ def _render_one(
     release_version = os.environ.get("ARCH2_VERSION", "").strip()
     if release_version:
         cmd.extend(["-M", f"arch2-version:{release_version}"])
-    # Write the LaTeX preview-version macro so the PDF matches the site. Written
+    # Write the LaTeX release label so the PDF matches the site. Written
     # every render: the release version when ARCH2_VERSION is set (publish), the
     # static default otherwise (so local builds leave no git diff). Included ahead
     # of springer-header.tex via _quarto.yml include-in-header.
     version_tex = ROOT / "book" / "tex" / "version.tex"
-    preview_label = (
-        f"Preview {release_version}" if release_version else "Preview development build"
+    release_label = (
+        f"Release {release_version}" if release_version else "Development build"
     )
     publish_date = os.environ.get("ARCH2_PUBLISH_DATE", "").strip()
     if publish_date:
         cmd.extend(["-M", f"date:{publish_date}"])
     console.print(f"[cyan]rendering[/cyan] {' '.join(cmd)}")
-    with _temporary_version_tex(version_tex, preview_label):
+    with _temporary_version_tex(version_tex, release_label):
         proc = _run(cmd, cwd=ROOT, env=env, capture=True)
     transcript = (proc.stdout or "") + ("\n" + proc.stderr if proc.stderr else "")
     log_path = _record_log("render", transcript)
@@ -4795,6 +5047,11 @@ def _render_one(
 
     # Native finalization (formerly the Quarto post-render hook).
     if "html" in fmts:
+        normalized_link_count = normalize_html_hub_links(BUILD_DIR)
+        if normalized_link_count:
+            console.print(
+                f"[green]normalized[/green] {normalized_link_count} HTML hub links"
+            )
         run_html_check(HTML_PATH)
         _exit_on_findings(
             html_unresolved_findings(BUILD_DIR), title="HTML rendered references"
@@ -4807,7 +5064,7 @@ def _render_one(
             raise typer.Exit(1) from exc
         if normalized_count:
             console.print(
-                f"[green]normalized[/green] {normalized_count} EPUB figure wrapper alt attributes"
+                f"[green]normalized[/green] {normalized_count} EPUB XHTML attributes"
             )
         _exit_on_findings(epub_findings(EPUB_PATH), title="EPUB package")
         _exit_on_findings(
@@ -4999,8 +5256,66 @@ def validate_card(
         help="YAML or JSON design-loop card to validate.",
     ),
 ) -> None:
-    """Validate a design-loop card and its claimed conformance level."""
+    """Validate a versioned design-loop card and its declared profiles."""
     run_card_check(card)
+
+
+@migrate_app.command("card")
+def migrate_card(
+    source: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="Version 1.1 YAML or JSON design-loop card.",
+    ),
+    output: Path
+    | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Migration-draft path; defaults beside the source card.",
+    ),
+) -> None:
+    """Map v1.1 fields to a non-inventive v2 migration draft."""
+    try:
+        if source.suffix.lower() == ".json":
+            document = json.loads(source.read_text(encoding="utf-8"))
+        elif source.suffix.lower() in {".yaml", ".yml"}:
+            import yaml
+
+            document = yaml.safe_load(source.read_text(encoding="utf-8"))
+        else:
+            raise ValueError("source card must use a .yaml, .yml, or .json extension")
+        if not isinstance(document, dict):
+            raise ValueError("source card must contain a mapping/object")
+        draft = migrate_v1_1_to_v2_draft(document)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        console.print(f"[red]failed[/red] migration: {exc}")
+        raise typer.Exit(1) from exc
+
+    target = output or source.with_name(f"{source.stem}.v2-migration-draft.yaml")
+    target = target.expanduser().resolve()
+    if target.exists():
+        console.print(f"[red]failed[/red] migration: output already exists: {target}")
+        raise typer.Exit(1)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import yaml
+
+        target.write_text(
+            yaml.safe_dump(draft, sort_keys=False, allow_unicode=True),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        console.print(f"[red]failed[/red] migration: {exc}")
+        raise typer.Exit(1) from exc
+    console.print(
+        "[yellow]migration draft requires author input[/yellow] "
+        f"({len(draft['missing_semantics'])} missing semantics): {target}"
+    )
 
 
 @validate_app.command("manifest")
@@ -5029,7 +5344,7 @@ def verify_html(
         HTML_PATH, "--html", help="Rendered HTML index to inspect."
     ),
 ) -> None:
-    """Check that the local HTML site was rendered with the preview banner."""
+    """Check that the local HTML site carries release and download metadata."""
     run_html_check(html)
 
 

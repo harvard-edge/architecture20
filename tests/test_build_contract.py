@@ -11,12 +11,12 @@ runner = CliRunner()
 
 def test_release_render_restores_version_source(tmp_path) -> None:
     version_tex = tmp_path / "version.tex"
-    original = "\\def\\ArchTwoReleaseVersion{Preview development build}\n"
+    original = "\\def\\ArchTwoReleaseVersion{Development build}\n"
     version_tex.write_text(original)
 
-    with arch2_cli._temporary_version_tex(version_tex, "Preview v1.2.3+gabcdef1"):
+    with arch2_cli._temporary_version_tex(version_tex, "Release v1.2.3+gabcdef1"):
         assert version_tex.read_text() == (
-            "\\def\\ArchTwoReleaseVersion{Preview v1.2.3+gabcdef1}\n"
+            "\\def\\ArchTwoReleaseVersion{Release v1.2.3+gabcdef1}\n"
         )
 
     assert version_tex.read_text() == original
@@ -47,6 +47,26 @@ def test_local_build_guide_activates_its_documented_environment() -> None:
     build = guide.index("SKIP_BOOK=1 .github/scripts/build_site.sh")
     assert activation < build
     assert "Quarto 1.9.36" in guide[:build]
+
+
+def test_site_build_does_not_bypass_generated_asset_cleanliness() -> None:
+    build_script = (
+        arch2_cli.ROOT / ".github" / "scripts" / "build_site.sh"
+    ).read_text()
+
+    assert "ARCH2_SKIP_ASSET_DRIFT=1 ./arch2" not in build_script
+    assert "./arch2 render --no-layout" in build_script
+
+
+def test_html_title_strip_uses_release_language() -> None:
+    title_enhancement = (
+        arch2_cli.ROOT / "book" / "_includes" / "author-link.html"
+    ).read_text()
+
+    assert "arch2-release-meta" in title_enhancement
+    assert "Development build" in title_enhancement
+    assert "'Release ' + displayVersion" in title_enhancement
+    assert "Preview" not in title_enhancement
 
 
 def test_build_help_matches_standard_artifact_contract() -> None:

@@ -8,9 +8,10 @@ of Conduct](CODE_OF_CONDUCT.md).
 ## Use or extend the design-loop card
 
 The [30-minute start workflow](https://arch2.mlsysbook.ai/start.html) helps a
-reader draft and validate a Level 0 card. It also links the canonical YAML and
-Markdown templates, the JSON Schema, and cumulative examples for Levels 0
-through 3. Validate any completed card from a repository clone.
+reader draft and validate the context profile of a schema 2.0 card. It also
+links the canonical YAML and Markdown templates, JSON Schema, complete v2
+example, and non-inventive v1.1 migration command. Validate any completed card
+from a repository clone.
 
 ```bash
 python3 -m venv .venv-card
@@ -19,9 +20,9 @@ python3 -m venv .venv-card
 .venv-card/bin/python cli/arch2.py validate card path/to/card.yaml
 ```
 
-The schema rejects unknown contract versions and fields. Conformance levels are
-cumulative, so a card must satisfy every lower level before claiming a higher
-one.
+The schema rejects unknown contract versions and fields. Review profiles are
+independent, not cumulative. Mark a profile complete only when its required
+bindings exist, and list missing bindings for every partial profile.
 
 ## Ways to contribute
 
@@ -164,7 +165,7 @@ Rendering the book requires the `arch2` CLI and a LaTeX toolchain; a full build 
 - Do not promote `dev` to `main` until the `Validate site` workflow is green.
 - An exact `vMAJOR.MINOR.PATCH` tag is the only stable release identity. Untagged
   builds carry the current commit ID as `vMAJOR.MINOR.PATCH+g<sha>` and remain
-  development previews. Keep `CITATION.cff` aligned with the latest release tag.
+  development builds. Keep `CITATION.cff` aligned with the latest release tag.
 - Local pre-commit and GitHub preflight intentionally run the same hooks:
 
 ```bash

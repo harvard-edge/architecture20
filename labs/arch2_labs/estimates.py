@@ -12,7 +12,7 @@ Horowitz, "Computing's Energy Problem (and what we can do about it)," ISSCC 2014
 These are NOT signoff numbers. For real energy/area, route to Accelergy+Timeloop
 (Parashar et al., ISPASS 2019) or CACTI (Muralimanohar et al., 2009).
 
-Known unmodeled terms (see run receipts): on-chip network / interconnect energy,
+Known unmodeled terms (see run archives): on-chip network / interconnect energy,
 static/leakage energy, and real DRAM controller behavior are all omitted, so the
 dynamic-access estimate is a lower bound biased toward memory-movement dominance.
 """

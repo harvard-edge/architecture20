@@ -1,70 +1,69 @@
 # Design-Loop Card Examples
 
-The four level-progression cards follow one unchanged accelerator-array study.
-Read them in order to see the same intent and design-space boundary gain
-additional records. Each level is cumulative and validates as a complete card
-on its own.
+`array-study-v2.yaml` is the canonical schema 2.0 example. It follows one
+constructed accelerator-array comparison and keeps six review profiles
+independent: context, inspectability, replay, independent review, disclosure,
+and decision-right completeness. A profile marked `complete` asserts only that
+its required bindings are present. It does not assert that the evidence is
+high-fidelity or adequate for a larger commitment.
 
-| **Level** | **What the example adds** |
-| --- | --- |
-| **0, context** | Intent, task, and legal, invalid, and deferred design choices. |
-| **1, auditable card** | Representation, environment, actor map, feedback budget, evidence, and a failed-run or rejected-alternative entry. |
-| **2, replay bindings present** | Stable IDs, a workload and seed, tool version, parameter digest, and replay source. |
-| **3, independence and decision fields present** | Claimed independent rejection authority, a commitment boundary, and a named accountable owner. |
+The card separates its architecture-outcome claim from any possible
+AI-contribution claim. Its two evidence records are labeled `illustrative`,
+bind their producer, tool version, inputs, outputs, limitations, and hashes,
+and support only the synthetic estimator result stated in the claim.
 
-Conformance level, evidence fidelity, and commitment are separate judgments. A
-Level 3 card can still contain proxy evidence, as this example does. A stronger
-commitment needs stronger evidence; it does not follow from the presence
-of more fields. Disclosure and method autonomy are separate review constraints
-too.
-
-Schema validation proves that the required structure is present. It does not
-prove that the evidence is adequate, the replay succeeds, or reviewers agree
-with the claim or commitment.
-
-Validate each example from the repository root.
+Validate the v2 card and then execute its recorded replay command.
 
 ```console
-./arch2 validate card examples/design-loop-cards/level-0-context.yaml
-./arch2 validate card examples/design-loop-cards/level-1-auditable.yaml
-./arch2 validate card examples/design-loop-cards/level-2-replayable.yaml
-./arch2 validate card examples/design-loop-cards/level-3-independent.yaml
-```
-
-The Level 2 and Level 3 cards point to complete replay packets under
-`evidence/`. These packets are small teaching artifacts. They use a declared
-deterministic array estimator and a synthetic layer set, not SCALE-Sim or a
-published benchmark.
-
-Verify every synthetic packet from a repository clone with only Python 3.
-
-```console
+./arch2 validate card examples/design-loop-cards/array-study-v2.yaml
 cd examples/design-loop-cards
 python3 replay.py verify-all
 ```
 
-Each packet also declares its own render and verify commands. The render command
-recomputes the recorded results, while the verify command checks the result and
-all integrity bindings. The card's `parameter_hash` is the SHA-256 digest of the
-packet's exposed `canonical_parameter_payload`. The packet separately binds the
-workload file and replay implementation by their byte-level SHA-256 digests.
+The replay packet uses a declared deterministic array estimator and a synthetic
+layer set, not SCALE-Sim or a published benchmark. The estimator tiles each
+matrix layer over the declared array. Each tile costs
+`k + array_rows + array_columns - 2` cycles, exposing pipeline fill and drain
+overhead. It does not estimate memory stalls, timing, energy, area, or physical
+design.
 
-The estimator tiles each matrix layer over the declared array. Each tile costs
-`k + array_rows + array_columns - 2` cycles, which exposes pipeline fill and
-drain overhead. Utilization is useful multiply-accumulates divided by available
-processing-element cycles. The model does not estimate memory stalls, timing,
-energy, area, or physical design. The cards keep those outcomes outside their
-claim boundaries.
+## Legacy v1.1 Fixtures
+
+The five files whose names contain `level` are frozen schema 1.1 compatibility
+fixtures. They show the former cumulative Level 0–3 contract and remain
+readable for one public release:
+
+- `level-0-context.yaml`
+- `level-1-auditable.yaml`
+- `level-2-replayable.yaml`
+- `level-3-independent.yaml`
+- `redacted-level-0.yaml`
+
+Do not use those levels for a new study. Cumulative levels incorrectly suggest
+that independent review follows replay and that a single rank can summarize
+different review needs. Schema 2.0 replaces that ladder with independent
+profiles and strengthens claims, evidence, rejection checks, replay, and
+decision rights.
+
+Create a deterministic migration draft without inventing missing semantics.
+
+```console
+./arch2 migrate card examples/design-loop-cards/level-3-independent.yaml \
+  --output /tmp/array-study.v2-migration-draft.yaml
+```
+
+The draft intentionally does not validate as a v2 card. It preserves fields
+that map directly and lists author decisions still needed, including claim and
+evidence status, typed rejection checks, replay validation, and decision
+rights.
 
 ## Next Step
 
-These synthetic packets teach schema progression, provenance, and replay in a
-small deterministic setting. They do not replace empirical lab work with
-tool-produced evidence. Continue with the
-[simulator-backed Architecture 2.0 labs](https://github.com/harvard-edge/arch2/tree/main/labs)
+These synthetic packets teach the schema, provenance, and replay contract. They
+do not replace empirical lab work with tool-produced evidence. Continue with
+the [simulator-backed Architecture 2.0 labs](https://github.com/harvard-edge/arch2/tree/main/labs)
 to generate evidence, inspect raw outputs, preserve failed runs and rejected
-alternatives, and submit a runnable receipt for review.
+alternatives, and submit a replayable run archive for review.
 
-The fixture progression and the real labs serve different teaching roles.
-Neither replaces Chapter 8's constructed lighthouse example, which remains the
-worked synthesis of the complete design loop.
+The synthetic fixture, simulator-backed lab, and Chapter 8 study have different
+jobs. Neither synthetic fixture replaces the empirical Chapter 8 study.

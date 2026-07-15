@@ -3,7 +3,6 @@
 Current figures:
 
 - `F7-method-role-map`: method roles in the loop.
-- `F7b-hardware-awareness-ladder`: staged hardware awareness capability map.
 
 Executable Quarto figures in the chapter:
 

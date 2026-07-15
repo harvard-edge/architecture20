@@ -188,7 +188,7 @@ def main() -> None:
         "--bump",
         choices=("skip", "patch", "minor", "major"),
         default=os.environ.get("ARCH2_VERSION_BUMP", "skip"),
-        help="How to derive the preview version from the current release tag.",
+        help="How to derive the release version from the current release tag.",
     )
     args = parser.parse_args()
 

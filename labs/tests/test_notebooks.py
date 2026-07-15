@@ -37,7 +37,7 @@ CANONICAL_CARD_FIELDS = [
     "Failed runs / rejected alternatives",
     "Rejection authority",
     "Commitment boundary / would overturn",
-    "Accountable decision",
+    "Decision and owner",
 ]
 
 HIDDEN_DEFAULT_STATE = {
@@ -200,7 +200,7 @@ def test_proxy_lab_persists_explicit_learner_decision() -> None:
     assert 'decision_snapshot["rationale"]' in source
     assert "Rationale (optional)" not in source
     assert "prediction_snapshot = dict(prediction_form.value)" in source
-    assert "receipt_download = mo.download" in source
+    assert "archive_download = mo.download" in source
     assert "gate_survivor" not in source
     assert "SCALE-Sim v2" not in source
 

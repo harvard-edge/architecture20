@@ -57,8 +57,8 @@ def _(dedent, mo):
 
     **You can, after this lab:** predict what a cheap proxy will say, run a real
     simulator, measure how far the proxy *overstated* the winner, inspect the
-    evidence and rejection records, and commit to a decision that states its
-    governing objective.
+    evidence and rejection records, and record a decision that states its
+    governing objective and owner.
 
     > **Architecture 2.0 recap.** A method's job inside the loop is a *role*:
     > generate, **predict**, optimize, critique. A cheap predictor (proxy) can
@@ -77,7 +77,7 @@ def _(mo):
     retrieval = mo.ui.radio(
         options={
             "It is the final evidence; if it ranks a design first, ship it.": "wrong1",
-            "It is a fast estimate whose ranking must be checked by stronger evidence before commitment.": "right",
+            "It is a fast estimate whose ranking must be checked by stronger evidence before anyone acts on it.": "right",
             "It is only useful for energy, never for latency.": "wrong2",
         },
         label="**Warm-up (unlocks the lab).** What is a cheap proxy in an Architecture 2.0 loop?",
@@ -103,7 +103,7 @@ def _(dedent, mo, warmup_unlocked):
     mo.md(
         dedent(
             """
-    ## The loop brief
+    ## The Study Brief
 
     - **Claim.** One accelerator configuration is worth advancing to a stronger
       study for this XR-like GEMM slice.
@@ -111,7 +111,7 @@ def _(dedent, mo, warmup_unlocked):
     - **Cheap proxy.** total MACs ÷ PE count (nominal throughput). It ranks the
       **64×64** first and implies it is **16× faster** than the 16×16.
     - **Stronger evidence.** SCALE-Sim: real cycles, utilization, memory traffic.
-    - **Commitment boundary.** Advance to a next-fidelity study only. No RTL,
+    - **Authorized next step.** Advance to a next-fidelity study only. No RTL,
       signoff, or product claim.
     """
         ).strip()
@@ -196,7 +196,7 @@ def _(Path, json, mo, prediction_snapshot, run, run_example, tempfile):
     assert prediction_snapshot
     mo.stop(not run.value, mo.md("*Click **Run** to execute the simulator.*"))
 
-    _out = Path(tempfile.mkdtemp(prefix="arch2_proxy_")) / "receipt"
+    _out = Path(tempfile.mkdtemp(prefix="arch2_proxy_")) / "run"
     summary = run_example("scale_proxy_mirage", _out, force=True)
 
     runs = [
@@ -214,8 +214,8 @@ def _(Path, json, mo, prediction_snapshot, run, run_example, tempfile):
         for record in runs
         if record.get("stage") == "scalesim" and record.get("status") == "ok"
     }
-    ledger_text = (_out / "evidence_ledger.json").read_text()
-    ledger = json.loads(ledger_text)
+    evidence_text = (_out / "evidence_record.json").read_text()
+    evidence = json.loads(evidence_text)
     negative_traces = [
         json.loads(line)
         for line in (_out / "negative_traces.jsonl").read_text().splitlines()
@@ -242,22 +242,22 @@ def _(Path, json, mo, prediction_snapshot, run, run_example, tempfile):
     card_text = (_out / "card.yaml").read_text()
     environment_text = (_out / "environment.yaml").read_text()
     manifest_text = (_out / "manifest.yaml").read_text()
-    receipt_dir = _out
+    run_dir = _out
     run_complete = True
     mo.md(
         f"Ran **{len(sim_rows)} candidates**. Draft status: `{summary['status']}`. "
-        f"Local receipt: `{receipt_dir}`."
+        f"Local run archive: `{run_dir}`."
     )
     return (
         card_text,
         environment_text,
-        ledger,
-        ledger_text,
+        evidence,
+        evidence_text,
         manifest_text,
         negative_traces,
         provenance_rows,
         proxy_rows,
-        receipt_dir,
+        run_dir,
         run_complete,
         sim_rows,
     )
@@ -315,7 +315,7 @@ def _(evidence_revealed, mo, prediction_snapshot, real_ratio):
     close = "6–8×" in picked
     mo.md(
         f"""
-        ### Reconcile the surprise
+        ### Compare Your Prediction With the Result
 
         You predicted **{picked}** at **{prediction_snapshot['confidence']}% confidence**.
         Your submitted mechanism was: *{prediction_snapshot['reason']}*
@@ -340,7 +340,7 @@ def _(evidence_revealed, mo, prediction_snapshot, real_ratio):
 def _(
     card_text,
     environment_text,
-    ledger_text,
+    evidence_text,
     manifest_text,
     mo,
     negative_traces,
@@ -350,10 +350,10 @@ def _(
     assert reconciliation_complete
     artifact_browser = mo.accordion(
         {
-            "Design-loop card (Level 2 draft)": mo.md("```yaml\n" + card_text + "```"),
+            "Design-loop card (v2 draft)": mo.md("```yaml\n" + card_text + "```"),
             "Environment contract": mo.md("```yaml\n" + environment_text + "```"),
-            "Supporting evidence record": mo.md("```json\n" + ledger_text + "```"),
-            "Rejected candidates and gates": mo.ui.table(
+            "Supporting evidence record": mo.md("```json\n" + evidence_text + "```"),
+            "Rejected candidates and rejection checks": mo.ui.table(
                 negative_traces, selection=None
             ),
             "Run provenance": mo.ui.table(provenance_rows, selection=None),
@@ -364,7 +364,7 @@ def _(
     mo.vstack(
         [
             mo.md(
-                "### Inspect the receipt before deciding\n\n"
+                "### Inspect the Run Archive Before Deciding\n\n"
                 "Open each record. The card summarizes the claim, the evidence record states "
                 "what each stage supports and omits, rejected-alternative records preserve "
                 "declared rejections, provenance binds runs to inputs and outputs, and "
@@ -378,25 +378,25 @@ def _(
 
 
 @app.cell
-def _(artifacts_revealed, ledger, mo, render_objective_summary):
+def _(artifacts_revealed, evidence, mo, render_objective_summary):
     assert artifacts_revealed
-    mo.md(render_objective_summary(ledger))
+    mo.md(render_objective_summary(evidence))
     decision_ready = True
     return (decision_ready,)
 
 
 @app.cell
-def _(decision_ready, ledger, mo):
+def _(decision_ready, evidence, mo):
     assert decision_ready
     eligible = [
         outcome["candidate_id"]
-        for outcome in ledger["candidate_outcomes"]
+        for outcome in evidence["candidate_outcomes"]
         if outcome["accepted"]
     ]
 
     def _validate_decision(value):
         if value is None:
-            return "Complete the accountable decision."
+            return "Complete the decision record."
         required = [
             value.get("objective"),
             value.get("choice"),
@@ -409,14 +409,16 @@ def _(decision_ready, ledger, mo):
         if not all(required):
             return "Complete every required decision field."
         expected_candidate = (
-            ledger["objective_rankings"].get(value["objective"], {}).get("candidate_id")
+            evidence["objective_rankings"]
+            .get(value["objective"], {})
+            .get("candidate_id")
         )
         if value["level"] != "next_fidelity_study":
             return (
                 "Proxy-plus-one-simulator evidence licenses only a next-fidelity study."
             )
         if value["choice"] != expected_candidate and not value["objective_override"]:
-            return "Choose the gate-filtered objective winner or record an explicit override."
+            return "Choose the objective winner among candidates that passed the checks, or state why you chose another one."
         if value["choice"] == expected_candidate and value["objective_override"]:
             return "An override is unnecessary when the choice already matches the objective winner."
         if (
@@ -434,11 +436,11 @@ def _(decision_ready, ledger, mo):
                     "Minimize energy per inference": "energy_under_declared_gates",
                     "Maximize area efficiency (TOPS/mm²)": "area_efficiency_under_declared_gates",
                 },
-                label="**Commit.** Which objective governs this decision?",
+                label="**Decide.** Which objective governs this decision?",
             ),
             "choice": mo.ui.dropdown(
                 options=eligible,
-                label="**Human choice.** Which gate-passing candidate do you select?",
+                label="**Human choice.** Which candidate that passed both checks do you select?",
             ),
             "level": mo.ui.dropdown(
                 options={
@@ -446,11 +448,11 @@ def _(decision_ready, ledger, mo):
                     "Advance to RTL": "advance_to_rtl",
                     "Ready for signoff / product": "ready_for_signoff",
                 },
-                label="**Commitment level**",
+                label="**Authorized next step**",
             ),
             "human_owner": mo.ui.text(
-                placeholder="Your name or accountable review role",
-                label="**Accountable decision owner** (required)",
+                placeholder="Your name or review role",
+                label="**Decision owner** (required)",
             ),
             "rationale": mo.ui.text_area(
                 placeholder="Why does this candidate fit the governing objective and evidence?",
@@ -462,7 +464,7 @@ def _(decision_ready, ledger, mo):
                 label="**Override objective winner**",
             ),
             "override_reason": mo.ui.text_area(
-                placeholder="Why should another gate passer override the selected objective?",
+                placeholder="Why does another check-passing candidate better serve the stated objective?",
                 label="**Override reason** (required only for an override)",
                 rows=2,
             ),
@@ -478,7 +480,7 @@ def _(decision_ready, ledger, mo):
             ),
         }
     ).form(
-        submit_button_label="Record my accountable decision",
+        submit_button_label="Record my decision",
         clear_on_submit=False,
         validate=_validate_decision,
     )
@@ -491,7 +493,7 @@ def _(
     datetime,
     decision_form,
     mo,
-    receipt_dir,
+    run_dir,
     record_human_decision,
     render_receipt_validation,
     timezone,
@@ -499,12 +501,12 @@ def _(
 ):
     mo.stop(
         decision_form.value is None,
-        mo.md("*Complete and submit the accountable decision to continue.*"),
+        mo.md("*Complete and submit the decision record to continue.*"),
     )
     decision_snapshot = dict(decision_form.value)
     try:
         record_human_decision(
-            receipt_dir,
+            run_dir,
             {
                 "schema_version": "arch2-human-decision/v0.2",
                 "lab_id": "scale_proxy_mirage",
@@ -523,7 +525,7 @@ def _(
                 "would_overturn": str(decision_snapshot["would_overturn"]).strip(),
             },
         )
-        errors = validate_receipt(receipt_dir)
+        errors = validate_receipt(run_dir)
     except ValueError as exc:
         errors = [str(exc)]
     mo.stop(errors, mo.md(render_receipt_validation(errors)))
@@ -533,39 +535,38 @@ def _(
 
 
 @app.cell
-def _(decision_complete, io, mo, receipt_dir, validate_receipt, zipfile):
+def _(decision_complete, io, mo, run_dir, validate_receipt, zipfile):
     assert decision_complete
-    final_errors = validate_receipt(receipt_dir)
-    mo.stop(final_errors, mo.md("The completed receipt no longer validates."))
+    final_errors = validate_receipt(run_dir)
+    mo.stop(final_errors, mo.md("The completed run archive no longer validates."))
 
     archive_buffer = io.BytesIO()
     with zipfile.ZipFile(archive_buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(receipt_dir.rglob("*")):
+        for path in sorted(run_dir.rglob("*")):
             if path.is_file() and not path.is_symlink():
                 archive.write(
                     path,
                     arcname=(
-                        "arch2-proxy-mirage-receipt/"
-                        + path.relative_to(receipt_dir).as_posix()
+                        "arch2-proxy-mirage-run/" + path.relative_to(run_dir).as_posix()
                     ),
                 )
-    receipt_archive = archive_buffer.getvalue()
-    receipt_download = mo.download(
-        data=receipt_archive,
-        filename="arch2-proxy-mirage-receipt.zip",
+    run_archive = archive_buffer.getvalue()
+    archive_download = mo.download(
+        data=run_archive,
+        filename="arch2-proxy-mirage-run.zip",
         mimetype="application/zip",
-        label="Download complete runnable receipt",
+        label="Download complete run archive",
     )
     mo.vstack(
         [
             mo.md(
-                "### Complete receipt\n\n"
+                "### Complete Run Archive\n\n"
                 "The ZIP contains the card, environment contract, supporting evidence "
                 "record, failed-run and rejected-alternative records, raw simulator "
-                "reports, provenance, machine recommendation, accountable decision, "
+                "reports, provenance, machine recommendation, decision record, "
                 "and final hash-sealed manifest."
             ),
-            receipt_download,
+            archive_download,
         ]
     )
     archive_ready = True
@@ -620,7 +621,7 @@ def _(mo, reflection_form):
         mo.md("*Submit the reflection to finish the activity.*"),
     )
     mo.md(
-        "**Activity complete.** The prediction, evidence review, accountable decision, receipt, and reflection were completed in order."
+        "**Activity complete.** You submitted a prediction, inspected the evidence, recorded a decision, validated the run archive, and reflected on what could change the result."
     )
     return
 

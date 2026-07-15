@@ -1,4 +1,4 @@
-# Feedback, Evidence, and Commitment {#sec-feedback-verification-trust}
+# Feedback, Evidence, and Decision {#sec-feedback-verification-trust}
 
 ::: {.epigraph}
 > *"Program testing can be used to show the presence of bugs, but never to show their absence!"*
@@ -7,46 +7,39 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Edsger W. Dijkstra, a Turing Award-winning pioneer in algorithm design, highlighted the fundamental limitation of testing. For this chapter, the quote frames verification gates. Tests and checks do not prove an architecture claim complete; they give simulators, constraints, regressions, security screens, and reviewers authority to reject unsupported candidates before commitment.
+**Author's Note:** Edsger W. Dijkstra, a Turing Award-winning pioneer in algorithm design, highlighted the fundamental limitation of testing. Here the quote frames rejection checks. Tests do not prove an architecture claim complete; they can identify specific failures and block unsupported candidates before a transition is authorized.
 :::
 
 ```{=latex}
-\abstract*{Architecture 2.0 does not ask architects to trust an AI-assisted system. It asks them to control how a claim moves from feedback to scoped evidence and then to an authorized commitment. The design-loop card indexes one visible decision chain: claim, supporting evidence, counterevidence and failed checks, disposition (rejection, revision, escalation, or waiver), and accountable decision. Confidence, fluent explanation, and a stronger tool result do not advance commitment on their own.}
+\abstract*{Architecture 2.0 does not ask architects to trust an AI-assisted system. It asks them to record the feedback supporting a claim, judge whether that feedback is adequate evidence, and identify who is authorized to make the resulting decision. The design-loop card indexes the claim, supporting evidence, contrary evidence and failed checks, the resulting rejection, revision, escalation, or waiver, and the decision with its owner. Confidence, fluent explanation, and a stronger tool result do not authorize a transition on their own.}
 ```
 
 ::: {.callout-crux}
 What evidence supports an AI-assisted claim, what counterevidence can block it,
-and who may authorize the resulting commitment?
+and who may authorize the proposed transition?
 :::
 
-@sec-methods-generation-prediction-optimization treated methods as roles inside
-a design loop. This chapter asks when their output may support a decision, and
-it opens the card's evidence and decision fields: feedback budget, evidence,
-failed runs and rejected alternatives, rejection checks and authority,
-evidence-supported claim boundary, and accountable decision. An
-Architecture 2.0 claim advances only when relevant feedback has become scoped
-evidence, counterevidence and failed checks remain visible, the rejection path
-can block the proposed transition, and a role with the required decision right
-authorizes the commitment.
+The method roles in @sec-methods-generation-prediction-optimization operate
+inside a design loop. This chapter explains when their output is sufficient to
+support a decision. The card records the claim, available evidence, failed
+checks, rejected alternatives, result, and decision owner. Before accepting a
+recommendation, reviewers should know
+what was measured, which assumptions limit the result, what evidence
+contradicts it, and which check or reviewer can reject it.
 
-This distinction between generated output and verified evidence is central to the book. A model can generate a plausible
+Generated output and verified evidence are different. A model can generate a plausible
 architecture description. A search method can find a strong proxy score. A
 surrogate model can rank candidates. A tool-using agent[^fn-ml-tool-using-agent] can call simulators and
-summarize results. None of those actions authorizes commitment by itself.
-Assurance begins when the loop records what was measured, why it was relevant, how much
+summarize results. None of those actions authorizes a transition by itself.
+Review begins with a record of what was measured, why it was relevant, how much
 it cost, what assumptions it used, where the feedback is weak, which
-alternatives failed, and what can say no.
+alternatives failed, and who or what may reject the result.
 
 [^fn-ml-tool-using-agent]: A tool-using agent is an AI system that can programmatically invoke external software tools or APIs, such as simulators or synthesis flows, to carry out a task. In this chapter its output counts as feedback rather than authorization, since the loop still has to record provenance and give an independent check the authority to reject what the agent reports.
 
-The lighthouse prompt makes this need for evidence concrete. A proposed low-power 64-bit RISC-V
-compute subsystem for XRBench under a 3\ W, 3\ nm-class low-power mobile envelope might look reasonable under an analytic proxy, promising under
-simulation, and broken under synthesis or timing. It might meet performance
-while missing an energy or thermal target. It might pass a benchmark but fail
-a real deployment scenario. Architecture 2.0 therefore needs a commitment
-discipline that is as explicit as its representations, environments, and
-methods. At the center of that discipline is verification, used here more
-broadly than its usual formal-methods sense.
+Architecture 2.0 therefore needs decision rules as clearly specified as its
+representations, environments, and methods. At their center is
+verification, used here more broadly than its usual formal-methods sense.
 
 > **Verification.** Verification is used broadly in this chapter. It includes
 > formal methods when formal properties are available, but it also includes type
@@ -54,24 +47,25 @@ broadly than its usual formal-methods sense.
 > cross-checks, synthesis constraints, physical-design warnings, security
 > review, workload coverage, and expert design review. The common requirement is
 > rejection capability. The check must be able to fail visibly rather than
-> merely restate the method's output. As commitment risk rises, the loop also
-> needs stronger independence from the method that produced the candidate.
+> merely restate the method's output. As a transition becomes harder to reverse,
+> the loop also needs stronger independence from the method that produced the candidate.
 
-Verification is therefore a family of checks that can exercise rejection
-authority, not a single tool category (@tbl-verification-authorities). Inside AI-assisted loops, these checks are not generic quality checks; they
-define which generated state transitions may continue, be revised, or be
-blocked.
+Verification includes any check that can stop an invalid or unsupported
+candidate, not a single tool category (@tbl-verification-authorities).
+Depending on the task, that may be a parser, test suite, simulator comparison,
+synthesis constraint, deployment monitor, or expert review.
 
 The familiar examples are prosaic for a reason. A parser rejects malformed IR,
 a protocol checker rejects an illegal transaction, and a regression test blocks
 a change that breaks expected behavior. Each is valuable because it can stop
 the artifact from moving to the next state, not because it comments on quality.
 
-Reading down the table, the authorities climb from syntax and interface checks,
-through functional and model or workload checks, to implementation, operational,
-and expert-review gates. Each rung names the evidence it uses and the class of
-candidate it can reject, so a claim can point to the specific authority
-empowered to block it rather than a generic promise of quality control.
+The table groups authorities by the failure class they can detect; it does not
+rank them. A syntax check may be decisive for one transition while a workload,
+security, or expert-review check is decisive for another. Each row names the
+evidence it uses and the class of candidate it can reject, so a claim can point
+to the specific authority empowered to block it rather than a generic promise
+of quality control.
 
 | **Verification authority** | **Typical evidence** | **What it can reject** |
 | --- | --- | --- |
@@ -80,56 +74,49 @@ empowered to block it rather than a generic promise of quality control.
 | Model and workload checks | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
 | Implementation checks | Synthesis constraints, timing closure, power envelopes, area budgets, gate-level simulation (GLS), and design-rule checks (DRC). | Architecture candidates that violate physical limits or fail pre-silicon validation. |
 | Operational checks | SLOs (Service Level Objectives), canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
-| Expert review | Design review, waived-warning review, risk acceptance, and commitment decision. | Results whose evidence is too weak for the proposed commitment. |
+| Expert review | Design review, waived-warning review, risk acceptance, and decision authorization. | Results whose evidence is too weak for the proposed transition. |
 
-: **Verification names who or what can say no:** A credible claim should state
+: **Checks that can reject a claim.** A credible claim should state
 which independent authority can reject syntax, function, model support,
-implementation feasibility, deployment behavior, or final commitment. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
+implementation feasibility, deployment behavior, or a consequential transition. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
 
-Inside an Architecture 2.0 loop, each check is bound to a represented state
-field, a legal action, and a commitment boundary. It says which action may
-continue, which state update is invalid, and when the loop must revise or
-escalate.
+For each check, the study should state what it examines, which failure it
+detects, and what action it can stop.
 
-The chapter works through one claim-to-decision chain (@tbl-trust-record-map),
-deliberately treating commitment stakes before the rejection machinery that
-protects them. The chain itself has five links, from claim to authorized
-decision; the feedback-and-cost stage is not a sixth link but the resource
-precondition that bounds what evidence the other stages can contain. The
-design-loop card indexes the chain, while detailed cost, evidence, check, waiver,
-and decision records support it.
+@tbl-trust-record-map follows a claim from its supporting and contradictory
+evidence through review and final decision. Available time and tools limit
+how much evidence the study can collect. The design-loop card provides an index,
+while detailed cost, evidence, check, waiver, and decision records support it.
 Proxy mismatch and security boundaries test whether the chain remains credible
 when metrics are gamed or evidence cannot be disclosed publicly.
 
 | **Chain stage** | **Visible record** | **Reviewer question** |
 | --- | --- | --- |
-| **Claim** | Bounded task, workload, objectives, constraints, baseline, and proposed commitment. | What exactly is being asserted, and how far is it asking to go? |
+| **Claim** | Bounded task, workload, objectives, constraints, baseline, and proposed transition. | What exactly is being asserted, and how far is it asking to go? |
 | **Feedback and cost** | Available checks, observations, latency, cost, coverage, and fidelity. | What could the loop observe within its resources? |
 | **Supporting evidence** | Claim-relevant observations with provenance, assumptions, uncertainty, and scope. | Which observations actually support the claim? |
 | **Counterevidence and failed checks** | Failed runs, rejected alternatives, disagreements, missing coverage, and unresolved warnings. | What weakens or blocks the claim? |
-| **Disposition** | Passed and failed conditions, rejection, revision, escalation, and any waiver. | Why did the claim stop, change, or continue? |
-| **Authorized decision** | Commitment level, accountable decision right, consequences, and reopening conditions. | Who may authorize this transition, and what are they accepting? |
+| **Review result** | Passed and failed conditions, rejection, revision, escalation, and any waiver. | Why did the claim stop, change, or continue? |
+| **Authorized decision** | Commit-right holder, consequences, accepted residual risk, and reopening conditions. | Who may authorize this transition, and what are they accepting? |
 
-: **Assurance follows one visible chain:** A claim earns only the commitment
-supported by scoped evidence after counterevidence, failed checks, rejection,
-and waiver decisions remain visible.
+: **Evidence supports only the action under review.** Completing the card does not establish that the evidence is adequate, and adequate evidence does not replace approval from the person responsible for the decision.
 {#tbl-trust-record-map tbl-colwidths="[22,37,31]"}
 
 The design-loop card is the summary and index for this chain. Detailed
-observations remain in supporting records, and a runnable receipt bundles the
+observations remain in supporting records, and a replay package bundles the
 card, inputs, runs, checks, and decision records when the loop claims
-replayability. Card conformance, evidence fidelity, and commitment strength
-remain separate claims. One does not advance automatically when another does.
+replayability. Card structure, evidence adequacy, and authorized decision scope
+remain separate questions.
 
 ::: {.callout-learning-objectives}
-After this chapter you can review the commitment chain for an AI-assisted loop
+After this chapter you can review the decision chain for an AI-assisted loop
 output.
 That means you can:
 
-- **Turn** feedback into scoped evidence through fidelity, provenance, uncertainty, and claim relevance;
-- **Trace** a claim through supporting evidence, counterevidence, failed checks, disposition, and authorized decision;
+- **Judge** whether feedback is relevant evidence by examining fidelity, provenance, uncertainty, and claim scope;
+- **Trace** a claim through supporting evidence, contrary evidence, failed checks, review result, and authorized decision;
 - **Match** evidence requirements and decision rights to reversibility, blast radius, and consequences;
-- **Inspect** a rejection path through its condition, executing check, independence basis, blocked transition, accountable owner, and waiver authority;
+- **Inspect** a rejection path through its condition, executing check, independence basis, blocked transition, check owner, and waiver authority;
 - **Explain** why architects must understand the loop even when tools execute routine checks.
 :::
 
@@ -138,7 +125,7 @@ That means you can:
 @sec-architecture-environments-tool-interfaces used feedback regimes to design
 environments, and @sec-methods-generation-prediction-optimization used them to
 choose method roles. This chapter uses the same economics to decide what
-evidence the loop can obtain before commitment.
+evidence the loop can obtain before a decision.
 
 In any loop, the first assurance limit is economic. Feedback is not free, uniform, or
 automatically useful. An architecture loop may have thousands of cheap proxy
@@ -150,14 +137,14 @@ organizational deadlines. @sec-design-loop-no-longer-scales already measured
 this limit. Verification staffing on IC/ASIC projects sits at rough parity
 with design staffing, and projects spend roughly half their schedule in
 verification, before any AI-generated candidate stream arrives
-(@fig-ch07-verification-economics). Trusted disposition capacity is a
-head-count, not a compute budget. These limits shape which methods are
-appropriate and how much autonomy is acceptable.
+(@fig-ch07-verification-economics). Trusted review depends on people as well as
+compute. These limits affect which methods are
+appropriate and which decision rights may be delegated.
 
 ```{python}
 #| label: fig-ch07-verification-economics
 #| fig-cap: |
-#|   **Verification is already where the engineers went:** Across the Wilson Research Group / Siemens EDA functional-verification study waves, mean peak verification staffing on IC/ASIC projects rose from roughly 0.6 verification engineer per design engineer in 2007 to rough parity from 2012 onward, with processor projects reaching as much as 5:1, while projects spent roughly half their schedule in verification [@Foster2022WilsonVerificationStudy]. The left panel reads the staffing ratio in levels; the head-count growth behind it is the scissors of @fig-verification-demand-scissors. The 2022 ratio derives from unlabeled study charts and is approximate; the 2022 time share is the study's reported 50-60 percent median.
+#|   **Verification staffing and schedule share.** Across the Wilson Research Group / Siemens EDA functional-verification study waves, mean peak verification staffing on IC/ASIC projects rose from roughly 0.6 verification engineer per design engineer in 2007 to rough parity from 2012 onward, with processor projects reaching as much as 5:1, while projects spent roughly half their schedule in verification [@Foster2022WilsonVerificationStudy]. The left panel shows the staffing ratio; the head-count growth behind it appears in @fig-verification-demand-scissors. The 2022 ratio derives from unlabeled study charts and is approximate; the 2022 time share is the study's reported 50-60 percent median.
 #| out-width: "86%"
 #| fig-alt: "Two-panel plot of Wilson Research Group functional-verification study data. Left panel: verification-to-design engineer ratio on IC/ASIC projects rising from about 0.6 in 2007 to about 1.0 to 1.1 from 2012 through 2022, with a note that processor projects reach up to five to one. Right panel: share of project time spent in verification staying near 53 to 57 percent from 2014 through 2020, with a 50 to 60 percent median band for 2022."
 
@@ -169,7 +156,7 @@ apply_style()
 # Source receipt: data/source-receipts/chapter7-wilson-verification-economics.csv
 # Wilson Research Group / Siemens EDA functional-verification studies (IC/ASIC),
 # via Foster's published study summaries [@Foster2022WilsonVerificationStudy].
-# Left panel carries the verification-to-design staffing RATIO in levels,
+# Left panel shows the verification-to-design staffing RATIO in levels,
 # derived from the study's printed mean-peak staffing labels (2022 from
 # chart-read bars constrained by the stated +50% design / +146% verification
 # growth since 2007). The underlying head-count pairs are receipted with the
@@ -234,18 +221,18 @@ for ax in (ax1, ax2):
 The supporting cost record states which
 evaluations, measurements, tool runs, human reviews, and deployment signals are
 available, what they cost, how long they take, how reversible they are, and
-what level of decision they can support. The record shows what kind of learning
+which decisions they can support. The record shows what kind of learning
 and checking is possible. A Bayesian optimizer[^fn-ml-bayesian-optimizer-budget], reinforcement-learning policy[^fn-rl-policy],
 surrogate model[^fn-ml-surrogate-proxy-feedback], critic[^fn-rl-critic], or tool-using agent should behave differently when a
 feedback source takes milliseconds versus days, when a failed action is
 reversible versus costly, and when the signal is a rough proxy versus a
-signoff report (@tbl-feedback-budget-ledger).
+signoff report (@tbl-feedback-budget).
 
-[^fn-ml-bayesian-optimizer-budget]: The feedback-budget issue is how aggressively the optimizer may sample. A cheap proxy budget supports broad search; a costly synthesis budget demands selective acquisition and explicit evidence of each evaluation's fidelity.
+[^fn-ml-bayesian-optimizer-budget]: The feedback-budget issue is how aggressively the optimizer may sample. A cheap proxy budget supports broad search; a costly synthesis budget demands selective acquisition and a fidelity record for each evaluation.
 
 [^fn-rl-policy]: In reinforcement learning, a policy is a function that maps an agent's observed state to a chosen action. Treated here as a method inside the loop, its output advances only through the evidence its actions leave and the checks that can reject them.
 
-[^fn-ml-surrogate-proxy-feedback]: For this surrogate use, authority is the issue. A surrogate's ranking can guide exploration, but it should remain proxy feedback until an independent, higher-fidelity check can reject a proxy win.
+[^fn-ml-surrogate-proxy-feedback]: For this surrogate use, authority is the issue. A surrogate's ranking can guide exploration, but it should remain proxy feedback until an independent, decision-relevant check can reject a proxy win.
 
 [^fn-rl-critic]: In this book, a critic is the critique method role of @sec-methods-generation-prediction-optimization, a component that challenges assumptions, evidence, or claims inside the loop; reinforcement learning uses the same word more narrowly for a learned estimator of expected future returns. Its job here is to strengthen rejection, though it adds real authority only when it can fail in a way the generator cannot explain away.
 
@@ -254,24 +241,21 @@ signoff report (@tbl-feedback-budget-ledger).
 | **Latency and cost** | Runtime, queue time, dollar cost, tool hours, license limits, model calls, GPU-hours, energy or carbon exposure, and human review time. | Determines whether the loop should search broadly, sample carefully, or mostly critique. |
 | **Signal quality** | Fidelity level, metric definition, noise, determinism, coverage, and uncertainty. | Separates raw feedback from decision-grade evidence. |
 | **Sample budget** | Number of possible runs at each fidelity, including failed runs and invalid candidates. | Forces sample-efficient methods and preserves failed runs and rejected alternatives. |
-| **Reversibility** | Whether the action can be undone cheaply, re-run, patched, or rolled back. | Connects autonomy to risk. Reversible actions can tolerate weaker evidence than irreversible commitments. |
-| **Decision impact** | Claim level supported, condition triggered, transition blocked, and accountable owner. | Ties each feedback source to the decision it can change. |
+| **Reversibility** | Whether the action can be undone cheaply, re-run, patched, or rolled back. | Connects delegated execution to consequence. Reversible actions can tolerate a different evidence burden than difficult-to-reverse decisions. |
+| **Decision impact** | Claim level supported, condition triggered, transition blocked, and decision owner. | Ties each feedback source to the decision it can change. |
 | **Scarce attention** | Expert review, debugging effort, validation bandwidth, security review, and integration time. | Prevents the loop from outsourcing cost to people whose time is the real bottleneck. |
 
-: **Feedback budgets make learning economics explicit:** The supporting record states what feedback is available, what it costs, what evidence it can support, and when scarce expert attention or irreversible action should limit automation. {#tbl-feedback-budget-ledger tbl-colwidths="[22,34,32]"}
+: **Feedback budgets state the cost of learning:** The supporting record states what feedback is available, what it costs, what evidence it can support, and when scarce expert attention or irreversible action should limit automation. {#tbl-feedback-budget tbl-colwidths="[22,34,32]"}
 
-Beyond tracking costs, this record also changes what a result means. A method that finds a good point
-after 10,000 cheap proxy evaluations has learned something different from a
-method that selects three candidates for expensive synthesis. A loop that
-records failures, timeouts, warnings, rejected candidates, and review notes
-has more evidence than a loop that records only the winning score. This is
-the connection to sample efficiency from @sec-methods-generation-prediction-optimization. Sample efficiency is not
-only about using fewer evaluations. It is about making each evaluation carry
-more architectural information.
+Cost records help reviewers compare studies that use feedback differently. A
+method that finds a good point after 10,000 cheap proxy evaluations has learned
+something different from a method that selects three candidates for expensive
+synthesis. A study that records failures, timeouts, warnings, rejected
+candidates, and review notes provides more information than one that records
+only the winning score.
 
-To make that discipline concrete, the following notation acts as a review
-prompt rather than a universal evidence metric. It makes the feedback budget
-and sample-value question explicit:
+The following notation is a reminder to compare the expected decision value of
+an evaluation with its cost. It is not intended as a universal numerical score.
 
 $$
 B = \sum_i n_i \cdot c_i,
@@ -286,15 +270,14 @@ is the supporting evidence produced by that evaluation, $\Delta \mathrm{Conf}(d
 resulting decision value of one such evaluation. It is the per-feedback-type
 form of the sample-value rule from
 @sec-methods-generation-prediction-optimization; ordinal confidence changes or
-decision-relevance labels are often more honest than unjustified numeric
-confidence. The budget's shape is what makes the rule bite. As one evaluation's cost
-climbs from milliseconds at the proxy rung to months at the silicon rung, the
+decision-relevance labels are often more accurate than unjustified numeric
+confidence. As one evaluation's cost rises from milliseconds for an analytic proxy to months for silicon or deployment, the
 affordable sample count collapses toward one (@fig-ch07-feedback-funnel).
 
 ```{python}
 #| label: fig-ch07-feedback-funnel
 #| fig-cap: |
-#|   **The feedback funnel sets the budget the notation formalizes:** As the cost of one evaluation rises from milliseconds for an analytic proxy to months for silicon or deployment evidence, the affordable sample count $n_i$ under a fixed budget $B = \sum_i n_i \cdot c_i$ collapses from thousands toward one. Ranges are illustrative orders of magnitude from this chapter's funnel; the cycle-level rung is anchored to the wall-clock arithmetic of @sec-data-representations-world-models (one second of a 1 GHz target at 100 kcycle/s to 10 Mcycle/s of simulator throughput).
+#|   **The feedback funnel sets the budget the notation formalizes:** As the cost of one evaluation rises from milliseconds for an analytic proxy to months for silicon or deployment evidence, the affordable sample count $n_i$ under a fixed budget $B = \sum_i n_i \cdot c_i$ collapses from thousands toward one. Ranges are illustrative orders of magnitude from this chapter's funnel; the cycle-level source is anchored to the wall-clock arithmetic of @sec-data-representations-world-models (one second of a 1 GHz target at 100 kcycle/s to 10 Mcycle/s of simulator throughput).
 #| out-width: "86%"
 #| fig-alt: "Log-log plot with cost per evaluation in seconds on the horizontal axis spanning milliseconds to months, and evaluations per study on the vertical axis spanning one to one hundred thousand. Five labeled boxes descend from analytic proxy at thousands to a hundred thousand cheap evaluations, through cycle-level simulation in the hundreds, synthesis and physical design in the tens, emulation at a few, down to silicon or deployment at about one."
 
@@ -313,7 +296,7 @@ apply_style()
 f_target, t_workload = 1e9, 1.0
 sim_cost = (f_target * t_workload / 1e7, f_target * t_workload / 1e5)
 
-rungs = [
+feedback_sources = [
     # (label, cost range in seconds, evaluations range, color key)
     ("Analytic proxy", (1e-3, 1e0), (1e3, 1e5), "blue"),
     ("Cycle-level simulation", sim_cost, (1e2, 1e3), "purple"),
@@ -334,7 +317,7 @@ label_offsets = {
     "Emulation": (-6, 8),
     "Silicon / deployment": (0, 8),
 }
-for label, (c_lo, c_hi), (n_lo, n_hi), key in rungs:
+for label, (c_lo, c_hi), (n_lo, n_hi), key in feedback_sources:
     ax.fill_betweenx([n_lo, n_hi], c_lo, c_hi, facecolor=COLORS[key],
                      alpha=0.22, edgecolor=COLORS[key], linewidth=0.9, zorder=2)
     cx = (c_lo * c_hi) ** 0.5
@@ -357,18 +340,14 @@ ax.spines["left"].set_color(COLORS["ink"])
 ax.spines["bottom"].set_color(COLORS["ink"])
 ```
 
-Architecture 2.0 weighs confidence gains against computational and human costs, much as the quantitative tradition weighed performance against area and power. For example, spending 100 CPU-hours ($c_i$) on a cycle-level simulation to gain a modest reduction in power, performance, and area (PPA) uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. The notation is a question the loop designer must answer before
-each stage. Will another simulation, synthesis run, expert review, or
-deployment experiment change a decision enough to justify its cost? @sec-running-the-loop
-makes the question concrete, spending the proxy budget freely, spending the
-simulation-stage budget carefully, and deferring the high-fidelity power check
-to the surviving candidate's next evidence stage.
-The unit being priced is not just another evaluation. It is one part of the
-claim-to-decision chain, including the state before the action, the action
-itself, the observation it produces, any failed condition, the transition that
-can be blocked, and the resulting decision.
+Architecture 2.0 weighs confidence gains against computational and human costs, much as the quantitative tradition weighed performance against area and power. For example, spending 100 CPU-hours ($c_i$) on a cycle-level simulation to gain a modest reduction in power, performance, and area (PPA) uncertainty ($\Delta \mathrm{Conf}$) might be less valuable than spending 1 hour of expert review to catch a fundamental security flaw. Before requesting another simulation, synthesis run, review, or deployment experiment, the study owner should ask whether the result could change the decision enough to justify its cost. @sec-running-the-loop
+makes the question concrete by fixing equal four-run SCALE-Sim budgets for the
+model and conventional arms. Energy, area, compiler, RTL, and physical-design
+questions are deferred because answering them would require a new evidence plan.
+The cost record should identify the candidate, requested evaluation, expected
+result, possible failure, and decision it would affect.
 
-## Fidelity Ladders and Supporting Evidence {#sec-fidelity-ladders-and-evidence-ledgers}
+## Evidence Must Fit the Consequence {#sec-evidence-by-consequence}
 
 Feedback becomes evidence only when it is tied to fidelity, provenance,
 uncertainty, and a decision. A simulator result is feedback. It becomes
@@ -376,125 +355,124 @@ evidence when the workload, simulator version, configuration, random seed,
 assumptions, metric definition, failure status, and acceptance criterion are
 recorded. A synthesis report is feedback. It becomes evidence when the
 technology assumptions, constraints, tool versions, warnings, and comparison
-baseline are explicit.
+baseline are recorded.
 
-> **Fidelity ladder.** A fidelity ladder is an ordered set of feedback regimes
-> used to test the same claim. Each rung names the observation source, cost,
-> assumptions, coverage, uncertainty, and claim scope it can support. A higher
-> rung may expose more implementation or deployment reality, but it does not
-> automatically make the claim true or authorize a stronger commitment.
+Evidence types cannot be ranked on a universal scale of fidelity. A cycle
+estimate, synthesis report, formal proof, post-route result, and deployment
+trace answer different questions under different assumptions. For each
+evidence record, type the dimensions in @tbl-evidence-dimensions instead of
+treating tool stages as a single confidence score.
+
+| **Dimension** | **Question the record must answer** |
+| --- | --- |
+| **Producer and status** | Who or what produced the result, and is it measured, computed, digitized, illustrative, or author judgment? |
+| **Source and fidelity** | Which simulator, tool stage, experiment, review, or deployment path produced the observation, at what cost? |
+| **Scope** | Which workload, design state, technology assumptions, objective, and comparison does the observation cover? |
+| **Uncertainty and limits** | What variability, calibration error, missing behavior, or known blind spot bounds the result? |
+| **Integrity and provenance** | Which versions, inputs, outputs, commands, hashes, and access controls associate the record with the run? |
+| **Independence** | Which actors, models, data, objectives, and tool paths are shared with the producer, and which are independent? |
+
+: **Dimensions of an evidence record.** Adequacy depends on the claim
+and the next decision. Expensive evidence can still be out of scope, and cheap
+evidence can be decisive for a narrow rejection criterion. {#tbl-evidence-dimensions tbl-colwidths="[24,66]"}
 
 This way of connecting claims to evidence is not new to engineering.
 Safety-critical fields formalize it as an *assurance case*, a structured
 argument linking a top-level claim to sub-claims, assumptions, supporting
 evidence, and defeaters. Goal Structuring Notation[^fn-safety-gsn] makes those
-links explicit and reviewable. Architecture 2.0 uses a lighter claim-to-decision
-chain, but it borrows the same discipline. The supporting evidence record shows
+links traceable. Architecture 2.0 uses a lighter claim-to-decision
+chain, but it borrows the same structure. The supporting evidence record shows
 which observations support the claim, which failed checks or rejected
 alternatives weaken it, and which waivers or decision rights allowed it to
-continue. Naming the lineage matters because assurance cases already expose
-common failures such as unstated assumptions, evidence outside the claimed
-scope, and confidence that outruns support.
+continue. Assurance cases make common failures easier to find, including
+unstated assumptions, evidence outside the claimed scope, and conclusions that
+the evidence does not support.
 
-[^fn-safety-gsn]: Goal Structuring Notation (GSN) is a graphical argumentation notation used in safety-critical engineering to document the elements of an assurance case, making each inference and its supporting evidence explicit and reviewable [@Kelly2004GSN]. The claim-to-decision chain borrows this discipline so a design claim carries its support, assumptions, counterevidence, and decision rather than a bare score.
+[^fn-safety-gsn]: Goal Structuring Notation (GSN) is a graphical argumentation notation used in safety-critical engineering to document the elements of an assurance case, making each inference and its supporting evidence traceable [@Kelly2004GSN]. The claim-to-decision chain borrows this structure so that a design claim is reported with its support, assumptions, counterevidence, and decision rather than as a bare score.
 
-When a claim needs staged feedback, an Architecture 2.0 study should move it
-through increasingly costly feedback sources, recording a scoped observation,
-supporting or counterevidence, and disposition at each stage
-(@fig-evidence-chain-rejection-gates).
+When a claim needs several feedback sources, an Architecture 2.0 study should
+record a scoped observation, supporting or contrary evidence, and result for
+each one. Each rejection check should target a specific failure. Reviewers
+should consider all supporting and contradictory results together, then leave
+the final decision to the person assigned that responsibility. No model output,
+tool stage, or score is sufficient on its own.
 
-![**The evidence chain connects an architectural claim to a decision:** Staged checks record provenance, uncertainty, counterevidence, and failed conditions while declaring which transition each check may block. The final disposition belongs to an authorized review role. Fidelity, cost, rejection, and commitment remain separate judgments; moving to a stronger check does not authorize a stronger commitment by itself.](images/F9-evidence-chain-rejection-gates){#fig-evidence-chain-rejection-gates width="100%" fig-alt="Staged architectural-claim-to-decision chain showing feedback sources, provenance, uncertainty, failed conditions, revision, rejection, escalation, and authorized review, with fidelity and cost kept separate from commitment authority."}
+Ordering tools by cost is not a ranking from false to true. A detailed
+physical-design result can still answer the wrong architecture question. A
+deployment signal can still be confounded by a software change. A benchmark
+can still be too narrow. Staging is useful because each source can challenge a
+different assumption, not because a later stage automatically inherits more
+authority.
 
-A rejection gate hangs off every intermediate stage, the
-evidence record spans the full chain beneath them, and the commitment decision
-waits behind an authorized review at the end. Assurance is therefore a
-property of the decision chain rather than the model or a single score.
-
-However, moving up the fidelity ladder is not a simple ranking from false to true. Higher fidelity is not
-automatically truth if the wrong workload, objective, constraints, or baseline
-were used. A detailed physical-design result can still answer the wrong
-architecture question. A deployment signal can still be confounded by a
-software change. A benchmark can still be too narrow. The purpose of the
-feedback-regime view is therefore not to worship expensive tools. It is to make
-the path from weak feedback to stronger evidence explicit.
-
-Returning to the lighthouse prompt, low-fidelity feedback may be useful for eliminating
-obviously infeasible vector widths, memory sizes, or accelerator partitions.
-Simulation may then test workload behavior and data movement. Synthesis or
-emulation may expose timing, area, or power problems. Deployment-like traces
-or silicon evidence may reveal workload drift or integration effects. At each
-stage, the loop should ask whether the earlier conclusion survived, changed,
-or should be rejected.
+The executed study in @sec-running-the-loop makes the boundary concrete.
+SCALE-Sim supplies computed cycle and utilization evidence under a frozen
+mapping model. That evidence can compare the legal array geometries in the
+study. It cannot establish energy, area, compiler behavior, RTL correctness, or
+physical feasibility. The baseline-retention recommendation fits the evidence;
+an implementation decision would not.
 
 This framing is consistent with the quantitative tradition in computer
 architecture, where measurement, abstraction, and careful comparison are
 central [@HennessyPatterson2017QuantitativeApproach]. Architecture 2.0
-adds a loop-level requirement. The supporting evidence record must be
-inspectable by the compound method system and every role accountable for the
-decision.
+adds one requirement. Every person or component involved in producing or
+approving a recommendation must be able to inspect the evidence and its
+limitations.
 
-## Commitment Levels and Reversibility {#sec-commitment-levels-and-reversibility}
+### Consequence Sets the Evidence Burden {#sec-consequence-and-reversibility}
 
-The supporting evidence record shows how strong the support for a claim is. How
-strong that support needs to be is a separate question, and assurance requirements should rise
-with commitment. A loop that generates a
-candidate simulator configuration can tolerate more automation than a loop
-that changes RTL, partitions a chiplet boundary (the physical interface between separate silicon dies), selects a package interface,
-or recommends a deployment policy. The difference is not whether AI is
-involved. The difference is rollback cost, blast radius (how far a wrong change
-can propagate), and who bears the
-consequence when the loop is wrong.
+The evidence required for a candidate depends on the action being considered.
+A simulator configuration, RTL change, chiplet boundary, package interface,
+signoff waiver, and fleet rollout have different rollback costs, affected
+interfaces, and consequences. The burden of proof depends on who bears those
+consequences when the study is wrong, regardless of whether AI is involved.
 
-The exact
-ordering will vary across organizations, but the pattern is stable across the
-five commitment levels of @tbl-commitment-ladder, where each row pairs a
-level's example actions with the discipline and the decision rights it
-requires. Reversible exploration can use lighter evidence, while irreversible or
-high-blast-radius decisions require stronger evidence, independent rejection,
-and visible accountable decision rights. An escalation threshold states when
-the loop must stop relying on its current feedback source and seek stronger
-evidence, independent review, or the approval right required for the proposed
-commitment.
+@tbl-evidence-by-consequence gives representative consequence classes. They are
+not maturity levels. The same candidate can move from one row to another as the
+proposed action changes, and each move requires a fresh evidence and rights
+check. An escalation threshold states when the current evidence can no longer
+support the proposed transition.
 
-Escalation thresholds depend on consequences, not only on model confidence, so
-the decision rights behind them must be visible. A proxy win may be enough to keep
-exploring. It is not enough to change a subsystem interface, waive a
-verification concern, or commit to a power claim. The loop should therefore state in advance which
-events force escalation, such as uncertainty outside the calibrated range, a benchmark
-coverage gap, a failed tool check, a security boundary, a high rollback cost,
-or a decision that would affect another team or product.
+A proxy result may justify another experiment, but not an interface change,
+signoff waiver, or power claim. As an action becomes harder to reverse or
+affects more people, the study needs stronger evidence and approval from the
+appropriate owner. The study should state in advance which events require that
+additional review. Examples include uncertainty outside the calibrated range,
+a benchmark coverage gap, a failed tool check, a security boundary, a high
+rollback cost, or an action that affects another team or product.
 
 Architects do not need to execute every routine check. They do need to
 understand the chain because architecture work sets the claim scope, decides
 what may be delegated, judges evidence sufficiency, assigns waiver rights, and
 accepts system consequences. An organization may distribute those rights across
-design, verification, security, product, or release roles. The card must make
-that distribution visible rather than treating every gate as a singular human
+design, verification, security, product, or release roles. The card must record
+that distribution rather than treating every check as a singular human
 decision or as an autonomous tool choice.
 
-| **Commitment** | **Example actions** | **Required discipline** | **Decision rights** |
+| **Proposed transition** | **Consequence cues** | **Evidence and review requirements** | **Rights that must be stated** |
 | --- | --- | --- | --- |
-| Exploratory | Generate hypotheses, configs, candidate questions, or design cards. | Basic validity checks and provenance. | Automated assistance within declared scope. |
-| Experimental | Run simulator sweeps, tune compiler flags, select candidates for deeper study. | Workload versions, seeds, baseline, rejected candidates, and uncertainty. | Automated execution with a named review right. |
-| Implementation | Change RTL, generators, tool constraints, tests, or runtime interfaces. | Tool checks, regression tests, synthesis or integration evidence. | Routine checks may be automated; an integration role owns advancement. |
-| Integration | Change subsystem interfaces, chiplet boundaries, memory contracts, or product-facing policies. | Cross-tool checks, compatibility, security, and explicit escalation. | Named cross-team approval and waiver rights. |
-| Irreversible | Mask-level choices, committed signoff decisions, fleet-wide rollouts, or customer-visible deployments. | Independent supporting evidence, inspectable rejection path, audit trail, and accountable decision. | Explicit commitment and waiver authority. |
+| Continue local exploration | Candidate can be discarded; no shared interface or external obligation changes. | Basic validity, provenance, scope, and a comparison sufficient to decide what to test next. | Propose and execute scope; automatic reject conditions; study owner. |
+| Advance a bounded experiment | Scarce tool time, shared data, or a deeper test is consumed, but rollback remains local. | Versioned workload, matched baseline, uncertainty, failed alternatives, and criteria for stopping or escalating. | Execute budget, reject authority, recommender, and evidence owner. |
+| Change an implementation or interface | RTL, generator, compiler, runtime, memory, chiplet, security, or team contract changes. | Regression and integration evidence, compatibility checks, cross-tool challenge, and residual-risk review. | Rejector, waiver holder, recommender, affected-interface owners, and commit right. |
+| Authorize signoff or consequential deployment | Rollback is difficult, customer- or silicon-facing effects are possible, or a formal obligation is accepted. | Independent evidence appropriate to the claim, fully specified rejection checks, audit trail, recorded waivers, and reopening conditions. | Separate reject and waiver rights where needed, plus a named commit-right holder. |
 
-: **Commitment level should govern decision rights:** Reversible exploration can tolerate lighter evidence, while interface changes, product policies, signoff decisions, and deployments require stronger evidence, independent rejection, and visible accountable ownership. {#tbl-commitment-ladder tbl-colwidths="[20,28,24,18]"}
+: **Evidence burden follows consequence:** Reversibility, blast radius, affected
+interfaces, and check independence determine what must be shown and who may
+advance the transition. {#tbl-evidence-by-consequence tbl-colwidths="[20,23,30,19]"}
 
-This commitment structure keeps Architecture 2.0 from making a naive autonomy argument.
-Autonomy is not a virtue by itself. A loop may be highly automated for
-low-commitment exploration and deliberately conservative for high-commitment
-decisions. In fact, the most valuable near-term systems may make no final design
-choices at all. They narrow a space, surface contradictions, preserve
-evidence, and leave the accountable roles better prepared to decide.
+A study may automate routine work while reserving the rights to reject, waive,
+recommend, or commit for different people. Some useful systems make no final
+design choices. They narrow the design space, identify contradictions, preserve
+evidence, and help the responsible people decide.
 
-::: {#pri-escalate-commitment .callout-design-principle title="Escalate with commitment"}
-In an AI-assisted loop, evidence requirements should rise with rollback cost,
-blast radius, and the independence of the rejection path. The cheaper a decision
-is to undo, the more routine work may be delegated. The harder it is to undo,
-the stronger the evidence, check independence, and accountable approval must be.
+::: {#pri-escalate-commitment .callout-design-principle title="Require more evidence as consequences grow"}
+A result that justifies another experiment may not justify an interface change
+or signoff decision. As rollback becomes harder, more systems or people are
+affected, or independent checks become more important, require stronger
+evidence and name the role authorized to proceed.
 :::
+
+Stronger evidence matters only if a check has the authority to block an
+unsupported transition.
 
 ## Rejection Authority
 
@@ -503,113 +481,72 @@ to block a candidate or claim. This chapter deepens that definition by asking
 what a reviewer can inspect when the right is exercised. The executing check may
 be a parser, simulator, formal tool, regression test, synthesis flow, cross-tool
 comparison, signoff rule, deployment signal, security policy, benchmark rule,
-or expert review. Its rejection condition may expose a proxy mismatch, protocol
+or expert review. Its rejection condition may detect a proxy mismatch, protocol
 violation, physical limit, or policy boundary.
 
-Beyond preventing errors, rejection authority is one lever of adjudication
-capacity. In a rejection-bound stage, where trusted disposition rather than proposal
-supply limits progress, a fixed proposal stream lets validated
-cheap checks settle some cases before expensive escalation. Total capacity
-also depends on routing, audits, reference-check cost, and concurrency;
-@sec-loop-patterns-across-stack turns these levers into a measurable capacity
-model. A search
-loop has another lever because a better generator may need fewer evaluations to
-reach a fixed-quality target. Rejection authority is therefore a working part
-of the loop, not a bolted-on safeguard, and it is one determinant of useful
-design progress among several, not the whole story.
+Early automated checks can reduce the number of candidates that require
+expensive review. Their benefit depends on how many cases they settle
+accurately and how much human or tool time each check consumes. Routing, audit
+cost, reference checks, and concurrency also affect review capacity; a
+quantitative model appears in @sec-loop-patterns-across-stack. Search methods
+can reduce the load as well if they require fewer evaluations to reach a given
+quality target.
 
-Capacity is the throughput view of rejection; the reviewer's immediate view is
-narrower. When a reviewer inspects an exercised rejection, the disposition stage of the
-chain should expose six properties, from the exact condition that failed to
-the distinct waiver right that may override it
-(@tbl-rejection-review-properties).
+When a check rejects a candidate, the record should identify the failed
+condition, the check that found it, the action it blocked, the check owner, and
+any waiver process. @tbl-rejection-review-properties lists the information a
+reviewer needs.
 
-| **Review property** | **What must be visible** |
+| **Review property** | **What the record must state** |
 | --- | --- |
 | **Rejection condition** | The exact observation or missing requirement that causes failure. |
 | **Executing check** | The tool, test, policy, review process, or deployment signal that evaluates the condition. |
 | **Independence basis** | What the check does not share with the generator, such as model family, training data, objective, tool path, workload, or evidence source. |
-| **Transition it can block** | The state change or commitment level that cannot proceed after failure. |
-| **Accountable owner** | The role responsible for the check's operation, interpretation, and consequences. |
+| **Transition it can block** | The state change or decision that cannot proceed after failure. |
+| **Check owner** | The role responsible for the check's operation, interpretation, and consequences. |
 | **Waiver authority** | The distinct role or process allowed to override the failure, with rationale, scope, expiration, and reopening conditions. |
 
-: **A rejection path must be inspectable:** Naming a check is insufficient unless
-the condition, independence, blocked transition, ownership, and waiver right are
-also visible. {#tbl-rejection-review-properties tbl-colwidths="[25,65]"}
+: **Information required to review a rejection.** Naming a check is
+insufficient unless the record also states the condition, independence basis,
+blocked action, owner, and waiver authority. {#tbl-rejection-review-properties tbl-colwidths="[25,65]"}
 
 An invalid constraint, timing miss, benchmark violation, or expert objection can
-expose a design-space boundary. A simulator crash or failed build is recorded
+identify a design-space boundary. A simulator crash or failed build is recorded
 first as an environment failure and becomes a candidate rejection only when a
 declared validity or constraint rule makes the candidate responsible for that
 outcome.
 
-We can formalize this commitment discipline compactly as a boolean gate:
-$$
-\mathrm{Commit}_k(x) =
-\begin{cases}
-1, & \mathrm{valid}(x) \land E_k(x) \ge \tau_k \land
-\rho_k(x) \le \rho_{\max,k}, \\
-0, & \text{otherwise}.
-\end{cases}
-$$
-This notation does not authorize a decision. It makes the refusal conditions
-visible. Here, $x$ is the generated architecture candidate and $k$ is the
-current commitment level (e.g., experimental vs. integration). For commitment
-to be authorized at level $k$, three conditions must hold:
+Before a transition proceeds, its rejection check should answer three questions:
 
-1. $\mathrm{valid}(x)$: Legality alone. The candidate breaks no declared ISA, structural, or interface contracts.
-2. $E_k(x) \ge \tau_k$: Evidence sufficiency. The collected evidence $E_k(x)$ meets or exceeds the required threshold $\tau_k$ for that commitment level.
-3. $\rho_k(x) \le \rho_{\max,k}$: Residual risk. The remaining uncertainty $\rho_k(x)$ is below the maximum risk $\rho_{\max,k}$ the organization is willing to tolerate.
+1. **Is the candidate legal?** It violates no declared structural, ISA,
+   software, interface, security, or policy contract.
+2. **Does the evidence meet the named criteria?** The required records exist,
+   refer to this claim and comparison, cover the stated scope, and survive the
+   declared challenge checks.
+3. **Has the commit-right holder accepted the residual risk?** The
+   unresolved uncertainty, consequences, waiver state, and reopening conditions
+   are available to whoever holds the commit right.
 
-Evidence and risk are written as scalars only for compactness. In practice each
-is a set of per-level requirements in @tbl-commitment-ladder. The thresholds are policy
-and judgment choices, not magic constants learned by the method. If validity,
-evidence, or residual risk fails, the loop should reject, revise, or escalate
-instead of silently turning output into commitment. @sec-running-the-loop runs this rule on
-the lighthouse prompt and shows how a candidate can fail on validity, evidence,
-or residual risk even when another metric looks promising.
+These conditions are sets of requirements, not scalar scores. A failed item
+causes rejection, revision, or escalation. Only the assigned waiver holder may
+override a failed check, and the waiver becomes part of the evidence record.
 
-The commitment ladder (@tbl-commitment-ladder) turns $\tau_k$ from a symbol into
-a rule the loop can enforce. Read each level's required discipline as its
-acceptance condition, and make the failure explicit. When a required item is
-missing, the loop does not commit at that level. It either downgrades the
-claim to the highest level whose evidence is actually present, escalates to
-the feedback the missing item names, or rejects the candidate. An exploratory
-claim missing a baseline stays exploratory; an implementation claim missing
-synthesis evidence or an independent rejector drops back to experimental until
-that evidence exists; an irreversible claim missing its accountable approval right
-is not made. That is the whole point of writing $\tau_k$ down per level. A missing cell forces rejection or escalation, never silent commitment. And when a claim is
-meant to be comparable across teams rather than only reviewable, these
-thresholds cannot stay local judgment calls. A shared benchmark protocol has to
-fix them. Otherwise the claim stays contrastable, meaning a reviewer can check
-it against its own declared rules, but not comparable, meaning two teams' claims
-cannot be ranked.
+The executed study in @sec-running-the-loop shows the distinction. Its legal
+geometry and deadline checks can reject a candidate inside the SCALE-Sim study.
+Its evidence can support a narrow recommendation about the tested workload and
+cycle objective. It cannot support an energy, area, RTL, or physical-design
+transition because those records do not exist. The mechanism probe also fails,
+so the explanation is rejected even though every evaluated geometry is legal.
 
-::: {.callout-lighthouse title="Validity is a contract, not a score"}
-**Context.** The commitment rule above does not ask whether an AI-generated candidate sounds
-promising. It asks whether the candidate is legal for the commitment level the
-loop proposes to authorize.
+For a claim to be comparable across teams, its rejection criteria cannot remain
+private judgment calls. The teams must agree on the workload, metric, baseline,
+tool versions, budgets, and reference checks. Otherwise, a result may satisfy
+one team's rules without being comparable with another team's result.
 
-**In the Lighthouse prompt.** A generative method's candidate for the "64-bit RISC-V-based compute
-subsystem" is legal only if it stays inside the declared ISA/software contract
-and does not hide an invalid memory or SoC interface
-assumption. A legal candidate can still be rejected when the evidence shows that
-it misses the XRBench-class workload obligation or the 3\ W TDP target.
-
-**Rejection gate.** ISA compatibility, workload validity, memory/interface
-legality, power, deadline, and evidence sufficiency for the proposed decision are gates, not advisory
-metrics for the generator to optimize.
-
-**Takeaway.** If any gate is unsupported, the loop should force the generative method to reject, revise, or
-escalate rather than turn a plausible subsystem into a commitment.
-:::
-
-Once a check fails, the response to rejection should be explicit. A candidate
-is discarded. A representation gains a field. An environment gains a validity
-check. A method loses action space. A workload gets a sharper coverage
-definition. A claim is weakened. An accountable decision role escalates the
-case. Without this response path, rejection becomes a
-log message rather than a learning signal.
+A failed check must change the work. The team might discard the candidate,
+record missing state, add an environment validity test, restrict the method's
+actions, narrow workload coverage, weaken the claim, or escalate the decision.
+Without such a response, a failed check is only a log message.
 
 This rejection authority also protects against polished but unsupported outputs.
 Tool-using agents can generate convincing summaries, plots, design reports,
@@ -625,13 +562,11 @@ The independence requirement grows sharper as verification itself becomes
 AI-assisted. Machine-learning-assisted verification tools, such as Cadence
 Verisium for triaging failures, ranking likely root causes, and directing
 coverage, can be valuable [@Cadence2022Verisium]. But they move part of the
-rejection authority into a learned system, which forces a recursive version of
-this chapter's question. Is the authority that can reject a design independent
-of the system that produced it, or has the loop quietly made the generator and
-its judge the same model? AI-assisted verification can share failure modes with
-generation, so a rejection authority that shares the generator's
-blind spots is not an independent gate. It is a second opinion from the same
-witness.
+rejection authority into a learned system. Reviewers must therefore ask whether
+the check is independent of the system that produced the design. AI-assisted
+verification can share failure modes with generation, particularly when the
+two systems use the same model family, training data, objective, or evidence.
+In that case, agreement does not provide an independent check.
 
 The same rule applies when rejection is split across components. A generator,
 critic, verifier, and summarizer may be separate components in an implementation,
@@ -643,124 +578,127 @@ experiment found that independently developed program versions fail on
 correlated inputs far more often than an independence assumption predicts
 [@KnightLeveson1986Multiversion]. A loop that asks several
 correlated components to agree has created consensus, not rejection authority,
-unless some gate can fail in a way the generator cannot simply explain away.
+unless some check can fail in a way the generator cannot simply explain away.
 
 ## Proxy Mismatch, Metric Gaming, and Calibration {#sec-proxy-mismatch-metric-gaming-and-calibration}
 
 The failure an independent rejection authority most often has to catch is proxy mismatch, introduced in @sec-architecture-environments-tool-interfaces. IPC may
 improve while energy, area, or tail latency worsens. A simulator metric may
-improve while synthesis exposes timing or power problems. A benchmark result
+improve while synthesis reveals timing or power problems. A benchmark result
 may improve while the real workload distribution changes. A Pareto frontier
 may look convincing because all points were evaluated under the same flawed
 proxy. An automated optimizer may appear capable because it overfits the evaluation loop,
 not because it understands the architecture problem. In the machine-learning literature this active exploitation of a flawed metric is the reward hacking named in @sec-architecture-environments-tool-interfaces.
 
-Two distinct failure modes hide within this proxy mismatch, and they need different cures. First, a proxy can simply be
-miscalibrated or too narrow, mis-estimating the objective even when nothing is
-pushing on it; a better-fitted or wider-coverage proxy helps. Second, a method can
-engage in reward hacking, driving the design toward exactly what the proxy fails to
-penalize (e.g., maximizing IPC by silently sacrificing thermal limits). If an agent discovers that moving a compute block reduces wire delay on a proxy model but ignores thermal hotspots, only an independent thermal constraint check can reject the layout before it becomes an expensive physical-design failure. Here, a better proxy is not enough; only an independent rejection
-authority can catch the spurious win.
+Proxy mismatch has two distinct causes. A proxy may be poorly calibrated or
+cover too narrow a region, in which case better fitting or broader validation
+may help. A search method can also exploit something that the proxy does not
+penalize. For example, it might improve estimated wire delay by moving a
+compute block while ignoring the resulting thermal hotspot. An independent
+thermal check is then necessary because improving the proxy alone may not
+prevent the search from finding another version of the same flaw.
 
-This is not a new problem created by AI. Benchmarks, simulators, cost models,
+AI did not create this problem. Benchmarks, simulators, cost models,
 and design rules have always been approximations. What changes in Architecture
 2.0 is the speed and persistence with which a method can exploit the
 approximation. A human may notice that a score is improving for the wrong
 reason. A search method may happily continue. A compound system may even
-produce a persuasive narrative for a proxy win unless the loop asks for
+produce a persuasive narrative for a proxy win unless the study requires
 calibration and counterevidence.
 
 ::: {.callout-war-story title="A proxy under dispute"}
-**The claim.** AlphaChip (a reinforcement-learning method for macro placement) is one of the field's clearest recent disputes over whether a cheap proxy rewarded the wrong thing. Its loop optimized a fast proxy cost, a stand-in for the metrics that actually decide a chip.
+**The claim.** AlphaChip, a reinforcement-learning method for macro placement, optimized a
+fast proxy for the metrics used to judge a completed
+placement. The work became the subject of a broader dispute over whether that
+proxy rewarded the right designs.
 
-**The gap.** An independent 2023 reassessment found that proxy had weak correlation with the post-route chip-quality metrics that decide a real chip, and little useful correlation with timing [@ChengEtAl2023AssessmentRL]. A candidate could look excellent on the proxy the loop used and only ordinary once a full flow charged what the proxy ignored.
+**The gap.** A 2023 reassessment reported weak correlation between the proxy and post-route
+chip-quality metrics, including little useful
+correlation with timing [@ChengEtAl2023AssessmentRL]. A placement could score
+well under the proxy and look ordinary after a full physical-design flow.
 
-**The lesson.** For this chapter, the useful part of the dispute is proxy mismatch at full-flow scale. A proxy result remains scoped feedback until the decision chain records its calibrated support and a stronger check can overturn it. An unverified proxy win is a reason to seek more evidence, never a reason to authorize commitment. The broader dispute also involved pretraining, compute, implementation, and test case choices, but the proxy question shows why evidence must mean what everyone assumes before the loop can ask for commitment.
+**The lesson.** The dispute also concerned pretraining, compute, implementation, and test
+cases. Its narrower lesson here is that an improvement
+under a proxy remains preliminary until a decision-relevant evaluation confirms
+it. A proxy result can justify further testing, but not a final design decision.
 :::
 
-To prevent this kind of vanishing win, calibration acts as an escalation contract. It defines where a generative method may
-use a proxy to rank candidates, where it must escalate, and what stronger
-evidence can reject a proxy win. Prediction models used in
-architecture have long needed validation against held-out data[^fn-ml-held-out-data], higher-fidelity
-measurements, or carefully designed experiments
-[@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. The same
-principle applies to AI-assisted loops. If a loop claims a candidate satisfies the
-3\ W lighthouse envelope, the evidence must show how the power estimate was
-calibrated, what workload region it covers, what uncertainty remains, and what
-higher-fidelity result could overturn the claim.
+Calibration should specify where a proxy may rank candidates and when a
+stronger evaluation is required. Architecture predictors have long been
+validated against held-out data[^fn-ml-held-out-data], more
+decision-relevant measurements, or carefully designed experiments
+[@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. The same rule
+applies to AI-assisted studies. If a study claims that a candidate satisfies a
+power envelope, its evidence should state how the estimate was calibrated,
+which workload region it covers, what uncertainty remains, and what result
+would overturn the claim.
 
-[^fn-ml-held-out-data]: Held-out data is a subset of a dataset reserved during training and used only to test whether a model generalizes to unseen inputs. Here it is one way a proxy establishes calibrated support, since a prediction validated against held-out cases carries more evidence than one fitted and reported on the same data.
+[^fn-ml-held-out-data]: Held-out data is a subset of a dataset reserved during training and used only to test whether a model generalizes to unseen inputs. A prediction validated against held-out cases provides stronger evidence than one fitted and reported on the same data.
 
-::: {.callout-architect-checkpoint title="The Calibration Gate Check"}
-Does the loop know when a generator's proxy has left calibrated support? A proxy win supports a claim only when the candidate falls within that region. If it falls outside, the loop must seek a higher-fidelity check rather than treat the prediction as evidence.
+The practical question is whether the candidate remains inside the region for
+which the proxy was validated.
+
+::: {.callout-architect-checkpoint title="The Calibration Check"}
+Has the study established when a generator's proxy leaves calibrated support?
+A proxy win supports a claim only when the candidate falls within that region.
+If it falls outside, the study must seek a decision-relevant or independent
+check rather than treat the prediction as evidence.
 :::
 
-Benchmark rules are part of the
-loop's evidence contract. If those rules are hidden or stale, automated optimizers can
-optimize version quirks, protocol gaps, or unowned metrics while appearing to
-make progress. As @sec-design-loop-no-longer-scales and
-@sec-loop-patterns-across-stack show, a benchmark becomes community
-infrastructure only when it defines rules, versions, and submission practices
-that make results interpretable across a changing field. Architecture 2.0 needs
-a similar instinct for design loops. It must define the evaluation contract, preserve
-provenance, track versions, and treat benchmark changes as part of the evidence
-story.
+Calibration does not preserve comparability by itself. Benchmark versions and
+run rules must also be recorded because changes to them
+can alter a result. As @sec-design-loop-no-longer-scales and
+@sec-loop-patterns-across-stack show, shared benchmarks need published rules,
+versions, and submission practices if results are to remain comparable. When a
+benchmark changes, affected claims should be reevaluated rather than compared
+as though the setup were unchanged.
 
 ## Security, IP, and Confidentiality Boundaries
 
-Calibration, provenance, and benchmark governance make a claim assessable, but
-they do not support commitment if the evidence cannot be audited by the relevant
-rejection authority. Confidentiality
-is therefore part of the same assurance chain as
-fidelity and provenance, not a separate compliance concern. Evidence that must
-stay private still has to be auditable enough to grade the claim and to reject
-it. Otherwise, a loop can hide an unsupportable result behind a claim of
-confidentiality. Architecture state is
-often sensitive. RTL, design specifications, process assumptions, timing
+Calibration, provenance, and benchmark rules make a claim assessable, but a
+consequential decision still requires review by an authorized person. Evidence
+may remain confidential, but the study should state who can inspect it and what
+that review can establish. RTL, design specifications, process assumptions, timing
 constraints, floorplans, tool logs, customer workloads, proprietary traces,
 compiler settings, design reviews, and deployment telemetry can all reveal
 valuable or restricted information.
 
-This need for auditable privacy has a direct technical consequence. Security boundaries are part of the
-environment and evidence design. A loop must define what data can leave an
-organization, what must remain local, what can be summarized, which artifacts
-can be shared publicly, which logs should be redacted, and which generative methods or
-tools can access each class of information. The assurance question is not only
-whether the method is accurate. It is whether the loop preserves the
-constraints under which architecture work actually happens.
-The failure mode is not only leakage; it is a generative method producing a claim from
-evidence it cannot expose, audit, or legally reuse.
-For generated designs, the boundary also includes license provenance, ownership
-of generated artifacts, export or release classification, disclosure authority,
-and the reviewer role allowed to inspect redacted evidence. These are commitment
-boundaries for the loop, not a substitute for legal review.
+The study should identify which data must remain private, which tools may
+access it, what can be shared or redacted, and who can inspect the complete
+record. For generated designs, the same record should cover license provenance,
+ownership, export or release classification, and disclosure authority. These
+technical records support the review; they do not replace appropriate legal or
+organizational review.
 
 ::: {.callout-architect-checkpoint title="The Policy Boundary Check"}
-Can the AI model's evidence be audited without violating security, IP, license,
-export-control, or disclosure boundaries? If a generative method produces a
-claim using confidential or restricted data that cannot be exposed to the
-rejection path, the claim cannot support commitment. The card must name which AI
-tools can access each data class, how private evidence can be verified, and
-which roles hold redaction, compliance-review, waiver, and release rights.
+Can the evidence be reviewed without violating security, IP, license,
+export-control, or disclosure restrictions? The card should name which AI tools
+can access each data class, how an authorized reviewer can verify private
+evidence, and who may approve redaction, compliance review, waivers, and
+release.
 :::
 
 This requirement also defines the bounds of microarchitectural security. A loop
 that optimizes IPC without an isolation constraint can
 behave like an accidental adversary. It may propose structures that improve
-visible performance by sharing predictors, translation lookaside buffers (TLBs),
+measured performance by sharing predictors, translation lookaside buffers (TLBs),
 caches, or buffers across trust boundaries, while the proxy leaves side-channel
 risk unpriced. Architecture 2.0 requires an early isolation screen (@lst-side-channel), a
 cheap structural check that a generated layout does not silently share state
 across trust boundaries. It is necessary but not sufficient, since it misses
 contention, transient-execution, and simultaneous multithreading (SMT) channels.
-A higher-fidelity security gate must still include formal non-interference (a guarantee that a component's
-secret state cannot affect what an untrusted observer sees) [@GoguenMeseguer1982] or side-channel verification where the commitment requires it. A complete security
+A decision-relevant security review may still require formal non-interference (a guarantee that a component's
+secret state cannot affect what an untrusted observer sees) [@GoguenMeseguer1982] or side-channel verification where the proposed transition requires it. A complete security
 screen also covers memory-integrity and disturbance faults (where repeated
 access to one memory location corrupts a neighboring one), not only
 information-flow side channels. A design that trims memory-integrity margins to
-meet a power budget can make read disturbance a rejection gate in its own right.
+meet a power budget can make read disturbance a rejection criterion in its own right.
 
-::: {.callout-field-note title="When the missing gate shipped: Spectre"}
+```{=latex}
+\Needspace{20\baselineskip}
+```
+
+::: {.callout-field-note title="What Spectre's Missing Check Exposed"}
 For decades, improving instructions per cycle has been a powerful
 microarchitectural optimization pressure, pursued through increasingly
 aggressive speculation and reuse of predictors, caches, and buffers across
@@ -771,13 +709,18 @@ privilege boundaries [@KocherEtAl2019Spectre]. Ordinary functional checks did
 not catch it because the objective the loop could see, IPC, and the leakage it
 could not, were different quantities.
 
-**Lesson:** Spectre is a reminder that functional correctness is not the same as security. If non-interference and timing-channel evidence sit outside the loop, performance wins can accumulate risk that ordinary correctness tests never see.
+Functional correctness does not establish security. If non-interference and
+timing-channel evidence sit outside the study, performance wins can accumulate
+risk that ordinary correctness tests never see.
 :::
 
-```{.python #lst-side-channel lst-cap="**Security Gate Check:** An illustrative Python snippet rejecting RTL candidates that share state across trust boundaries."}
+The following illustrative check captures only the early structural part of
+that security requirement.
+
+```{.python #lst-side-channel lst-cap="**Early security check:** An illustrative Python snippet rejecting RTL candidates that share state across trust boundaries."}
 def check_side_channel_interference(rtl_candidate, isolation_policy):
     """
-    Rung 1 Security Gate: Rejects RTL that shares speculative structures
+    Early security check. Reject RTL that shares speculative structures
     across defined security domains before physical synthesis.
     """
     shared_structures = find_shared_state(
@@ -793,123 +736,92 @@ def check_side_channel_interference(rtl_candidate, isolation_policy):
     return EscalateToSecurityVerification()
 ```
 
-Codified as the explicit screen in @lst-side-channel, this check catches the most obvious performance-for-isolation trades early. Passing the check permits the candidate to advance to the next security-verification rung; it does not authorize the design itself. A surviving candidate must still escalate to formal non-interference or side-channel verification (for example, information-flow tracking) before commitment.
+Codified as the screen in @lst-side-channel, this check catches the most obvious performance-for-isolation trades early. Passing the check permits the candidate to advance to additional security verification; it does not authorize the design itself. A surviving candidate must still undergo formal non-interference or side-channel verification (for example, information-flow tracking) before a commit decision.
 
-For shared community infrastructure, this means the field should distinguish between
-public artifacts and private state. Public benchmarks, datasets, papers, and
-gym environments can help bootstrap shared progress. Private workloads,
-proprietary RTL, product traces, and process-specific assumptions often cannot
-be released. Architecture 2.0 should support both. The design-loop card,
-environment contract, and supporting evidence record should let a project describe
-what kind of evidence exists without forcing disclosure of sensitive material.
-That record should include a data-access and evidence-scope field to specify what private
-state was used, what public proxy cannot support, which generative methods or tools may
-access each artifact, and who owns disclosure exceptions.
+Shared research infrastructure must distinguish public artifacts from private
+state. Public benchmarks, datasets, papers, and tool environments support
+comparison, while private workloads, proprietary RTL, product traces, and
+process-specific assumptions often cannot be released. The design-loop card
+should describe what evidence exists without disclosing sensitive material. It
+should state what private data was used, which conclusions a public proxy
+cannot support, which tools may access each artifact, and who may approve an
+exception.
 
-The practical rule for AI-assisted systems is therefore simple. Do not make
-confidentiality or policy invisible. If a claim depends on private, licensed, or
-restricted data, say what class of data supports it, what auditing is possible,
-what cannot be disclosed, who may inspect the redacted evidence, and what public
-proxy would be insufficient. That is more honest than pretending every
-architecture loop can be reproduced from public web data.
+If a claim depends on private, licensed, or restricted data, the report should
+state the class of data, the review that is possible, what cannot be disclosed,
+who may inspect the complete or redacted evidence, and why a public proxy would
+be insufficient. Reproducibility may then mean authorized audit rather than
+public release.
 
 ## Evidence Disputes and Decision Review {#sec-evidence-disputes-and-the-trust-checklist}
 
-Even after accuracy and policy boundaries are stated, commitment must remain
-reviewable when evidence is disputed. Such disputes are inevitable. One group
-may claim that a learning-based method improves a design flow. Another may argue that the baseline, workload,
-constraint set, tool version, or evaluation protocol was incomplete. A company
-may have private evidence that cannot be released. A paper may report a strong
-result but omit failed runs and rejected alternatives. A benchmark may reward behavior that matters
-less in deployment. These disputes should not be treated as distractions from
-Architecture 2.0. They are part of the field learning how to adjudicate claims.
+Even after accuracy and policy boundaries are stated, reviewers may disagree
+about the baseline, workload, assumptions, tool setup, missing failures, or
+decision criteria. Private evidence may further limit what can be released.
+These disagreements require access to the complete review record and a
+designated person or process to decide whether the claim is accepted, rejected,
+or narrowed.
 
-While the specifics vary, the anatomy of an evidence dispute is stable. It
-includes the claim, supporting evidence, counterevidence and failed checks,
-fidelity, assumptions, coverage, provenance, rejection path, waiver, and
-authorized decision.
+@fig-evidence-dispute-anatomy shows the information needed to evaluate a
+contested claim. Model confidence does not settle the dispute. Reviewers inspect
+the evidence, assumptions, baseline, contrary results, and failed checks. A
+named role then applies the declared rules and decides whether to accept,
+reject, or escalate the claim.
 
-Tracing how a contested claim is evaluated makes that anatomy visible (@fig-evidence-dispute-anatomy). A dispute is not
-resolved by the system's confidence. The evidence packet makes the claim
-reviewable, while a named role applies the declared rules and owns the resulting
-acceptance, rejection, or escalation.
+![**Evidence and decision authority are reviewed separately.** A contested architecture claim is reported with its supporting evidence, fidelity, scope, provenance, baseline, contrary evidence, and failed checks. A named reviewer or process decides whether to accept, reject, or escalate it under the declared rules.](images/F9b-evidence-dispute-anatomy){#fig-evidence-dispute-anatomy width="100%" fig-alt="Flow diagram separating a contested architecture claim's evidence packet from the named review role authorized to accept, reject, or escalate it."}
 
-![**Evidence disputes become tractable when support and authority are separate:** A contested architecture claim should expose its supporting evidence, fidelity and scope, provenance, baseline, counterevidence, and failed checks. A named review role, not the evidence packet itself, owns acceptance, rejection, or escalation under the declared rules.](images/F9b-evidence-dispute-anatomy){#fig-evidence-dispute-anatomy width="100%" fig-alt="Flow diagram separating a contested architecture claim's evidence packet from the named review role authorized to accept, reject, or escalate it."}
+The AlphaChip dispute illustrates this review. Independent groups questioned
+the baselines, released code, and evaluation protocol behind the 2021 claim
+[@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023AssessmentRL]. End-to-end
+benchmarks such as ChiPBench address part of the problem by evaluating final
+power, performance, and area rather than only an intermediate proxy
+[@WangEtAl2025ChiPBench]. A placement study also needs the represented state,
+legal actions, workload, baseline, toolchain versions, constraints, seeds,
+rejected alternatives, and model weights needed to interpret or reproduce its
+result. @sec-alphachip-public-record-audit applies these questions to the public
+record and identifies which details can and cannot be aligned.
 
-The macro-placement dispute from the war story above returns here as a full
-evidence-dispute anatomy. Independent groups disputed the 2021 claim
-[@MirhoseiniEtAl2021GraphPlacement] on exactly the axes above, the baselines,
-the released code, and the reproducibility of the protocol
-[@ChengEtAl2023AssessmentRL]. The point here is
-not to adjudicate that dispute. The disagreement, still open as of July 2026,
-was never about whether the model ran; it was about provenance, baselines, and
-what evidence could reject the result. One constructive response
-has been to build reproducible, end-to-end benchmarks that score placement by
-final power, performance, and area rather than an intermediate proxy
-[@WangEtAl2025ChiPBench]. That is the kind of infrastructure the anatomy asks for.
-A contested claim becomes more tractable once the loop's evidence, baselines, and
-rejection authority are made explicit.
-For Architecture 2.0, the reusable lesson is not the controversy itself; it is
-that a loop claiming placement quality must expose represented placement state,
-legal move/action space, workload and PPA records, baseline records, rejected
-alternatives, and the independent authority that can block commitment. For
-placement-style AI-assisted EDA, reproducibility often depends on exact
-toolchain versions, environment constraints, seeds, legal action spaces, and
-baseline records, not just model weights.
-@sec-running-the-loop completes this move, filling all twelve card fields
-retrospectively from the same public record and showing that the dispute broke
-out exactly in the fields the record left empty.
-
-To make this dispute anatomy practical, the same claim-to-decision chain
-becomes a compact review (@tbl-trust-checklist). Each row pairs a reviewer
-question with what a credible answer contains and the warning sign that a claim
-is leaning on tone rather than evidence, so the checklist works for reading
-papers, reviewing internal tools, evaluating student projects, and deciding
-whether an AI-assisted loop is ready for a more expensive commitment.
+@tbl-trust-checklist summarizes the questions a reviewer should ask. It can be
+used for papers, internal tools, student projects, and studies that propose a
+more consequential action.
 
 | **Question** | **What a credible answer contains** | **Warning sign** |
 | --- | --- | --- |
-| **What output is under review?** | Candidate, ranking, report, code/RTL change, or commitment recommendation, with generator and method role named. | The result is described only as an AI improvement. |
-| **What is the claim?** | A bounded architecture task, objective, workload, and commitment level. | Vague claims of automation or improvement. |
-| **What loop state and action contract are exposed?** | State fields, legal actions, tool or environment APIs, invalid transitions, and runnable receipts. | The loop can act through hidden state or unlogged tool semantics. |
+| **What output is under review?** | Candidate, ranking, report, code/RTL change, or recommended transition, with generator and method role named. | The result is described only as an AI improvement. |
+| **What is the claim?** | A bounded architecture task, comparator, objective, workload, scope, non-claims, and proposed transition. | Vague claims of automation or improvement. |
+| **What loop state and action contract are exposed?** | State fields, legal actions, tool or environment APIs, invalid transitions, and replay packages. | The loop can act through hidden state or unlogged tool semantics. |
 | **What evidence supports it?** | Claim-relevant metrics, tool outputs, logs, and reviews with their available evaluation resources. | Only the winning score is shown. |
 | **What weakens or blocks it?** | Counterevidence, failed runs, rejected alternatives, coverage gaps, warnings, and unresolved disagreements. | Contrary results or failed checks are omitted. |
-| **What is the fidelity?** | Proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level stated explicitly. | Treating all measurements as equivalent. |
+| **What is the fidelity?** | The record states proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level. | Treating all measurements as equivalent. |
 | **What is the provenance?** | Workload and exact tool versions, tech nodes, configs, seeds, run-to-run variance or other nondeterminism, constraints, assumptions, and baselines needed for the declared audit or replay claim. | Hidden scripts, unstated defaults, or unrecorded nondeterminism. |
 | **What is the security, IP, license, export-control, or disclosure boundary?** | Data classes, access rules, redaction limits, license or disclosure class, release or export-control review record, public proxy limits, authorized reviewer role, and an audit path. | Private or restricted evidence is treated as invisible or unverifiable. |
-| **What can reject it?** | The rejection condition, executing check, independence basis, transition blocked, accountable owner, and waiver authority. | A check is named without the right or independence needed to block anything. |
-| **Who may authorize commitment?** | A named role or process with the required decision right, accepted consequences, waiver scope, and reopening conditions. | The loop silently turns output into decision. |
+| **What can reject it?** | The rejection condition, executing check, independence basis, transition blocked, check owner, and waiver authority. | A check is named without the right or independence needed to block anything. |
+| **Who holds the commit right?** | A named role or process with accepted consequences, waiver state, residual risk, and reopening conditions. | The process silently treats output as a decision. |
 
-: **Commitment review follows the decision chain, not tone:** A credible Architecture 2.0 claim exposes its supporting evidence, counterevidence, fidelity, provenance, policy boundary, rejection and waiver paths, and accountable decision rights before it advances. {#tbl-trust-checklist tbl-colwidths="[24,38,26]"}
+: **Questions for reviewing a design claim.** A credible report includes its supporting and contrary evidence, fidelity, provenance, policy limits, rejection and waiver process, decision rights, and owners before the proposed action proceeds. {#tbl-trust-checklist tbl-colwidths="[24,38,26]"}
 
-This review is a readout of the design-loop card and its supporting records, not
-a second schema. A paper, tool, or
-project does not need to solve the whole lighthouse prompt to be valuable. It
-does need to say where it sits in the loop, what evidence it produces, what it
-cannot prove, what can block it, and which role may authorize the requested
-commitment.
+The checklist summarizes the design-loop card and its supporting files; it is
+not another schema. A paper, tool, or project does not need to solve a full
+subsystem problem to be valuable. It should state its contribution, the
+evidence it produces, its limitations, the checks that can reject its result,
+and who may authorize the proposed action.
 
 ## Open Research Questions
 
-The commitment-control mechanisms presented in this chapter establish a
-foundation, but robust automation still needs concrete artifacts. The questions
-here ask how evidence is bound, how proxy exploitation is detected, how
-rejection authority is tested, how compromised evidence sources can be
-stress-tested, and how confidential evidence can remain reviewable.
+Further work is needed on evidence formats, tests for proxy exploitation,
+independent verification, and review of confidential results.
 
-1. **How should supporting evidence records limit commitment?**
-Fidelity ladders, commitment levels, and reversibility all assume that evidence
-remains attached to the claim it supports. A fundamental systems challenge is
-to design a record format and checker that bind proxy observations, simulation
+1. **How should supporting evidence records limit a decision?**
+The evidence-by-consequence view assumes that each record remains attached to
+the claim it supports. A fundamental systems challenge is
+to design a record format and checker that associate proxy observations, simulation
 runs, synthesis results, waivers, rejection events,
 redactions, and reopening conditions into a unified audit object. Its value
 would be measured by tamper detection, replayability, and whether the checker
-prevents a candidate from exceeding the commitment level supported by its
-evidence. The fidelity-ladder and commitment sections,
-@sec-fidelity-ladders-and-evidence-ledgers and @sec-commitment-levels-and-reversibility, define the evidence boundary this
-checker must enforce.
+prevents a transition whose evidence or decision rights are incomplete.
+@sec-evidence-by-consequence defines the boundary this checker must enforce.
 
-2. **What benchmarks expose proxy exploitation before commitment?**
+2. **What benchmarks detect proxy exploitation before authorization?**
 Proxy mismatch, metric gaming, and calibration failures become more severe when
 generators learn to exploit cheap architectural models. A thesis-level
 contribution would build adversarial proxy benchmarks that include misleading
@@ -927,51 +839,38 @@ The test should measure whether the authority catches failure modes that the
 generating method cannot see and whether it resists being optimized around by
 the loop.
 
-4. **How should loops stress-test compromised evidence sources?**
-The decision review in @sec-evidence-disputes-and-the-trust-checklist audits a
-single claim, but the field also needs methodology for whole closed-loop
-systems under pressure. A useful stress-test harness would inject hidden
-workload drift, prompt injection, poisoned traces, compromised baselines,
-tampered receipts, stale tool versions, side-channel-sensitive metrics, or
-deceptive proxies into the design process.
-The report should state false commitment rates, escalation cost, and whether the
-accountable rejection path remains effective when the loop's evidence sources
-become unreliable.
-
-5. **How can confidential evidence remain auditable?**
+4. **How can confidential evidence remain auditable?**
 Architecture evidence often depends on proprietary workloads, physical design
 flows, licensed reports, PDK (Process Design Kit)-bound evidence, internal baselines, or deployment
 data that cannot be shared directly.
-The contribution is an audit protocol that exposes fidelity, provenance,
-rejection, and commitment boundaries while redacting protected design state. It
+The contribution is an audit process that reports fidelity, provenance,
+rejection, and authorization boundaries while redacting protected design state. It
 should state what a reviewer can verify, what remains private, who is authorized
 to inspect the redacted evidence, and what kinds of claims are too dependent on
-confidential or restricted evidence to support public commitment.
+confidential or restricted evidence to support a public decision.
 
 ## Conclusion
 
-This chapter asked how feedback becomes scoped evidence and how that evidence
-may support an authorized commitment. The answer is one visible chain. The
-claim names its scope. Supporting evidence records what was measured and under
-which assumptions. Counterevidence, failed checks, and rejected alternatives
-remain attached. The rejection path exposes what it can block, how it is
-independent, who owns it, and who may waive it. The final decision names the
-right being exercised and the consequences being accepted.
+Before acting on a claim, reviewers should confirm its scope, supporting and
+contrary evidence, failed checks, assumptions, and limitations. The record
+should state what can reject the proposed action, whether that check is
+independent, who is responsible for it, and who may grant a waiver. The final decision should
+identify the responsible person and the consequences being accepted.
 
-Architects must understand this chain even when tools execute routine gates.
+Architects must understand this chain even when tools execute routine checks.
 Architecture work sets the claim scope, determines what may be delegated,
 judges evidence sufficiency, assigns waiver rights, and accepts cross-system
-consequences. Those rights may be distributed across several accountable roles,
+consequences. Those rights may be distributed across several named roles,
 but they cannot disappear into model confidence or tool automation.
 
-The durable move is to escalate with commitment. Cheap feedback may screen
-candidates, and stronger observations may support a higher commitment, but only
-when the chain records uncertainty, counterevidence, rejection and waiver
-rights, and accountable approval. A proxy win that cannot name what would
-overturn it or which transition can be blocked has not met this bar.
+Evidence requirements should rise with consequence. Cheap feedback can screen
+candidates, but actions that are hard to reverse or affect more people need
+stronger and more independent evidence. A proxy improvement is not sufficient
+unless the study states its uncertainty, what could overturn it, and who is
+authorized to approve the proposed action.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** Advance a claim only through a visible chain of supporting evidence, counterevidence, failed checks, rejection or waiver, and accountable decision rights.
-- **Reader test:** What would overturn the AI-assisted claim, which transition would that check block, who owns the consequence, and who may waive the failure?
-- **Up next:** @sec-running-the-loop applies this commitment chain inside a complete design loop and inspects the records it leaves behind.
+- **Carry forward:** Advance a claim only after reviewing the supporting and contrary evidence, failed checks, waivers, and decision authority.
+- **Reader test:** What would overturn the AI-assisted claim, what action would that check block, who is responsible for the consequence, and who may waive the failure?
+- **Up next:** @sec-running-the-loop applies these review questions to a complete design study and inspects the resulting records.
 :::

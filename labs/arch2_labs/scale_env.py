@@ -201,14 +201,13 @@ def parse_scale_reports(report_dir: Path) -> dict[str, Any]:
 def assess_candidate(
     candidate: Candidate, metrics: dict[str, Any]
 ) -> tuple[bool, dict[str, Any] | None]:
-    """Apply the two HARD gates. Utilization is deliberately NOT a hard gate.
+    """Apply the two pass/fail rejection checks. Utilization remains diagnostic.
 
     We learned empirically that a low-utilization array can still be the best on
     latency and energy, so rejecting on utilization rejects the wrong candidate.
     Utilization and roofline stay as diagnostics (in the metrics) that explain a
-    result; the hard gates are the two an architect actually commits against: a
-    stated silicon/area budget (cheap, knowable before the simulator) and the
-    real-time deadline (revealed by the simulator).
+    result. The two checks enforce the PE budget (cheap and knowable before the
+    simulator) and the real-time deadline (revealed by the simulator).
     """
     if candidate.pe_count > candidate.area_budget_pes:
         return False, {
@@ -369,7 +368,7 @@ def build_recommendation(
         "lab_title": lab_title,
         "baseline_id": baseline_id,
         "candidate_id": recommended["candidate_id"],
-        "basis": "lowest derived latency among candidates that passed the declared gates",
+        "basis": "lowest derived latency among candidates that passed the declared rejection checks",
         "evidence_source": "scalesim",
         "human_decision": False,
         "commitment": "none",
@@ -387,122 +386,459 @@ def build_recommendation(
 
 def build_replayable_card(
     template: dict[str, Any],
+    receipt_root: Path,
     receipt_id: str,
     baseline_id: str,
     scale_records: list[dict[str, Any]],
     negative_traces: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    card = template["design_loop_card"]
     successful = [record for record in scale_records if record["status"] == "ok"]
     if not successful:
         raise ValueError("a replayable card requires at least one successful run")
     tool_version = successful[0]["tool"]["version"]
-    card.update(
-        {
-            "conformance_level": 2,
-            "representation": {
-                "state_schema_id": "arch2-labs.scale-proxy-mirage-state.v1",
-                "ir_level": "GEMM layer dimensions, array geometry, and fixed memory parameters.",
-                "reads": [
-                    "Candidate action records.",
-                    "XR-like GEMM topology and layout inputs.",
-                ],
-                "writes": [
-                    "SCALE-Sim cycle, utilization, bandwidth, and access reports.",
-                    "First-order energy, roofline, and area estimates.",
-                ],
-                "uncertainties": [
-                    "The workload is a compact slice rather than a full XR model.",
-                    "The simulator omits compiler, physical, power, and thermal effects.",
-                ],
-            },
-            "environment": {
-                "environment_id": f"scale-sim-{tool_version}-proxy-mirage-v1",
-                "actions": ["Evaluate one of the four declared array shapes."],
-                "invalid_actions": [
-                    "Change the workload, dataflow, SRAM allocation, or bandwidth.",
-                    "Advance a candidate that fails a declared area or deadline gate.",
-                ],
-                "blast_radius_limit": "Analysis-only output under one receipt directory; no RTL or project source is modified.",
-                "observations": [
-                    "Proxy cycle rank.",
-                    "SCALE-Sim cycle, utilization, bandwidth, and memory-access reports.",
-                    "Declared-gate rejection records.",
-                ],
-                "fidelity": "simulation",
-            },
-            "method_role": {
-                "roles": ["predict", "critique", "verify"],
-                "actor_map": [
-                    {
-                        "actor_id": "arch2-labs-runner",
-                        "role": "Generate the proxy ranking, run the simulator, and make a noncommitting recommendation.",
-                        "reads": ["Declared candidates and environment inputs."],
-                        "writes": [
-                            "Evidence, failed-run and rejected-alternative records, and recommendation.json."
-                        ],
-                        "authority": "May recommend a gate passer; cannot make or own the human commitment.",
-                    },
-                    {
-                        "actor_id": "declared-gate-evaluator",
-                        "role": "Apply the fixed area and deadline rejection gates.",
-                        "reads": ["Candidate PE count and simulated cycle count."],
-                        "writes": ["Failed-run and rejected-alternative records."],
-                        "authority": "May reject candidates; cannot select the human commitment.",
-                    },
-                ],
-            },
-            "feedback_budget": {
-                "evaluations": len(scale_records),
-                "latency": "One local SCALE-Sim process per candidate with a 120-second timeout.",
-                "cost": "Local CPU execution only.",
-                "fidelity": "One cheap proxy pass followed by architecture simulation.",
-                "model_side_cost": {
-                    "model_calls": 0,
-                    "gpu_hours": 0,
-                    "energy_or_carbon": "No model inference is used by this example.",
-                    "human_review": "One explicit architecture decision after evidence review.",
-                },
-            },
-            "evidence": {
-                "baseline_id": baseline_id,
-                "records": [
-                    {
-                        "evidence_id": f"scalesim-{record['candidate_id']}",
-                        "kind": "SCALE-Sim raw report set",
-                        "workload_id": "xr-slice-gemm-v1",
-                        "seed": "SCALE-Sim deterministic configuration",
-                        "provenance": {
-                            "tool_version": f"SCALE-Sim {record['tool']['version']}",
-                            "parameter_hash": f"sha256:{record['inputs']['config_sha256']}",
-                            "source_uri": (
-                                f"runs/{record['candidate_id']}/scalesim-results/"
-                                f"{record['candidate_id']}/COMPUTE_REPORT.csv"
-                            ),
-                        },
-                    }
-                    for record in successful
-                ],
-            },
-            "negative_traces": [
-                {
-                    "candidate_id": trace["candidate_id"],
-                    "reason": trace["reason"],
-                    "stage": trace["stage"],
-                    "gate": trace["gate"],
-                }
-                for trace in negative_traces
-            ],
-        }
+    receipt_root = receipt_root.resolve()
+
+    def relative(raw_path: str) -> str:
+        return Path(raw_path).resolve().relative_to(receipt_root).as_posix()
+
+    rejected_by_id = {trace["candidate_id"]: trace for trace in negative_traces}
+    eligible = [
+        record for record in successful if record["candidate_id"] not in rejected_by_id
+    ]
+    recommended = min(
+        eligible,
+        key=lambda record: record["estimates"]["derived"]["latency_us"],
     )
-    card["x-arch2-labs"].update(
-        {
+    baseline = next(
+        record for record in successful if record["candidate_id"] == baseline_id
+    )
+    evidence_records: list[dict[str, Any]] = []
+    replay_inputs_by_uri: dict[str, dict[str, str]] = {}
+    replay_outputs_by_uri: dict[str, dict[str, str]] = {}
+    replay_commands: list[dict[str, str]] = []
+    for record in successful:
+        candidate_id = record["candidate_id"]
+        inputs = []
+        for name in ("config", "topology", "layout"):
+            uri = relative(record["inputs"][name])
+            artifact = {
+                "artifact_id": f"{candidate_id}-{name}",
+                "uri": uri,
+                "integrity": {"sha256": f"sha256:{record['inputs'][f'{name}_sha256']}"},
+            }
+            inputs.append(artifact)
+            replay_inputs_by_uri[uri] = {
+                "artifact_id": artifact["artifact_id"],
+                "uri": uri,
+                "sha256": artifact["integrity"]["sha256"],
+            }
+
+        outputs = []
+        for raw in record["outputs"]["raw_files"]:
+            uri = relative(raw["path"])
+            artifact = {
+                "artifact_id": f"{candidate_id}-{Path(uri).stem.lower()}",
+                "uri": uri,
+                "integrity": {"sha256": f"sha256:{raw['sha256']}"},
+            }
+            outputs.append(artifact)
+            replay_outputs_by_uri[uri] = {
+                "artifact_id": artifact["artifact_id"],
+                "uri": uri,
+                "sha256": artifact["integrity"]["sha256"],
+            }
+
+        compute_output = next(
+            artifact
+            for artifact in outputs
+            if Path(artifact["uri"]).name == "COMPUTE_REPORT.csv"
+        )
+        evidence_records.append(
+            {
+                "evidence_id": f"scalesim-{candidate_id}",
+                "producer": {
+                    "producer_id": "arch2-labs-runner",
+                    "producer_type": "pipeline",
+                },
+                "kind": "SCALE-Sim raw report set",
+                "status": "computed",
+                "tool": {
+                    "name": "SCALE-Sim",
+                    "version": record["tool"]["version"],
+                },
+                "inputs": inputs,
+                "outputs": outputs,
+                "scope": (
+                    f"Candidate {candidate_id}, the fixed XR-like GEMM slice, "
+                    "weight-stationary dataflow, and declared simulator settings."
+                ),
+                "uncertainty": (
+                    "Architecture simulation does not establish compiler, RTL, "
+                    "physical-design, power, thermal, or product outcomes."
+                ),
+                "limitations": [
+                    "The workload is a compact slice rather than a full XR model.",
+                    "First-order energy and area estimates are not signoff evidence.",
+                ],
+                "integrity": compute_output["integrity"],
+            }
+        )
+        command = (
+            "python -m scalesim.scale "
+            f"-c {relative(record['inputs']['config'])} "
+            f"-t {relative(record['inputs']['topology'])} "
+            f"-l {relative(record['inputs']['layout'])} "
+            f"-p runs/{candidate_id}/scalesim-results -i gemm -s N"
+        )
+        replay_commands.append({"command": command, "working_directory": "."})
+
+    gates: list[dict[str, Any]] = []
+    failed_or_rejected: list[dict[str, Any]] = []
+    for record in scale_records:
+        candidate_id = record["candidate_id"]
+        evidence_refs = [f"scalesim-{candidate_id}"] if record["status"] == "ok" else []
+        trace = rejected_by_id.get(candidate_id)
+        if record["status"] != "ok":
+            gate_id = f"gate-simulator-execution-{candidate_id}"
+            gates.append(
+                {
+                    "gate_id": gate_id,
+                    "category": "process",
+                    "criterion": "SCALE-Sim must exit successfully before the architecture rejection checks are evaluated.",
+                    "result": "not_run",
+                    "authority_id": "declared-gate-evaluator",
+                    "waiver_rule": {"allowed": False},
+                    "evidence_refs": [],
+                    "disposition": "reject",
+                    "notes": "The environment-failure trace records the unsuccessful execution.",
+                }
+            )
+            failed_or_rejected.append(
+                {
+                    "record_id": f"environment-failure-{candidate_id}",
+                    "kind": "environment_failure",
+                    "candidate_id": candidate_id,
+                    "stage": trace["stage"],
+                    "reason": trace["reason"],
+                    "gate_ref": gate_id,
+                    "evidence_refs": [],
+                }
+            )
+            continue
+
+        failed_gate = trace.get("gate") if trace else None
+        area_gate_id = f"gate-area-budget-{candidate_id}"
+        deadline_gate_id = f"gate-deadline-{candidate_id}"
+        gates.extend(
+            [
+                {
+                    "gate_id": area_gate_id,
+                    "category": "area",
+                    "criterion": "Candidate processing-element count must not exceed its declared 1024-PE budget.",
+                    "result": "failed"
+                    if failed_gate == "area_budget_pes"
+                    else "passed",
+                    "authority_id": "declared-gate-evaluator",
+                    "waiver_rule": {"allowed": False},
+                    "evidence_refs": evidence_refs,
+                    "disposition": "reject"
+                    if failed_gate == "area_budget_pes"
+                    else "continue",
+                },
+                {
+                    "gate_id": deadline_gate_id,
+                    "category": "performance",
+                    "criterion": "SCALE-Sim total cycles must not exceed the declared 90000-cycle deadline.",
+                    "result": (
+                        "not_run"
+                        if failed_gate == "area_budget_pes"
+                        else "failed"
+                        if failed_gate == "deadline_cycles"
+                        else "passed"
+                    ),
+                    "authority_id": "declared-gate-evaluator",
+                    "waiver_rule": {"allowed": False},
+                    "evidence_refs": (
+                        [] if failed_gate == "area_budget_pes" else evidence_refs
+                    ),
+                    "disposition": "reject"
+                    if failed_gate == "deadline_cycles"
+                    else "continue",
+                },
+            ]
+        )
+        if trace:
+            failed_or_rejected.append(
+                {
+                    "record_id": f"failed-gate-{candidate_id}",
+                    "kind": "failed_gate",
+                    "candidate_id": candidate_id,
+                    "stage": trace["stage"],
+                    "reason": trace["reason"],
+                    "gate_ref": (
+                        area_gate_id
+                        if failed_gate == "area_budget_pes"
+                        else deadline_gate_id
+                    ),
+                    "evidence_refs": evidence_refs,
+                    "x-arch2-labs": {
+                        "observed": trace.get("observed"),
+                        "threshold": trace.get("threshold"),
+                    },
+                }
+            )
+
+    evidence_refs = [record["evidence_id"] for record in evidence_records]
+    objective_specs = {
+        "latency_under_declared_gates": {
+            "claim_id": "claim-gate-passing-latency",
+            "label": "derived latency",
+            "path": ("derived", "latency_us"),
+            "unit": "us",
+            "maximize": False,
+        },
+        "energy_under_declared_gates": {
+            "claim_id": "claim-gate-passing-energy",
+            "label": "first-order total energy estimate",
+            "path": ("energy", "e_total_uj"),
+            "unit": "uJ",
+            "maximize": False,
+        },
+        "area_efficiency_under_declared_gates": {
+            "claim_id": "claim-gate-passing-area-efficiency",
+            "label": "first-order area efficiency estimate",
+            "path": ("derived", "tops_per_mm2"),
+            "unit": "TOPS/mm^2",
+            "maximize": True,
+        },
+    }
+    objective_claims = []
+    for spec in objective_specs.values():
+        section, metric = spec["path"]
+        chooser = max if spec["maximize"] else min
+        winner = chooser(
+            eligible,
+            key=lambda record: record["estimates"][section][metric],
+        )
+        winner_value = winner["estimates"][section][metric]
+        baseline_value = baseline["estimates"][section][metric]
+        comparison = "highest" if spec["maximize"] else "lowest"
+        objective_claims.append(
+            {
+                "claim_id": spec["claim_id"],
+                "claim_type": "architecture_outcome",
+                "statement": (
+                    f"{winner['candidate_id']} has the {comparison} {spec['label']} "
+                    "among candidates that passed the declared rejection checks."
+                ),
+                "baseline_or_comparator": (
+                    f"Baseline {baseline_id} and every evaluated candidate that passed the declared checks."
+                ),
+                "outcome": (
+                    f"{winner['candidate_id']} has {winner_value:.6g} {spec['unit']}; "
+                    f"baseline {baseline_id} has {baseline_value:.6g} {spec['unit']}."
+                ),
+                "scope": "The fixed XR-like GEMM slice, SCALE-Sim configuration, selected candidates, and declared first-order estimates in this run archive.",
+                "non_claims": [
+                    "The result is RTL-ready, signoff-ready, tapeout-ready, or product-ready.",
+                    "The ranking generalizes to a full workload or another simulator configuration.",
+                ],
+                "status": "supported",
+                "evidence_refs": evidence_refs,
+            }
+        )
+    card = {
+        "card_id": "scale-proxy-mirage",
+        "profiles": {
+            "context": "complete",
+            "inspectability": "complete",
+            "replay": "partial",
+            "independent_review": "not_claimed",
+            "disclosure": "complete",
+            "decision_rights": "complete",
+        },
+        "profile_gaps": {
+            "replay": [
+                "The run archive binds the original successful runs, but a separate replay has not been attempted."
+            ]
+        },
+        "intent": template["design_loop_card"]["intent"],
+        "task": template["design_loop_card"]["task"],
+        "design_space": template["design_loop_card"]["design_space"],
+        "representation": {
+            "state_schema_id": "arch2-labs.scale-proxy-mirage-state.v2",
+            "abstraction": "GEMM layer dimensions, array geometry, and fixed memory parameters.",
+            "reads": [
+                "Candidate action records.",
+                "XR-like GEMM topology and layout inputs.",
+            ],
+            "writes": [
+                "SCALE-Sim cycle, utilization, bandwidth, and access reports.",
+                "First-order energy, roofline, and area estimates.",
+            ],
+            "uncertainties": [
+                "The workload is a compact slice rather than a full XR model.",
+                "The simulator omits compiler, physical, power, and thermal effects.",
+            ],
+        },
+        "environment": {
+            "environment_id": f"scale-sim-{tool_version}-proxy-mirage-v2",
+            "actions": ["Evaluate one of the declared array shapes."],
+            "invalid_actions": [
+                "Change the workload, dataflow, SRAM allocation, or bandwidth.",
+                "Advance a candidate that fails a declared area or deadline check.",
+            ],
+            "blast_radius_limit": "Analysis-only output under one run directory; no RTL or project source is modified.",
+            "observations": [
+                "Proxy cycle rank.",
+                "SCALE-Sim cycle, utilization, bandwidth, and memory-access reports.",
+                "Declared rejection-check records.",
+            ],
+            "fidelity": "Architecture simulation plus first-order estimates.",
+        },
+        "method_roles": [
+            {
+                "actor_id": "arch2-labs-runner",
+                "actor_type": "pipeline",
+                "roles": ["predict", "verify"],
+                "reads": ["Declared candidates and environment inputs."],
+                "writes": [
+                    "Evidence, rejected-alternative records, and a noncommitting recommendation."
+                ],
+                "limitations": ["Cannot make or own the final decision."],
+            },
+            {
+                "actor_id": "declared-gate-evaluator",
+                "actor_type": "policy",
+                "roles": ["critique", "verify"],
+                "reads": ["Candidate PE count and simulated cycle count."],
+                "writes": ["Typed rejection-check results and rejection records."],
+                "limitations": [
+                    "Cannot select or authorize a candidate that passes the checks."
+                ],
+            },
+            {
+                "actor_id": "architecture-lab-learner",
+                "actor_type": "person",
+                "roles": ["critique", "plan"],
+                "reads": ["The complete run archive and machine recommendation."],
+                "writes": ["The decision record."],
+                "limitations": [
+                    "May authorize only one next-fidelity study in this exercise."
+                ],
+            },
+        ],
+        "feedback_budget": {
+            "evaluations": len(scale_records),
+            "latency": "One local SCALE-Sim process per candidate with a 120-second timeout.",
+            "compute_or_tool_cost": "Local CPU execution only.",
+            "human_review": "One explicit architecture decision after evidence review.",
+            "fidelity": "One cheap proxy pass followed by architecture simulation.",
+            "model_calls": 0,
+            "energy_or_carbon": "No model inference is used by this example.",
+        },
+        "claims": objective_claims,
+        "evidence": {
+            "records": evidence_records,
+            "x-arch2-labs": {"baseline_id": baseline_id},
+        },
+        "failed_or_rejected": failed_or_rejected,
+        "gates": gates,
+        "decision_rights": [
+            {
+                "action": "propose",
+                "holder_id": "architecture-lab-learner",
+                "holder_type": "person",
+                "scope": "May propose one of the declared candidates.",
+                "conditions": "Must preserve the frozen workload and design space.",
+            },
+            {
+                "action": "execute",
+                "holder_id": "arch2-labs-runner",
+                "holder_type": "pipeline",
+                "scope": "May execute the declared proxy and SCALE-Sim stages.",
+                "conditions": "Commands, inputs, and outputs must remain bound in the run archive.",
+            },
+            {
+                "action": "reject",
+                "holder_id": "declared-gate-evaluator",
+                "holder_type": "policy",
+                "scope": "May reject candidates that fail the fixed PE-budget or deadline check.",
+                "conditions": "Every rejection must cite its rejection check and evidence.",
+            },
+            {
+                "action": "waive",
+                "holder_id": "architecture-lab-learner",
+                "holder_type": "person",
+                "scope": "May waive only a rejection check whose recorded waiver rule permits it.",
+                "conditions": "Neither rejection check in this exercise permits a waiver.",
+            },
+            {
+                "action": "recommend",
+                "holder_id": "arch2-labs-runner",
+                "holder_type": "pipeline",
+                "scope": "May recommend the lowest-latency candidate that passed the declared checks.",
+                "conditions": "The recommendation carries no commitment authority.",
+            },
+            {
+                "action": "commit",
+                "holder_id": "architecture-lab-learner",
+                "holder_type": "person",
+                "scope": "May authorize one next-fidelity architecture study.",
+                "conditions": "No RTL, signoff, tapeout, or product commitment follows.",
+            },
+        ],
+        "recommendation": {
+            "recommender_id": "arch2-labs-runner",
+            "action": f"Advance {recommended['candidate_id']} to one next-fidelity architecture study.",
+            "basis": "Lowest derived latency among candidates that passed both declared rejection checks.",
+            "claim_refs": ["claim-gate-passing-latency"],
+            "authority_limit": "The runner recommends; it cannot make the final decision.",
+        },
+        "accountable_decision": {
+            "status": "pending",
+            "holder_id": "architecture-lab-learner",
+            "action": "Decide whether one candidate advances to a next-fidelity architecture study.",
+            "rationale": "The machine recommendation awaits a decision from the named owner.",
+            "claim_refs": ["claim-gate-passing-latency"],
+            "authorized_scope": "No advancement is authorized while status is pending.",
+            "reopen_conditions": [
+                "The decision owner records a supported selection and rationale."
+            ],
+        },
+        "replay": {
+            "commands": replay_commands,
+            "environment_binding": {
+                "artifact_id": "environment-contract",
+                "uri": "environment.yaml",
+                "sha256": f"sha256:{sha256_file(receipt_root / 'environment.yaml')}",
+            },
+            "inputs": list(replay_inputs_by_uri.values()),
+            "outputs": list(replay_outputs_by_uri.values()),
+            "expected_status": "Every bound SCALE-Sim command exits 0 and emits the named report set.",
+            "observed_status": "Every evidence-producing SCALE-Sim run exited 0 and its input and output hashes were recorded.",
+            "validation_status": "bindings_verified",
+            "validated_at": max(record["completed_at"] for record in successful),
+            "validator": "arch2-labs run-archive generator 0.1.0",
+        },
+        "disclosure": {
+            "data_classes": [
+                "Public synthetic workload, simulator inputs, outputs, and teaching decisions."
+            ],
+            "redactions": [],
+            "reviewer_roles": ["Course learner, instructor, and public reader."],
+            "release_boundary_or_compliance_review_id": "Public course run archive with no confidential or personal workload data.",
+        },
+        "x-arch2-labs": {
+            "lab_id": "scale_proxy_mirage",
             "receipt_id": receipt_id,
             "template_status": "replayable_evidence",
             "environment_contract": "environment.yaml",
             "recommendation_record": "recommendation.json",
-        }
-    )
+        },
+    }
+    template["schema_version"] = "2.0"
+    template["design_loop_card"] = card
     return template
 
 
@@ -621,11 +957,11 @@ def _generate_example(
             )
 
     if not accepted:
-        raise RuntimeError("No candidate survived the SCALE-Sim rejection gates")
+        raise RuntimeError("No candidate survived the SCALE-Sim rejection checks")
     if not negative_traces:
         raise ValueError(
             "selected candidates must include at least one candidate rejected "
-            "by a declared gate"
+            "by a declared rejection check"
         )
 
     recommended = min(
@@ -656,7 +992,7 @@ def _generate_example(
     }
 
     created_at = datetime.now(timezone.utc).isoformat()
-    evidence_ledger = {
+    evidence_record = {
         "schema_version": "arch2-loop-evidence/v0.1",
         "created_at": created_at,
         "lab_id": spec.lab_id,
@@ -675,7 +1011,7 @@ def _generate_example(
             {
                 "stage": "scalesim",
                 "fidelity": "simulator CSV reports",
-                "supports": f"{recommended['candidate_id']} has the lowest derived latency among declared-gate passers",
+                "supports": f"{recommended['candidate_id']} has the lowest derived latency among candidates that passed the declared checks",
                 "limits": "does not cover compiler, RTL, physical design, power, or full-model accuracy",
             },
         ],
@@ -687,8 +1023,8 @@ def _generate_example(
 
     _write_jsonl(out_dir / "candidates.jsonl", proxy_records)
     _write_jsonl(out_dir / "runs.jsonl", _relative_records(runs, out_dir))
-    (out_dir / "evidence_ledger.json").write_text(
-        json.dumps(evidence_ledger, indent=2, sort_keys=True) + "\n"
+    (out_dir / "evidence_record.json").write_text(
+        json.dumps(evidence_record, indent=2, sort_keys=True) + "\n"
     )
     _write_jsonl(out_dir / "negative_traces.jsonl", negative_traces)
     recommendation = build_recommendation(
@@ -706,6 +1042,7 @@ def _generate_example(
     card_template = yaml.safe_load((out_dir / "card.yaml").read_text())
     card = build_replayable_card(
         card_template,
+        out_dir,
         receipt_id,
         spec.baseline_id,
         [record for record in runs if record["stage"] == "scalesim"],
@@ -766,7 +1103,7 @@ def run_example(
     precision: str = "int8",
     human_decision: Path | Mapping[str, Any] | HumanDecision | None = None,
 ) -> dict[str, Any]:
-    """Build a receipt in staging and promote it only after generation succeeds."""
+    """Build a run archive in staging and promote it after generation succeeds."""
     out_dir = out_dir.expanduser().absolute()
     if out_dir.is_symlink():
         raise ValueError(f"refusing to replace a symbolic link: {out_dir}")
@@ -797,7 +1134,7 @@ def run_example(
             errors = validate_receipt(staging)
             if errors:
                 raise RuntimeError(
-                    "generated receipt failed validation: " + "; ".join(errors)
+                    "generated run archive failed validation: " + "; ".join(errors)
                 )
         else:
             from arch2_labs.validators import validate_decision_draft
@@ -822,7 +1159,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Example name under labs/examples.",
     )
     parser.add_argument(
-        "--out", required=True, type=Path, help="Output runnable receipt directory."
+        "--out", required=True, type=Path, help="Output run-archive directory."
     )
     parser.add_argument(
         "--force", action="store_true", help="Replace an existing output directory."
@@ -843,8 +1180,8 @@ def main(argv: list[str] | None = None) -> int:
         "--decision-file",
         type=Path,
         help=(
-            "Explicit accountable-decision YAML using the v1.1 human_decision key. Without it, the runner emits an "
-            "evidence-only draft that does not validate as a complete receipt."
+            "Decision YAML with a named owner. Without it, the runner emits an "
+            "evidence-only draft that does not validate as a complete run archive."
         ),
     )
     args = parser.parse_args(argv)

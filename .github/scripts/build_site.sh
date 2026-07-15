@@ -24,7 +24,7 @@ mkdir -p \
   _site/schemas \
   _site/tools
 
-echo "==> Copying shared preview assets"
+echo "==> Copying shared site assets"
 cp book/images/favicon.svg _site/images/
 cp book/images/favicon-16.png _site/images/
 cp book/images/favicon-32.png _site/images/
@@ -50,13 +50,11 @@ python3 .github/scripts/render_book_navbar.py
 if [[ "${SKIP_BOOK:-0}" != "1" ]]; then
   echo "==> Rendering book (arch2 CLI)"
   # Pages publishing should verify that the site and downloadable artifacts build.
-  # Manuscript PDF layout audits are run as a separate book-quality gate; blocking
-  # the site deploy on page-level layout noise prevents community pages from
-  # publishing even when HTML/PDF/EPUB artifacts render successfully. Figure
-  # generation is not byte-deterministic yet, so tracked-asset drift after
-  # render is likewise treated as non-blocking for the publish (figures render
-  # fresh into _site regardless).
-  ARCH2_SKIP_ASSET_DRIFT=1 ./arch2 render --no-layout
+  # Manuscript PDF layout audits are run as a separate book-quality gate. The
+  # render still enforces generated-asset cleanliness so a release cannot publish
+  # figures that disagree with their tracked sources. A local uncommitted review
+  # may opt out explicitly with ARCH2_SKIP_ASSET_DRIFT=1.
+  ./arch2 render --no-layout
   cp -r book/_build/* _site/book/
 else
   echo "==> Skipping book render (SKIP_BOOK=1)"
@@ -102,6 +100,7 @@ fi
 
 python3 .github/scripts/check_site_accessibility.py \
   _site/*.html _site/tools/*.html
+python3 .github/scripts/check_site_links.py _site
 
 echo "==> Site assembled in ./_site"
 find _site -maxdepth 2 -name '*.html' | sort

@@ -270,7 +270,7 @@ def _(
     )
     mo.md(
         f"""
-        ### Reconcile
+        ### Compare the Prediction With the Result
 
         You predicted the queue would **{ {"grow": "grow", "stable": "not grow"}[predicted]}**
         at **{prediction_snapshot['confidence']}% confidence**. Your submitted reason was:

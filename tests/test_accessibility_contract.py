@@ -109,6 +109,54 @@ def test_epub_xhtml_normalization_preserves_image_alternative(tmp_path: Path) ->
     assert '<img src="figure.svg" alt="Useful image alternative"' in normalized
 
 
+def test_epub_xhtml_normalization_lowercases_custom_data_attributes(
+    tmp_path: Path,
+) -> None:
+    epub_path = tmp_path / "listing-attributes.epub"
+    chapter = """<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+  <body>
+    <div data-startLine="1" data-endLine="26">
+      <div data-startFrom="1"><pre>example</pre></div>
+    </div>
+  </body>
+</html>
+"""
+    with zipfile.ZipFile(epub_path, "w") as epub:
+        epub.writestr(
+            "mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED
+        )
+        epub.writestr("EPUB/text/ch001.xhtml", chapter)
+
+    changed = arch2_cli.normalize_epub_xhtml(epub_path)
+
+    assert changed == 3
+    with zipfile.ZipFile(epub_path) as epub:
+        normalized = epub.read("EPUB/text/ch001.xhtml").decode()
+    assert 'data-startline="1"' in normalized
+    assert 'data-endline="26"' in normalized
+    assert 'data-startfrom="1"' in normalized
+    assert "data-startLine" not in normalized
+    assert "data-endLine" not in normalized
+    assert "data-startFrom" not in normalized
+
+
+def test_html_hub_link_normalization_restores_root_links(tmp_path: Path) -> None:
+    nested = tmp_path / "chapters" / "example"
+    nested.mkdir(parents=True)
+    page = nested / "index.html"
+    page.write_text(
+        '<a href="../../../book/index.html" '
+        'data-arch2-href="/book/index.html">Read online</a>',
+        encoding="utf-8",
+    )
+
+    changed = arch2_cli.normalize_html_hub_links(tmp_path)
+
+    assert changed == 1
+    assert 'href="/book/index.html"' in page.read_text(encoding="utf-8")
+
+
 def test_epubcheck_is_a_pinned_required_gate(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

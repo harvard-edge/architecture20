@@ -18,6 +18,11 @@ SUPPORTED_OBJECTIVES = {
     "energy_under_declared_gates",
     "area_efficiency_under_declared_gates",
 }
+OBJECTIVE_CLAIM_IDS = {
+    "latency_under_declared_gates": "claim-gate-passing-latency",
+    "energy_under_declared_gates": "claim-gate-passing-energy",
+    "area_efficiency_under_declared_gates": "claim-gate-passing-area-efficiency",
+}
 
 OVERCLAIM_PATTERNS = {
     "advance to RTL": re.compile(
@@ -77,9 +82,7 @@ def decision_errors(data: Any) -> list[str]:
         data.get("schema_version")
         and data.get("schema_version") != HUMAN_DECISION_SCHEMA_VERSION
     ):
-        errors.append(
-            f"unsupported accountable-decision schema: {data.get('schema_version')}"
-        )
+        errors.append(f"unsupported decision schema: {data.get('schema_version')}")
     level = data.get("commitment_level")
     if level and level not in SUPPORTED_COMMITMENT_LEVELS:
         errors.append(f"unsupported commitment level: {level}")
@@ -139,9 +142,9 @@ def load_human_decision(
         try:
             data = yaml.safe_load(source.read_text())
         except (OSError, yaml.YAMLError) as exc:
-            raise ValueError(f"could not read accountable decision: {source}") from exc
+            raise ValueError(f"could not read decision record: {source}") from exc
         if not isinstance(data, Mapping):
-            raise ValueError("accountable decision file must contain a mapping")
+            raise ValueError("decision file must contain a mapping")
         return parse_human_decision(data)
     return parse_human_decision(source)
 
@@ -152,9 +155,9 @@ def render_decision(decision: HumanDecision) -> str:
         if decision.objective_override
         else ""
     )
-    return f"""# Accountable Decision
+    return f"""# Decision Record
 
-Accountable owner: {decision.human_owner}
+Decision owner: {decision.human_owner}
 
 Authored at: {decision.authored_at}
 
@@ -169,7 +172,7 @@ Objective override: `{str(decision.objective_override).lower()}`
 
 {decision.rationale}
 
-## Commitment Boundary
+## Authorized Next Step
 
 `{decision.commitment_level}`
 
@@ -195,34 +198,30 @@ def _record_decision_in_card(receipt_dir: Path, decision: HumanDecision) -> None
     card_path = receipt_dir / "card.yaml"
     document = yaml.safe_load(card_path.read_text())
     card = document["design_loop_card"]
-    card.update(
-        {
-            "conformance_level": 3,
-            "rejection_authority": {
-                "gates": [
-                    "Reject candidates above the 1024-PE silicon budget.",
-                    "Reject candidates above the 90000-cycle workload deadline.",
-                ],
-                "independent_of_producer": True,
-                "independence_basis": "The fixed area and deadline checks execute independently of the machine recommendation and the accountable decision.",
-            },
-            "commitment_boundary": {
-                "level": "experimental",
-                "strongest_supported_claim": (
-                    f"Advance {decision.selected_candidate_id} to one bounded "
-                    "next-fidelity architecture study."
-                ),
-                "would_overturn": decision.would_overturn,
-            },
-            "human_decision": {
-                "owner": decision.human_owner,
-                "authorizes": (
-                    f"{decision.selected_candidate_id} at "
-                    f"{decision.commitment_level}; no broader commitment."
-                ),
-            },
-        }
-    )
+    for right in card["decision_rights"]:
+        if right.get("action") == "commit":
+            right["holder_id"] = decision.human_owner
+            right["scope"] = (
+                f"May authorize {decision.selected_candidate_id} for one "
+                "next-fidelity architecture study."
+            )
+    card["accountable_decision"] = {
+        "status": "authorized",
+        "holder_id": decision.human_owner,
+        "action": (
+            f"Advance {decision.selected_candidate_id} to one bounded "
+            "next-fidelity architecture study."
+        ),
+        "rationale": decision.rationale,
+        "claim_refs": [OBJECTIVE_CLAIM_IDS[decision.governing_objective]],
+        "authorized_scope": (
+            f"{decision.selected_candidate_id} at {decision.commitment_level}; "
+            "no broader commitment."
+        ),
+        "recorded_at": decision.authored_at,
+        "reopen_conditions": [decision.would_overturn],
+        "x-arch2-labs": {"residual_risk": decision.residual_risk},
+    }
     card["x-arch2-labs"].update(
         {
             "template_status": "human_decision_recorded",
@@ -244,7 +243,7 @@ def record_human_decision(
     receipt_dir: Path,
     source: Path | Mapping[str, Any] | HumanDecision,
 ) -> HumanDecision:
-    """Persist an explicit accountable decision and reseal an existing draft receipt."""
+    """Persist a decision record and reseal an existing draft run archive."""
     receipt_dir = receipt_dir.absolute()
     from arch2_labs.validators import validate_decision_draft
 
@@ -252,7 +251,7 @@ def record_human_decision(
     decision = load_human_decision(source)
     if decision.lab_id != manifest.get("lab_id"):
         raise ValueError(
-            "accountable decision lab_id does not match the receipt: "
+            "decision lab_id does not match the run archive: "
             f"{decision.lab_id} != {manifest.get('lab_id')}"
         )
 
@@ -260,7 +259,7 @@ def record_human_decision(
     candidate_ids = {record.get("candidate_id") for record in candidates}
     if decision.selected_candidate_id not in candidate_ids:
         raise ValueError(
-            "accountable decision selected_candidate_id is not a declared candidate: "
+            "decision selected_candidate_id is not a declared candidate: "
             f"{decision.selected_candidate_id}"
         )
     rejected_ids = {
@@ -269,24 +268,24 @@ def record_human_decision(
     }
     if decision.selected_candidate_id in rejected_ids:
         raise ValueError(
-            "accountable decision selects a candidate rejected by a declared check: "
+            "decision selects a candidate rejected by a declared check: "
             f"{decision.selected_candidate_id}"
         )
 
-    evidence = json.loads((receipt_dir / "evidence_ledger.json").read_text())
+    evidence = json.loads((receipt_dir / "evidence_record.json").read_text())
     ranking = evidence.get("objective_rankings", {}).get(decision.governing_objective)
     expected_candidate = (
         ranking.get("candidate_id") if isinstance(ranking, dict) else None
     )
     if not expected_candidate:
         raise ValueError(
-            "accountable decision objective has no check-filtered ranking: "
+            "decision objective has no check-filtered ranking: "
             f"{decision.governing_objective}"
         )
     differs = decision.selected_candidate_id != expected_candidate
     if differs and not decision.objective_override:
         raise ValueError(
-            "accountable decision differs from the governing objective winner; set "
+            "decision differs from the governing objective winner; set "
             "objective_override: true and provide override_reason"
         )
     if not differs and decision.objective_override:
@@ -315,8 +314,8 @@ def record_human_decision(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Attach an explicit accountable decision to an intact Architecture 2.0 "
-            "Level 2 draft receipt."
+            "Attach a decision record to an intact Architecture 2.0 schema 2.0 "
+            "draft run archive."
         )
     )
     parser.add_argument("receipt_dir", type=Path)
@@ -327,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"ERROR: {exc}")
         return 1
-    print(f"accountable decision recorded: {args.receipt_dir.resolve()}")
+    print(f"decision recorded: {args.receipt_dir.resolve()}")
     return 0
 
 
