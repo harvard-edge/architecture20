@@ -1,4 +1,4 @@
-# Tools as Architecture Environments {#sec-architecture-environments-tool-interfaces}
+# Connecting AI to Architecture Tools {#sec-architecture-environments-tool-interfaces}
 
 ::: {.epigraph}
 > *"We shape our tools and thereafter they shape us."*
@@ -7,95 +7,78 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** John Culkin, an influential American media scholar, observed that our tools reshape our own behavior. In Architecture 2.0, any tool placed inside an AI-assisted architecture loop has to be treated as part of the study's execution specification. Its environment contract defines what actions are legal, what observations are returned, and what can be rejected.
+**Author's Note:** John Culkin, an influential American media scholar, observed that tools reshape how people work. An architecture tool also shapes what an AI method can change and what an architect can observe. Those limits must be explicit when the method acts through the tool.
 :::
 
 
 ```{=latex}
-\abstract*{Architecture 2.0 requires tools placed inside AI-assisted architecture loops to become environments, the executable, tool-facing part of an architecture study's contract. This chapter treats ISA boundaries, compiler IRs, memory models, simulator APIs, profilers, RTL flows, EDA handoffs, runtimes, benchmarks, and telemetry systems as places where automated systems and human reviewers can take design actions, observe feedback, log costs and constraints, and reject invalid or unsupported candidates.}
+\abstract*{An AI method needs more than permission to call an architecture tool. The tool path must expose legal actions, returned observations, cost, provenance, constraints, and four distinct outcome paths. This chapter develops that environment contract across ISA boundaries, compiler IRs, memory models, simulator APIs, profilers, RTL flows, EDA handoffs, runtimes, benchmarks, and telemetry systems.}
 ```
 
 ::: {.callout-crux}
-What must a tool flow provide before a generative model can act through it and
-a reviewer can trust its results?
+What must architecture tools expose so AI can use them correctly and another
+architect can understand the returned results?
 :::
 
-@sec-data-representations-world-models explained what an architecture study must represent. This chapter
-examines the design-loop card's environment field, which specifies the tools,
-permitted actions, returned observations, costs, and rejection conditions. In Architecture 1.0, tools often sit behind the
-architect. Simulators, scripts, compilers, profilers, spreadsheets, RTL flows,
-EDA tools, dashboards, and deployment logs are the means by which a human
-expert gathers evidence. In Architecture 2.0, those same tools should be treated
-as formal environments when they sit inside AI-assisted design loops. They
-define what actions are legal, what observations are returned, how expensive
-feedback is, which assumptions are baked in, what state is logged, and what can
-reject a candidate.
+@sec-data-representations-world-models explained what must be represented for
+an AI-assisted architecture comparison. Representation alone does not make a
+tool flow usable. Consider an AI method evaluating a larger L2 cache with gem5, a
+full-system architecture simulator [@BinkertEtAl2011Gem5]. The method needs more
+than a command that starts the simulator. It needs to know which
+cache parameters it may change, which combinations are legal, which workload
+and warm-up rules are fixed, how long a run costs, what warnings mean, and
+which result would rule out the candidate. Another architect needs the same
+information to judge the comparison.
 
-> **Architecture environment.** An architecture environment is the executable,
-> tool-facing part of an architecture study's contract. It specifies
-> the legal actions,
-> observations and feedback costs, logged state and provenance, rejection
-> conditions, and failure or escalation paths for the tools a design loop acts
-> through.
+An experienced architect may carry much of this knowledge without writing it
+down. An AI method cannot rely on that private knowledge. A *tool* performs an
+operation. A *wrapper* translates a permitted design action into a tool call,
+then translates the result into recorded observations and outcome statuses.
+Neither one alone states the conditions under which that result can support an
+architectural claim.
 
-The study execution specification defined in
-@sec-architecture-20-ontology covers the full set of rules for a design loop.
-The environment contract developed here is its tool-facing subset, the part a
-harness can execute and enforce.
+> **Architecture environment.** An architecture environment is a tool flow
+> governed by an explicit contract. That contract specifies the legal actions
+> and fixed context, the meaning, cost, and fidelity of returned observations,
+> the required provenance and integrity information, and distinct outcome and
+> review paths.
 
-The boundary with @sec-data-representations-world-models is deliberate. A scoped consequence
-model predicts or constrains the consequences of actions. An environment defines which actions are
-legal, what observations come back, what failures mean, and what evidence is
-logged. A simulator, surrogate, or rule set can contribute to both, but the loop
-must record which role it is playing before its output can support a claim.
+The execution specification in @sec-arch2-ontology covers the architecture
+question, comparison, and intended decision. Its *environment contract* covers
+the tool flow. A *harness* is the maintained runnable implementation of that
+contract, including workloads, versions, scripts, provenance, outcome records,
+and any review decisions. Later,
+@sec-methods-generation-prediction-optimization uses those fields to match AI
+method roles to the available feedback, and
+@sec-feedback-verification-trust asks what conclusions that feedback can
+support.
 
-To keep these boundaries clear, we must use the tool vocabulary carefully.
+The scoped consequence models in @sec-data-representations-world-models and an
+architecture environment answer different questions. A consequence model
+predicts or constrains what may happen after an action. The environment governs
+the actual tool interaction and records what happens. A simulator, surrogate,
+or rule set can contribute to both. The architect must identify whether each
+output is a prediction, a constraint, or an observation from the tool path
+before using it to support a claim.
 
-- A *tool* performs an operation.
-- A *wrapper* calls that tool.
-- An *environment contract* states what actions are legal, what observations
-  return, what costs and failures mean, and what evidence is logged.
-- A *harness* is the maintained runnable object around that contract, including
-  workloads, versions, scripts, provenance, invalid-action records, and review
-  state.
-
-A benchmark harness makes the distinction concrete. The benchmark program is
-not the environment by itself. The environment is the maintained bundle of
-allowed inputs, run rules, scripts, versions, result checks, and disclosure
-requirements that lets another team decide whether the run means the same
-thing. MLPerf (@sec-design-loop-no-longer-scales) shows this pattern; its
-submission harnesses and reporting rules are what let another team make that
-judgment [@MattsonEtAl2020MLPerf]. An Architecture
-2.0 environment applies the same requirements to design actions, tool feedback,
-and rejection records.
-
-A tool wrapper is part of the research claim about the architecture problem.
-It determines which parameters a method can change, which constraints it
-enforces, which metrics it returns, and which failures it records. If it hides
-difficult cases, a method may appear better than it is. A well-specified wrapper
-makes even a simple method easier to evaluate fairly.
-
-The same contract is what makes comparison meaningful. Fair method comparisons
-require compatible, or explicitly mapped, workload definitions, action schemas,
-evaluation costs, invalid-action rules, provenance records, and claim limits.
-Otherwise a result may compare private worlds rather than architecture methods.
-
-The executed study in @sec-executed-scale-study makes the point concrete. It was
-not one model call followed by one simulator call. It joined a structured
-proposal interface, schema and legality checks, a frozen workload harness,
-SCALE-Sim, a result parser, equal-budget comparison rules, a mechanism probe,
-an evidence record, and a replay package. The interfaces, not the prompt, made the
-study possible.
+For the L2 example, the contract would name the cache fields that may change,
+the fixed workload and warm-up rules, the units and aggregation of each
+reported metric, and the cost of a run. It would also distinguish an illegal
+configuration, a valid candidate that violates a declared limit, a failed tool
+path, and a result that requires review. The wrapper applies those rules when it
+calls gem5. The harness retains the inputs, tool version, raw results, and
+outcome status. The AI method can then see what it may request, and another
+architect can tell what the returned miss count means.
 
 ::: {.callout-learning-objectives}
 After this chapter you can turn a tool path into a documented environment
 contract. That means you can:
 
-- **Turn** a tool into an environment with specified actions, observations, costs, invalid outcomes, and failure paths;
-- **Read** a result by naming the environment that produced it;
-- **Explain** why environment contracts make AI-method and paper comparisons meaningful;
-- **Distinguish** illegal candidate actions from tool, setup, and harness failures;
-- **Detect** proxy mismatch and proxy gaming, simulators included, before they mislead the loop;
+- **Turn** a tool into an environment with specified actions, observations, costs, and four outcome statuses;
+- **Interpret** a result from its units, aggregation, normalization, uncertainty, scope, and source;
+- **Explain** why environment contracts make AI-method comparisons meaningful;
+- **Distinguish** illegal requests, evaluated candidates that fail a declared condition, broken tool paths, and unsupported or inconclusive results;
+- **Detect** proxy mismatch and proxy gaming, simulators included, before they mislead a method or reviewer;
 - **Maintain** a comparable harness as workloads, tools, and action schemas change.
 :::
 
@@ -111,39 +94,138 @@ optimizer can change. An EDA flow that returns timing and power after hours of
 work makes feedback precious. A runtime telemetry system that reports
 aggregate utilization but not per-request interference makes some deployment
 claims difficult to support.
-When tools are used by a human expert, some of these limits can remain tacit. For an AI-assisted
-loop, tacit limits become hidden state. The loop can act safely only on
-constraints, costs, and rejection rules the environment records.
+When an architect operates the tools directly, some of these limits can remain
+tacit. An AI method cannot recover a hidden constraint, cost, or rejection rule
+from a scalar score. The environment must make those conditions available
+before the method acts.
 
-The usual way to describe these tacit boundaries is to say that tools have
-limitations. That is true, but too weak. A tool's limitations determine what a
-study can observe and measure. The classic quantitative tradition in computer
+Calling these conditions tool limitations understates their effect. They
+determine what an architect can observe and therefore what an architectural
+claim can cover. The classic quantitative tradition in computer
 architecture shifted the field from intuition to rigorous simulation and
 measurement [@HennessyPatterson2017QuantitativeApproach]. Architecture 2.0
-therefore requires researchers to document the measurement interface itself,
-including its inputs, outputs, assumptions, and unsupported cases.
+extends that discipline to the measurement interface itself. Inputs, outputs,
+assumptions, and unsupported cases all affect what a result means.
 
-AI-assisted methods can act only on the interface state they receive. A human
-architect can sometimes infer that a simulator result is
+An AI method can act only on the interface state it receives. An architect can
+sometimes infer that a simulator result is
 out of distribution, that a benchmark run used a stale configuration, or that
 a reported improvement is not meaningful because the compiler changed. A
-method acting through an environment cannot use those facts unless the
-environment represents them. The environment must provide enough state for
-useful action and enough constraints for safe rejection.
+method cannot use those facts unless the wrapper exposes them. It needs enough
+state to choose a useful action and enough constraints to recognize an invalid
+one.
 
-A useful study description identifies more than the tool name. It states which
-actions the wrapper permits, what the tool returns, which states are invalid,
-and what evidence another researcher can reproduce. Once those details are
-stated, method claims become easier to compare.
+Naming gem5, FireSim, or a commercial EDA tool is not enough. A
+reviewer also needs to know which actions the wrapper permits, what the tool
+returns, which states are invalid, and which runs or results can be
+reproduced. Those details determine whether two method results are actually
+comparable.
 
-## Interfaces Are Action Boundaries
+## What an Architecture Environment Must Expose
+
+The contract connects a permitted design action to a tool result whose meaning
+is explicit. It names the architecture question and workload, the state that
+may change, the state that must remain fixed, the observations the tool can
+return, the cost and fidelity of obtaining them, and the possible outcomes of
+the call. @tbl-environment-contract collects those requirements.
+
+| **Field** | **What it must expose** | **Why another architect needs it** |
+| --- | --- | --- |
+| **Workload and fixed context** | Architecture question, inputs, traces, benchmark and software versions, operating conditions, and choices held constant. | Shows which behavior the result describes and whether two runs used the same context. |
+| **Action schema** | Parameters, edits, configurations, generated artifacts, or commands an AI method may propose. | Defines exactly what the method can change. |
+| **Constraints and checks** | Type and range checks, legal combinations, software-visible contracts, physical limits, and checks applied before and after a tool call. | Separates an illegal request from a candidate that was evaluated and then failed a declared condition. |
+| **Observation schema** | Metrics, traces, logs, reports, errors, status values, and artifacts returned by the tool path. | Identifies the raw result and the source from which it came. |
+| **Observation meaning** | Units, aggregation rule, denominator, normalization, preferred direction, uncertainty or run-to-run variation, and valid scope. | Lets a reviewer interpret a value rather than infer what a metric name means. |
+| **Evaluation cost and fidelity** | Wall time, compute, license or hardware use, engineering effort, model stage, determinism, and practical sample limit. | Shows which comparisons are affordable and which observations can be compared. |
+| **Provenance and integrity** | Tool, model, prompt, dependency, dataset, host, seed, configuration, artifact identifiers, hashes, and signatures when available. | Shows which inputs and software produced the result and whether an evidence source changed. |
+| **Outcome and review paths** | Status categories, retry and rejection rules, escalation conditions, and the architect, reviewer, or decision owner responsible for unresolved cases. | Determines what happens after each result without giving the tool decision authority. |
+
+: **An environment contract defines tool use before execution.** It tells an AI method what it may request and lets another architect interpret the returned result. It does not decide which architectural claim the result supports. {#tbl-environment-contract tbl-colwidths="[22,38,30]"}
+
+A metric name alone is not enough. If gem5 reports cache misses, the contract
+must say whether the value is a count or rate, which requests form the
+denominator, whether warm-up traffic was removed, whether results are per core
+or aggregated, which direction is preferred, and how much the value varies
+across repeated runs. Without that information, an optimizer can rank numbers
+that another architect cannot interpret.
+
+The outcome status also matters. Four negative outcomes require different
+responses.
+
+- **Illegal before execution:** The proposed action violates the schema or a
+  condition checked before the tool runs. The wrapper rejects the request
+  without treating it as an evaluated design result.
+- **Candidate rejected after evaluation:** The tool returns a valid
+  observation, but the candidate violates a declared constraint or fails the
+  comparison rule. The result remains attached to the candidate.
+- **Tool-path failure:** The setup, wrapper, harness, license, or tool fails to
+  produce a valid observation. The harness records the failure and its cause
+  rather than assigning the result to the candidate by default.
+- **Unsupported or inconclusive:** The tool returns an output that falls outside
+  its declared scope, or the available checks do not settle the candidate. A
+  named architect or reviewer decides what additional tool run or review is
+  needed.
+
+These distinctions determine whether the next step is to repair a request,
+reject a candidate, repair the tool path, or seek stronger feedback. The
+wrapper implements the distinctions, and the harness preserves the inputs,
+outputs, status, and provenance. Neither one decides what the architectural
+claim should be.
+
+The executed comparison in @sec-executed-scale-study provides a concrete
+example. Its action schema admitted only legal array geometries. SCALE-Sim
+returned cycle count and average layer utilization for accepted inputs, and the
+harness retained the raw outputs, status, elapsed time, simulator configuration,
+and candidate source. The fixed meanings and equal budgets let another
+architect interpret the resulting tie. They did not give the simulator or the
+proposal method authority to decide whether the baseline should advance.
+
+## From Tool Request to Review Record
+
+The wrapper and harness make the environment contract executable.
+@fig-environment-tool-interface separates the information supplied before a
+tool call from the observations and status returned afterward. The center shows
+the wrapper checking, calling, and parsing while the harness records the run.
+
+![**A tool becomes an environment when its interface is specified.** The contract fixes permitted actions and observation meaning before execution. The wrapper and harness then keep illegal requests, candidates rejected after evaluation, tool-path failures, and unsupported or inconclusive results distinct while preserving every path in a review record.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of an architecture question and workload, action schema, constraints, and metric definitions entering an environment boundary. A wrapper checks the request, calls the tool, and parses the observation and status; a harness records the run and provenance. Separate branches show illegal before execution, tool-path failure, candidate rejected after evaluation, and unsupported or inconclusive pending named review. Raw tool output and every negative outcome feed a review record containing result meaning, cost, fidelity, provenance, and status."}
+
+On the left of @fig-environment-tool-interface, the architecture question and
+workload establish the inputs, version, and fixed context. The action schema
+names the knobs, edits, or commands an AI method may propose. The constraints
+and metric definitions state which requests are legal and how returned values
+should be read.
+
+Inside the environment boundary, the wrapper checks the request, invokes the
+tool, and parses its observations and status. The harness records the run and
+its provenance. An illegal request stops before execution. After a valid tool
+run, a declared check may keep the candidate in the comparison or reject it.
+A broken setup, harness, or tool produces a tool-path failure instead. An
+unsupported or inconclusive result goes to a named architect or reviewer.
+
+The right side separates raw tool output, such as metrics, logs, and reports,
+from the review record that preserves those outputs, their meaning, cost,
+fidelity, provenance, and status. The figure also routes every negative outcome
+into that record. An optimizer may receive one scalar objective, while a
+reviewer can still inspect the underlying cycle counts, warnings,
+configuration, and tool version. The record supports review but does not
+authorize the next architecture decision. Two projects can use the same
+simulator while defining different architecture environments because their
+actions, workloads, constraints, and observation meanings differ.
+
+The harness should retain the underlying observations and cost data even when a
+method receives only a scalar objective. Otherwise, the method may exploit a
+simulator bug or omitted cost instead of improving the design.
+[^fn-ml-reward-hacking]
+
+[^fn-ml-reward-hacking]: The proxy-gaming section later in this chapter defines reward hacking in full, with the simulator case and its machine-learning-safety source.
+
+## Interfaces Define What AI Can Change
 
 A tool's interface makes its action and observation schema concrete.
-Architecture is often described as the boundary between hardware and
-software.
-For Architecture 2.0, that statement has an operational meaning. A useful study
-description states what each interface permits, what observations it returns,
-and which failures it can detect. This applies to ISA boundaries, compiler IRs,
+Architecture is often described through boundaries between hardware and
+software. For an AI system to work through those boundaries, the architect
+must spell out what each interface permits, what observations it returns, and
+which failures it can detect. This applies to ISA boundaries, compiler IRs,
 memory models, runtime APIs, simulator interfaces, benchmark harnesses, EDA
 handoffs, and telemetry schemas. When the claim depends on coherence,
 scheduling, memory semantics, or physical constraints, the method should act
@@ -151,102 +233,110 @@ through the interface or schema that defines those semantics. Unstructured C++
 or RTL becomes a review risk when it bypasses those modular interfaces, not
 because it is invalid by default.
 
-This is why tool interfaces belong in the architecture argument rather than in
-an appendix. A generator that emits a schedule must know the schedule
-language. A search method that changes memory hierarchy parameters must know
-which combinations the simulator accepts and which violate a software-visible
-contract. A critique system that reads a synthesis report must know which
-warnings are fatal, which are informational, and which require a higher-fidelity
-check. The interface is the boundary where method capability meets
-relevant architectural rules.
+Tool interfaces belong in the architecture argument rather than in
+an appendix. A generator that emits a schedule must use the schedule language.
+A search method that changes memory hierarchy parameters must know which
+combinations the simulator accepts and which violate a software-visible
+contract. A critic that reads a synthesis report must distinguish a fatal
+warning from an informational one and know when a higher-fidelity check is
+required. The interface connects an AI method's permitted actions to the
+architectural rules that govern them.
 
-A credible study often has to specify a set of interfaces
-(@tbl-architecture-interface-boundaries). The table is not a complete taxonomy. Its
-claim is that every interface has two jobs. It makes some actions possible,
-and it defines what evidence those actions can produce. If either side is
-hidden, an automated optimizer can appear capable while acting outside the architecture
-problem the human intended to solve.
+An AI-assisted architecture comparison may depend on several interfaces
+(@tbl-architecture-interface-boundaries). Each interface defines what the
+method may do and how an architect should read the tool output. If either
+remains implicit, an optimizer may change something the architect meant to
+hold fixed or treat a tool result as support for a claim the tool cannot
+answer.
 
-| **Interface** | **What it makes actionable** | **Evidence it makes interpretable** | **Failure if hidden** |
+| **Interface** | **What the AI method may do** | **What the tool returns and a reviewer can check** | **Risk if hidden** |
 | --- | --- | --- | --- |
-| ISA and vector contract | Instructions, registers, vector length, exceptions, privilege, and binary compatibility. | Correct execution, portability, software-visible behavior, and compatibility tests. | The loop proposes a microarchitecture that software cannot legally target. |
+| ISA and vector contract | Instructions, registers, vector length, exceptions, privilege, and binary compatibility. | Correct execution, portability, software-visible behavior, and compatibility tests. | An AI method proposes a microarchitecture that software cannot legally target. |
 | Compiler IR and schedule representation | Lowering choices, tiling, fusion, layout, vectorization, and target-specific code generation. | Compiler success, generated code, performance counters, and optimization provenance. | Performance is attributed to hardware while the software contract changed. |
 | Memory and coherence model | Ordering, sharing, cacheability, consistency, DMA, and synchronization assumptions. | Correctness tests, contention behavior, latency, bandwidth, and race or ordering failures. | A candidate looks fast because it violated the program's memory assumptions. |
 | Accelerator or runtime API | Invocation, data movement, synchronization, library calls, queues, and resource ownership. | End-to-end latency, overhead, utilization, portability, and software integration cost. | Specialized hardware is efficient in isolation but unusable in the system. |
-| Simulator or environment API | Legal parameters, workload inputs, observations, errors, seeds, and fidelity levels. | Comparable runs, replayable experiments, invalid-action records, and feedback cost. | The method optimizes simulator quirks or incomparable configurations. |
+| Simulator or environment API | Legal parameters, workload inputs, observations, errors, seeds, and fidelity levels. | Run observations, errors, seeds, invalid-action records, elapsed cost, and the metadata needed to check comparability. | The method optimizes simulator quirks or incomparable configurations. |
 | EDA handoff and constraints | RTL, clocks, floorplan hints, timing constraints, power intent, physical limits, and signoff checks. | Timing, area, power, congestion, rule violations, and implementation feasibility. | A candidate survives architectural simulation but fails physical reality. |
-| Benchmark harness | Inputs, versions, metrics, splits, data-leakage rules, and submission constraints. | Coverage, reproducibility, benchmark validity, and claim scope. | The loop overfits a stale or leaky benchmark slice. |
-| Telemetry and deployment schema | Live workload mix, service-level objectives (SLOs), counters, interference, rollout state, and drift signals. | Field behavior, regressions, rollback triggers, and post-deployment calibration. | Production evidence is rich but too confounded to support the architecture claim. |
+| Benchmark harness | Inputs, versions, metrics, splits, data-leakage rules, and submission constraints. | Scores, per-case results, coverage metadata, and the version and split information needed to check leakage or repeat the run. | An AI method overfits a stale or leaky benchmark slice. |
+| Telemetry and deployment schema | Live workload mix, service-level objectives (SLOs), counters, interference, rollout state, and drift signals. | Field behavior, regressions, rollback triggers, and post-deployment calibration. | Production telemetry is rich but too confounded to support the architecture claim. |
 
-: **Architecture interfaces define action and evidence boundaries:** Each interface tells the loop what can be changed, what can be observed, what feedback is meaningful, and what can reject an invalid action. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
+: **Architecture interfaces define what a method can do and what reviewers can inspect.** Each interface states what an AI method may change, what the tool returns, and which checks flag an invalid action or a result that does not support the claim. {#tbl-architecture-interface-boundaries tbl-colwidths="[20,25,25,20]"}
+
+The interfaces in @tbl-architecture-interface-boundaries rarely operate alone.
+Suppose an AI method proposes a wider vector unit. The ISA contract determines
+whether software can target it, the compiler and runtime determine whether a
+workload uses it, the simulator estimates its performance, and the EDA handoff
+tests whether the added datapaths can meet timing and power limits. A gain at
+one interface does not excuse a failure at another. The environment must keep
+the actions and observations from those tool stages connected so a reviewer
+can see where the claim holds and where it fails.
+
+### EDA Handoffs and Closed Flows
 
 The EDA handoff row is worth making concrete because its wrapper must translate
-between proposed changes and several tool stages. Candidate validity has two
-tiers. Environment validity, whether the harness still preserves the question,
-is a separate matter (@sec-environment-lifecycle). *Schema legality* is cheap
-and checkable up front, asking whether the
-parameters, clocks, and interfaces are well formed. *Physical feasibility* is
-late and expensive, because routability, timing closure, congestion, and IR drop
-often surface only at synthesis or place-and-route. A late failure must map back
-to the earlier action that caused it, not read as a contract violation.
+between proposed changes and several tool stages. Three checks occur at
+different times. Before execution, schema checks ask whether the parameters,
+clocks, and interfaces are well formed. After execution, physical checks ask
+whether the candidate is routable and can meet timing, congestion, power, and
+IR-drop limits. Separately, the lifecycle checks in
+@sec-environment-lifecycle ask whether the harness still tests the intended
+architecture question. A late physical failure belongs to the evaluated
+candidate; it is not an illegal tool request.
 
-Wrapping a commercial flow as an environment is therefore not a thin API. The
-wrapper has to emit tool-specific scripts, parse unstructured reports, survive
-timeouts and run-to-run nondeterminism, and attach the fidelity or confidence
-label itself, because the tool emits metrics, warnings, and logs, not a fidelity
-level. To stay auditable, its provenance record must include more than a bare
+Wrapping a commercial flow requires more than a thin API. The wrapper has to
+emit tool-specific scripts, parse unstructured reports, survive
+timeouts and run-to-run nondeterminism. The architect defines the fidelity label
+for each tool stage, and the wrapper records it with the run. The tool itself
+emits metrics, warnings, and logs, not a judgment about what those results can
+support. To stay auditable, the provenance record must include more than a bare
 number. It records the tool and host version, thread count, license state,
 run-to-run variance, warnings and waivers, and a hash of the report the number
-came from. Two "identical" runs that differ on any of these are not comparable,
-and a loop that hides the difference will trust a result it should have rejected.
+came from. Two "identical" runs that differ on any of these should not be treated
+as comparable until the architect shows that the difference does not affect the
+result. A wrapper that hides the difference can make incompatible runs look
+like a fair comparison.
 
-That realism also limits what Architecture 2.0 should try to standardize. The
-field does not need a universal vendor API or an open substitute for every
-foundry rule. It needs stable contract surfaces that let reviewers see what was
-changed, what was observed, what stayed confidential, and what could reject the
-claim, while leaving proprietary implementation details protected
+Commercial tool and foundry constraints also limit what Architecture 2.0 should
+try to standardize. The field does not need a universal vendor API or an open
+substitute for every foundry rule. It needs a stable way for reviewers to see
+what changed, what was observed, what stayed confidential, and what could rule
+out the claim, while leaving proprietary implementation details protected
 (@tbl-standardizable-proprietary-contract).
 
 | **Contract layer** | **Can be standardized** | **Usually remains proprietary** |
 | --- | --- | --- |
 | Action schema | Task identifiers, legal edit classes, invalid-action categories, and stage labels. | Vendor command syntax, internal scripts, and product-specific flow recipes. |
 | Observation schema | Metric names, fidelity labels, report hashes, warning classes, and failure categories. | Full report bodies, foundry rule details, and confidential workload traces. |
-| Feedback record | Tool/version hashes, seed records, queue or license state, elapsed time, and artifact pointers. | License-server behavior, internal tool telemetry, and nonpublic debug artifacts. |
-| Stop and escalation interface | Rejection-check type, reviewer role, escalation condition, waiver status, and claim level blocked. | Product review details, customer commitments, waiver rationale, and named approvers. |
-| Disclosure boundary | Redaction reason, disclosure tier, reviewer authority, and attestation handle. | Raw PDK contents, proprietary RTL, private baselines, and customer data. |
+| Run record | Tool/version hashes, seed records, queue or license state, elapsed time, and artifact pointers. | License-server behavior, internal tool telemetry, and nonpublic debug artifacts. |
+| Checks and review | Rejection check, reviewer role, conditions requiring review, waiver status, and the action or claim a failure blocks. | Product review details, customer commitments, waiver rationale, and named approvers. |
+| Disclosure boundary | Redaction reason, disclosure tier, reviewer role, decisions the reviewer may make, and artifact hash or signature. | Raw PDK contents, proprietary RTL, private baselines, and customer data. |
 
-: **Review records for closed tool flows.** Commercial EDA and foundry flows can use common record fields and review semantics without disclosing vendor implementations, foundry rules, signoff details, or protected design state. {#tbl-standardizable-proprietary-contract tbl-colwidths="[18,34,38]"}
+: **Review records for closed tool flows.** Commercial EDA and foundry flows can use common record fields and review rules without disclosing vendor implementations, foundry rules, signoff details, or protected design state. {#tbl-standardizable-proprietary-contract tbl-colwidths="[18,34,38]"}
 
 Across all five layers, schemas and review records can be standardized while
-tool commands, protected data, and implementation details remain private. The
-executed study uses the same split.
+tool commands, protected data, and implementation details remain private.
 
-::: {.callout-note title="One study, several interfaces"}
-The proposal schema defined the model's action surface. The validator rejected
-malformed or illegal geometries. The SCALE-Sim wrapper accepted only frozen
-workload and hardware configurations and returned cycle and utilization
-observations. The evidence writer preserved inputs, outputs, review outcomes, and
-hashes for replay. No one interface was "the environment," and none authorized
-claims about energy, area, compilers, RTL, or physical design.
-:::
+### Tool Paths at Different Fidelity
 
-Concrete tools instantiate this bundle of interfaces at different fidelity
-levels. Architecture 2.0 does not require one canonical simulator or vendor
-flow. It requires the study to name its environment, what that environment can
-observe, and what authority its feedback has
+Architecture tools expose these interfaces at different fidelity levels.
+Architecture 2.0 does not require one canonical simulator or vendor
+flow. The architect must identify the tool path, the observations it can
+return, their cost and fidelity, and the later checks that can overturn an early
+ranking
 (@tbl-environment-instances).
 
-| **Environment instance** | **Action boundary** | **Feedback and evidence** | **Loop lesson** |
+| **Environment instance** | **Permitted actions** | **Returned feedback and records** | **Implication for AI-assisted use** |
 | --- | --- | --- | --- |
 | Cycle-level or full-system simulation (e.g., gem5) [@BinkertEtAl2011Gem5] | Core, cache, memory-system, ISA, and workload configuration. | Statistics, traces, timing-model behavior, simulator warnings, and scoped performance comparisons. | Strong for controlled DSE; bounded by model fidelity and configuration state. |
-| Compiled RTL simulation (e.g., Verilator) [@Veripool2026Verilator] | RTL modules, test benches, assertions, generated C++/SystemC models, and debug hooks. | Functional behavior, waveform/debug evidence, assertion failures, and implementation-adjacent traces. | Moves closer to implementation but narrows throughput and increases debug cost. |
-| FPGA-accelerated simulation (e.g., FireSim) [@KarandikarEtAl2018FireSim] | RTL target, workload image, network model, FPGA mapping, and runtime configuration. | Faster cycle-exact feedback, workload-scale behavior, instrumented counters, and deployment-like experiments. | Speed changes sample economics, but setup and observability become part of the evidence. |
-| Synthesis, place-and-route, and signoff flow [@MirhoseiniEtAl2021GraphPlacement; @SemiconductorIndustryAssociation2026ChipDesign; @BauerEtAl2020SemiconductorDesignManufacturing] | RTL, constraints, floorplan hints, clocks, power intent, libraries, and process assumptions. | Area, timing, power, congestion, rule violations, waived warnings, and closure failures. | High-fidelity samples are scarce; use them to reject candidates, not as blind search targets. |
+| Compiled RTL simulation (e.g., Verilator) [@Veripool2026Verilator] | RTL modules, test benches, assertions, generated C++/SystemC models, and debug hooks. | Functional behavior, waveforms, debug logs, assertion failures, and implementation-adjacent traces. | Moves closer to implementation but narrows throughput and increases debug cost. |
+| FPGA-accelerated simulation (e.g., FireSim) [@KarandikarEtAl2018FireSim] | RTL target, workload image, network model, FPGA mapping, and runtime configuration. | Faster cycle-exact feedback, workload-scale behavior, instrumented counters, and deployment-like experiments. | Speed changes sample economics, but the architect still needs setup and observability records to interpret the results. |
+| Synthesis, place-and-route, and signoff flow [@MirhoseiniEtAl2021GraphPlacement; @SemiconductorIndustryAssociation2026ChipDesign; @BauerEtAl2020SemiconductorDesignManufacturing] | RTL, constraints, floorplan hints, clocks, power intent, libraries, and process assumptions. | Area, timing, power, congestion, rule violations, waived warnings, and closure failures. | Physical runs are scarce; use them selectively to test whether candidates that looked promising under cheaper tools still meet physical constraints. |
 
-: **Tool-specific environment records.** A credible study should name the simulator, RTL flow, emulation path, EDA stage, or deployment harness because each provides different actions, observations, costs, and failure paths. {#tbl-environment-instances tbl-colwidths="[22,24,26,18]"}
+: **Tool-specific environment records.** For each comparison, record the simulator, RTL flow, emulation path, EDA stage, or deployment harness because each provides different actions, observations, costs, and outcome paths. {#tbl-environment-instances tbl-colwidths="[22,24,26,18]"}
 
 For review, the tool name matters less than the record of permitted edits,
-workloads, results, failures, and owners.
+workloads, results, outcome statuses, and who is responsible for interpreting
+them.
 
 In practice these environments are rarely used in isolation. Open frameworks
 integrate them. Chipyard, an open-source framework for generating and evaluating
@@ -256,143 +346,91 @@ FIRRTL compiler path.
 It ties these to simulation, synthesis, and FPGA-emulation backends, so each
 evaluation begins from the same configuration (@fig-chipyard-framework)
 [@chipyard]. An optimizer edits a validated configuration. Simulation,
-synthesis, and FPGA emulation then evaluate that configuration, and the study
-records the output and failure status from each backend. A named reviewer
-decides whether any result justifies further work.
+synthesis, and FPGA emulation then evaluate that configuration, while the
+harness records the output and outcome status from each backend. A named
+reviewer assesses each result, and the decision owner decides whether it
+justifies further work.
 
 ![**An integrated environment ties the backends together:** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="100%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
 
-However, even the broad categories in @tbl-environment-instances contain several fidelity levels. Post-synthesis timing, for
+Read @fig-chipyard-framework from the configuration on the left. Its parameters
+drive the Chisel generators and FIRRTL compiler, which produce the RTL consumed
+by three evaluation paths. RTL simulation can expose functional and
+microarchitectural behavior, the VLSI flow can expose implementation limits,
+and FPGA emulation can run larger workloads. Sending one validated
+configuration to all three paths keeps the candidate identity stable while the
+returned observations and findings change. The framework supplies that
+connection, but an environment contract must still record the workload,
+backend versions, constraints, costs, warnings, and outcome status for each
+path.
+
+The three paths also show why an integrated framework does not collapse
+fidelity differences. Post-synthesis timing, for
 example, is often a useful surrogate for post-route timing, but routing
 congestion, IR drop, clocking, and signoff checks can still reject a candidate
-that looked acceptable at synthesis. A study can begin with a cheaper tool, but
-it must identify which output is only a proxy and which later check can overturn
-it.
-The study should specify which higher-fidelity result determines whether a
-candidate is evaluated further, escalated for review, or dropped.
+that looked acceptable at synthesis. An architect can begin with a cheaper tool,
+but must identify which output is only a proxy and which later check can overturn
+it. The environment contract should state what happens after each
+higher-fidelity result and who decides whether another evaluation or review is
+warranted or whether the candidate should leave the comparison.
 
-Physical-design environments make this staged contract particularly clear. A loop should
-not report "EDA feedback" as if all tool stages had the same authority.
-Common stages differ in what they can and cannot
-reject (@tbl-eda-stage-contract).
+Physical-design environments make this staged contract particularly clear. A
+wrapper should not report "EDA feedback" as if every tool stage returned the
+same kind of result. Logic synthesis, placement, routing, and signoff expose
+different candidate problems. The architect must state whether each finding
+leads to another tool run, meets a declared rejection condition, or requires
+review (@tbl-eda-stage-contract).
 
-| **EDA stage** | **Feedback returned** | **What it can reject** | **What it cannot prove alone** |
+| **EDA stage** | **Feedback returned** | **Problem it can reveal** | **What the result cannot establish alone** |
 | --- | --- | --- | --- |
 | Logic synthesis | Mapped gates, area proxy, timing estimates, constraint warnings, and early power estimates. | Nonsynthesizable RTL, impossible constraints, obvious area/timing problems. | Routability, final timing, IR drop, clocking, and post-layout power. |
 | Floorplanning and placement | Cell locations, utilization, congestion hints, timing pressure, and macro or memory placement effects. | Floorplans that create severe congestion, timing pressure, or integration problems. | Final routed timing, signoff power, manufacturability, and workload-level benefit. |
-| Clock, routing, and power closure | Routed timing, clock behavior, congestion, design-rule checks, power integrity, and closure failures. | Candidates whose physical effects invalidate earlier architecture estimates. | Product commitment without verification, workload coverage, and architecture review. |
+| Clock, routing, and power closure | Routed timing, clock behavior, congestion, design-rule checks, power integrity, and closure failures. | Physical effects that invalidate earlier architecture estimates. | Product commitment without verification, workload coverage, and architecture review. |
 | Signoff and review | Tool signoff reports, waivers, residual risks, review decisions, and ownership records. | Unsupported claims, unacceptable waived warnings, and evidence gaps before commitment. | Generality beyond the stated workload, process, tool version, and design context. |
 
-: **EDA feedback has stage-specific authority:** From logic synthesis through
-signoff, each physical-design stage returns different evidence and should be
-allowed to reject different claims. {#tbl-eda-stage-contract tbl-colwidths="[18,26,25,21]"}
+: **EDA stages return different findings.** From logic synthesis through
+signoff, each physical-design stage can reveal different candidate problems.
+The environment records the stage, and the architect declares how each finding
+affects the claim. {#tbl-eda-stage-contract tbl-colwidths="[18,26,25,21]"}
 
-This arrangement is not hypothetical. Some commercial physical-implementation
-flows already search synthesis directives and floorplan parameters, then
+Some commercial physical-implementation flows already search synthesis
+directives and floorplan parameters, then
 evaluate each choice with a full tool run [@Synopsys2023DSOai;
-@Cadence2021Cerebrus]. To use such a flow in an AI-assisted study, the wrapper
-must define the legal directives, preserve the reports and tool versions,
-identify which closure or signoff failures reject a candidate, and name the
-team responsible for review.
-
-## The Architecture Environment Abstraction
-
-To formalize these interfaces across different tools, we need an abstraction.
-An environment is maintained software around one or more tool calls. It
-validates proposed inputs, runs the tools, records their versions and outputs,
-and reports failures in a consistent form. The contract also states which
-actions are legal, which results are only proxies, how much each evaluation
-costs, and which failures stop a candidate. It may also enforce declarative
-interface rules for an ISA, memory model, telemetry schema, benchmark, or EDA
-flow (@fig-environment-tool-interface).
-
-![**A tool becomes an environment when its interface is specified.** A credible environment records the scoped study and workload, legal actions, observations, constraints, cost, provenance, invalid-action semantics, and rejection paths.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of a tool wrapper becoming an architecture environment by connecting a scoped study and workload to legal actions, observations, costs, provenance, feedback, and rejection paths."}
-
-The figure shows the environment portion of the study execution specification,
-not a software architecture diagram. Each component is useful only after the environment names the action it permits, the
-feedback it returns, and which outcomes that feedback may reject. That
-is why two projects can use the same simulator but define different architecture
-environments.
-
-An environment may return a scalar objective to a method, but the study should
-also retain the underlying
-observations and cost data, such as cycle counts, gate area, test failures,
-invalid actions, and stronger checks. Otherwise, a method may exploit simulator
-bugs or omitted costs instead of improving the physical
-design.[^fn-ml-reward-hacking] @tbl-environment-contract lists the
-information the design-loop card should reference.
-
-[^fn-ml-reward-hacking]: The proxy-gaming section later in this chapter defines reward hacking in full, with the simulator case and its machine-learning-safety source.
-
-| **Field** | **What it defines** | **Question it answers** |
-| --- | --- | --- |
-| **Workload distribution** | Inputs, traces, benchmark versions, software stack, and operating scenarios. | What behavior is the design supposed to serve? |
-| **Action schema** | Parameters, edits, configurations, generated artifacts, or commands the loop may propose. | What can the method actually change? |
-| **Observation schema** | Metrics, traces, logs, reports, errors, and artifacts returned after an action. | What can the loop observe after acting? |
-| **Constraints and validity** | Type checks, feasibility rules, physical/manufacturing limits, software ecosystem compatibility, and invalid-action handling. | What makes a candidate illegal before performance is considered? |
-| **Evaluation cost** | Cost, latency, fidelity, determinism, parallel scalability, and sample limits for each observation source. | How often can the loop call this tool path? |
-| **Provenance record** | Tool versions, seeds, inputs, configuration files, assumptions, and artifact hashes. | Could a human audit the result and locate the runnable inputs when replay is claimed? |
-| **Supply-chain and integrity record** | Dependency, dataset, model, prompt, tool-binary, replay-package, and attestation identifiers. | Can the loop tell whether the evidence source changed or was tampered with? |
-| **Failure and review paths** | Conditions that invalidate, stop, revise, or escalate a candidate, separated from tool and setup failures. | What happens after each outcome? |
-
-: **An environment contract makes tool use auditable:** The loop should state its action schema, observations, costs, failures, provenance, and human-review boundaries before methods operate inside it. {#tbl-environment-contract tbl-colwidths="[22,32,34]"}
-
-The contract is deliberately broader than reinforcement learning terminology.
-Actions, observations, and rewards are useful terms, but architecture work
-also needs constraints, invalid-action semantics, provenance, and human
-decision points. A loop that proposes a cache size, vector width, chiplet
-partition, compiler flag, or RTL edit needs to know not only whether a score
-improved, but whether the candidate is legal, traceable, comparable, and worth
-escalating to a higher-fidelity evaluation.
-
-In the executed study, this contract exposed legal array geometries as actions
-and cycles, average utilization, warnings, failures, and elapsed time as
-observations. The record also identified the simulator version, workload,
-configuration, and candidate source. Without that cost and provenance, the loop
-could not have enforced equal budgets or interpreted the resulting tie.
+@Cadence2021Cerebrus]. To use such a flow in an AI-assisted comparison, the
+wrapper must define the legal directives, preserve the reports and tool
+versions, and identify which closure or signoff failures meet a declared
+rejection condition. The contract must also name who reviews the result and
+who owns the resulting decision.
 
 ## ArchGym as a Worked Example
 
-ArchGym, a project from the author's group, makes the environment idea
-concrete in the architecture domain. It frames bounded architecture tasks as
-gym-style environments that automated methods act in through defined
-interfaces [@KrishnanEtAl2023ArchGym]. The name is
-deliberate. It borrows from OpenAI Gym, which standardized the agent-environment
-interface in reinforcement learning. Just as one learning algorithm can drive
-many Gym environments, an ArchGym user can swap a memory-controller simulator for
-an accelerator simulator while keeping the same optimization or learning method
-intact, which is exactly the composability a shared environment is supposed to
-buy. The
-Architecture 2.0 gymnasium essay similarly argues for shared datasets, tasks,
-tools, and evaluation environments [@ReddiYazdanbakhsh2023Gymnasium]. A
-community workshop later broadened that agenda to include infrastructure,
-training, best practices, trust, and industry collaboration
+ArchGym, a project from the author's group, shows these requirements in the
+architecture domain. It organizes bounded architecture tasks as gym-style
+environments with defined actions and observations
+[@KrishnanEtAl2023ArchGym]. It adopts the agent-environment interface from
+OpenAI Gym. An ArchGym user can swap a memory-controller simulator for an
+accelerator simulator while retaining the same optimization or learning
+method. The Architecture 2.0 gymnasium essay makes a related case for shared
+datasets, tasks, tools, and evaluation environments
+[@ReddiYazdanbakhsh2023Gymnasium]. A community workshop later broadened that
+agenda to include infrastructure, training, best practices, trust, and industry collaboration
 [@Architecture20CommunityWorkshop; @Architecture20SIGARCHWorkshopOutcomes].
 
 ArchGym illustrates how a shared environment changes the research question.
 Instead of asking whether one optimizer beat another under a private script, the
 community can ask which task was defined, which action space was exposed, what
 feedback was available, what workloads were used, and which tools or methods
-were compared under the same conditions. That makes method claims less
-anecdotal. ArchGym's own comparison makes the stakes concrete. Run inside the
-same environments under equal sample budgets, five search families did not
-produce a stable ranking across budgets (@fig-ch05-archgym-equal-budget). At
-10,000 or fewer samples, the paper describes a random walker as competitive
-with Bayesian optimization, genetic algorithms, and ant colony optimization.
-At 100,000 or more samples, reinforcement learning improves sharply, while the
-simpler methods remain competitive. The study separately reports an
-interquartile spread of up to 90 percent across hyperparameter choices in the
-DRAM task. The bars in the figure are digitized from a published raster, and
-the paper does not define the statistical meaning of its whiskers, so small
-rank gaps should not be read as precise pairwise wins. The supported lesson is
-that environment, simulator-sample budget, and hyperparameter search can
-change a method comparison; a private setup does not isolate method family by itself
-[@KrishnanEtAl2023ArchGym].
+were compared under the same conditions. @fig-ch05-archgym-equal-budget shows
+why the simulator-sample budget has to be part of that comparison. It places
+five search families inside the same DRAM memory-controller environment and
+varies only how many simulator evaluations each family can spend
+[@KrishnanEtAl2023ArchGym]. Inspect how the apparent ranking changes from the
+smallest budgets to the largest rather than looking for one overall winner.
 
 ```{python}
 #| label: fig-ch05-archgym-equal-budget
 #| fig-cap: |
-#|   **Rankings under equal evaluation budgets.** Mean normalized reward (higher is better) for five search families inside the same ArchGym DRAM memory-controller environment at equal simulator-sample budgets [@KrishnanEtAl2023ArchGym]. Values and whisker extents are digitized transcriptions of the paper's Figure 7(a), not raw result files; the paper does not define what statistical quantity the whiskers encode. Intervals overlap across families at every budget, and reinforcement learning has no bar at the two smallest budgets in the source. Read the plot as a budget-dependent comparison, not a significance test or a precise ranking.
+#|   **Rankings under equal evaluation budgets.** Mean normalized reward (higher is better) for five search families inside the same ArchGym DRAM memory-controller environment at equal simulator-sample budgets [@KrishnanEtAl2023ArchGym]. Values and whisker extents are digitized transcriptions of the paper's Figure 7(a), not raw result files. The discussion surrounding the plot does not state the normalization reference, aggregation population, or whisker statistic. Intervals overlap across families at every budget, and reinforcement learning has no bar at the two smallest budgets in the source. Read the plot as a budget-dependent comparison, not a significance test or a precise ranking.
 #| out-width: "88%"
 #| fig-alt: "Grouped bar chart with whiskers showing digitized mean normalized reward for five search families, ACO, BO, GA, RL, and RW, at simulator-sample budgets from one hundred to two hundred fifty thousand in the ArchGym DRAM memory-controller environment. Whisker intervals overlap across families at every budget. Reinforcement learning has no source bar at the two smallest budgets, is near zero at ten thousand samples, and has the highest digitized mean only at the largest budget."
 
@@ -408,8 +446,9 @@ apply_style()
 # digitized from the published figure's native-resolution raster (arXiv
 # 2306.08888v1 PDF, accessed 2026-07-13; axis-calibration residual <= 0.002
 # reward units, reading uncertainty ~ +/-0.003). The paper does not define the
-# statistical meaning of its whiskers. RL bars are absent in the source at the
-# 100 and 1,000-sample budgets and are omitted, not zeroed.
+# normalization reference, aggregation population, or statistical meaning of
+# its whiskers in the discussion surrounding Figure 7. RL bars are absent in
+# the source at the 100 and 1,000-sample budgets and are omitted, not zeroed.
 budgets = ["100", "1K", "10K", "100K", "250K"]
 agents = [
     ("ACO", COLORS["blue"]),
@@ -469,9 +508,29 @@ plt.show()
 plt.close(fig)
 ```
 
-ArchGym shows what a shared environment makes possible. The AlphaChip dispute
-provides a contrasting case for examining method comparison across unmatched
-environments.
+At 10,000 or fewer samples in @fig-ch05-archgym-equal-budget, the paper
+describes a random walker as competitive with Bayesian optimization, genetic
+algorithms, and ant colony optimization. Reinforcement learning improves
+sharply at 100,000 or more samples, while simpler methods remain competitive.
+The paper separately reports an interquartile spread of up to 90 percent across
+hyperparameter choices in the DRAM task. Those changes mean that an apparent
+method advantage can depend on the evaluation budget and tuning effort, not
+only on the search family.
+
+The whisker intervals overlap across the figure. In the discussion surrounding
+the plot, the paper does not state the normalization reference or aggregation
+population for mean normalized reward, and it does not define the whisker
+statistic. The plotted values were digitized from the published raster rather
+than recomputed from raw results. The figure therefore supports a narrow
+within-figure observation about how results change with sample budget, not an
+absolute reward interpretation or a precise pairwise ranking. That limitation
+is itself an example of why observation meaning belongs in the environment
+contract.
+
+The AlphaChip dispute provides a contrasting case in which public comparisons
+did not share all of those conditions. Its purpose here is not to settle the
+dispute, but to show why the surrounding tool and evaluation setup belongs in
+the review record.
 
 ::: {.callout-war-story title="Different setups produced different answers"}
 **The claim.** The original AlphaChip work and later reassessments reported different placement results
@@ -486,140 +545,127 @@ settings [@GoldieEtAl2024ThatChipHasSailed].
 
 **The lesson.** Without one shared setup, a reviewer cannot tell whether a changed result comes
 from the method or from the conditions around it. Workload identifiers, tool
-versions, seeds, budgets, baselines, and physical checks are therefore part of
+versions, seeds, budgets, baselines, and physical checks are part of
 the comparison, not incidental implementation details.
 :::
 
-The study in @sec-running-the-loop avoids that ambiguity by giving its AI and
-conventional arms the same SCALE-Sim version, workload, legal geometries,
-evaluation budget, parser, and objective. It records every input, output, and
-hash. The result is narrow, but the comparison is interpretable because the
-environment is shared.
+The SCALE-Sim comparison in @sec-running-the-loop illustrates the opposite
+case. Its two arms use the same simulator version, workload, legal geometries,
+evaluation budget, parser, and objective, so another architect can attribute
+the observed tie to the evaluated candidates rather than a changed tool setup.
 
-The comparison is credible only when each method operates on compatible, or
-explicitly mapped, represented state, feedback records,
-invalid-action and environment-failure rules, escalation policy, and
-human-review rules. ArchGym can be described using the contract fields in
-@tbl-environment-contract (@tbl-archgym-mini-contract). Its tasks and limits
-define the claim, its versioned simulator path provides provenance, and its
-main missing field is a supply-chain and integrity record.
+To compare methods fairly, the architect must hold the task, represented state,
+evaluation budget, feedback, and outcome rules constant, or document exactly
+how they differ. The record must distinguish illegal requests, evaluated
+candidates that fail a declared condition, tool-path failures, and results that
+require review. ArchGym can be described using the contract fields in
+@tbl-environment-contract (@tbl-archgym-mini-contract). The framework supplies
+a shared task, action, and simulator interface, but each comparison still has
+to define the metric, outcome statuses, dependency and artifact versions, and
+review authority. ArchGym does not fill those fields for every comparison. The
+architect must define them for the comparison at hand.
 
-| **Contract field** | **ArchGym-style instance** |
+| **Contract field** | **What a reviewable ArchGym use needs** |
 | --- | --- |
 | **Task** | Search or tune a bounded architecture design space under a declared workload and metric. |
 | **Action schema** | Architecture parameters, simulator knobs, or mapping choices the automated method is allowed to change. |
-| **Observation and reward** | Metrics returned by the simulator or tool path, with the reward derived from those observations. |
-| **Workload and tool path** | Benchmark inputs, simulator configuration, and versioned evaluation scripts. |
-| **Action and outcome handling** | Rules for rejected parameters and unsupported candidate states, with separate records for failed runs, timeouts, tool crashes, and other environment failures. |
+| **Observation and reward** | Simulator metrics, their units and scope, and the user-defined reward derived from them. For the Figure 7 comparison, the published plot reports mean normalized reward but does not state the normalization reference, aggregation population, or whisker statistic. |
+| **Workload and tool path** | Benchmark inputs, simulator configuration, versioned evaluation scripts, and artifact identifiers. |
+| **Outcome handling** | Separate status values for illegal requests, evaluated candidates that fail a declared condition, tool-path failures, and unsupported or inconclusive results. |
 | **Evaluation cost** | Approximate turnaround and sample budget for each evaluation regime. |
-| **Failure and review paths** | Independent checks that can reject a result, environment failures that require repair, and the strongest claim this setup can support. |
+| **Review and authority** | Independent checks, the reviewer or decision owner for unresolved results, and the strongest conclusion this setup can support. |
 | **Limits** | Simplified simulators, cleaner action spaces, and missing industrial constraints can bound what the result proves. |
 
-: **ArchGym as an environment example.** ArchGym specifies the task, action space, feedback, comparison setting, and limitations needed to review a design-space exploration. {#tbl-archgym-mini-contract tbl-colwidths="[24,66]"}
+: **Mapping ArchGym to the environment contract.** ArchGym supplies the shared task, action, and simulator interface. A reviewable comparison still has to fill in the metric meaning, outcome statuses, provenance, and decision rights. {#tbl-archgym-mini-contract tbl-colwidths="[24,66]"}
 
 A single environment can support many methods, including Bayesian optimization,
 reinforcement learning, evolutionary search[^fn-ml-evolutionary-search],
-surrogate-guided exploration[^fn-ml-surrogate-guided], random search, heuristic search, or a human
-designer using the environment as an instrumented assistant. Defining the
-environment separately makes those comparisons possible.
+surrogate-guided exploration[^fn-ml-surrogate-guided], random search, heuristic
+search, or an architect using the environment as an instrumented assistant.
+Defining the environment separately makes those comparisons possible.
 
-[^fn-ml-evolutionary-search]: In this chapter, a way to propose candidate actions by mutation, crossover, and selection, useful only when the environment can reject invalid or weak candidates.
+[^fn-ml-evolutionary-search]: Evolutionary search proposes candidates through mutation, crossover, and selection. It is useful here only when declared validity and rejection checks can identify invalid or weak candidates.
 
-[^fn-ml-surrogate-guided]: In this chapter, using a fast predictor to screen candidate actions while preserving the stronger feedback needed to reject proxy wins.
+[^fn-ml-surrogate-guided]: Surrogate-guided exploration uses a fast predictor to screen candidate actions while preserving the stronger feedback needed to reject proxy wins.
 
-At the same time, ArchGym should not be treated as if it solves the whole
-Architecture 2.0 problem. A gym can still use simplified simulators. It may
-not include proprietary physical-design constraints, confidential workloads,
-tool-license behavior, workload drift, failed-run capture, or deployment
-telemetry. Its action spaces may be cleaner than industrial design spaces. Its
-feedback may be faster and more standardized than the feedback available in
-late-stage silicon work. The study must therefore check environment validity
-explicitly.
+ArchGym covers bounded tasks through shared interfaces. Industrial design may
+add proprietary physical constraints, confidential workloads, tool-license
+behavior, workload drift, failed-run capture, and deployment telemetry. Its
+action spaces may also be less regular and its feedback slower than the
+environments ArchGym exposes. The architect must check whether the shared
+environment still represents the intended architecture problem before
+extending a result beyond its stated task.
 
-## Interfaces Make Loops Composable
+## Stable Interfaces Let Methods Share a Harness
 
-Validity is not the only reason to insist on a specified interface. A single
-tool wrapper can support one experiment. A disciplined interface can
-support a research ecosystem. The difference is composability. If action
-schemas, observation schemas, workloads, provenance records, and validity
-rules are specified, then generators, predictors, optimizers, critics,
-verifiers, and human reviewers can be swapped or combined without rewriting
-the whole loop.
+A wrapper written for one experiment can hide assumptions in its scripts. A
+stable interface lets several methods work on the same architecture task
+without rebuilding those assumptions for each method. Generators, predictors,
+optimizers, critics, verifiers, and reviewers can then share the same
+action schema, observations, workloads, provenance, and validity rules without
+changing the experimental conditions.
 
-This is how architecture environments can become community infrastructure. As
-@sec-design-loop-no-longer-scales argued, benchmark governance provides rules,
-versions, metrics, submissions, and comparison conventions that help a
-community interpret results [@MattsonEtAl2020MLPerf]. Environment governance
-must also specify what AI-assisted systems may try, which
-actions are invalid, what feedback means, and what can stop the loop. A useful
-environment publishes both a script and the contract
-under which actions are legal, observations are valid, and evidence can be
-compared.
-Keeping those contracts valid after the first paper is the lifecycle practice
-@sec-environment-lifecycle develops.
+Benchmark governance already provides rules, versions, metrics, submission
+formats, and comparison conventions that help a community interpret results
+[@MattsonEtAl2020MLPerf]. The shared interface must additionally state
+what an AI method may try, which actions are invalid, what feedback means, and
+how each outcome is handled, including who reviews an unresolved result.
+Publishing a script without that contract leaves the important assumptions
+private. @sec-environment-lifecycle returns to the versioning and revalidation
+needed after the first paper.
 
-A maintained harness extends a wrapper with shared workloads, versions,
-participant permissions, and review records, so several methods can use the
-same experimental setup. A multi-participant harness also specifies which
-component may propose, execute, critique, or verify and who must approve an
-escalation.
+A maintained harness adds shared workloads, versions, permissions, and review
+records around the wrapper. It preserves the task and workload versions,
+editable and read-only fields, exact commands and observations, cost and
+fidelity, seeds, tool versions, artifacts, and the outcome status. It also
+records any reviewer recommendation and decision-owner authorization. A
+reviewer can then inspect the command that produced a winning score as well as
+the failed alternatives, warnings, and conditions that would overturn it.
 
-A minimal implementation record for such a harness should be deliberately
-ordinary. It can include the task identifier, workload version, input
-distribution, action fields, read-only constraints, tool commands, observation
-fields, fidelity level, runtime cost, random seed, tool versions, generated
-artifacts, failure status, rejection reason, and decision record.
-
-That list is intentionally mundane. Mundane records are what make loops
-auditable. If a method proposes an architecture candidate, the environment
-should preserve not only the winning score but also the command that produced
-it, the workload revision, the tool version, the failed alternatives, the
-warnings, and the conditions under which the candidate would be rejected.
-
-A compound design system may assign generation, prediction, critique,
-verification, and coordination to separate components, with a human reviewer
-retaining decision authority. These components need shared state and stable
-interfaces. If several agents implement them, the
-harness should record which state each agent read, which action it took, which
-evidence it used, and which check reviewed its output.
+A compound system may assign generation, prediction, critique, verification,
+and coordination to separate components while an architect retains decision
+authority. The harness must record which represented state each component
+read, what action it took, which inputs and results it relied on, and which
+check reviewed its output. Stable fields let those roles share the harness.
+Their feedback cost and fidelity determine which combinations are practical.
 
 ## Feedback Latency and Fidelity
 
-The environment must record the cost and fidelity of every observation it
-returns.
+Every observation returned through an environment must carry its cost and
+fidelity.
 An analytic proxy may return in milliseconds, a cycle-level simulation may take
 minutes or hours, and physical implementation or silicon measurements may
 require days to months. If these differences remain hidden, a fast method can
 overwhelm an expensive tool path or compare measurements that do not mean the
 same thing.
 
-Feedback regimes differ by orders of magnitude in turnaround and in how many
-samples a loop can afford, and two of them, cycle-level simulation and physical
-feedback, are pinned with measured anchors from published tool reports
-(@fig-fidelity-cost-confidence). The ranges themselves
-are not universal measurements, and higher cost does not make an observation
-automatically authoritative. The narrower requirement is to label the
-tool stage, version, elapsed cost, fidelity, raw observations, and outcome
-class, and map a failed run back to the action that caused it when possible.
+Feedback sources differ by orders of magnitude in turnaround and in how many
+samples an evaluation budget can afford. @fig-fidelity-cost-confidence
+compares those sources from analytic proxies through deployment observations.
+Published tool reports provide measured examples for cycle-level simulation
+and physical feedback. The ranges are not universal measurements, and higher
+cost does not make an observation automatically authoritative. Each run needs
+its tool stage and version, elapsed cost, fidelity, raw observations, and
+outcome status. When a run fails, the record should identify which action
+triggered it if the cause can be established.
 @sec-methods-generation-prediction-optimization uses those fields to choose
-methods; @sec-feedback-verification-trust decides what evidence can support a
-stronger claim.
+methods; @sec-feedback-verification-trust examines when observations can
+support a stronger claim.
 
 The cost structure is a multi-fidelity problem familiar in computational
 science, where many cheap observations are combined with fewer expensive ones
 to make optimization and uncertainty quantification affordable
 [^fn-stats-uncertainty-quantification]
 [@PeherstorferWillcoxGunzburger2018Multifidelity]. An architecture environment
-does not need to prescribe the escalation policy here. It must make the
-observation sources and their costs distinguishable enough for later policy and
-review.
+must expose the observation sources and their costs. The architect must define
+when the method should request a more expensive evaluation.
 
-[^fn-stats-uncertainty-quantification]: In this chapter, uncertainty quantification means recording where an environment's observations are uncertain or unsupported; @sec-feedback-verification-trust develops the evidence consequence.
+[^fn-stats-uncertainty-quantification]: Uncertainty quantification here means recording where an environment's observations are uncertain or unsupported. @sec-feedback-verification-trust develops the consequence for evidence.
 
 ```{python}
 #| label: fig-fidelity-cost-confidence
 #| fig-cap: |
-#|   **Feedback regimes have different costs and sample budgets:** Low-cost feedback can screen many candidates, while implementation-adjacent observations are scarce. The ordering shows representative turnaround and acquisition cost, not automatic authority or commitment; each check still needs a declared scope and validation contract. Ink diamonds add published measured anchors. FireSim simulates 1,024 nodes cycle-exactly at 3.4 MHz, under 1,000 times slower than the 3.2 GHz targets it models, where single-server software simulators run at 5 to 100 KIPS [@KarandikarEtAl2018FireSim]. A macro-placement re-evaluation measured 11 hours per design for simulated annealing and 38 to 55 hours for the reinforcement-learning flow, against under 12 hours of expert effort, for one physical-design stage evaluated through a commercial post-route flow [@ChengEtAl2023MacroPlacement].
+#|   **Feedback sources have different costs and sample budgets:** Low-cost feedback can screen many candidates, while implementation-adjacent observations are scarce. The ordering shows representative turnaround and acquisition cost, not automatic authority or commitment. Each check still needs a declared scope and validation contract. Ink diamonds add published measured anchors. FireSim simulates 1,024 nodes cycle-exactly at 3.4 MHz, under 1,000 times slower than the 3.2 GHz targets it models, where single-server software simulators run at 5 to 100 KIPS [@KarandikarEtAl2018FireSim]. A macro-placement re-evaluation measured 11 hours per design for simulated annealing and 38 to 55 hours for the reinforcement-learning flow, against under 12 hours of expert effort, for one physical-design stage evaluated through a commercial post-route flow [@ChengEtAl2023MacroPlacement].
 #| out-width: "92%"
 #| fig-alt: "Horizontal range plot comparing representative observation latencies and shrinking sample budgets for feedback regimes from cheap proxies to silicon deployment, without treating cost or fidelity as automatic authority. Ink diamond markers add measured anchors, a FireSim cycle-exact simulation point at just under one thousand times real time on the cycle-level simulation row, and macro-placement turnaround points from eleven to fifty-five hours per design on the physical-feedback row."
 
@@ -683,45 +729,65 @@ plt.show()
 plt.close(fig)
 ```
 
-The measured anchors show the top of that spread is not hypothetical. One
-post-route evaluation already consumes eleven to fifty-five hours of tool time
-per design, which is why the physical-feedback rows budget handfuls of samples
-rather than thousands.
+Read @fig-fidelity-cost-confidence from top to bottom. Cheap proxies and traces
+can screen many candidates, while cycle-level simulation, RTL and physical
+implementation, and deployment observations support far fewer evaluations.
+The rows describe acquisition cost and practical sample budgets, not a ladder
+of automatic authority. An architect may use a carefully validated simulator
+to settle a narrow performance comparison, while an expensive physical run may
+still be irrelevant to a different workload or claim.
 
-The sample-cost inventory in @tbl-sample-cost-regimes becomes an environment
-checklist only when each observation source also records what the harness saw
-and how it distinguishes a candidate outcome from an environment failure.
-@tbl-feedback-latency-fidelity records that handoff.
+The measured markers ground the cycle-level and physical-design rows. FireSim
+can provide cycle-exact feedback at a much higher rate
+than single-server software simulation, yet it still runs below target-system
+speed. A post-route macro-placement evaluation consumed eleven to fifty-five
+hours of tool time per design. An AI method can spend thousands of cheap proxy
+calls, but only a handful of evaluations at that physical-design cost. The
+environment must expose those differences so the architect can choose a
+suitable method and decide when a scarcer check is worth its cost.
 
-| **Observation source** | **Cost / latency intuition** | **Environment record** | **Outcome distinction** |
+@tbl-sample-cost-regimes introduced the broad cost differences among
+observation sources. To make those ranges usable inside an environment, the
+harness must record what each source returned and apply the same four outcome
+statuses used throughout this chapter. @tbl-feedback-latency-fidelity shows how
+those statuses appear at different fidelity levels.
+
+| **Observation source** | **Cost / latency intuition** | **Environment record** | **How the status should be recorded** |
 | --- | --- | --- | --- |
-| Analytic proxy or learned surrogate | Milliseconds to seconds; many checks are possible. | Model and version, input domain, raw estimate, uncertainty, and calibration state. | Out-of-support or uncalibrated proxy versus a candidate that misses a declared bound. |
-| Trace, profile, or replay | Seconds to hours depending on capture, replay, and privacy filtering. | Trace origin, workload and software version, slice rule, coverage, and redactions. | Stale or incomplete trace versus behavior that fails on a valid trace. |
-| Cycle-level simulation | Minutes to days depending on detail and workload. | Simulator and configuration, seed, warm-up rule, statistics, warnings, and elapsed time. | Illegal candidate state versus simulator crash, timeout, or setup failure. |
-| Compiler/runtime measurement | Build and profiling may take seconds to hours; target replay or tuning may take longer. | Toolchain, flags, generated code, runtime path, tests, counters, and host state. | Candidate-caused compile or correctness failure versus broken build infrastructure. |
-| RTL, synthesis, or physical feedback | Hours to weeks as timing, power, congestion, and signoff enter. | EDA stage, constraints, libraries, reports, warnings, waivers, host state, and hashes. | Candidate violation versus license, queue, timeout, or tool failure. |
-| Prototype, silicon, or deployment telemetry | High setup cost; field observations may span weeks or years. | Hardware revision, rollout state, telemetry schema, workload mix, incidents, and collection gaps. | Candidate regression versus deployment or measurement failure. |
+| Analytic proxy or learned surrogate | Milliseconds to seconds; many checks are possible. | Model and version, input domain, raw estimate, uncertainty, and calibration state. | **Unsupported or inconclusive** when the input is outside calibrated support; **candidate rejected after evaluation** when a supported estimate misses a declared bound. |
+| Trace, profile, or replay | Seconds to hours depending on capture, replay, and privacy filtering. | Trace origin, workload and software version, slice rule, coverage, and redactions. | **Unsupported or inconclusive** for a stale or incomplete trace; **candidate rejected after evaluation** for behavior that fails on a valid trace. |
+| Cycle-level simulation | Minutes to days depending on detail and workload. | Simulator and configuration, seed, warm-up rule, statistics, warnings, and elapsed time. | **Illegal before execution** for a request outside the schema; **tool-path failure** for a crash, timeout, or broken setup. |
+| Compiler/runtime measurement | Build and profiling may take seconds to hours; target replay or tuning may take longer. | Toolchain, flags, generated code, runtime path, tests, counters, and host state. | **Candidate rejected after evaluation** for an artifact that fails a declared build or correctness check; **tool-path failure** for broken build infrastructure. |
+| RTL, synthesis, or physical feedback | Hours to weeks as timing, power, congestion, and signoff enter. | EDA stage, constraints, libraries, reports, warnings, waivers, host state, and hashes. | **Candidate rejected after evaluation** for a declared timing, power, or rule violation; **tool-path failure** for a license, queue, timeout, or tool problem. |
+| Prototype, silicon, or deployment telemetry | High setup cost; field observations may span weeks or years. | Hardware revision, rollout state, telemetry schema, workload mix, incidents, and collection gaps. | **Candidate rejected after evaluation** for a declared regression; **tool-path failure** for a deployment or measurement problem. |
 
-: **Observation sources need distinct cost and failure semantics:** Representative ranges are project-dependent. The environment records enough context to compare observations and to separate candidate outcomes from harness failures. {#tbl-feedback-latency-fidelity tbl-colwidths="[19,22,32,25]"}
+: **Observation sources have different costs and outcome meanings:** Representative ranges are project-dependent. The environment records enough context to compare observations and to separate candidate outcomes from tool-path failures. {#tbl-feedback-latency-fidelity tbl-colwidths="[19,22,32,25]"}
 
-The outcome distinctions in @tbl-feedback-latency-fidelity matter because
-lower-fidelity observations can still be gamed or contradicted. When a proxy
-says "yes" and a stronger tool path says "no," the environment should retain
-the mismatch rather than average it away. The simulator case below shows why.
+The last column of @tbl-feedback-latency-fidelity applies the four statuses to
+concrete tool results. A cache request outside the legal range is illegal before
+execution. A valid configuration that exceeds a declared bandwidth limit is a
+candidate rejected after evaluation. A simulator crash caused by a broken
+build is a tool-path failure. A proxy result outside its calibrated range is
+unsupported or inconclusive. The harness should also retain a cheap proxy and a
+stronger contradictory check as separate results. When the proxy says "yes"
+and a higher-fidelity tool says "no," the harness should retain the mismatch
+rather than average it away.
 
-Compiler and runtime feedback present the same risk. A
-hardware candidate can look weak because the schedule, tiling, vectorization,
+Tool results can also attribute a software weakness to the hardware candidate.
+A candidate can look weak because the schedule, tiling, vectorization,
 layout, or runtime path is poor, not because the architecture is poor. That is
 a false negative created by the software side of the environment. A claimed
-vector capability therefore requires evidence that the compiler and runtime can
+vector capability requires evidence that the compiler and runtime can
 generate a credible path to use it; the existence of an ISA feature is insufficient.
 
 The environment should return each observation with its source, cost,
-provenance, fidelity, and failure classification. @sec-methods-generation-prediction-optimization uses this
-information to choose methods, and @sec-feedback-verification-trust uses it to judge what claims the
-observation can support, including when to use active learning.[^fn-ml-active-learning]
+provenance, fidelity, and outcome status.
+@sec-methods-generation-prediction-optimization uses this information to choose
+a method and decide which observation to request next, including in active
+learning.[^fn-ml-active-learning] @sec-feedback-verification-trust asks what
+claims the returned observation can support.
 
-[^fn-ml-active-learning]: Active learning selects which scarce simulator, synthesis, human, or deployment observation to request next [@Settles2009ActiveLearning]. @sec-methods-generation-prediction-optimization defines that selection policy; an environment must provide the selectable actions and record the resulting call.
+[^fn-ml-active-learning]: Active learning selects which scarce simulator run, synthesis run, deployment measurement, or expert assessment to request next [@Settles2009ActiveLearning]. @sec-methods-generation-prediction-optimization defines that selection policy; an environment must provide the selectable actions and record the resulting call.
 
 ```{=latex}
 \FloatBarrier
@@ -741,11 +807,12 @@ just as easily as it can discover a good architecture candidate.
 and what the architectural objective requires. When a method optimizes against
 that stand-in, the mismatch can produce the failure described by Goodhart's law,
 in which a measure becomes unreliable as a target
-[@Goodhart1975MonetaryManagement; @Strathern1997Goodhart]. For a simulator, it takes the specific form of a gap
-between the behavior an environment reports and the behavior that would matter at
+[@Goodhart1975MonetaryManagement; @Strathern1997Goodhart]. For a simulator,
+proxy mismatch is the gap between the behavior the environment reports and the behavior that would matter at
 the next stronger fidelity level, such as a more detailed simulator, synthesis,
-physical design, emulation, silicon, or deployment. The failure mode is not
-merely an inaccurate number. It is a loop that learns the wrong lesson. A
+physical design, emulation, silicon, or deployment. The result may be more
+dangerous than an inaccurate estimate because an optimizer can prefer the
+candidate that exploits the omission. A
 mapping optimizer may exploit a memory model that omits contention. A compiler
 autotuner may win by relying on a backend assumption that changes under a
 different target. A hardware generator may improve a cycle-level metric while
@@ -755,136 +822,142 @@ a partition that hides latency in the simulator's memory model, only for
 place-and-route to expose severe congestion when thousands of wires must cross
 the die, preventing timing closure. A workload harness may reward one benchmark
 version while hiding drift in the software stack.
-A successful simulator run establishes only that the environment accepted the
-configuration. The contract must state which illegal states, unsupported
-configurations, and silent out-of-model behaviors the environment can reject.
+A successful simulator run shows that the configuration executed under the
+model. It does not show that the model covers every behavior relevant to the
+claim. The contract must state which illegal states, unsupported
+configurations, and silent out-of-model behaviors the wrapper can detect and
+report.
 
-When a method actively exploits this mismatch, machine-learning safety calls
-the failure *specification gaming* or *reward hacking*
+When a method actively exploits this mismatch, the failure is called
+*specification gaming* or *reward hacking* in machine-learning safety
 [@AmodeiEtAl2016ConcreteProblems]. A candidate can improve a proxy by choosing
 an unsupported parameter corner, relying on a stale workload slice, or shifting
 cost into a compiler/runtime path the current harness does not measure. The
-environment should record that failure through invalid-action checks, baseline
-replay, sensitivity tests, and escalation to a stronger feedback source.
+harness should run invalid-action checks, baseline replay, and sensitivity
+tests. The architect should define when a proxy win or inconclusive check
+requires stronger tool feedback or reviewer inspection.
 @sec-feedback-verification-trust develops the calibration and evidence checks
 for these failures.
 
-The adversarial version is sharper. A loop may be pressured through prompt
-injection, poisoned traces, compromised baselines, dependency updates, tampered
-records, or tool outputs that are syntactically plausible but semantically
-misleading. Environment design therefore includes integrity checks for prompts,
-dependencies, artifacts, baselines, and logs, not only better proxy metrics.
+Architecture-tool integrity can also fail when a trace is poisoned, a baseline
+or dependency changes without being recorded, or a log or tool result is
+tampered with. Version and artifact hashes should expose those changes, while
+targeted red-team checks[^fn-ml-red-teaming] should confirm that the harness
+detects them before comparing runs.
 
-Environment design should therefore include red-team checks[^fn-ml-red-teaming] for the feedback
-source itself. A simulator-backed loop should record warm-up policy, execution-
-versus trace-driven mode, random seeds, sampled regions, versioned workloads,
-configuration files, and unsupported states. It should also include rejection
-tests that look for proxy gaming, such as cross-checks against another model, sanity
-constraints on bandwidth and latency, sensitivity studies, invalid-action
-logs, baseline replay, and escalation to stronger fidelity when the result is
-surprising or consequential. These checks define the simulator's authority and
-its limits; they are not an argument against simulation.
+A simulator-backed harness should record warm-up policy, execution- versus
+trace-driven mode, random seeds, sampled regions, versioned workloads,
+configuration files, and unsupported states. Rejection tests should also look
+for proxy gaming through sanity constraints on bandwidth and latency,
+sensitivity studies, baseline replay, and comparison with a stronger model.
+These checks give the architect a basis for deciding which conclusions the
+simulator output can support and where those conclusions stop.
 
-[^fn-ml-red-teaming]: Red-teaming involves intentionally attacking a system to expose vulnerabilities, flaws, and failure modes before deployment. Here the target is the environment's own feedback source, so the loop probes a simulator or proxy for gameable corners and unsupported states before it trusts a result.
+[^fn-ml-red-teaming]: Here, a red-team check deliberately changes a trace, baseline, dependency, or tool record to test whether the harness detects the change before using the output as evidence.
 
-## Building Environments for New Subfields
+## Building a Small Architecture Environment
 
-Building an environment from scratch can begin with one small task. An
-automated method proposes actions, receives observations, encounters stated
-invalid-action rules, and leaves rejection reasons for review. The task should
-be narrow enough that its actions, observations, constraints, and rejection
-conditions can be specified cleanly.
+An architect can begin with one small task. The AI method proposes actions
+through a declared schema, the tools return recorded observations, and the
+harness records whether a request was illegal, an evaluated candidate failed a
+declared condition, the tool path failed, or the result requires review. The
+task should be narrow enough that its actions, observations, constraints, and
+rejection conditions can be stated without private knowledge.
 
-The steps below make that tool path usable inside the architecture
-study defined in @sec-architecture-20-ontology.
+The steps below make that tool path usable in the reviewable architecture
+comparison defined in @sec-architecture-20-ontology.
 
-**Environment recipe.** The following steps construct a small Architecture 2.0 environment whose invalid actions and rejection conditions can be tested.
+**Environment recipe.** The following steps construct a small Architecture 2.0 environment whose action rules, observations, and outcome paths can be tested.
 
 1. Define the task in architectural language, such as workload characterization, cache exploration, accelerator parameter search, compiler/runtime tuning, chiplet partitioning, reliability analysis, or design-review critique.
-2. Choose the representation the loop will read and write, such as a configuration file, architecture description, graph, trace record, report, RTL fragment, test bench, or design-loop card.
-3. Define the action schema by stating which fields can change, which are read-only, which combinations are legal, and which changes require human approval.
+2. Choose the representation the AI method will read and write, such as a configuration file, architecture description, graph, trace record, report, RTL fragment, or test bench.
+3. Define the action schema by stating which fields the AI method may change, which are read-only, which combinations are legal, and which changes require approval from a named architect or decision owner.
 4. Wrap the tool path, such as a simulator, compiler, profiler, RTL flow, EDA stage, runtime system, benchmark harness, or telemetry pipeline.
-5. Define observations and feedback, including metrics, traces, logs, warnings, errors, generated artifacts, cost, and fidelity level.
-6. Define action and outcome semantics. Illegal parameters, candidate-caused noncompilable or nonsynthesizable artifacts, violated constraints, and unsupported workloads may invalidate a candidate. Timeouts, simulator crashes, and setup failures remain environment failures unless a declared rule assigns the candidate responsibility.
-7. Log provenance and failure records, preserving tool versions, seeds, workload versions, failed runs, rejected alternatives, and reasons for each outcome.
-8. State what the architect reviews, what can be accepted automatically, and what must escalate.
+5. Define the observations and their meaning, including metrics, traces, logs, warnings, errors, generated artifacts, units, aggregation, denominator, normalization, preferred direction, uncertainty, valid scope, cost, and fidelity.
+6. Define four outcome statuses. Record an illegal request before execution, a candidate rejected after a valid evaluation, a tool-path failure, or an unsupported or inconclusive result that requires review.
+7. Preserve run and provenance records, including tool versions, seeds, workload versions, failed runs, rejected alternatives, and the reason for each outcome.
+8. State which checks may route a result automatically to the next tool stage, what the architect reviews, and who may accept, reject, defer, or escalate a candidate or claim.
 
-Once built, the readiness test for this environment is simple. Could a second method, student, or research group
-act inside the same harness without private knowledge from the original author?
-Could a rejected candidate remain understandable six months later after tool
-versions, workload revisions, and scripts have changed? If the answer is no,
-the project may still contain a useful wrapper, but it has not yet produced a
-maintainable Architecture 2.0 environment.
+Once built, the readiness test is simple. Could a second method, student, or
+research group act inside the same harness and interpret its observations
+without private knowledge from the original author? Could a rejected candidate
+remain understandable six months later after tool versions, workload revisions,
+and scripts have changed? If the answer is no, the project may still contain a
+useful wrapper, but it has not yet produced a maintainable Architecture 2.0
+environment.
 
 These steps are sufficient for a small but useful environment. The first useful
 environment for a new subfield is often narrow. A bounded workload, legal
-action space, documented wrapper, and recorded failures let a method propose
-candidates and let reviewers determine which results are valid.
+action space, documented wrapper, and recorded outcomes let a method propose
+candidates and let a reviewer reconstruct what happened to each one.
 
-The executed study followed this narrow-start recipe. It bounded one workload,
-one simulator configuration, one legal geometry family, two equal-budget arms,
-and one mechanism probe instead of pretending to build an end-to-end accelerator
-designer. That was enough to catch invalid candidates, preserve tool costs, and
-separate a null design result from a failed explanation. A small environment is
-real when its contract is complete, even when its claim boundary is modest.
+@sec-running-the-loop shows this narrow-start recipe in practice with one
+workload, one simulator configuration, one legal geometry family, two
+equal-budget arms, and one mechanism probe. That contract was enough to check
+candidate legality, preserve tool costs and results, and interpret a narrow
+null comparison without implying coverage of the entire accelerator design
+process.
 
-The same contract applies to a single hardware prefetcher. Its actions are prefetch depth
-and pattern, its cheap feedback is cache hit rate and memory bandwidth from a
-cycle-level simulator, and its rejection rule is any configuration that breaches
-a bandwidth or correctness bound. The environment idea is not tied to the size
-of the artifact; it depends on legal actions, observable feedback, and explicit
-rejection criteria.
-It is complete only after it names the workload trace, simulator version, failed
-configurations, proxy limits, and the point at which a human escalates from
-hit-rate evidence to correctness or traffic review.
+The same contract applies to a single hardware prefetcher. Its actions are
+prefetch depth and pattern. A cycle-level simulator returns cheap feedback on
+cache hit rate and memory bandwidth. Any configuration that breaches a
+bandwidth or correctness bound is rejected. The size of the artifact does not
+determine whether the environment is complete. Legal actions, observable
+feedback, and explicit rejection criteria do.
+It is complete only after it names the workload trace, simulator version,
+rejected configurations, failed tool calls, proxy limits, and the conditions
+that require the architect to seek a correctness or traffic review instead of
+acting on hit rate alone.
 
-::: {#pri-tools-environments .callout-design-principle title="Turn tools into environments"}
-A tool becomes usable in an AI-assisted study when its wrapper defines legal
-actions, observations, costs, invalid states, and failure paths. Version the
-harness, retain its provenance, and update the contract when workloads, tools,
-or action schemas change. A command that returns a number is not enough.
+::: {#pri-tools-environments .callout-design-principle title="Treat wrapper changes as experimental changes"}
+A change to a parser, tool default, workload version, outcome status,
+or action schema can alter the comparison even when the AI method is unchanged.
+Replay representative candidates after such a change, and do not combine the
+old and new results until an architect has explained any difference.
 :::
 
-That contract must remain valid as the workload, tools, and study change.
+## Keeping the Environment Valid as Tools Change {#sec-environment-lifecycle}
 
-## Environment Validity and Lifecycle {#sec-environment-lifecycle}
+An environment remains useful only while its workloads, legal actions, and tool
+outputs still match the architecture question. If the workload is wrong, the
+action space omits the important decision, the simulator hides a constraint,
+the proxy is uncalibrated, or the logging drops rejected candidates or failed
+runs, an AI method may simply become faster at producing results that do not
+answer the question.
 
-An environment is useful only if it preserves the semantics of the
-architectural question. If the workload is wrong, the action space omits the
-important decision, the simulator hides a constraint, the proxy is
-uncalibrated, or the logging drops failed candidates, the loop may become more
-efficient at producing weak evidence.
+To preserve that link, check the parts of the environment that can go stale.
 
-To maintain this semantic link, environment validity is checked along the
-contract fields that can go stale, six layers in practice:
-
-- **Workload layer:** The inputs, distributions, and software stack match the
+- **Workload:** The inputs, distributions, and software stack match the
   intended use.
-- **Action layer:** The loop can change the right architectural variables
+- **Actions:** The AI method can change the right architectural variables
   without violating hidden constraints.
-- **Observation layer:** Returned metrics are meaningful and labeled with their
-  source and valid scope.
-- **Feedback-cost layer:** Cost and latency are known before the loop commits
-  to the next evaluation.
-- **Provenance layer:** Recorded tool versions, inputs, assumptions, and outputs
+- **Observations:** Returned metrics identify their source and intended scope so
+  a reviewer can judge whether they still answer the architecture question.
+- **Feedback cost:** Cost and latency are known before the method or
+  architect selects the next evaluation.
+- **Provenance:** Recorded tool versions, inputs, assumptions, and outputs
   support audit. Replay additionally requires executable bindings to the
   declared environment and procedure.
-- **Outcome layer:** Illegal or unsupported candidates remain distinct from
-  timeouts, tool crashes, setup failures, and inconclusive runs.
+- **Outcomes:** Each result uses one of four statuses: illegal before
+  execution, candidate rejected after evaluation, tool-path failure, or
+  unsupported or inconclusive and sent for review.
 
 The following checkpoint applies these requirements before a tool result is used.
 
-::: {.callout-architect-checkpoint title="Before Trusting an Environment"}
-Before trusting an environment's verdict on an AI-generated candidate, confirm:
+::: {.callout-architect-checkpoint title="Before Using Tool Output as Evidence"}
+Before using an environment's output to judge an AI-generated candidate, confirm:
 
-- the workload, action space, and observations still match the architecture question the loop was intended to solve;
-- the record states observation sources, their valid scope, and the cost and latency of another evaluation;
+- the workload, action space, and observations still match the bounded
+  architecture question;
+- the record states each observation's source, units, aggregation,
+  normalization, uncertainty, valid scope, and the cost and latency of another
+  evaluation;
 - versions, assumptions, and rejected candidates are recorded;
-- candidate failures are distinguished from tool, setup, and harness failures;
-- another team could deploy an automated optimizer in this harness (the readiness test above).
+- each result has one of the four declared outcome statuses, and the record
+  names who reviews an unsupported or inconclusive result.
 :::
 
-Ordinary lifecycle practice keeps those layers aligned over time. Versioning,
+Ordinary lifecycle practice keeps those parts aligned over time. Versioning,
 monitoring, drift detection, rollback, and ownership records are familiar from
 MLOps[^fn-systems-mlops], benchmark governance, and reliable service operation.
 Applied here, they keep an environment's workloads, tools, action schemas, and
@@ -892,105 +965,85 @@ outcome meanings from changing silently after the first paper or release.
 
 [^fn-systems-mlops]: MLOps maintains deployed learning systems through practices such as versioning, monitoring, drift detection, rollback, and ownership records [@SculleyEtAl2015Hidden; @BeyerEtAl2016SRE]. The same practices help keep architecture harnesses comparable as their workloads and tools change.
 
-The lifecycle work can be stated in operational terms
-(@tbl-environment-lifecycle). The table is intentionally prosaic because
-ordinary drift must be recorded before it changes what an observation means.
+@tbl-environment-lifecycle maps common sources of drift to the information an
+architect must preserve and the response each change may require. Recording
+ordinary version and workload changes prevents them from silently changing
+what an observation means.
 
-| **Drift source** | **What to record** | **Failure if ignored** | **Operating response** |
+| **Drift source** | **What to record** | **Risk if ignored** | **What to do** |
 | --- | --- | --- | --- |
-| Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | A loop keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
-| Tool and model changes | Simulator, compiler, EDA, model, prompt, policy, dependency, seed, configuration, and attestation versions. | Results become incomparable across runs without a clear cause, or a changed dependency silently alters the evidence source. | Treat version changes as evidence events and preserve old run records. |
+| Workload and benchmark updates | Versions, scenarios, excluded inputs, telemetry shifts, and coverage changes. | An AI method keeps optimizing a stale or unrepresentative slice. | Re-run coverage checks and weaken or invalidate affected claims. |
+| Tool and model changes | Simulator, compiler, EDA tool, model, prompt, policy, dependency, seed, configuration, artifact hashes, and signatures. | Results become incomparable across runs without a clear cause, or a changed dependency silently alters the evidence source. | Recheck affected results and preserve old run records. |
 | Action-space changes | New knobs, deprecated knobs, invalid combinations, and permission boundaries. | A method proposes actions the environment no longer supports. | Update validity checks and record invalid-action traces. |
 | Observation and review rules | Fidelity labels, escalation thresholds, signoff checks, waivers, and reviewer decisions. | A proxy keeps being used after the claim has moved beyond its validated scope. | Recalibrate the rule and require review appropriate to the new claim. |
-| Decision ownership | Decision owner, review date, redaction boundary, and escalation path. | No person or authorized team is responsible for the commitment. | Name who may commit, defer, reject, or escalate the result. |
+| Decision ownership | Decision owner, review date, redaction boundary, and escalation path. | No named person is responsible for the decision. | Name who may approve, defer, reject, or escalate the proposed action. |
 
-: **Maintaining the environment preserves loop validity over time:** The lifecycle practice is to
-version workloads, tools, actions, observation and review rules, and ownership so that drift
-does not silently change what a loop result means. {#tbl-environment-lifecycle tbl-colwidths="[18,25,25,22]"}
+: **Maintaining the environment preserves validity over time:** Version workloads, tools, actions, observation and review rules, and ownership so that drift does not silently change what an AI-assisted result means. {#tbl-environment-lifecycle tbl-colwidths="[18,25,25,22]"}
 
-Every failure in the table has the same underlying cause. A workload, tool,
-action space, or review rule changed without being recorded, so old results
-were no longer comparable. Versioning and revalidation make those changes
-visible.
+Each row shows how an unrecorded change can make old results incomparable or
+leave no one responsible for rechecking them. Versioning and revalidation show
+which runs and claims need attention.
 
 ## Open Research Questions
 
-The concepts in this chapter establish the foundation for AI-assisted
-architecture environments. The open questions here are not generic wrapper
-engineering. They ask how tools become valid action spaces, interpretable
-observation sources, and specified failure paths for architecture work.
+Five parts of making this contract executable remain difficult across real
+tool flows.
 
-1. **What must an architecture environment contract provide before a loop can act?**
-An environment contract should name the task boundary, legal actions,
-observations, constraints, feedback types, invalid-action semantics, provenance
-and integrity records, and stop or review paths. A strong
-contribution would define this contract for a simulator, compiler, commercial
-EDA flow, or deployment setting and test whether it passes the readiness test
-above with an independent method. The fields in @tbl-environment-contract
-give the concrete starting point.
+1. **What is the smallest environment contract that lets an AI method act
+without private knowledge?** @tbl-environment-contract identifies common
+fields, but their required detail varies across simulators, compilers,
+commercial EDA flows, and deployment systems. Research should identify which
+omissions actually cause an independent method to take illegal actions,
+misread feedback, or produce a result another architect cannot review.
 
-2. **How can legacy tool traces suggest environment contracts?**
-Legacy EDA flows and simulators emit warnings, timeouts, partial artifacts, and
-unstructured logs rather than clean environment APIs. A log-to-contract system
-could observe tool interactions and propose action schemas, constraint bounds,
-invalid-action labels, and stop conditions. The evaluation should measure
-whether the inferred contract predicts legal actions and failure modes on
-held-out tool runs, and whether human reviewers can correct the contract
-without rewriting the wrapper from scratch.
+2. **Can AI infer a candidate environment contract from legacy tool traces
+without treating accidental behavior as a rule?** Legacy EDA flows and
+simulators expose warnings, timeouts, partial artifacts, and unstructured logs
+rather than clean APIs. Inferred action schemas and outcome rules must capture
+stable tool behavior while leaving uncertain cases visible for an architect to
+correct.
 
-3. **How should environments classify invalid actions and rejection paths?**
-A loop must know the difference between an illegal action, a malformed input, a
-tool failure, a proxy warning, a real architectural rejection, and an
-inconclusive run. A research contribution would define an invalid-action
-outcome taxonomy for architecture environments and test whether it prevents
-optimizers from exploiting wrapper gaps. The evaluation should report false
-passes, false rejects, repairable failures, and cases that require human
-review.
+3. **How should ambiguous outcomes be attributed after an AI-generated action?**
+Illegal actions, malformed inputs, tool crashes, proxy warnings, architectural
+rejections, and inconclusive runs require different responses. A timeout, for
+example, could reflect an extreme candidate or unstable infrastructure. The
+classification must avoid blaming the candidate for a broken tool path while
+preserving cases that require an architect or reviewer.
 
-4. **How can negative evidence transfer across simulated and physical tool flows?**
-Positive architectural wins are highly context-dependent, but failures such as
-routing congestion, IR drop, timing violations, and design-rule failures often
-reveal physical limits that may transfer. A thesis-level contribution would define a
-redacted failure-transfer format between high-fidelity physical flows and
-faster proxy environments, then test whether transferred constraints improve
-early rejection on different workloads or technology nodes. The difficult part
-is showing useful transfer without treating one physical failure as a universal
-rule. The EDA-stage contracts in @tbl-eda-stage-contract give the concrete
-setting.
+4. **When can high-fidelity failures constrain a cheaper AI search?** Routing
+congestion, IR drop, timing violations, and design-rule failures may reveal
+physical limits that a simulator or surrogate cannot see. Transferring a
+redacted constraint into a cheaper environment could identify weak candidates
+earlier, but the constraint may not hold across workloads, floorplans, or
+technology nodes. @tbl-eda-stage-contract shows the stages across which that
+scope must remain visible.
 
-5. **How do architecture environments stay valid as tools and workloads drift?**
-A one-time environment can support a paper, but a maintained environment is
-needed for a field. A concrete systems paper would build a lifecycle monitor
-that detects changes in workloads, tools, models, or runtime assumptions, then
-dispatches revalidation jobs for claims whose evidence may no longer apply. The
-contribution should be judged by whether it correctly maintains, weakens, or
-rejects historical claims under human-defined review criteria, extending the
-lifecycle practice described above.
+5. **Which prior AI-assisted results must be rechecked after an environment
+changes?** A new workload, simulator, model, prompt, dependency, or review rule
+can affect some earlier claims without invalidating all of them. A useful
+system would trace each change to the actions, observations, and claims it can
+alter, then present the affected results to the responsible architect or
+reviewer.
 
 ## Conclusion
 
-An architecture environment makes a tool flow usable by an automated method and
-reviewable by another architect. It defines legal actions, returns meaningful
-observations, records evaluation cost and provenance, and specifies how illegal,
-unsupported, or weakly supported candidates are stopped or reviewed.
+An architecture environment makes a tool flow usable by an AI method and
+reviewable by another architect. It tells the method what it may change and
+tells the architect how to interpret what the tool returns. That requires the
+workload and fixed context, action schema, observation meaning, cost and
+fidelity, and provenance. The four outcomes are illegal before execution,
+candidate rejected after evaluation, tool-path failure, and unsupported or
+inconclusive pending review.
 
-Reviewers can rely on an environment only while its workload, action space,
-proxy models, and failure records still match the architectural question. If
-any of these drift, earlier results must be rechecked before they support
-another decision. Validity therefore has to be checked across workload, action,
-observation, cost, provenance, and outcome semantics.
-
-The second, easily missed half is maintenance. Workloads drift, tools change,
-benchmarks gain rules, and models learn stale assumptions, so a one-time
-environment and a maintained one look identical on the first run and diverge
-by the tenth. Ordinary lifecycle practice versions workloads, tools, and action
-schemas, preserves provenance and failure records, and reruns validity checks
-when those inputs change. Building the environment may support one paper.
-Maintaining it lets later users know whether the harness still means the same
-thing.
+The contract remains reliable only while the workload, permitted actions,
+tools, and observation meanings still match the architecture question. When
+one changes, versioning and provenance show which results need to be rechecked
+and make representative runs replayable. A one-time wrapper may support one
+experiment. A maintained environment lets the next architect determine
+whether the harness still answers the same question.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** An environment is a contract over legal actions, returned observations, provenance, and failure paths. That contract lets another method act in the same harness.
-- **Reader test:** Could another method act in the same harness without private knowledge from the original author?
-- **Up next:** Once the environment defines what action and feedback mean, @sec-methods-generation-prediction-optimization can ask which methods belong inside the loop.
+- **Carry forward:** An environment specifies legal actions, observation meaning, provenance, and four outcome paths so another method can act in the same harness.
+- **Reader test:** Could another method act in the same harness, and could another architect interpret its results, without private knowledge from the original author?
+- **Up next:** Once the environment defines what action and feedback mean, @sec-methods-generation-prediction-optimization can match method roles to the available feedback.
 :::

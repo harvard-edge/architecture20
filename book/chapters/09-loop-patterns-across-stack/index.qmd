@@ -1,4 +1,4 @@
-# Operating Regimes Across the Stack {#sec-loop-patterns-across-stack}
+# How the Approach Changes Across the Stack {#sec-loop-patterns-across-stack}
 
 ::: {.epigraph}
 > *"There is no single development, in either technology or management technique, which by itself promises even one order of magnitude improvement in productivity, in reliability, in simplicity."*
@@ -7,39 +7,47 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. His warning applies directly to AI-assisted architecture. Studies can operate with very different feedback budgets, rejection checks, and decision rights, from reversible compiler tuning to silicon-facing RTL and SoC work. No single AI method fits all those conditions.
+**Author's Note:** Fred Brooks, Turing Award winner and author of *The Mythical Man-Month*, famously warned against hoping for a "silver bullet" in software engineering. His warning applies directly to AI-assisted architecture. Architecture work proceeds with very different feedback budgets, rejection checks, and decision rights, from reversible compiler tuning to silicon-facing RTL and SoC work. No single AI method fits all those conditions.
 :::
 
 ```{=latex}
-\abstract*{This chapter asks how the study practices demonstrated in @sec-running-the-loop change across the computing stack. It groups architecture work into four operating regimes distinguished by feedback latency, reversibility, decision consequence, interface span, and check independence. It then derives a limited service-cost model for cases in which review capacity, rather than candidate generation, limits progress.}
+\abstract*{AI-assisted architecture work spans four operating regimes distinguished by feedback latency, reversibility, decision consequence, interface span, and check independence. An AI method's role, required evidence, rejection checks, and decision rights change with those conditions. A limited service-cost model then describes cases in which review capacity, rather than candidate generation, limits progress.}
 ```
 
 ::: {.callout-crux}
-How should evidence, method, and decision rights change when an architecture
-study moves into a different operating regime?
+How should the AI role, evidence, checks, and decision rights change across
+different parts of the computing stack?
 :::
 
 The executed study in @sec-running-the-loop used cheap-to-discard candidate
-proposals and deterministic, replayable SCALE-Sim evaluations. Its recommendation
-stopped short of implementation, and the commit decision remains pending. Those
-evidence and decision rules would be inadequate if
+proposals and deterministic, replayable SCALE-Sim evaluations. The evidence
+supported retaining the baseline, and the architect stopped before
+implementation. Those evidence and decision rules would be inadequate if
 the same array geometry were about to change an RTL interface or enter a
 physical-design flow. The task may look similar while the evidence burden and
 decision rights change.
 
-> **Operating regime.** An operating regime is the combination of feedback
-> latency, reversibility, decision consequence, interface span, and check
-> independence that determines what evidence and authority a study
-> needs. It is not a stack layer, a maturity score, or a property of an AI
-> model.
+A compiler or kernel tuner can often compile, test, measure, and discard a bad
+change in minutes. Accelerator exploration may instead rely on a simulator
+whose abstractions omit the compiler path or physical effects. An ISA migration
+crosses build, runtime, service, and organizational interfaces, while an RTL or
+signoff decision may be costly or impossible to reverse after authorization.
+These are different operating conditions even when AI proposes the change in
+each case.
+
+> **Operating regime.** An operating regime describes feedback latency,
+> reversibility, decision consequence, interface span, and check independence.
+> The architect uses those conditions to decide what an AI method may do, which
+> evidence and checks are needed, and who may authorize the next decision. It is
+> not a stack layer, a maturity score, or a property of an AI model.
 
 Four regimes cover the cases considered here:
 
 - **Fast and reversible:** workload packets, compilers, kernels, runtimes, and
   other work with close tests and local rollback.
-- **Model-mediated architecture:** accelerator, memory, interconnect, chiplet,
-  and specialization studies whose feedback comes mainly from proxies,
-  simulators, or staged tools.
+- **Model-mediated architecture:** exploration of accelerator, memory,
+  interconnect, chiplet, and specialized designs using feedback mainly from
+  proxies, simulators, or staged tools.
 - **Cross-interface and deployment:** co-design, migration, and live-system
   work whose effects cross owners or whose telemetry is noisy and confounded.
 - **High consequence:** RTL, physical design, verification, signoff, and other
@@ -48,30 +56,32 @@ Four regimes cover the cases considered here:
 The same component can occupy more than one regime. A kernel schedule may be
 fast and reversible during tuning, cross-interface when it changes a runtime
 contract, and high consequence when hardware is frozen around it. Classify the
-study at its next decision boundary, not by the noun in its title.
+work by its next decision boundary, not by the noun in its title.
 
 ::: {.callout-learning-objectives}
-After this chapter you can classify an operating regime before choosing the AI method.
+After this chapter you can classify an operating regime before deciding what work to automate.
 That means you can:
 
 - **Compare** studies by feedback, reversibility, consequence, interface span,
   and check independence;
 - **Adapt** evidence and method roles without inventing a new framework for
   each stack layer;
-- **Assign** propose, execute, reject, waive, recommend, and commit rights for
-  the next decision;
-- **Estimate** rejection-bound service cost with matched audits and recorded escalation costs.
+- **Assign** who may propose, execute, reject, waive, recommend, and make the
+  final decision;
+- **Diagnose** when review capacity, rather than candidate supply, limits
+  progress.
 :::
 
 ## Classify the Regime Before Choosing the Method
 
-Each case uses the same basic questions. What is the architecture task? What may
-the method change? What evidence will the tools return? What failures or
-alternatives must be retained? Who may reject, waive, recommend, and decide?
-The design-loop card records the answers; it does not determine the regime.
+Start with the next architecture decision rather than the AI method. The
+architect classifies its feedback latency, rollback cost, interface span,
+consequence, and check independence. Those conditions set how much work AI may
+execute, what another tool or reviewer must check, and who may advance the
+result.
 
 @tbl-loop-patterns compares the four regimes. The columns describe typical
-conditions, not fixed ranks. Fast feedback does not make a study low risk, and
+conditions, not fixed ranks. Fast feedback does not make the next decision low risk, and
 silicon-facing work does not forbid useful automation. The next decision and
 its consequences determine the required evidence and decision rights.
 
@@ -79,12 +89,12 @@ its consequences determine the required evidence and decision rights.
 | --- | --- | --- | --- |
 | Fast and reversible | Tests, traces, profiles, or benchmarks return quickly; a failed local change can usually be discarded or rolled back. | Usually one artifact or software boundary; automatic checks may be close to the producer. | Automate bounded generation, tuning, and repair, but test workload coverage, regressions, and the point where a local change enters a wider contract. |
 | Model-mediated architecture | Proxies, simulators, and staged tools are slower or scarcer; candidates are cheap to discard before implementation. | Several architecture assumptions may interact; model and reference checks can share blind spots. | Compare against a conventional arm, test proxy mechanisms, preserve rejected regions, and require stronger evidence before implementation. |
-| Cross-interface and deployment | Feedback spans layers, teams, or live cohorts; rollback is guarded and can still impose user or operational cost. | Multiple owners and interfaces; telemetry may be noisy, confounded, private, or only partly independent. | Record interface assumptions, canaries, SLOs, rollback triggers, causal limits, and the owner of each cross-layer tradeoff. |
-| High consequence | Tool feedback is slow and expensive; rollback becomes difficult toward signoff, tapeout, or irreversible deployment. | Independent flows, experts, and formal or physical checks become central; every waiver requires a recorded decision. | Use AI to narrow, critique, organize evidence, or repair bounded artifacts; reserve reject, waive, recommend, and commit rights for named holders. |
+| Cross-interface and deployment | Feedback spans layers, organizational boundaries, or live cohorts; rollback is guarded and can still impose user or operational cost. | Multiple owners and interfaces; telemetry may be noisy, confounded, private, or only partly independent. | Record interface assumptions, canaries, SLOs, rollback triggers, causal limits, and the owner of each cross-layer tradeoff. |
+| High consequence | Tool feedback is slow and expensive; rollback becomes difficult toward signoff, tapeout, or irreversible deployment. | Independent flows, experts, and formal or physical checks become central; every waiver requires a recorded decision. | Use AI to narrow, critique, organize evidence, or repair bounded artifacts; reserve rejection, waivers, recommendations, and the final decision for named roles. |
 
 : **Four operating regimes.** Feedback latency, reversibility, consequence,
-interface span, and check independence determine the evidence and rights a study
-needs. The regimes are not a maturity ladder. {#tbl-loop-patterns tbl-colwidths="[18,25,27,22]"}
+interface span, and check independence determine the required evidence and
+decision rights. The regimes are not a maturity ladder. {#tbl-loop-patterns tbl-colwidths="[18,25,27,22]"}
 
 ```{=latex}
 \Needspace{11\baselineskip}
@@ -92,25 +102,28 @@ needs. The regimes are not a maturity ladder. {#tbl-loop-patterns tbl-colwidths=
 
 The contrast is clearest at the endpoints. A local software change can often be
 executed and rolled back under close tests, while a silicon-facing change needs
-independent checks and named waiver and commit holders before it advances. The
+independent checks, a named waiver holder, and a decision owner before it
+advances. The
 two middle regimes separate feedback cost from interface ownership, which is why
-stack position alone cannot classify a study.
+stack position alone cannot determine the operating regime.
 
 The cases that follow should be read through three questions:
 
 - **Physical constraints and rollback costs:** Which constraints apply, what
-  does rollback cost, and what blast radius follows if the case goes wrong? A
+  does rollback cost, and what else can be affected if the change fails? A
   compiler flag, runtime policy, RTL edit, chiplet boundary, and fleet deployment
   do not have the same consequences.
-- **Action-observation mapping:** What can the loop change, and what tool, trace,
-  log, or measurement does it receive in return?
+- **Allowed actions and returned feedback:** What may the AI method change, and
+  what tool, trace, log, or measurement does it receive in return?
 - **Rejection checks and decision rights:** What can reject the result, where
   does required review occur, and what are the declared automation limits?
 
 A case is credible when allowed actions, feedback, evidence, and decision rights
 match the consequence of the next transition.
 
-Some failures become visible only after deployment at scale.
+Check independence matters because a check can reject only the failures it can
+observe. Manufacturing tests, for example, can miss silent computation errors
+that fleet-scale cross-checking later exposes.
 
 ::: {.callout-field-note title="The cores that quietly did the math wrong"}
 At fleet scale, Google and Meta independently found that a small number of CPU cores silently miscompute, returning wrong results with no crash and no error flag, and that these mercurial cores slip through manufacturing test and surface only across millions of machines [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. Meta traced a real corruption to missing files from one bad core, at a rate on the order of one in a thousand devices. Manufacturing test did not cover a failure that is silent by definition, so nothing rejected it until fleet scale exposed it.
@@ -120,18 +133,18 @@ scale, the system needs continuous cross-checking because even the assumption
 that the hardware computes correctly must be tested.
 :::
 
-The fleet case shows why check independence belongs in regime classification.
-A project's first artifact should expose which failures its checks can actually
-observe. @tbl-loop-pattern-decision recommends that artifact for each regime. If
-two rows apply, begin with the more demanding requirements until evidence
-supports the narrower case.
+The checks for any regime should therefore state which failure classes they can
+observe and which require a different tool or operating context.
+@tbl-loop-pattern-decision recommends a first artifact for making those limits
+visible. If two rows apply, begin with the more demanding requirements until
+evidence supports the narrower case.
 
-| **Observed condition** | **Regime to start with** | **First artifact to build** | **Claim not yet earned** |
+| **Observed condition** | **Regime to start with** | **First artifact to build** | **Claim not yet supported** |
 | --- | --- | --- | --- |
 | Close tests and local rollback; the main uncertainty is workload coverage or code behavior. | Fast and reversible. | Versioned workload or executable test packet with coverage, failures, profiles, and rollback conditions. | A general architecture or system win. |
 | Scarce simulation, many architecture knobs, or a proxy whose mechanism may fail. | Model-mediated architecture. | Action schema, matched baseline, proxy calibration, candidate record, and rejected regions. | Implementation readiness. |
 | A result crosses compiler, runtime, hardware, operations, or organizational interfaces. | Cross-interface and deployment. | Interface map with versions, owners, system objectives, canary or replay plan, and rollback triggers. | A local optimum as a system result or clean causal evidence from telemetry alone. |
-| The next step affects RTL, signoff, tapeout, safety, security, or another difficult-to-reverse decision. | High consequence. | Staged evidence plan with independent checks, waiver authority, residual risks, and a named commit right. | Authority beyond the declared decision rights. |
+| The next step affects RTL, signoff, tapeout, safety, security, or another difficult-to-reverse decision. | High consequence. | Staged evidence plan with independent checks, waiver authority, residual risks, and a named decision owner. | Authority beyond the declared decision rights. |
 
 : **A starting artifact for each regime.** Begin with the feedback conditions
 and the next decision, then create the records needed to test the proposed claim.
@@ -140,13 +153,14 @@ and the next decision, then create the records needed to test the proposed claim
 The artifact changes with the source of uncertainty. A versioned test packet can
 expose local coverage gaps. Cross-interface deployment also needs named owners
 and rollback triggers, while high-consequence work needs independent checks and
-explicit waiver and commit rights.
+explicit waiver rights and a decision owner.
 
 ### Method Roles Within Each Regime
 
-Stack position and operating regime remain the primary comparison. A secondary
-view describes how a method interacts with feedback inside any row of
-@tbl-loop-patterns. These interactions recur across the stack.
+Classifying the regime does not choose the AI method. Within any regime, AI may
+predict an expensive tool result, search legal alternatives, or repair an
+artifact from tool feedback. What changes is how much authority the architect
+grants the method and which checks can reject its output.
 
 - **Surrogate prediction** uses a fast proxy to triage expensive feedback and
   fails when proxy mismatch goes undetected.
@@ -157,12 +171,13 @@ view describes how a method interacts with feedback inside any row of
   bounded artifact and use compiler, simulator, formal, or synthesis failures
   to guide another attempt.
 
-[^fn-rl-environment-contract]: In a constrained optimization loop, a reward signal can guide search only inside legal actions; the environment contract decides which moves are invalid and which evidence can reject a candidate.
+[^fn-rl-environment-contract]: In a constrained optimization loop, a reward signal can guide search only inside legal actions. The environment contract states which moves are invalid, and declared checks determine which candidates are rejected.
 
-[^fn-ml-llm-generator-critic]: In this pattern, the LLM is only the generator. The architecture value comes from the repair loop around it, where compiler, simulator, formal, or synthesis feedback rejects bounded artifacts and returns traces for the next attempt.
+[^fn-ml-llm-generator-critic]: In this pattern, the LLM only proposes artifacts. Compiler, simulator, formal, or synthesis checks reject bounded artifacts, and their feedback supplies traces for the next attempt.
 
-The cases below stay organized by operating regime rather than by hardware
-structure. Each case names the method's role and the feedback it receives.
+The sections below stay organized by operating regime because the same method
+role can be useful under close tests and local rollback but inadequate when
+feedback is delayed or a decision crosses an interface.
 
 ## Regime I: Fast and Reversible
 
@@ -173,22 +188,22 @@ regression tests.
 
 ### Workload and Benchmark State
 
-Workload characterization is architecture work. The workload defines what
-behavior matters, which metrics
-are meaningful, which software stack is assumed, and which design choices can
-be justified. Classic workload-characterization work made this concrete by
-measuring program behavior, comparing benchmark suites, and separating
-inherent workload properties from artifacts of a particular machine
-[@HosteEeckhout2007MICA]. AI-assisted studies need the same measurements in a
+Fast feedback is useful only when executable checks cover the behavior in the
+claim. For workload tuning, the workload defines what behavior matters, which
+metrics are meaningful, which software stack is assumed, and which design
+choices can be justified. Classic workload-characterization work made this
+concrete by measuring program behavior, comparing benchmark suites, and
+separating inherent workload properties from artifacts of a particular machine
+[@HosteEeckhout2007MICA]. Architects using AI need the same measurements in a
 form that tools and reviewers can inspect. This includes traces, benchmark
 versions, generated workloads, cluster assignments, coverage analysis, drift
 tests, and known omissions.
 
-An XR accelerator study makes this concrete. "XRBench-class real-time mobile XR
-workload" is not a magic input string. XRBench gives the study its benchmark
-anchor [@KwonEtAl2023XRBench], but the architecture question still depends on
-which XR workloads, models, devices, frame-rate targets, latency constraints,
-memory behaviors, and software paths are represented. A study that optimizes
+An XR accelerator example shows why that detail matters. "XRBench-class
+real-time mobile XR workload" is not a magic input string. XRBench provides a
+benchmark anchor [@KwonEtAl2023XRBench], but the architecture question still
+depends on which XR workloads, models, devices, frame-rate targets, latency
+constraints, memory behaviors, and software paths are represented. An optimizer tuned to
 one benchmark point may miss the distribution that a real mobile XR subsystem
 must serve. The workload specification should therefore include scenario
 labels, device class, trace provenance, input distributions, excluded cases,
@@ -198,11 +213,11 @@ The discussion of MLPerf in @sec-design-loop-no-longer-scales shows why shared
 benchmarks need maintained versions, rules, and submission practices
 [@MattsonEtAl2020MLPerf]. Workloads can change quickly in active ML-serving
 domains, for example when dense Transformers give way to
-Mixture-of-Experts[^fn-ml-moe-workload-drift]. A study should therefore record
-the benchmark version, workload source, coverage claims, known gaps, leakage
-risks, and the conditions under which its result should not generalize. It also
-needs a defined process for adding new computation graphs, traces, and coverage
-tests.
+Mixture-of-Experts[^fn-ml-moe-workload-drift]. The workload packet should
+therefore record the benchmark version, source, coverage claims, known gaps,
+leakage risks, and the conditions under which a result should not generalize.
+It also needs a defined process for adding new computation graphs, traces, and
+coverage tests.
 
 [^fn-ml-moe-workload-drift]: The MoE point here is workload drift. A model-family shift can change communication, memory, and scheduling pressure fast enough that a static benchmark needs a defined refresh path.
 
@@ -212,34 +227,34 @@ and performance comparison remain necessary. The additional records identify
 the workload version, coverage, provenance, and checks that can reject a result
 based on a stale, narrow, or leaky slice.
 
-| **Established task** | **AI-assisted extension** | **Loop state required** | **Failure if missing** |
+| **Established task** | **AI-assisted extension** | **Required record or state** | **Failure if missing** |
 | --- | --- | --- | --- |
-| Select representative workloads or benchmark suites. | Define the versioned workload distribution the loop is allowed to optimize over. | Scenario metadata, input distributions, versions, provenance, and inclusion/exclusion rationale. | The loop optimizes one stale or convenient slice and reports a false win. |
+| Select representative workloads or benchmark suites. | Define the versioned workload distribution the optimizer may use. | Scenario metadata, input distributions, versions, provenance, and inclusion/exclusion rationale. | The optimizer overfits one stale or convenient slice and reports a false win. |
 | Profile behavior: locality, branch behavior, memory traffic, bandwidth, latency, energy, and phase behavior. | Record workload features for prediction, search, critique, and active test selection. | Feature schema, measurement provenance, tool configuration, uncertainty, and known blind spots. | A predictor learns a proxy that does not survive another phase, input, or fidelity level. |
-| Compare architectures under a fixed benchmark. | Maintain an evidence record across workload variants, candidate designs, and fidelity levels. | Candidate IDs, workload IDs, simulator/tool versions, feedback cost, accepted results, and rejected results. | Design-space results cannot be audited or reused by another loop. |
-| Build or curate benchmarks for community comparison. | Define an environment contract: valid tasks, inputs, actions, metrics, leakage rules, and rejection checks. | Benchmark harness, validity checks, metric definitions, seeds, test splits, and update policy. | The loop overfits benchmark artifacts or takes actions outside the intended task. |
-| Explain why a workload matters. | Record workload intent, deployment context, and drift so the named owner can accept or reject a claim. | Use-case assumptions, deployment constraints, quality-of-service targets, telemetry hooks, and review notes. | The loop produces a plausible result for the wrong product or deployment regime. |
-| Summarize results for a paper. | Preserve workload evidence as reusable architecture data. | Evidence record, failed runs, rejected alternatives, and rationale for final claims. | The next loop repeats invalid experiments or loses why prior choices were rejected. |
+| Compare architectures under a fixed benchmark. | Maintain an evidence record across workload variants, candidate designs, and fidelity levels. | Candidate IDs, workload IDs, simulator/tool versions, feedback cost, accepted results, and rejected results. | Design-space results cannot be audited or reused in another study. |
+| Build or curate benchmarks for community comparison. | Define an environment contract: valid tasks, inputs, actions, metrics, leakage rules, and rejection checks. | Benchmark harness, validity checks, metric definitions, seeds, test splits, and update policy. | The optimizer overfits benchmark artifacts or proposes actions outside the intended task. |
+| Explain why a workload matters. | Record workload intent, deployment context, and drift so the named owner can accept or reject a claim. | Use-case assumptions, deployment constraints, quality-of-service targets, telemetry hooks, and review notes. | The AI method produces a plausible result for the wrong product or deployment regime. |
+| Summarize results for a paper. | Preserve workload evidence as reusable architecture data. | Evidence record, failed runs, rejected alternatives, and rationale for final claims. | Architects repeat invalid experiments or lose why prior choices were rejected. |
 
-: **Workload records for an AI-assisted study.** Profiling and benchmark construction remain necessary, but the study must also record versions, provenance, coverage, rejection conditions, and failed runs. {#tbl-workload-characterization-20 tbl-colwidths="[20,26,25,20]"}
+: **Workload records for an AI-assisted study.** Profiling and benchmark construction remain necessary, but the workload record must also include versions, provenance, coverage, rejection conditions, and failed runs. {#tbl-workload-characterization-20 tbl-colwidths="[20,26,25,20]"}
 
 AI methods can help cluster traces, summarize behavior, generate missing cases,
 and identify coverage gaps. Their output is useful only when the benchmark
 harness retains versioned traces, metadata, update rules, leakage checks, and
-drift tests. Those records determine whether a design result can reasonably be
-applied beyond the measured slice.
+drift tests. Those records let reviewers decide whether a design result can
+reasonably be applied beyond the measured slice.
 
 ### Fast Software Feedback
 
-Fast software loops often occupy the fast-and-reversible regime. Compiler
-flags, kernels, library implementations, runtime policies, configuration
-settings, and small code repairs can often be evaluated quickly and rolled
-back. Feedback may come from unit tests, microbenchmarks, integration tests,
-profilers, telemetry, or canary deployment[^fn-systems-canary-deployment].
+Compiler flags, kernels, library implementations, runtime policies,
+configuration settings, and small code repairs often fit the fast-and-reversible
+regime because failed changes can usually be evaluated quickly and rolled back.
+Feedback may come from unit tests, microbenchmarks, integration tests, profilers,
+telemetry, or canary deployment[^fn-systems-canary-deployment].
 
-[^fn-systems-canary-deployment]: A canary deployment is a controlled, partial rollout that exposes a change to a small slice of traffic to catch regressions before a system-wide release. It is one of the cheap, reversible rejectors that let a fast software loop iterate quickly, since a bad change can be caught and rolled back before a wider rollout is authorized.
+[^fn-systems-canary-deployment]: A canary deployment is a controlled, partial rollout that exposes a change to a small slice of traffic to catch regressions before a system-wide release. It is one of the cheap, reversible checks that let an optimizer or repair method iterate quickly because a bad change can be caught and rolled back before a wider rollout is authorized.
 
-Close feedback lets a software-tuning loop automate search more aggressively. Autotuning
+Close feedback lets an optimizer search more aggressively. Autotuning
 systems and learned tensor-program optimizers[^fn-ml-tensor-program-optimizers] show how search spaces, cost
 models, measurements, and scheduling can be combined to improve software
 performance across targets
@@ -247,13 +262,13 @@ performance across targets
 AI-assisted architecture when generation is limited to artifacts with
 executable checks and cheap rollback.
 
-[^fn-ml-tensor-program-optimizers]: Tensor-program optimizers automate the search for efficient execution schedules of tensor operations on a target, using cost models and on-device measurements to steer the search. They are a template a fast software loop can borrow, since their feedback is cheap enough to support aggressive automated search without treating every hardware decision as equally reversible.
+[^fn-ml-tensor-program-optimizers]: Tensor-program optimizers automate the search for efficient execution schedules of tensor operations on a target, using cost models and on-device measurements to steer the search. Their cheap feedback supports aggressive automated search. The same permission does not extend to a hardware-interface decision, which is harder to reverse.
 
 Kernel-generation benchmarks make the same point in a current form.
 KernelBench, introduced in @sec-methods-generation-prediction-optimization,
 evaluates whether models can produce GPU kernels that are both
-correct and faster than a baseline [@OuyangEtAl2025KernelBench]. This is
-a fast software loop because correctness tests, compilation, profiling, and
+correct and faster than a baseline [@OuyangEtAl2025KernelBench]. This work is
+fast and reversible because correctness tests, compilation, profiling, and
 microbenchmark feedback are close to the generated artifact. It also touches
 hardware/software co-design because performance depends on memory layout,
 parallelism, numerical precision, backend behavior, and target-specific
@@ -261,12 +276,13 @@ hardware resources. Multi-platform kernel-generation work exposes this
 cross-layer dependency by separating the core benchmark from target backends
 such as Triton, a Python-embedded GPU-kernel DSL, and CUDA
 [@WenEtAl2025MultiKernelBench].
-For an automated optimizer, the benchmark object needs more than a prompt and
-a score. It should record kernel IDs, input-shape distributions, correctness
-oracles, target metadata, failed compiles and profiles, and rejected variants.
+A kernel-generation benchmark needs more than a prompt and a score. It should
+record kernel IDs, input-shape distributions, correctness oracles, target
+metadata, failed compiles and profiles, and rejected variants.
 
-For bounded code generation or tuning, the study keeps the source code, compiler
-IR, tests, target metadata, profiles, and exact compiler and runtime versions.
+For bounded code generation or tuning, architects preserve the source code,
+compiler IR, tests, target metadata, profiles, and exact compiler and runtime
+versions.
 Compilation, tests, and profiles return quickly on the artifact. A generated
 kernel can be tested, a compiler flag reverted, and a runtime policy tried in a
 canary. This proximity permits more automated iteration, while correctness,
@@ -274,65 +290,66 @@ compilation, portability, regressions, and maintainability can still reject a
 candidate. A named owner must approve a local kernel change before it enters a
 wider software or hardware interface.
 
-::: {.callout-failure-mode title="Fast feedback is not complete truth"}
-Treating fast feedback as complete truth is the trap for the optimizer. An AI-generated kernel that
-wins on one input size may regress another. An AI-proposed runtime policy that improves
-average latency may worsen tail latency. Even in fast AI-assisted loops, the
-card still needs workload coverage, rejection authority, and a named decision
-owner when the change affects a larger system.
+::: {.callout-failure-mode title="Fast feedback can miss system failures"}
+An AI-generated kernel that wins on one input size may regress another. An
+AI-proposed runtime policy that improves average latency may worsen tail
+latency. Even with fast feedback, architects must record workload coverage,
+who may reject a candidate, and who owns the decision before the change enters
+a larger system.
 :::
 
 ## Regime II: Model-Mediated Architecture
 
-Architecture design-space exploration is the canonical middle case for
-model cost and decision consequence. The loop
-may explore accelerator organization, vector width, cache hierarchy, local
-memory, interconnect, chiplet partitioning, and package assumptions. It may
-also choose how work is divided across CPUs, accelerators, and SoC blocks.
+In architecture design-space exploration, candidate parameters are cheap to
+change, but trustworthy feedback may require scarce simulations or staged tool
+runs. The search may vary accelerator organization, vector width, cache
+hierarchy, local memory, interconnect, chiplet partitioning, and package
+assumptions. It may also choose how work is divided across CPUs, accelerators,
+and SoC blocks.
 Feedback is slower than software tests and less definitive than silicon.
 Actions can violate design constraints, and proxies can fail outside the region
 where they were calibrated. The space is too large for exhaustive enumeration.
 
-These studies require an explicit representation of architecture state, legal
-actions, and tool observations. Methods may generate candidates, predict
-behavior, allocate evaluations, or critique assumptions, while the study
-retains failed runs and rejected alternatives. ArchGym provides one such
+Model-mediated exploration requires an explicit representation of architecture
+state, legal actions, and tool observations. Methods may generate candidates,
+predict behavior, allocate evaluations, or critique assumptions, while the run
+record retains failed runs and rejected alternatives. ArchGym provides one such
 interface [@KrishnanEtAl2023ArchGym], and predictive design-space exploration
 has long used data-driven models for similar purposes
 [@IpekEtAl2006PredictiveDSE]. Apollo extends this idea across accelerator design
 spaces by training a surrogate on an architecture dataset
-[@yazdanbakhsh2021apollo]. The reliability of that transfer depends on the
+[@yazdanbakhsh2021apollo]. The credibility of its predictions depends on the
 dataset's schema, sampled-region coverage, tool versions, invalid-action labels,
 rejected regions, and proxy calibration.
 
-Chiplet studies add partitioning and die-to-die interfaces to the available
-design choices. For a UCIe-class interface, the study should specify what may be
-split across dies, the bandwidth,
-latency, power, and thermal measurements returned by the tools, the fixed
-package and software assumptions, and the evidence required before a candidate
+Chiplet exploration adds partitioning and die-to-die interfaces to the available
+design choices. For a UCIe-class interface, the architect should specify what
+may be split across dies, the bandwidth, latency, power, and thermal
+measurements returned by the tools, the fixed package and software assumptions,
+and the evidence required before a candidate
 can advance [@UCIeConsortium2026Spec].
 
-The executed array study in @sec-running-the-loop illustrates the boundary. SCALE-Sim could
-compare legal array geometries under one frozen workload packet, but that
-evidence did not establish a compiler path, memory-system behavior, RTL
-correctness, or physical feasibility. Recommending retention of the baseline
-was valid within the model-mediated evidence boundary; authorizing it remains
-separate. Promoting the same candidate toward implementation
-would move the study into a more demanding regime and require new evidence.
+The executed array study in @sec-running-the-loop illustrates the gap between
+simulator evidence and implementation evidence. SCALE-Sim could compare legal
+array geometries under one frozen workload packet, but that evidence did not
+establish a compiler path, memory-system behavior, RTL correctness, or physical
+feasibility. The results supported retaining the baseline for the simulated
+workload and metrics; authorizing implementation remains separate.
+Promoting the same candidate toward implementation would put the next decision
+in a more demanding regime and require new evidence.
 
 ::: {.callout-architect-checkpoint title="The Cross-Layer Rejection Check"}
-When an optimizer tunes against a local proxy such as core area, the loop must
-enforce its cross-layer boundary. Does the environment reject candidates that
-win only by pushing complexity into memory traffic, compiler support,
-verification, or SoC integration?
+When an optimizer tunes against a local proxy such as core area, check whether
+the harness includes checks for candidates that win only by pushing complexity
+into memory traffic, compiler support, verification, or SoC integration.
 :::
 
-The design-loop card records candidate parameters, workloads, constraints,
-tool configurations, and previously rejected regions. Generation, prediction,
-optimization, and critique can all help, but illegal actions, simulator
-mismatch, power or software incompatibility, and weak Pareto evidence can stop
-a candidate. Moving toward implementation requires stronger feedback and new
-approval.
+In this regime, AI may generate candidates, predict tool results, search the
+legal space, or critique assumptions. The method may rank candidates under the
+declared simulator or proxy, but implementation remains a separate decision.
+Illegal actions, simulator mismatch, power or software incompatibility, and
+weak Pareto evidence can stop a candidate. The architect decides whether
+stronger feedback warrants moving it toward implementation.
 
 ### Specialization and Executable Software Paths
 
@@ -340,10 +357,10 @@ Specialization can improve efficiency, but a domain is not one knob. It may be
 a kernel or model family, data type, memory pattern, programming model,
 deployment regime, latency envelope, product vertical, or software ecosystem.
 The golden-age argument for specialization [@HennessyPatterson2019GoldenAge]
-therefore requires a study to establish which properties are stable enough to
-specialize and which must remain programmable.
+therefore requires architects to establish which properties are stable enough
+to specialize and which must remain programmable.
 
-Before a local speedup can support a system claim, the study must account for
+Before a local speedup can support a system claim, the architect must account for
 the interface and software path. Amdahl's law
 [@Amdahl1967ValiditySingleProcessor], its multicore reinterpretation
 [@HillMarty2008AmdahlMulticore], and the accelerator-focused LogCA model
@@ -358,9 +375,10 @@ $$
 Here, $f$ is the improvable fraction of baseline time, $s$ is local speedup,
 and the $\epsilon$ terms are interface and software overheads normalized to the
 same baseline. The specialization helps only when each invocation does enough
-work to amortize those overheads. A study should therefore report the
-interface, software path, and end-to-end measurement rather than only the local
-speedup. @sec-the-rejection-bound applies a related cost model to design review.
+work to amortize those overheads. The resulting report should therefore include
+the interface, software path, and end-to-end measurement rather than only the
+local speedup. @sec-the-rejection-bound applies a related cost model to design
+review.
 
 A simplified LogCA-style calculation in @fig-logca-breakeven quantifies the
 interface tax [@AltafWood2017LogCA]. End-to-end speedup appears only after work per
@@ -440,22 +458,27 @@ plt.show()
 plt.close(fig)
 ```
 
-The three curves order the interface tax by coupling distance. The tightly
-coupled accelerator clears break-even after modest work per offload, while
-the off-chip module needs orders of magnitude more before offload wins at
-all. A specialization proposal that cannot state its expected work per
-invocation therefore cannot claim an end-to-end speedup.
+The curves show that greater coupling distance increases interface overhead and
+raises the amount of work needed to break even. The tightly coupled accelerator
+clears break-even after modest work per offload, while the off-chip module needs
+orders of magnitude more before offload wins at all. A specialization proposal
+that cannot state its expected work per invocation therefore cannot claim an
+end-to-end speedup.
 
-A benchmark name does not establish a stable domain. @fig-domain-specificity-shapes
-lists the properties that a specialization claim should characterize, including
-the kernel family, precision requirements, data movement, software interface,
-deployment constraints, drift risk, and test coverage. Together, these
-properties determine which design changes and conclusions are valid.
+A benchmark name does not establish a stable domain.
+@fig-domain-specificity-shapes asks what must remain stable before an architect
+can justify specialization. Its six surrounding groups cover the kernel family,
+data and precision, memory behavior, program interface, deployment conditions,
+and drift and verification.
 
 ![**Properties that define a specialization domain.** A domain-specific architecture specializes for a combination of kernel, precision, data-movement, interface, deployment, drift, and verification requirements, not for an application label alone.](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing that a domain-specific architecture study must characterize kernels, precision, data movement, interfaces, deployment constraints, drift, and verification needs before claiming specialization."}
 
-Once the domain requirements are clear, the software path determines whether
-the workload can use the specialized hardware. Halide-style
+The upper groups in @fig-domain-specificity-shapes describe the computation and
+data behavior the hardware will exploit. The lower groups describe the
+software interface, deployment envelope, and evidence needed to keep the claim
+valid as workloads and tools change. The specialization claim is only as broad
+as the combination of those conditions. Once they are clear, the software path
+determines whether the workload can use the specialized hardware. Halide-style
 algorithm/schedule separation, AutoTVM/Ansor-style measured schedules, and
 MLIR-style representations make the mapping choices explicit and allow
 compiler checks to reject invalid paths
@@ -464,12 +487,22 @@ compiler checks to reject invalid paths
 compiler IRs, libraries, runtimes, and generated code connect domain intent to
 hardware or deployment evidence (@fig-codegen-narrow-waist).
 
+![**The software path to specialized hardware.** Domain-specific architecture claims require executable software paths and evidence about correctness, performance, portability, and maintenance.](images/F10b-codegen-narrow-waist){#fig-codegen-narrow-waist width="92%" fig-alt="Narrow-waist diagram showing programming models, compiler representations, libraries, runtimes, and generated code connecting specialized hardware to evidence checks."}
+
+In @fig-codegen-narrow-waist, domain intent enters from the top, while
+architecture mechanisms and hardware constraints shape what can be built. The
+programming model, compiler IR, libraries, runtime, and generated code form the
+executable path that makes the specialized hardware usable. Tests, profiling,
+simulation, synthesis, and telemetry then return results about correctness,
+performance, portability, and maintenance. Reviewers use those results to test
+the architecture claim. A local kernel result cannot bypass this software path
+and still support that claim.
 
 Generative methods can help produce kernels and schedules because
 kernel-generation benchmarks keep correctness, compilation, profiling, and
 target behavior close to the artifact [@OuyangEtAl2025KernelBench;
 @WenEtAl2025MultiKernelBench]. An architecture claim also needs end-to-end
-software and hardware evidence. The loop card records the domain requirements,
+software and hardware evidence. The design-loop card records the domain requirements,
 kernel family, data layout, compiler IR, runtime interface, backend capabilities,
 tests, portability limits, and maintenance evidence. Its feedback budget is
 split. Declared automation may tune cheap, reversible kernel and schedule
@@ -494,27 +527,26 @@ complete system cannot use it.
 ::: {.callout-failure-mode title="The accelerator that won in isolation"}
 An AI-generated block posts a large kernel speedup, but the compiler cannot keep
 it busy, data movement dominates, and only hand-written code reaches the
-headline result. The loop measured the wrong thing. Price the interface and
-software path, then require a compiler-generated end-to-end measurement before
-promoting the candidate.
+headline result. The evaluation measured isolated kernel speedup instead of
+end-to-end behavior. Include the interface and software path, then require a
+compiler-generated end-to-end measurement before promoting the candidate.
 :::
 
 ```{=latex}
 \FloatBarrier
 ```
 
-![**The software path to specialized hardware.** Domain-specific architecture claims require executable software paths and evidence about correctness, performance, portability, and maintenance.](images/F10b-codegen-narrow-waist){#fig-codegen-narrow-waist width="92%" fig-alt="Narrow-waist diagram showing programming models, compiler representations, libraries, runtimes, and generated code connecting specialized hardware to evidence checks."}
-
-Preventing this failure requires the study to carry the software mapping
-through each stage of lowering. Some domain-specific or reconfigurable loops
-therefore make the compiler part of represented design state. A loop may
+Keeping a local kernel win from bypassing compiler and system checks requires
+the run record to carry the software mapping through each stage of lowering.
+Some domain-specific or reconfigurable searches therefore include the compiler
+in represented design state. An AI method may
 propose a custom compute unit, IR dialects, and lowering rules within a specified
 software contract. MLIR and CIRCT (Circuit IR Compilers and Tools)
 verifiers and legality checks,
 simulation, equivalence tests, and synthesis can reject stages of that path.
 Passing an early verifier does not establish semantic or physical validity.
-What such a loop must preserve is the paired record, sketched schematically
-in @lst-mlir-co-generation.
+The run record must preserve the hardware and software pair sketched
+schematically in @lst-mlir-co-generation.
 
 ```{.llvm #lst-mlir-co-generation lst-cap="**Schematic co-generated hardware and software IR:** Pseudo-MLIR showing the loop record, not executable CIRCT/MLIR."}
 // Schematic Architecture 2.0 loop record: co-generated HW and SW.
@@ -549,7 +581,7 @@ estimate before the design advances.
 
 ### Cross-Layer Co-Design
 
-Co-design studies examine interactions among software behavior, hardware
+Cross-layer co-design examines interactions among software behavior, hardware
 mechanisms, physical constraints, and system objectives. A single-layer
 optimization can therefore be locally correct and still make the complete
 system worse.
@@ -558,15 +590,15 @@ Consider a dataflow choice that reduces compute cycles but increases memory
 traffic, a topology change that improves one collective while worsening
 another, a cache change that improves average performance but increases tail
 latency, or a rack-level policy that saves power while violating service
-quality. The loop must represent more than one layer because the objective
-lives across layers.
+quality. The represented state must include more than one layer because the
+objective spans them.
 
 Data movement, memory locality, network contention, power and thermal headroom,
 and deployment policy can all invalidate a local compute improvement before
 expensive implementation evidence is gathered
 [@Horowitz2014Energy; @BarrosoHolzleRanganathan2019DatacenterAsComputer].
 
-A co-design study should therefore include workload phases, data movement,
+A co-design representation should therefore include workload phases, data movement,
 memory locality, network behavior, power and thermal constraints, compiler and
 runtime choices, and deployment policy. It should state which layer an
 automated optimizer may change, where independent feedback comes from, which
@@ -585,35 +617,40 @@ supplies independent feedback, what automation may execute or recommend, and
 who may approve the cross-layer tradeoff.
 :::
 
-At warehouse scale, a study must consider workloads, software, hardware,
+At warehouse scale, architects must consider workloads, software, hardware,
 networking, power, cooling, and operations together. Models, traces, and
 deployment measurements may all contribute evidence. A local improvement
 cannot advance when it violates a system objective, and cross-layer changes
 require approval from the responsible owners.
 
 In early accelerator, compiler, runtime, or system-interface work, the hardware
-target and the software path may both be changing. The study must evaluate their
-co-evolution instead of searching a fixed space. A new
+target and the software path may both be changing. The architect must evaluate
+them together instead of searching a fixed space. A new
 instruction, tensor unit, scratchpad policy, data layout, or runtime interface
 changes what software can express, while compiler, kernel, and workload
 feedback changes which hardware feature is worth keeping.
 
-Software feedback supports an architecture claim only when the study ties each
-code path to the hardware snapshot it targeted and the compiler rules that
+Software feedback supports an architecture claim only when the run record ties
+each code path to the hardware snapshot it targeted and the compiler rules that
 produced it, the checks and measurements returned, the failed runs and variants
 rejected, and the owner who reviewed the result.
 @fig-hardware-software-coevolution shows those two changing histories joined by
-one claim. Without that link, a strong generated kernel may prove only that one
-artifact matched one snapshot, not that the architecture improved.
+one claim.
 
 ![**Recording hardware and software changes together.** Early architecture work often changes the hardware target and software path at the same time. Both sides should be versioned with their artifacts, tests, measurements, rejected variants, architecture claim, and decision review.](images/F10c-hardware-software-coevolution){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware target state and software path state evolving together through a shared study record and review of an architectural claim by a named decision holder."}
 
-A rejection on either side must invalidate the paired claim or trigger a new
-evaluation against the revised hardware and software state.
+The left lane in @fig-hardware-software-coevolution versions the target
+specification, hardware snapshot, and implementation hooks. The right lane
+versions the software interface, generated path, and workload feedback.
+Changes in either lane can alter the other, so both feed one run record and one
+review by the decision holder. Without that link, a strong generated kernel may
+prove only that one artifact matched one snapshot, not that the architecture
+improved. A rejection on either side must invalidate the paired claim or
+trigger a new evaluation against the revised hardware and software state.
 
 ### Deployment Feedback and Migration
 
-Deployment-facing studies evaluate scheduling, serving, admission control,
+Deployment-facing work includes scheduling, serving, admission control,
 memory allocation, power management, placement, rollout policy, fleet
 telemetry, and performance isolation in real or representative systems. Their
 feedback can be more relevant than simulation, but it is also noisy,
@@ -622,7 +659,7 @@ scenarios, latency and power limits, cohort provenance, canary labels, privacy
 filters, drift tests, rollback triggers, and rollback outcomes. The report
 should distinguish a signal that supports a causal explanation from one that
 only warns that earlier evidence may no longer apply. Production telemetry can
-guide the next study, but rarely proves a design claim on its own.
+guide the next bounded study, but rarely proves a design claim on its own.
 
 Feedback also arrives at different times. Tool results may return during
 development, fleet telemetry after a rollout, and software improvements months
@@ -643,7 +680,7 @@ more than 38,000 migration commits. An AI-assisted repair tool was evaluated
 separately on a selected replay benchmark of 245 historical commits with
 identifiable build and test targets. It produced a passing repair for 30 percent
 of that benchmark, a directional result rather than a live fleet automation
-rate [@ChristopherEtAl2025ISAMigration]. The study reports no matched
+rate [@ChristopherEtAl2025ISAMigration]. The paper reports no matched
 conventional repair baseline, so the result does not by itself measure how much
 AI assistance improved the repair process.
 
@@ -662,21 +699,15 @@ particular model.
 | **Rejection checks and authority** | Build failures, test failures, sanitizer failures, crash loops, slow jobs, and monitor-triggered evictions. |
 | **Accountable decision** | Automated repair can clear only the cases its declared checks settle; application owners receive the exceptions. |
 
-: **Records for an ISA migration.** The study requires represented state,
+: **Records for an ISA migration.** The migration record requires represented state,
 independent checks, preserved failed cases, and application-owned exceptions.
 {#tbl-isa-migration-loop-card tbl-colwidths="[24,66]"}
 
 The most instructive result is what the evidence overturned. The paper describes
-the conventional wisdom that low-level code translation would dominate an ISA
-migration. In this record, most effort instead involved tests with x86-specific
-assumptions, build and release systems, and configuration rollout. The paper's
-Code Adaptation & Correction group held about 1 percent of the 38,156 commits
-and 3.5 percent of changed lines. Its Build, Deployment & Infrastructure
-Configuration group dominated commit counts, while Supporting Processes &
-Tools, including migration tooling, monitoring, and rollback, absorbed the
-largest share of changed lines (@fig-isa-migration-effort). The measured record
-therefore overturned a plausible prior without attributing that prior to every
-team or application owner.
+a conventional expectation that low-level code translation would dominate an
+ISA migration. @fig-isa-migration-effort compares that expectation with the
+recorded distribution of commits and changed lines across code adaptation,
+testing, build and deployment, and supporting tools.
 
 ```{python}
 #| label: fig-isa-migration-effort
@@ -768,12 +799,23 @@ plt.show()
 plt.close(fig)
 ```
 
-The migration record also reveals what any ISA proposal eventually owes.
+The blue bars in @fig-isa-migration-effort show that build, deployment, and
+infrastructure configuration account for about 87 percent of commits. The
+orange bars show that supporting processes and tools, including migration
+tooling, monitoring, and rollback, account for about 62 percent of changed
+lines. Code adaptation and correction account for only about 1 percent of
+commits and 3.5 percent of changed lines. Most recorded effort went to the
+interfaces and supporting systems around the code, not to low-level
+translation. That finding overturns a plausible prior without treating the
+prior as universal among application owners.
+
+The migration record also shows what evidence an ISA proposal ultimately
+needs.
 Arm and RISC-V are different targets, but both make generated code, ABI and
 memory-model assumptions, compiler and runtime behavior, libraries, tests, and
 rollout part of the architecture evidence. An automated proposal is credible
-only when the study shows which software survives that contract and which cases
-reach their application owner.
+only when the run record shows which software survives that contract and which
+cases reach their application owner.
 
 For deployment-facing work, the card should include operational state, workload
 drift, SLOs[^fn-systems-slo], resource contention, user
@@ -817,10 +859,9 @@ error can require another implementation cycle or survive into silicon.
 Evidence must survive independent checks, and a named role must authorize the
 next transition.
 
-For any subsystem study, this is the point where a candidate stops
-being a plausible design-space result and starts making claims that must
-survive RTL checks, physical constraints, power analysis, verification, and
-integration review.
+In this regime, a candidate stops being only a plausible design-space result
+and starts making claims that must survive RTL checks, physical constraints,
+power analysis, verification, and integration review.
 
 AI assistance is most useful here in critique, search narrowing, evidence
 organization, bounded repair, test generation, report summarization, and
@@ -830,9 +871,9 @@ can remove real bottlenecks while named reviewers retain final authority.
 
 Learning-assisted chip placement is a prominent example of a design subflow
 being formulated as a learning problem [@MirhoseiniEtAl2021GraphPlacement].
-Even when learning methods help with physical design, the study still needs
-tool constraints, baselines, provenance, rejection authority, and assigned
-decision rights.
+Even when learning methods help with physical design, a placement result still
+needs tool constraints, baselines, provenance, rejection authority, and
+assigned decision rights.
 
 Public reports show that learning methods can contribute in this regime.
 Vendor-reported reinforcement-learning systems have
@@ -841,31 +882,31 @@ searched the physical-implementation flow for commercial tapeouts at scale
 results for parallel-prefix circuits in an industrial process technology
 [@RoyEtAl2021PrefixRL].
 The evidence differs across these reports. PrefixRL reports peer-reviewed
-synthesis evidence, while the cited DSO.ai source is a vendor report. The
-AlphaChip record requires the more careful reading developed in
+synthesis evidence, while the cited DSO.ai source is a vendor report. Reviewing
+the AlphaChip evidence requires the careful treatment developed in
 @sec-feedback-verification-trust. Reviewers should judge each claim according
 to its evidence and independent checks. Cost also matters. A search that
 consumes many machine-hours per block is easier to justify when its result will
 be instantiated across many shipped units. The record should include the
 initial design state, allowed tool settings, tool versions, failed candidates,
-signoff checks, waivers, escalation points, and the person authorized to commit
-the result.
-Post-silicon bring-up and validation failures belong in that same record. They
-are high-authority evidence that should update
-future design-loop cards, weaken stale assumptions, and preserve the conditions
-under which earlier proxy or tool evidence stopped applying.
+signoff checks, waivers, escalation points, and the person authorized to make
+the final decision.
 
-The rejection authorities in this regime are strong. They include parsers, type checks,
-regression suites, formal tools, synthesis, timing, power analysis, layout
-rules, signoff flows, integration review, and expert judgment. A failure at
-this stage requires the study to revise its representation, action space,
-method, or claim.
+Post-silicon bring-up and validation failures belong in that same record. They
+provide direct evidence about realized behavior. Architects should use them to
+update future design-loop cards, retire stale assumptions, and record the
+conditions under which earlier proxy or tool evidence stopped applying.
+
+Parsers, type checks, regression suites, formal tools, synthesis, timing, power
+analysis, layout rules, signoff flows, integration review, and expert judgment
+can all reject a candidate. When one fails, the architect must revise the
+representation, action space, method, or claim before continuing.
 
 The public AlphaChip disagreement provides a neutral test of what
-high-consequence review must align before different teams can compare results.
+high-consequence review must align before independent groups can compare results.
 
 ::: {.callout-war-story title="Strong checks still produced incompatible conclusions"}
-**The claim.** The original AlphaChip team and later independent groups used synthesis, timing,
+**The claim.** The original AlphaChip authors and later independent groups used synthesis, timing,
 power, placement-rule, and expert review within their own flows
 [@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023AssessmentRL].
 
@@ -887,15 +928,16 @@ artifact, organize evidence, or generate tests. Independent tools and experts
 retain authority to reject the result, and the decision record names the owner
 and automation limit.
 
-## When the Loop Becomes Rejection-Bound {#sec-the-rejection-bound}
+## When Review Capacity Becomes the Bottleneck {#sec-the-rejection-bound}
 
-The four regimes can encounter the same practical limit. A team may assume that
-a slow design study needs more candidates, when the actual constraint is the
-rate at which candidates can be checked and decided. Just as a kernel can be
-memory-bound rather than compute-bound [@WilliamsWatermanPatterson2009Roofline],
-a design stage can become *rejection-bound*. If candidate proposals arrive at rate
-$\lambda_{\mathrm{propose}}$ while the trusted review path can settle them
-at rate $\mu_{\mathrm{review}}$, the stage is rejection-bound when
+The four regimes can encounter the same practical limit. Architects may assume
+that a slow architecture search needs more candidates even when tools and
+reviewers can settle only a few of the candidates already arriving. Just as a
+kernel can be memory-bound rather than compute-bound
+[@WilliamsWatermanPatterson2009Roofline],
+review can become the bottleneck. If candidate proposals arrive at rate
+$\lambda_{\mathrm{propose}}$ while the trusted review path can settle them at
+rate $\mu_{\mathrm{review}}$, review is the bottleneck when
 $\lambda_{\mathrm{propose}} > \mu_{\mathrm{review}}$. Candidate supply then
 builds a queue instead of increasing the number of reviewed decisions.
 
@@ -927,8 +969,9 @@ simple fraction of candidate count.
 
 An illustrative reading makes the ceiling concrete. With $f = 0.6$, a cheap
 check at 5 percent of reference cost, and 10 percent overhead, perfect routing
-yields $S_{\mathrm{review}} \approx 1.9$, and no cheap check, however free, can
-beat $1/(1-f) = 2.5$ until validated coverage itself rises
+yields $S_{\mathrm{review}} \approx 1.9$. Even if the preliminary check and
+overhead were free, the zero-overhead ceiling would remain
+$1/(1-f) = 2.5$ until validated coverage itself rises
 (@fig-rejection-bound-ceiling).
 
 ```{python}
@@ -1042,11 +1085,18 @@ reduce evaluations to a fixed-quality target without changing $f$. Search
 quality, evaluations to target, and review service cost therefore need separate
 measurements.
 
+Estimating $f$ requires a fixed task distribution and generator, labels for
+preliminary accepts and rejects, and random escalation from both groups to the
+high-fidelity reference. The cost calculation must include routing, queueing,
+audits, rework, and every case that still reaches the reference. Shared data,
+models, objectives, or tool paths between the producer and preliminary check
+must also be disclosed because they can create correlated blind spots.
+
 ```{=latex}
 \Needspace{30\baselineskip}
 ```
 
-::: {.callout-engineer-move title="Measuring a rejection-bound stage"}
+::: {.callout-engineer-move title="Measuring review capacity"}
 To estimate the model for a real AI-assisted study, define the measurement
 procedure before the run.
 
@@ -1064,51 +1114,56 @@ procedure before the run.
 Without these controls, $f$ is an assumption rather than a measurement.
 :::
 
-Only after those measurements can the study determine whether trusted review
-capacity is the limiting resource.
+Holding the task and generator fixed while auditing both preliminary outcomes
+allows architects to determine whether trusted review capacity is actually the
+limiting resource.
 
 ::: {#pri-rejection-bound .callout-design-principle title="Do not let proposals outrun review"}
-A stage is rejection-bound when proposals arrive faster than trusted review can
-settle them. In that regime, more candidates only lengthen the queue. Improve
-throughput by validating cheaper checks, reducing their cost, and cutting
-avoidable routing, audit, and escalation overhead. For search, also measure
-whether a better generator reaches the same quality with fewer evaluations.
+When proposals arrive faster than trusted review can settle them, more
+candidates only lengthen the queue. Improve throughput by validating cheaper
+checks, reducing their cost, and cutting avoidable routing, audit, and
+escalation overhead. For search, also measure whether a better generator
+reaches the same quality with fewer evaluations.
 :::
 
-The ISA-migration study supplies an illustrative automation result, not a
+The ISA-migration evaluation supplies an illustrative automation result, not a
 measured point on this model. Its 30 percent repair rate comes from a selected
 245-commit replay benchmark and combines generator behavior, benchmark
 selection, and build/test coverage [@ChristopherEtAl2025ISAMigration]. The
-study did not report the matched audits and service costs needed to estimate
-$f$. A proper measurement would hold the task distribution and generator fixed,
-audit both accepts and rejects at the reference fidelity, and record every
-service cost.
+paper did not report the matched audits and service costs needed to estimate
+$f$. Estimating it would require holding the task distribution and generator
+fixed, auditing both accepts and rejects at the reference fidelity, and
+recording every service cost.
 
-The arrival and service rates make the gap described in
-@sec-design-loop-no-longer-scales measurable without pretending the model is a
-general law of search. The gap widens when proposal and evidence demand grows
-faster than trusted review capacity. Fast software loops often have cheap
-checks and low escalation overhead. RTL and physical-design loops often have
-costlier references and more cases that must escalate. That operating
-difference, rather than raw candidate count alone, should shift the role mix
-toward critique, supporting evidence, and rejection.
+The arrival and service rates give a measurable form to the capacity gap in
+@sec-design-loop-no-longer-scales, but they are not a general law of search.
+Fast software work often has cheap checks and low escalation overhead. RTL and
+physical-design work often has costlier references and more cases that
+must escalate. That difference, rather than raw candidate count alone, shifts
+useful AI work toward critique, evidence review, and early rejection.
 
-## What Transfers Across Loops
+## What Transfers Across Operating Regimes
 
-Across the four regimes, the same study model transfers. Each study still needs
-a task, architectural claim, represented state, environment, bounded method
-work, evidence, rejection checks, decision rights, and a named decision owner. What does
-not transfer automatically is the authority of a workload assumption, baseline,
-proxy, failed run, or prior acceptance.
+The task, architectural claim, run record, and named decision owner remain
+necessary in all four regimes. What does not transfer automatically is the
+validity of a workload assumption, baseline, proxy, failed-run interpretation,
+or prior acceptance.
 
 The regime changes when feedback latency, reversibility, consequence, interface
-span, or check independence changes. The study's evidence and decision rights
-must change with it. Cheap feedback and local rollback can justify granting
-automation more execution rights. Expensive, irreversible, or system-wide
-decisions shift useful method work toward critique, evidence, independent
-challenge, and named decision rights.
+span, or check independence changes. The required evidence and decision rights
+must change as well. Cheap feedback and local rollback can justify letting the
+AI system execute more of the work. Expensive, irreversible, or system-wide
+decisions make critique, evidence review, and independent challenge more useful
+while named people retain authority for the decision.
 
-## Transfer Tests for a New Regime
+A coding agent can often continue after a test suite passes because the patch
+is inspectable and local rollback remains available. An architect cannot treat
+a passing test as authorization when the change crosses an ABI, alters a
+hardware interface, enters RTL, or supports a signoff decision. The task
+structure and tool feedback may transfer, but the evidence burden and
+permission to advance do not.
+
+### Transfer Tests for a New Regime
 
 Before reusing a method or artifact in another regime, ask three questions.
 
@@ -1120,69 +1175,84 @@ rejected regions. Parseable evidence can still be stale or out of scope.
 rejects against the new reference path. Estimate false-pass and false-reject
 behavior before using the check to avoid escalation.
 
-3. **Did the decision rights change?** A move across an interface or toward an
-irreversible decision may require a new rejector, waiver holder, recommender,
-or commit-right holder even when the method and artifact remain unchanged.
+3. **Did the AI role or decision rights change?** A move across an interface or
+toward an irreversible decision may turn an action AI could execute into one it
+may only recommend. It may also require different people to reject the result,
+approve a waiver, recommend the change, or make the final decision even when
+the method and artifact remain unchanged.
 
 These tests catch two common failures. A single-layer improvement can violate
 a system objective, and apparently current evidence can expire as the hardware
 target, compiler, runtime, or workload distribution changes. Transfer means
-re-earning scope and authority rather than copying prior results and approvals
-forward.
+revalidating the evidence and its scope, revising what the method may execute
+or recommend, and reassigning decision rights where necessary rather than
+copying prior results and approvals forward.
 
 ## Open Research Questions
 
-The operating regimes help identify which evidence and decision rules are
-likely to fail when a method moves across the computing stack. Several parts of
-that transfer still lack satisfactory measurements.
+The operating regimes show where evidence and decision rules are likely to fail
+when an AI method moves across the computing stack. Five problems remain open.
 
-1. **What evidence can transfer safely between operating regimes?**
-A workload result, proxy calibration, failed candidate, or accepted baseline
-may lose its meaning when the software path, tool version, interface, or cost of
-rollback changes. Research should define transfer conditions and test them on
-the same artifact as it moves from software tuning through simulation,
-implementation, and deployment.
+1. **When can evidence from an AI-assisted study transfer between operating
+regimes?** A workload result, proxy calibration, failed candidate, or accepted
+baseline may lose its meaning when the software path, tool version, interface,
+or cost of rollback changes. Research needs criteria for deciding which changes
+require revalidation as the same artifact moves from software tuning through
+simulation, implementation, and deployment.
 
-2. **How should review capacity be measured in a search process?**
-The service-cost model holds the proposal stream fixed, while real search
-methods change which candidates reach review. An empirical study should measure
-quality reached per evaluation, service cost per reviewed case, queueing, and
-the false-pass and false-reject rates of preliminary checks without attributing
-better proposals to faster review.
+2. **How can architects separate AI search quality from review capacity?** The
+service-cost model holds the proposal stream fixed, while an adaptive generator
+changes which candidates reach review. Quality reached per evaluation, service
+cost per reviewed case, queueing, and preliminary-check errors must be
+separated before faster progress can be attributed to better search or faster
+review.
 
-3. **How independent must a rejecting check be?**
-Two checks may use different tools while sharing training data, objective
-functions, abstractions, or hidden assumptions. A useful independence measure
-would identify those shared dependencies and test whether adding a nominally
-separate reviewer actually catches failures missed by the producer.
+3. **How independent must a check be from the AI method it reviews?** Two
+checks may use different tools while sharing training data, objective
+functions, abstractions, or hidden assumptions. A useful measure of independence
+would expose those dependencies and show whether a nominally separate check
+catches failure classes missed by the producer.
 
-4. **When does a local improvement survive the full system?**
-Compiler, runtime, accelerator, memory, network, and deployment changes can each
-look favorable in isolation while worsening the end-to-end objective. A
-cross-layer evaluation should preserve the local measurements and then test the
+4. **When does a local improvement found through AI-assisted search survive the
+full system?** A compiler, runtime, accelerator, memory, network, or deployment
+change can look favorable in isolation while worsening the end-to-end
+objective. The evaluation must therefore connect the local result to the
 complete software and hardware path under the same workload and decision
 criterion.
 
-5. **How long should architecture evidence remain valid?**
-Workloads, compilers, runtimes, tools, and process assumptions change at
-different rates. Research should make those dependencies explicit and test
-revalidation policies against historical changes, asking whether stale
-evidence is caught before it supports a new decision.
+5. **How long should evidence from an AI-assisted architecture study remain
+valid?** Workloads, compilers, runtimes, tools, and process assumptions change
+at different rates. A practical revalidation policy must catch stale evidence
+before it supports a new decision without recreating every result after each
+tool or workload change.
 
 ## Conclusion
 
-The four operating regimes range from fast software feedback to fleet
-deployment and silicon-facing work. The rejection-bound model describes one
-consequence of moving among them. For a fixed stream of comparable cases,
-adding proposals does not help once proposal arrival exceeds review capacity.
+Architects should use the operating regime to decide what an AI method may do
+and what must be checked before the next architecture decision. Fast,
+reversible work can allow more automated tuning under close tests. Model-mediated
+exploration needs matched baselines, proxy calibration, and new evidence before
+implementation.
+Cross-interface and deployment work adds interface owners, guarded rollout,
+telemetry limits, and rollback triggers. RTL, physical design, and signoff
+shift useful AI work toward search narrowing, critique, bounded repair, and
+evidence organization. Independent checks constrain the work, and named
+reviewers and decision owners decide whether it advances.
 
-A project should therefore identify its operating regime, feedback and rollback
-costs, decision rights, and final owner. If the stage is rejection-bound, it
-should also identify which validated preliminary checks can settle cases, how
-accepts and rejects are audited, and which review costs are actually avoided.
+In any of the four regimes, review can become the bottleneck. For a fixed stream
+of comparable cases, cheaper preliminary checks reduce review cost only for the
+cases they correctly settle. Audits, false passes, false rejects, routing, and
+rework count toward that cost, and only greater validated coverage raises the
+ceiling. Architects should first match AI work, evidence, checks, rollback, and
+decision rights to the operating regime, then determine whether proposals or
+trusted review are limiting progress.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** Classify the operating regime, adapt its evidence and rights, then test whether review capacity rather than proposal supply limits progress.
-- **Reader test:** Which operating regime are you in, what validated preliminary check can settle a case, and how are its accepts and rejects audited?
+- **Carry forward:** When the operating regime changes, revise what AI may do,
+  the required evidence and rejection checks, the rollback plan, and the
+  decision rights before advancing.
+- **Reader test:** For the next transition, can you explain what AI may do, what
+  can reject the result, how rollback works, and who may approve a waiver,
+  recommend the change, or make the final decision?
 - **Up next:** @sec-what-architect-owns examines what architects remain responsible for when work is delegated.
 :::
