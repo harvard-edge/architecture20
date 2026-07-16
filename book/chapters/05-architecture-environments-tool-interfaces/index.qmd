@@ -20,11 +20,10 @@ What must architecture tools expose so AI can use them correctly and another
 architect can understand the returned results?
 :::
 
-@sec-data-representations-world-models explained what must be represented for
-an AI-assisted architecture comparison. Representation alone does not make a
-tool flow usable. Consider an AI method evaluating a larger L2 cache with gem5, a
-full-system architecture simulator [@BinkertEtAl2011Gem5]. The method needs more
-than a command that starts the simulator. It needs to know which
+An explicit design representation does not make a tool flow usable. Consider
+an AI method evaluating a larger L2 cache with gem5, a full-system architecture
+simulator [@BinkertEtAl2011Gem5]. The method needs more than a command that
+starts the simulator. It needs to know which
 cache parameters it may change, which combinations are legal, which workload
 and warm-up rules are fixed, how long a run costs, what warnings mean, and
 which result would rule out the candidate. Another architect needs the same
@@ -43,23 +42,19 @@ architectural claim.
 > the required provenance and integrity information, and distinct outcome and
 > review paths.
 
-The execution specification in @sec-arch2-ontology covers the architecture
-question, comparison, and intended decision. Its *environment contract* covers
-the tool flow. A *harness* is the maintained runnable implementation of that
-contract, including workloads, versions, scripts, provenance, outcome records,
-and any review decisions. Later,
-@sec-methods-generation-prediction-optimization uses those fields to match AI
-method roles to the available feedback, and
-@sec-feedback-verification-trust asks what conclusions that feedback can
-support.
+The bounded study covers the architecture question, comparison, and intended
+decision. Its *environment contract* covers the tool flow. A *harness* is the
+maintained runnable implementation of that contract, including workloads,
+versions, scripts, provenance, outcome records, and review decisions. These
+fields let a method choose legal actions and let a reviewer determine what the
+returned feedback can support.
 
-The scoped consequence models in @sec-data-representations-world-models and an
-architecture environment answer different questions. A consequence model
-predicts or constrains what may happen after an action. The environment governs
-the actual tool interaction and records what happens. A simulator, surrogate,
-or rule set can contribute to both. The architect must identify whether each
-output is a prediction, a constraint, or an observation from the tool path
-before using it to support a claim.
+A scoped consequence model and an architecture environment answer different
+questions. The model predicts or constrains what may happen after an action.
+The environment governs the actual tool interaction and records what happens.
+A simulator, surrogate, or rule set can contribute to both. The architect must
+identify whether each output is a prediction, a constraint, or an observation
+from the tool path before using it to support a claim.
 
 For the L2 example, the contract would name the cache fields that may change,
 the fixed workload and warm-up rules, the units and aggregation of each
@@ -172,13 +167,13 @@ wrapper implements the distinctions, and the harness preserves the inputs,
 outputs, status, and provenance. Neither one decides what the architectural
 claim should be.
 
-The executed comparison in @sec-executed-scale-study provides a concrete
-example. Its action schema admitted only legal array geometries. SCALE-Sim
-returned cycle count and average layer utilization for accepted inputs, and the
-harness retained the raw outputs, status, elapsed time, simulator configuration,
-and candidate source. The fixed meanings and equal budgets let another
-architect interpret the resulting tie. They did not give the simulator or the
-proposal method authority to decide whether the baseline should advance.
+A completed SCALE-Sim comparison provides a concrete example. Its action schema
+admitted only legal array geometries. SCALE-Sim returned cycle count and average
+layer utilization for accepted inputs, and the harness retained the raw
+outputs, status, elapsed time, simulator configuration, and candidate source.
+The fixed meanings and equal budgets let another architect interpret the
+resulting tie. They did not give the simulator or the proposal method authority
+to decide whether the baseline should advance.
 
 ## From Tool Request to Review Record
 
@@ -278,10 +273,10 @@ between proposed changes and several tool stages. Three checks occur at
 different times. Before execution, schema checks ask whether the parameters,
 clocks, and interfaces are well formed. After execution, physical checks ask
 whether the candidate is routable and can meet timing, congestion, power, and
-IR-drop limits. Separately, the lifecycle checks in
-@sec-environment-lifecycle ask whether the harness still tests the intended
-architecture question. A late physical failure belongs to the evaluated
-candidate; it is not an illegal tool request.
+IR-drop limits. Separately, lifecycle checks ask whether the harness still
+tests the intended architecture question after tools, workloads, or interfaces
+change. A late physical failure belongs to the evaluated candidate; it is not
+an illegal tool request.
 
 Wrapping a commercial flow requires more than a thin API. The wrapper has to
 emit tool-specific scripts, parse unstructured reports, survive
@@ -549,10 +544,10 @@ versions, seeds, budgets, baselines, and physical checks are part of
 the comparison, not incidental implementation details.
 :::
 
-The SCALE-Sim comparison in @sec-running-the-loop illustrates the opposite
-case. Its two arms use the same simulator version, workload, legal geometries,
-evaluation budget, parser, and objective, so another architect can attribute
-the observed tie to the evaluated candidates rather than a changed tool setup.
+The completed SCALE-Sim comparison illustrates the opposite case. Its two arms
+use the same simulator version, workload, legal geometries, evaluation budget,
+parser, and objective, so another architect can attribute the observed tie to
+the evaluated candidates rather than a changed tool setup.
 
 To compare methods fairly, the architect must hold the task, represented state,
 evaluation budget, feedback, and outcome rules constant, or document exactly
@@ -611,8 +606,8 @@ formats, and comparison conventions that help a community interpret results
 what an AI method may try, which actions are invalid, what feedback means, and
 how each outcome is handled, including who reviews an unresolved result.
 Publishing a script without that contract leaves the important assumptions
-private. @sec-environment-lifecycle returns to the versioning and revalidation
-needed after the first paper.
+private. A maintained interface must also version and revalidate those
+assumptions after the first paper or release.
 
 A maintained harness adds shared workloads, versions, permissions, and review
 records around the wrapper. It preserves the task and workload versions,
@@ -647,10 +642,9 @@ and physical feedback. The ranges are not universal measurements, and higher
 cost does not make an observation automatically authoritative. Each run needs
 its tool stage and version, elapsed cost, fidelity, raw observations, and
 outcome status. When a run fails, the record should identify which action
-triggered it if the cause can be established.
-@sec-methods-generation-prediction-optimization uses those fields to choose
-methods; @sec-feedback-verification-trust examines when observations can
-support a stronger claim.
+triggered it if the cause can be established. A selection policy can then use
+those fields to choose the next affordable observation, while a reviewer uses
+the fidelity and scope to decide whether it supports a stronger claim.
 
 The cost structure is a multi-fidelity problem familiar in computational
 science, where many cheap observations are combined with fewer expensive ones
@@ -660,7 +654,7 @@ to make optimization and uncertainty quantification affordable
 must expose the observation sources and their costs. The architect must define
 when the method should request a more expensive evaluation.
 
-[^fn-stats-uncertainty-quantification]: Uncertainty quantification here means recording where an environment's observations are uncertain or unsupported. @sec-feedback-verification-trust develops the consequence for evidence.
+[^fn-stats-uncertainty-quantification]: Uncertainty quantification here means recording where an environment's observations are uncertain or unsupported so a method or reviewer knows when stronger feedback is needed.
 
 ```{python}
 #| label: fig-fidelity-cost-confidence
@@ -781,13 +775,12 @@ vector capability requires evidence that the compiler and runtime can
 generate a credible path to use it; the existence of an ISA feature is insufficient.
 
 The environment should return each observation with its source, cost,
-provenance, fidelity, and outcome status.
-@sec-methods-generation-prediction-optimization uses this information to choose
-a method and decide which observation to request next, including in active
-learning.[^fn-ml-active-learning] @sec-feedback-verification-trust asks what
-claims the returned observation can support.
+provenance, fidelity, and outcome status. A method can use this information to
+decide which observation to request next, including in active
+learning.[^fn-ml-active-learning] The reviewer still determines which claims
+the returned observation can support.
 
-[^fn-ml-active-learning]: Active learning selects which scarce simulator run, synthesis run, deployment measurement, or expert assessment to request next [@Settles2009ActiveLearning]. @sec-methods-generation-prediction-optimization defines that selection policy; an environment must provide the selectable actions and record the resulting call.
+[^fn-ml-active-learning]: Active learning selects which scarce simulator run, synthesis run, deployment measurement, or expert assessment to request next [@Settles2009ActiveLearning]. The environment must provide the selectable actions and record the resulting call.
 
 ```{=latex}
 \FloatBarrier
@@ -835,9 +828,9 @@ an unsupported parameter corner, relying on a stale workload slice, or shifting
 cost into a compiler/runtime path the current harness does not measure. The
 harness should run invalid-action checks, baseline replay, and sensitivity
 tests. The architect should define when a proxy win or inconclusive check
-requires stronger tool feedback or reviewer inspection.
-@sec-feedback-verification-trust develops the calibration and evidence checks
-for these failures.
+requires stronger tool feedback or reviewer inspection. Calibration evidence
+must show where the proxy preserves a ranking and where a stronger check
+overturns it.
 
 Architecture-tool integrity can also fail when a trace is poisoned, a baseline
 or dependency changes without being recorded, or a log or tool result is
@@ -864,8 +857,8 @@ declared condition, the tool path failed, or the result requires review. The
 task should be narrow enough that its actions, observations, constraints, and
 rejection conditions can be stated without private knowledge.
 
-The steps below make that tool path usable in the reviewable architecture
-comparison defined in @sec-architecture-20-ontology.
+The steps below make that tool path usable in a reviewable architecture
+comparison.
 
 **Environment recipe.** The following steps construct a small Architecture 2.0 environment whose action rules, observations, and outcome paths can be tested.
 
@@ -891,12 +884,11 @@ environment for a new subfield is often narrow. A bounded workload, legal
 action space, documented wrapper, and recorded outcomes let a method propose
 candidates and let a reviewer reconstruct what happened to each one.
 
-@sec-running-the-loop shows this narrow-start recipe in practice with one
-workload, one simulator configuration, one legal geometry family, two
-equal-budget arms, and one mechanism probe. That contract was enough to check
-candidate legality, preserve tool costs and results, and interpret a narrow
-null comparison without implying coverage of the entire accelerator design
-process.
+A narrow SCALE-Sim study applies this recipe with one workload, one simulator
+configuration, one legal geometry family, two equal-budget arms, and one
+mechanism probe. That contract is enough to check candidate legality, preserve
+tool costs and results, and interpret a narrow null comparison without implying
+coverage of the entire accelerator design process.
 
 The same contract applies to a single hardware prefetcher. Its actions are
 prefetch depth and pattern. A cycle-level simulator returns cheap feedback on
