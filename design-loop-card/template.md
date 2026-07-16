@@ -44,7 +44,7 @@
 
 **Observations, fidelity, and blast-radius limit:**
 
-## Method Roles
+## Method Role
 
 **Actors, roles, reads, writes, and limitations:**
 
@@ -62,24 +62,22 @@ input and output artifacts, scope, uncertainty or limitation, and content hashes
 Distinguish environment failures, invalid candidates, rejected alternatives,
 failed rejection checks, and superseded records.
 
-## Rejection Checks (`gates` in the Machine Schema)
+## Rejection Checks and Authority (`gates` and `decision_rights` in the Machine Schema)
 
 Each entry is one predeclared pass/fail check that may reject a candidate or
 block a claim. Record its category, criterion, result, authority, waiver rule,
 evidence links, and disposition. Do not use this field for workflow stages,
 design changes, reviewers, or general quality goals.
 
-## Claims
+Name who may propose, execute, reject, waive, recommend, and commit, including
+the scope and conditions of each right.
+
+## Evidence-Supported Claim Boundary (`claims` in the Machine Schema)
 
 For each architectural or AI-contribution claim, record its ID, type, statement,
 baseline or comparator, outcome, scope, non-claims, status, and evidence links.
 
-## Decision Rights
-
-Name who may propose, execute, reject, waive, recommend, and commit, including
-the scope and conditions of each right.
-
-## Decision and Owner
+## Accountable Decision
 
 Record status, holder, action, rationale, claim links, authorized scope,
 timestamp when decided, and conditions that would reopen the decision. The

@@ -1,4 +1,4 @@
-# Representations and Scoped Predictive Models {#sec-data-representations-world-models}
+# Representing Architecture State and Consequences {#sec-data-representations-world-models}
 
 ::: {.epigraph}
 > *"The limits of my language mean the limits of my world."*
@@ -7,380 +7,365 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** The philosopher Ludwig Wittgenstein argued that language constrains what we can conceive. The architectural version is narrower. A method can optimize and a reviewer can audit only the state recorded by the representations, tools, and checks. If an HDL has no field for a design concept, a generator may still mention it, but the study cannot test the concept until the representation is extended.
+**Author's Note:** The philosopher Ludwig Wittgenstein argued that language constrains what we can conceive. The architectural version is narrower. An AI method can change only the design state exposed to it, and a reviewer can examine only evidence that remains connected to that state. If an architecture description has no way to express a coherence assumption, for example, a generator may mention it but a tool cannot check how the candidate handles it.
 :::
 
 ```{=latex}
-\abstract*{Representation is one of the first hard problems in Architecture 2.0. An automated method needs a recorded view of the design state it may read and change. That record must connect versions, actions, observations at several fidelities, failed runs, rejected alternatives, and architect decisions. A scoped consequence model predicts or constrains what follows from a proposed action. This material reserves the term architecture world model for the action-conditioned predictive case. A separate replay package contains the inputs and environment needed to rerun the work.}
+\abstract*{Before an AI method can change an architecture, it needs an explicit account of the current design, the proposed change, and the conditions that change must satisfy. That representation must connect versions, actions, anticipated effects, model predictions, tool observations at several fidelities, costs, provenance, failed runs, rejected alternatives, decisions, and their owners. A scoped consequence model predicts or constrains what may follow from a proposed action. A separate replay package contains the inputs and environment needed to rerun the evaluation.}
 ```
 
 ::: {.callout-crux}
-What must an architecture study record before an AI-assisted method can
-act and a reviewer can audit the resulting architectural claim?
+What must be represented about a design, a proposed change, and its consequences
+so AI can act and another architect can trace the result?
 :::
 
-The design-loop card introduced in @sec-architecture-20-ontology includes a
-representation field and the scoped models associated with it. The discussion
-covers the state a study records, the consequences a model predicts or
-constrains, and the assumptions reviewers must be able to inspect. That ordering is
-deliberate. It is tempting to begin Architecture 2.0 by asking which model, agent
-framework[^fn-sw-agent-framework], or optimization method to use. But a method can only act on what the
-loop can represent. *If the relevant state is invisible, a more capable model may simply move faster in the wrong direction.*
+Suppose an AI optimizer proposes a larger L2 cache and a simulator reports fewer
+misses. An architect still cannot judge the proposal without knowing which
+workload ran, which cache parameters changed, which simulator configuration
+produced the result, and how the candidate compares with the baseline. A lower
+miss count under a different prefetcher or workload slice does not establish
+that the larger cache helped.
 
-[^fn-sw-agent-framework]: An agent framework is a software structure defining how an autonomous system perceives its environment, reasons, and acts to achieve goals. No framework can act on state the representation never recorded, so its choice is secondary to designing the loop state it reads.
-
-Architecture lacks paired records more than it lacks isolated examples. Such
-records show what designers intended, what they tried, what the tools observed,
-and what they decided at each version and fidelity level.
-Architecture does not need data in the same way a large language model trained
-on web text[^fn-ml-language-model-data-contrast] needs text.
-The central question is how to represent scarce architecture data so that a loop can act on
-it and a human can audit it.
-Small datasets are one risk. A more serious one is that a generative method
-trained on public text may act as if it knew state that was never recorded.
-
-[^fn-ml-language-model-data-contrast]: The relevant contrast is data shape. A web language model can learn from abundant public text; an architecture loop needs recorded state, provenance, tool outcomes, failed runs, and rejected alternatives that final prose usually omits.
+@sec-architecture-20-ontology defined a bounded architecture study through its
+question, comparison, evidence, and intended decision. To carry out the L2
+comparison, the current design state and every proposed change must be explicit.
+The representation records the current state, the proposed change, the
+effect the architect or AI method anticipates, any model prediction used, the
+observation returned by the tool, and the decision that followed. A scoped
+model may predict or constrain the
+consequences of the change, but it does not replace the record of what actually
+ran. If a workload choice, coherence assumption, or rejected candidate remains
+hidden in a script or in an architect's memory, the AI method cannot reliably
+account for it and another architect cannot reconstruct the result.
 
 ::: {.callout-learning-objectives}
-After this chapter you can turn an architecture prompt, result, or artifact
-into an actionable loop-state record for automation. That means you can:
+After this chapter you can identify the design state an AI method needs and the
+records another architect needs to trace its result. Specifically, you can
 
-- **Explain** why architecture data is not web data, because it is sparse, tool-bound, and full of state the final paper omits;
-- **Treat** a feedback event as a sample with recorded cost, fidelity, and provenance;
-- **Spot** undocumented design state, missing failed runs, and missing rejected alternatives in an AI-assisted loop;
-- **Recognize** the paired, versioned, multi-fidelity trajectory records needed to connect a design action to its outcome;
-- **Tell** a study's architecture representation apart from a scoped consequence model, and recognize when the stricter term *world model* applies.
+- **Explain** why papers, repositories, and benchmark results omit design state that AI-assisted work needs;
+- **Connect** a design version, proposed action, anticipated effect, model prediction, tool observation, decision, and decision owner in one traceable trajectory;
+- **Record** the cost, fidelity, scope, and provenance of each observation;
+- **Spot** undocumented assumptions, failed runs, and rejected alternatives that could mislead later action;
+- **Distinguish** represented state from a scoped model that predicts or constrains the consequences of a proposed change.
 :::
 
-## Why Architecture Data Is Not Web Data
+## What an Architecture Representation Must Connect
 
-Architecture differs from the domains that thrived on scraped data. Many successful AI systems benefit from abundant public text, images, code,
-logs, or interaction traces. Architecture work is different. Some useful
-material is public, including papers, textbooks, manuals, open-source tools, benchmark
-descriptions, and selected design artifacts. But much of the state that makes
-an architecture decision meaningful is not public, not standardized, and not
-preserved in the final paper. Some of it is tacit knowledge. It includes the design-review
-habit that recognizes a fragile assumption, the instinct that a simulator
-result is outside its calibrated regime, the memory of why a workload slice was
-excluded, or the experience that a supposedly local change will become a
-verification problem later.
+An architecture representation connects information that final artifacts often
+separate. It does not need to be one monolithic file. It may span a
+configuration schema, workload manifest, candidate table, run log, review
+record, and version-control history, provided those artifacts refer to the same
+design versions and proposed changes.
 
-ImageNet, a massive benchmark dataset for object recognition, is the useful foil. Its value was not that images happened to exist on the web. The challenge made a large public image collection comparable through
-curation, labels, tasks, splits, and shared evaluation rules
-[@RussakovskyEtAl2015ImageNet]. Architecture does have public text and some
-public artifacts, but it rarely has the matching record of design intent, tool
-state, failed candidates, and review decisions that would let a loop learn what
-an architect actually learned.
+> **Architecture representation.** An architecture representation records the
+> design state an AI method can read, compare, and propose changing, together
+> with enough history for another architect to inspect the result. It provides
+> three related views.
+>
+> - **Current-state view:** The workload, design state, constraints, and fields available at one version.
+> - **Trajectory view:** The proposed actions, anticipated effects, model predictions, tool observations, failed runs, rejected alternatives, and decisions that produced that version.
+> - **Context view:** The assumptions, uncertainty, cost, fidelity, provenance, tool versions, and other conditions needed to interpret the state and trajectory.
 
-The missing state matters. Workload traces may be proprietary or too large to
-share. Simulator configurations may live in scripts rather than in the paper.
-EDA reports may be confidential or tied to licensed process assumptions.
-Labels may require expert judgment. Negative results are rarely published.
-High-fidelity measurements may be slow, expensive, or unavailable until late
-in the design process. The cost of a wrong action is also different. A weak
-answer in a question-answering task may be corrected immediately. A weak
-architecture proposal can consume weeks of simulation, mislead a design
-review, or push effort toward a candidate that cannot survive synthesis,
-timing, power, or software integration.
+@fig-trajectory-record shows how these views connect over time. Begin at design
+state V1. The record identifies a proposed action and the consequence the
+architect or AI method anticipates. Evaluation produces an observation with its
+cost, fidelity, and provenance. If the decision owner accepts the change, the
+decision advances the design to V2. A rejected action remains attached to V1
+with the observation and decision that stopped it. The rejected branch does not
+disappear merely because it did not produce the next version.
+
+![**A versioned trajectory records accepted and rejected work.** Each iteration links the prior design state, proposed action, anticipated effect, tool observation, cost, fidelity, provenance, and decision. A rejected candidate remains associated with the state and action that produced it, so later work can account for the failure.](images/F5a-trajectory-record){#fig-trajectory-record width="100%" fig-alt="Two-iteration trajectory diagram. From design state version one, a proposed action and anticipated effect lead to a tool observation tagged with cost, fidelity, and provenance and then to a decision that either produces design state version two or retains the rejected candidate with its failure record. A second iteration repeats the sequence from design state version two."}
+
+The value of @fig-trajectory-record lies in the links, not in any particular
+storage format. A later AI method can see which action produced an observation
+and avoid retrying a known failure. A reviewer can trace a claimed improvement
+back to the workload, candidate version, prediction, tool run, and decision that
+advanced it. A collection of final artifacts does not preserve those links.
+
+## The Architecture Description Defines What May Change {#sec-architecture-descriptions-as-boundary-objects}
+
+The current-state view needs a concrete description of the design and the
+fields an AI method may propose changing. That description is one part of the
+broader representation. The trajectory and context views connect it to proposed
+changes, tool observations, and decisions over time.
+
+Return to the proposed L2-cache change. Capacity and associativity may live in a
+simulator configuration, the workload in a benchmark manifest, and the
+coherence and software assumptions in design documentation. Those artifacts
+must refer to the same candidate version. The description must also distinguish
+the fields that may change from the workload, coherence contract, and other
+conditions that remain fixed.
+
+The shared description serves as a *boundary object*, an object that different
+communities use for their own work while still recognizing the same underlying
+thing [@StarGriesemer1989BoundaryObjects]. An architect must be able to inspect
+it, a tool must be able to consume it, and an AI method must be able to propose
+changes without silently altering the comparison.
+
+At minimum, an architecture description should identify the design version,
+the fields that may change and their units, the fixed constraints and
+invariants, and the tools that consume the description. In the L2 example, the
+record might show a current capacity of 1 MiB, a proposed capacity of 2 MiB,
+and an unchanged line size, prefetcher, coherence assumption, and workload
+version. The environment defined in
+@sec-architecture-environments-tool-interfaces applies the declared legality
+checks and records whether the proposed change passes, fails, or requires
+review.
+
+The relevant fields depend on the architecture work. A memory-hierarchy
+description may include cache sizes, associativity, replacement policy,
+prefetching, coherence assumptions, bandwidth, latency, and workload mix. An
+accelerator or compute-subsystem description may instead include supported
+operations, data layout, local storage, vector width, dataflow, quantization,
+compiler and runtime assumptions, and fallback behavior. A paper-reading task,
+simulator-driven search, RTL-generation task, and post-silicon telemetry task
+should not use identical records. They do need explicit mutable fields and
+fixed invariants before an AI method proposes a change.
+
+## Representing What a Design Change May Do {#sec-toward-architecture-world-models}
+
+The representation records the current design, the proposed change, and what
+happened to earlier candidates. Choosing the next change also requires an
+estimate of what that change may do. Architects already use simulators,
+analytical models, learned surrogates, design rules, and constraint checkers for
+that purpose. An AI method needs their valid inputs and limits stated
+explicitly.
+
+> **Scoped consequence model.** A scoped consequence model estimates what a
+> proposed change may do or evaluates it against a declared constraint. It may
+> be a simulator, surrogate (a cheap learned stand-in), analytical predictor,
+> rule system, or constraint model. Its record states which design states and
+> proposed actions it covers, how it was calibrated, and which consequences it
+> cannot evaluate.
+>
+> **Architecture world model.** An architecture world model predicts a next
+> state or architectural consequence from the represented design and a proposed
+> action. This adapts the world-model idea from reinforcement learning
+> [@HaSchmidhuber2018WorldModels]. A constraint checker that evaluates a
+> declared rule remains useful, but it does not predict what follows from an
+> action that passes. The environment enforces the check and records its result.
+> Architects and reviewers still judge the engineering result, and the named
+> decision owner decides what happens next.
+
+Predictive design-space exploration used configuration-based performance
+models long before current generative AI systems
+[@IpekEtAl2006PredictiveDSE]. Return to the L2 example. The proposal may
+anticipate that a larger cache will reduce misses. A predictor may estimate how
+large that reduction will be. A later simulator run returns the miss count for
+a named workload and configuration. The anticipated effect explains why the
+change was proposed, the prediction is the model's estimate, and the
+observation is what the tool returned. The trajectory keeps all three
+distinct.
+
+@tbl-representation-consequence-model-boundary distinguishes the first two
+roles. A simulator configuration records the workload, flags, and candidate
+parameters. The simulator uses that represented state to estimate what a cache
+change or array geometry will do. Even when the configuration and simulator are
+packaged together, the run record should distinguish the represented inputs
+from the model or simulator that used them. A replay package serves another
+purpose.
+It contains the runnable inputs, environment, and expected observations needed
+to repeat the run.
+
+| **Example** | **What the representation records** | **How a consequence model uses it** |
+| --- | --- | --- |
+| Simulator configuration | Records flags, model version, workload slice, seed, and command. | Defines the inputs and settings under which the simulator predicts behavior. |
+| Candidate parameter table | Records declared choices and candidate values. | Feeds a surrogate or rule system that predicts latency, energy, area, or invalidity. |
+| Constraint file | Records declared limits and assumptions. | Supplies the rule a checker evaluates before the environment records pass, fail, or review. |
+| Failed run log | Records what happened, with provenance. | Can train or update a model of invalid regions and escalation conditions. |
+
+: **Representations carry the inputs and history; consequence models estimate what a change may do.** An architecture world model predicts from represented state and a proposed action. A replayable artifact does not establish that the action will remain valid under new workloads, tools, or fidelity levels. {#tbl-representation-consequence-model-boundary tbl-colwidths="[20,35,35]"}
+
+@fig-architecture-world-model separates a model prediction from a tool
+observation. Read the top row from left to right. The representation supplies
+the current design, workload, constraints, and prior results. The proposed
+action records the field and new value together with the anticipated effect.
+The scoped model then returns a prediction within its stated limits.
+
+![**Prediction and observation follow different paths.** The proposal records an anticipated effect. The represented state and action feed a scoped consequence model that returns a prediction; the same state and action feed a declared tool path that returns an observation with its status, cost, fidelity, and provenance. The trajectory keeps the state, action, prediction, observation, failures, and decision connected. Replay additionally requires runnable inputs and environment details.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Diagram showing represented state and a proposed action feeding a scoped consequence model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a trajectory record that retains provenance, coverage, failures, and the decision. A note says replay additionally requires runnable inputs and environment details."}
+
+The lower path in @fig-architecture-world-model receives the same represented
+state and proposed action. The environment applies the declared checks, invokes
+the tool, and records either an observation or a failure with its status, cost,
+fidelity, and provenance. The trajectory keeps the model prediction and tool
+observation connected to the same state and action, together with coverage,
+failures, and the decision that followed. A replay package separately supplies
+the runnable inputs and environment details.
+
+The distinction matters when an AI method uses a cheap predictor to rank a
+thousand cache configurations. The simulator or implementation flow named in
+the plan returns an observation that a reviewer may later use as evidence for a
+specific claim. @sec-architecture-environments-tool-interfaces examines the
+interface that makes those actions and observations executable. When a
+simulator serves as the consequence model, its output predicts the behavior of
+the represented design. When the environment executes that same simulator, the
+run record also preserves its returned value as a simulated observation. One
+value therefore fills two roles, and the record must still identify its source
+and avoid presenting it as an RTL, silicon, or deployment measurement.
+
+The SCALE-Sim case in @sec-executed-scale-study provides a concrete example.
+SCALE-Sim 3.0.0 is a cycle-accurate simulator for systolic accelerators
+[@RajEtAl2025ScaleSimV3]. Here it maps a represented workload and proposed array
+geometry to predicted cycle count and utilization. Because the prediction
+depends on both represented state and proposed action, SCALE-Sim also fits the
+architecture world-model definition used here. The language-model proposal
+method and the deterministic baseline each receive four simulator runs. That
+comparison becomes meaningful only after the workload, geometry limits,
+simulator settings, and unsupported consequences are explicit.
+@sec-executed-scale-study evaluates the proposal methods and results.
+@tbl-executed-study-world-model shows exactly what SCALE-Sim sees and what its
+predictions leave out.
+
+| **World-model field** | **Executed SCALE-Sim comparison** |
+| --- | --- |
+| **Represented state** | Frozen three-layer general matrix-multiplication (GEMM) workload, transposed mechanism-probe workload, declared array-geometry bounds, weight-stationary dataflow, 128 KiB SRAMs, and fixed interface bandwidth. |
+| **Action under evaluation** | Propose a row-by-column array geometry within a declared 1,024-processing-element budget. |
+| **Anticipated effect** | The proposed nonbaseline geometries were intended to lower the local score relative to the 32 by 32 baseline. The language-model proposal also anticipated that 16 by 64 would beat 64 by 16 and that the ordering would reverse after M and N were exchanged. |
+| **Predicted consequence** | For an accepted input, SCALE-Sim 3.0.0 predicts cycle count and average layer utilization for that workload-geometry pair. |
+| **Scope and limits** | One simulator version, dataflow, memory configuration, workload slice, and score; the replay package records every setting and output. |
+| **Unsupported consequence** | Energy, area, compiler effects, RTL feasibility, physical design, and performance outside the frozen workload are not evaluated. |
+| **Controls, checks, and decision** | Equal four-run budgets and a shared baseline control the comparison. The 1 percent margin determines whether an observed score supports the outcome claim. The transposition probe checks the proposed mechanism, and replay checks the recorded computation. The named decision owner determines whether the result warrants further work or stopping. |
+
+: **SCALE-Sim predicts the effect of a proposed action in this comparison.** It maps the represented workload and proposed geometry to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
+
+Architecture world models may be simulator-backed, learned, symbolic, or
+hybrid. Each use must limit predictions about action consequences to a stated
+scope. The environment in @sec-architecture-environments-tool-interfaces
+enforces the declared input and legality checks, then records the observation
+or failure returned by the tool. The world model predicts what an action that
+passes those checks may do within its stated scope.
+
+Confidence in the model depends on calibration evidence within its declared
+scope. Distribution shift[^fn-ml-distribution-shift], new
+workloads, different software stacks, tool changes, or stronger evaluation can
+place a proposed state or action outside the range covered by that calibration.
+Architects should report enough scope and calibration for reviewers to judge
+the prediction.
+
+The SCALE-Sim runs returned cycle and utilization observations for the stated
+performance scope. When related to the frozen claims and comparison controls,
+those observations became evidence for a null architecture result and a tie
+between the two proposal methods. No nonbaseline candidate cleared the
+preregistered improvement margin, and the matched transposition probe
+contradicted the proposed explanation. The named decision owner may use that
+evidence to retain the baseline or authorize further work; neither proposal
+method nor SCALE-Sim makes that decision. The experiments did not evaluate
+energy, area, compiler behavior, RTL, or physical design. The tie, null result,
+and rejected explanation remained in the trajectory alongside the model and its
+stated limits.
+
+[^fn-ml-distribution-shift]: Distribution shift occurs when the data a model meets in use differ from the data used to fit or calibrate it, which can reduce accuracy [@QuinoneroCandelaEtAl2009DatasetShift]. The trajectory therefore records the workloads, design region, and other conditions used for calibration.
+
+## What Public Architecture Artifacts Leave Out
+
+Architecture offers papers, textbooks, manuals, open-source tools, benchmark
+descriptions, and selected design artifacts. These sources usually preserve
+endpoints, such as a paper's winning design or a repository's latest RTL. They
+rarely preserve the path to that endpoint, including simulator settings,
+excluded workloads, proposed changes, failed candidates, and review decisions.
+
+An AI method acting on a design needs those links. Public text can teach
+architectural concepts and summarize reported results, but it cannot recover a
+workload revision, tool option, or rejected candidate that was never recorded.
+Nor are there many public records that connect each design version to what was
+tried, what the tools returned, and what the architect decided. Those
+connections, rather than the volume of available text, determine whether the
+artifacts can support action and review.
+
+Workload traces may be proprietary or too large to share. Simulator
+configurations may live in scripts, and EDA reports may depend on confidential
+process assumptions. Negative results are rarely published, while
+high-fidelity measurements may arrive only after substantial engineering work.
+These conditions change what counts as usable data. A paper may be sufficient
+for retrieval or question answering and still omit the settings needed to rerun
+the comparison or propose a valid change. When that context is missing, an
+automated search can spend days evaluating a candidate that violates a known
+constraint or targets the wrong workload.
 
 Standardized benchmark suites such as SPEC CPU and MLPerf make scores
 comparable by publishing workload versions, run rules, system configurations,
 and reporting conventions [@SPEC2017CPU; @MattsonEtAl2020MLPerf]. Architecture
-studies need comparable records for candidate provenance, simulator
-settings, excluded workloads, and rejected alternatives.
+work needs comparable records for candidate provenance, simulator settings,
+excluded workloads, and rejected alternatives.
 
-::: {.callout-note title="The prompt was not the study state"}
-The executed study in @sec-executed-scale-study asked a language model to propose
-array shapes and a mechanism, but the prompt alone did not define the experiment.
-The study record separately froze the three-layer GEMM workload, its transposed
-variant, the 1,024-processing-element boundary, legal geometries, the SCALE-Sim
-configuration, the score, the improvement margin, equal per-arm budgets, and the
-mechanism test. It then preserved every proposal, validation result, simulator
-observation, and conclusion. The prompt proposed the first action, but
-reviewers could audit it only because the study also recorded the workload,
-constraints, tool settings, and results.
-:::
+@tbl-web-vs-arch-data compares the records commonly available for large-scale
+model training with the records needed to act on an architecture design.
 
-This is why internet-scale recipes transfer poorly if they are used naively.
-Architecture data is sparse, expensive, tool-bound, and full of hidden
-constraints, a contrast @tbl-web-vs-arch-data summarizes.
-
-| **Dimension** | **Web Data (Internet-Scale AI)** | **Architecture Data (Architecture 2.0)** |
+| **Dimension** | **Large text, code, or image corpora** | **Architecture design trajectories** |
 | --- | --- | --- |
-| Abundance | Hundreds of trillions of tokens. | Sparse; bound by slow simulation and engineering time. |
-| Format | Mostly unstructured text, code, and images. | Heavily state-based, including tool flags, workloads, constraints, failed runs, and rejected alternatives. |
-| Visibility | Publicly accessible (scraped corpora). | Often proprietary, tacit, or lost after publication. |
-| Feedback Cost | Cheap (e.g., fast automated grading or immediate user correction). | Expensive (hours/days of cycle-level simulation or physical synthesis). |
-| Cost of Failure | Low (a poor chat response is easily ignored). | High (a poor design choice wastes compute budgets or fails timing). |
+| Unit of data | A document, code file, image, or labeled example can often stand on its own. | A useful record links design state, proposed action, anticipated effect, model prediction, tool observation, and decision. |
+| Availability | Large public or licensed collections can be assembled. | Workloads, tool settings, reports, and review decisions are often private, fragmented, or discarded. |
+| Required context | Local metadata and curation rules may be enough to interpret an example. | Workload, tool version, fidelity, constraints, provenance, and design version determine what an observation means. |
+| Failed work | Noisy or low-quality examples may remain in a corpus. | Failed runs and rejected alternatives are often omitted even though they define where a design or proxy stopped working. |
+| Acquisition cost | Existing public artifacts can be collected without rerunning the process that produced them. | New high-fidelity observations may require long simulations, implementation work, scarce tools, or hardware measurements. |
 
-: **Architecture data violates common web-corpus assumptions.** Recipes built for abundant public corpora and cheap proxy feedback transfer poorly when treated as sufficient for architecture loops, because architecture evidence is sparse, tool-bound, costly, and often private. {#tbl-web-vs-arch-data tbl-colwidths="[20,40,40]"}
+: **Architecture work depends on connected records.** Text, code, and images remain useful sources of knowledge, but AI-assisted design also requires versioned state, actions, observations, and decisions. {#tbl-web-vs-arch-data tbl-colwidths="[20,40,40]"}
 
-The right response is representation design. Record enough state for methods to
-act within the boundaries of what is known,
-what is assumed, and what must still be checked. The representation records that
-state and its history. A scoped consequence model predicts or constrains what an
-action would do.
+The missing links are scattered across different places. Papers and
+open-source tools expose some settings and artifacts, while commercial EDA
+context and review decisions often remain private. Rejected work may be
+discarded entirely. Public metadata can catalog what exists, but it cannot
+recover simulator options, workload revisions, or decisions that were never
+recorded. @sec-appendix-c-architecture-20-resources discusses how to catalog
+and maintain those public resources.
 
-> **Architecture representation.** An architecture representation is the
-> architecture study's implementation-facing record of what a method
-> can read, compare, and update. The design-loop card points to this record
-> rather than containing it. An implementation may provide three views of that
-> one representation field:
->
-> - **Current-state view:** Workload, design state, constraints, and the fields available at a particular version of the loop.
-> - **Trajectory view:** Actions, observations, provenance, failed runs, rejected alternatives, and decisions that explain how the current state was reached.
-> - **Context view:** Assumptions, uncertainty, tool versions, and other boundary conditions needed to interpret the first two views.
+ChipNeMo shows both the value and the limit of domain text. Hardware-design
+material can improve a language model's performance on related tasks
+[@LiuEtAl2023ChipNeMo], but that material does not reconstruct the trajectory
+behind a specific architecture change.
 
-This representation records the available study state. The study also needs
-scoped ways to predict consequences and reject invalid actions.
+## Record the Cost and Fidelity of Each Evaluation {#sec-sample-cost-is-architecture-data}
 
-> **Scoped consequence model.** A scoped consequence model is a simulator,
-> surrogate (a cheap learned stand-in), analytic predictor, rule system, or
-> constraint model that predicts or constrains the consequences of a proposed
-> action. It declares the state it reads, its supported action range, its
-> calibration or authority, and the conditions it cannot evaluate.
->
-> **Architecture world model.** This book reserves *architecture world model*
-> for the action-conditioned predictive subset of those models. Adapting the
-> world-model idea from reinforcement learning [@HaSchmidhuber2018WorldModels],
-> it maps represented state plus a proposed action to a predicted next state or
-> architectural consequence. A constraint checker that only rejects an illegal
-> action is useful, but it is not necessarily a world model. Human judgment and
-> authority remain outside both.
+Architecture evaluations take different forms. A cycle-level simulation,
+compiler report, failed synthesis run, power estimate, rejected floorplan,
+expert review, and silicon measurement consume different resources and support
+different conclusions. The record should link the prior state and proposed
+action to the returned value or failure, then preserve the cost, fidelity,
+provenance, coverage, and decision that followed.
+@sec-architecture-environments-tool-interfaces explains how a run harness can
+capture these fields when it invokes a tool.
 
-The boundary test in @tbl-representation-consequence-model-boundary is simple.
-A representation records the state a loop can read. A consequence model
-predicts or constrains what an action would do. The same artifact can contribute
-to both roles, but the loop must say which role it is playing. A replay package
-is not a third role. It ties recorded state to runnable inputs, environment,
-provenance, and expected observations.
-
-| **Example** | **Representation role** | **Consequence-model role** |
-| --- | --- | --- |
-| Simulator configuration | Records flags, model version, workload slice, seed, and command. | Defines what action-conditioned behavior the simulator predicts and where its calibration fails. |
-| Candidate parameter table | Records legal choices and candidate values. | Feeds a surrogate or rule system that predicts latency, energy, area, or invalidity. |
-| Constraint file | Records declared limits and assumptions. | Rejects actions that violate timing, power, interface, or policy boundaries. |
-| Failed run log | Records what happened, with provenance. | Updates the loop's belief about invalid regions and escalation rules. |
-
-: **Representation records state; consequence models predict or constrain action outcomes.** An architecture world model is the action-conditioned predictive case, not a synonym for every rule or checker. A replayable artifact still does not prove that an action will remain valid under new workloads, tools, or fidelity levels. {#tbl-representation-consequence-model-boundary tbl-colwidths="[20,35,35]"}
-
-An order-of-magnitude example makes the web-versus-architecture contrast
-sharper. Assume 100,000 paper-equivalent public artifacts at an average of
-10,000 tokens each. These are stated assumptions, not a corpus inventory:
-$$
-T_{\mathrm{arch\text{-}text}}
-\approx
-N_{\mathrm{artifacts}} \times \bar{t}_{\mathrm{artifact}}
-\approx
-10^5 \times 10^4
-\approx 10^9 \ \mathrm{tokens}.
-$$
-The resulting billion-token scenario sounds large, but it is small by
-web-scale pretraining[^fn-ml-pretraining] standards. Neither input is a measured
-count, and changing either assumption changes the result proportionally.
-Worse, it is incomplete in the wrong way. Papers preserve accepted
-claims far better than failed
-configurations, simulator flags, workload revisions, EDA reports, review
-arguments, and rejected alternatives. Architecture 2.0 therefore cannot treat
-"all architecture text" as the dataset. The dataset must include the loop
-state that made the text credible, and it must record enough tacit judgment for
-a reviewer to trace assumptions, exclusions, and rejection decisions.
-The token count matters only because it limits what a generative method can infer about
-action authority. Text may retrieve concepts, but it cannot recover which
-candidate was legal, what feedback was observed, why alternatives were rejected,
-or who accepted the risk.
-
-[^fn-ml-pretraining]: Pretraining is the computationally intensive initial phase of training a large machine learning model on a massive, general dataset before it is fine-tuned for specific tasks. It matters here because even the illustrative billion-token architecture-text scenario is tiny next to the web-scale corpora that make pretraining effective, so the field cannot simply reuse the scrape-everything recipe.
-
-To visualize the scale check, @fig-token-scale-contrast puts the constructed
-architecture-text scenario on the same log-scale
-axis as three public AI-data anchors: the 1.4 trillion tokens used to train
-DeepMind's Chinchilla model, Meta's report that Llama 3.1 405B was trained on more than 15 trillion
-tokens, and a public human-text-stock estimate on the order of hundreds of
-trillions of tokens
-[@HoffmannEtAl2022Chinchilla; @MetaAI2024Llama31; @VillalobosEtAl2024DataLimits].
-Architecture should not respond by racing to scrape the web. Under the two
-stated assumptions, the scenario sits more than three orders of magnitude below
-a single 2022 training run and more than five below the estimated public
-human-text stock. The more important missing records are not ordinary text at
-all.
-
-```{python}
-#| label: fig-token-scale-contrast
-#| fig-cap: |
-#|   **An illustrative architecture-text scenario is small by web-scale standards:** The $10^9$-token architecture bar is constructed from two stated assumptions, 100,000 paper-equivalent artifacts and 10,000 tokens per artifact; it is not a measured corpus inventory. The three comparison anchors are cited values: Chinchilla's 1.4T-token training run, Meta's report of more than 15T pretraining tokens for Llama 3.1 405B, and a roughly 400T public human-text stock estimate. Architecture needs linked, versioned study trajectories more than additional text volume.
-#| out-width: "100%"
-#| fig-alt: "Scale comparison plot showing that public architecture text is small relative to web-scale language-model corpora, while linked architecture-study trajectories are often missing."
-
-import matplotlib.pyplot as plt
-from _python.arch2_plots import COLORS, add_note_box, apply_style, row_axis, top_log_axis
-
-# Source receipt: data/source-receipts/chapter4-architecture-data-receipt.csv
-# Stated values transcribed from sources, not recomputed here: Chinchilla 1.4T
-# training tokens [@HoffmannEtAl2022Chinchilla]; Llama 3.1 405B reported as
-# over 15T pretraining tokens [@MetaAI2024Llama31]; ~400T public human text
-# stock scale anchor [@VillalobosEtAl2024DataLimits]. The 1B architecture-text
-# figure is this book's own back-of-envelope check (10^5 artifacts x 10^4
-# tokens per artifact). As-of: 2026-07-13.
-rows = [
-    {"display_label": "illustrative architecture-text scenario", "display_note": r"assumed 100k artifacts $\times$ 10k tokens", "right_label": "1B*", "tokens": 1_000_000_000, "color": COLORS["blue"]},
-    {"display_label": "Chinchilla training run", "display_note": "Hoffmann et al. 2022", "right_label": "1.4T", "tokens": 1_400_000_000_000, "color": COLORS["green"]},
-    {"display_label": "Llama 3.1 405B pretraining", "display_note": "Meta reports over 15T tokens", "right_label": ">15T", "tokens": 15_000_000_000_000, "color": COLORS["orange"]},
-    {"display_label": "public human text stock", "display_note": "Villalobos et al. 2024 scale anchor", "right_label": "~400T", "tokens": 400_000_000_000_000, "color": COLORS["purple"]},
-]
-
-apply_style()
-fig, ax = plt.subplots(figsize=(4.65, 2.35))
-fig.subplots_adjust(left=0.43, right=0.86, top=0.78, bottom=0.30)
-
-row_axis(ax, len(rows))
-top_log_axis(
-    ax,
-    xlim=(1e8, 1e15),
-    xticks=[1e8, 1e9, 1e12, 1e15],
-    xticklabels=[r"$10^8$", r"$10^9$", r"$10^{12}$", r"$10^{15}$"],
-    xlabel="log-scale token count",
-    tick_fontsize=6.5,
-)
-
-for y, row in enumerate(rows):
-    token_count = row["tokens"]
-    color = row["color"]
-    ax.axhline(y, color=COLORS["row"], linewidth=0.7, zorder=0)
-    ax.hlines(y, 1e8, token_count, color=color, linewidth=2.2, zorder=2)
-    ax.scatter([token_count], [y], marker="s", s=18, facecolor=COLORS["note_fill"], edgecolor=color, linewidth=0.9, zorder=3)
-    ax.text(-0.97, y - 0.17, row["display_label"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=6.8, fontweight="bold", color=COLORS["ink"], clip_on=False)
-    ax.text(-0.97, y + 0.25, row["display_note"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.5, color=COLORS["muted"], clip_on=False)
-    ax.text(1.04, y, row["right_label"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=6.8, fontweight="bold", color=color, clip_on=False)
-
-add_note_box(fig, "The missing architecture data are linked study trajectories,\nrather than a larger public text collection.", xywh=(0.09, 0.055, 0.82, 0.13), fontsize=6.3)
-
-plt.show()
-plt.close(fig)
-```
-
-The constructed token count is not a corpus estimate or the main claim.
-@tbl-architecture-data-scarcity compares what is publicly visible at each data
-layer with the information that architecture studies usually omit. The main
-shortage is not text volume. It is the lack of records connecting design
-actions to tool results and subsequent decisions.
-
-| **Data layer** | **Rough public visibility** | **What is missing for Architecture 2.0** |
-| --- | --- | --- |
-| Published papers, manuals, and tutorials | Public and mostly textual. | Failed runs, rejected alternatives, exact workload slices, scripts, seeds, and review rationale. |
-| Open-source RTL, simulators, compilers, and benchmarks | Public but heterogeneous and version-sensitive. | Tool settings, run provenance, invalid configurations, and cross-tool disagreement. |
-| Commercial EDA reports, PDK assumptions, and signoff context | Often private or redacted. | Timing, power, physical, waiver, and closure evidence tied to the claim. |
-| Design reviews and engineer memory | Usually tacit. | Why an experiment was abandoned, which proxy was distrusted, and who accepted risk. |
-| Paired design trajectories | Rarely public as connected, versioned records. | The state before an action, the action taken, observations at each fidelity, the rejection or acceptance, and the architect's decision. |
-
-: **Architecture data scarcity is about missing design trajectories, not only token count.** Public text is useful, but the decisive records connect versioned state, actions, observations, provenance, rejected alternatives, and decisions across fidelity levels. {#tbl-architecture-data-scarcity tbl-colwidths="[26,28,36]"}
-
-The data gap is therefore concrete. Architecture needs paired, versioned,
-multi-fidelity trajectories rather than collections of final artifacts alone.
-Each trajectory connects the state before an action, the action itself, the tool
-or human observation, the fidelity and provenance of that observation, the
-resulting rejection or acceptance, and the decision that changed the next
-state (@fig-trajectory-record). The rejected branch is kept rather than pruned,
-its failure record still tied to the state and action that produced it. Without
-those links, a dataset may show what survived without showing what the design
-process learned.
-
-![**A versioned trajectory records accepted and rejected work.** Each iteration links the prior design state, proposed action, observation, cost, fidelity, provenance, result, and decision that produced the next version. A rejected candidate remains associated with the state and action that produced it, so later work can account for the failure.](images/F5a-trajectory-record){#fig-trajectory-record width="100%" fig-alt="Two-iteration trajectory diagram. From design state version one, an accepted action leads through an observation tagged with cost, fidelity, and provenance to a decision that produces state version two, while a second action from the same state leads to a rejected candidate whose failure record stays linked. A second iteration repeats the sequence from state version two to state version three."}
-
-The assumption table in @tbl-architecture-data-scale-check is a scale check that separates the easy
-counts from the hard missing records. The multiplication that gives $10^9$
-tokens is deliberately simple, and the public surfaces we can count most easily are not the
-same thing as architecture loop state.
-Treat the counts themselves as a July 2026 release snapshot, not a long-lived
-benchmark.
-
-| **Input** | **July 2026 release snapshot** | **What it supports** | **Caveat** |
-| --- | --- | --- | --- |
-| **Public architecture, systems, and EDA artifacts** | $10^5$ paper-equivalent artifacts | Order-of-magnitude basis for the $10^9$-token scale check. | Assumption for intuition; not a measured corpus boundary. |
-| **Tokens per paper-equivalent artifact** | $10^4$ tokens per artifact | Transparent multiplication: $10^5 \times 10^4 = 10^9$. | Tokenization and artifact length vary; manuals and specifications can be much larger. |
-| **DBLP title pilot** | 1,015 title records from selected years of major architecture conferences (ISCA, MICRO, HPCA, and ASPLOS) | Shows that public metadata is easy to collect and useful for trajectory signals. | Title-only pilot; not full text, artifacts, tool state, or design-loop evidence. |
-| **Missing loop-state records** | Not counted | The highest-value architecture data are traces, configs, logs, reports, reviews, negative results, and rejected candidates. | Much of this state is private, tacit, uncodified, or discarded before publication. |
-
-: **The architecture-data scale check is an assumption log, not a corpus claim.** The current $10^9$-token estimate comes from transparent back-of-the-envelope assumptions, and the DBLP pilot is a metadata proxy, not a measured corpus boundary. {#tbl-architecture-data-scale-check tbl-colwidths="[23,19,26,22]"}
-
-The useful lesson from the scale check is the mismatch. Titles pulled from DBLP
-(the public computer-science bibliography) and repository counts
-can map a public surface, but they cannot recover simulator flags, failed
-configurations, workload revisions, or review arguments. The repository-count
-snapshots, and the questions of mining and maintaining that public surface,
-belong in @sec-appendix-c-architecture-20-resources. The representation
-requirement here is narrower. Public artifacts become useful loop data only
-when they can be connected into paired design trajectories that include
-provenance, rejected alternatives, and decisions.
-
-Results from other domains reinforce the distinction without changing it.
-BioBERT, ClinicalBERT, and Med-BERT adapted models to biomedical text, clinical
-notes, and structured health records
-[@LeeEtAl2020BioBERT; @HuangEtAl2019ClinicalBERT; @RasmyEtAl2021MedBERT].
-ChipNeMo similarly adapted language models to hardware-design text for
-question-answering, script drafting, and bug-report summarization
-[@LiuEtAl2023ChipNeMo]. SQuAD and GLUE showed how shared, scoreable examples can
-organize evaluation [@RajpurkarEtAl2016SQuAD; @WangEtAl2018GLUE]. These examples
-show that domain format matters. They do not supply the paired tool and decision
-records an architecture loop needs. Text adaptation can improve access to
-knowledge, but it does not reconstruct a multi-fidelity design trajectory.
-
-## Sample Cost Belongs in the Trajectory {#sec-sample-cost-is-architecture-data}
-
-In architecture, the cost of obtaining feedback is part of each sample. A
-sample is not merely an input-output pair, such as a question and answer, an
-image and label, or a prompt and reference response. It is a recorded
-simulator run, synthesis result, expert review, or other observation tied to
-the candidate and action that produced it. It might be a cycle-level simulation, a
-compiler report, a failed synthesis run, a power estimate, a rejected
-floorplan, an expert review, or a silicon measurement. Each event has a cost,
-fidelity, and provenance. Its value comes from being connected to the state and
-action that produced it and to the rejection, acceptance, or revision that
-followed.
-
-Each recorded observation should therefore identify the prior state and action,
-the result, its cost, fidelity, provenance, and coverage, and the decision that
-followed. None of this is a form an engineer fills in after the fact. In a
-well-built loop the environment records these fields at run time, as a side
-effect of executing the action
-(@sec-architecture-environments-tool-interfaces); the representation question
-is what the harness must capture, not who does the paperwork.
-
-The record must therefore preserve the burden and context of the observation,
-not only its value. A
-simulator point may require setup time, tool availability, license access,
-calibration work, human triage, provenance, coverage context, and the
-opportunity cost of not evaluating another candidate. A post-layout result may
-have higher fidelity but also higher latency and risk. A field deployment
-measurement may be authoritative for one population and irrelevant for another.
-These observations become a multi-fidelity trajectory only when the record also
-links each one to the candidate version it evaluated and the next decision it
-changed.
+These costs cannot be reduced to a single number. A simulation may consume
+little compute but wait for a license; a prototype may depend on shared hardware
+and days of engineering work. A post-layout result may be more realistic than
+an analytical estimate, but it also arrives later and covers fewer candidates.
+A field measurement may describe one deployed population and say little about
+another. Recording these constraints separately helps an AI method choose an
+evaluation it can actually run and helps an architect judge what the result can
+support.
 
 Concrete architecture tools span this range. Analytical mapping and dataflow
 models are designed for broad design-space exploration
 [@ParasharEtAl2019Timeloop; @KwonEtAl2019MAESTRO]. Physical-design and
 verification flows occupy the other end of the spectrum, where feedback can
-take hours or days and the human and engineering cost becomes part of the
-sample itself
+take hours or days and the engineering effort belongs in the evaluation record
 [@MirhoseiniEtAl2021GraphPlacement; @SemiconductorIndustryAssociation2026ChipDesign; @BauerEtAl2020SemiconductorDesignManufacturing; @Foster2022WilsonVerificationStudy].
-@tbl-sample-cost-regimes is therefore a representation checklist. If the row
-changes, the loop must record different state.
+@tbl-sample-cost-regimes shows how the required context changes with the source
+of feedback. Read each row from the time and resources needed to obtain an
+observation, through what that observation can reveal, to the information a
+later method or reviewer would need in order to reuse it.
 
 | **Feedback source** | **Latency / cost intuition** | **What it reveals** | **Record for reuse** |
 | --- | --- | --- | --- |
-| Analytical model or mapper | Milliseconds to seconds; low direct cost; high model-risk exposure. | Useful for pruning and sensitivity checks, not final evidence. | Model assumptions, workload slice, constraints, and proxy-validity notes. |
-| Trace, profile, or replay | Seconds to hours depending on capture and replay setup. | Workload provenance is part of the sample. | Trace version, sampling policy, software stack, and filtering choices. |
-| Cycle-level simulation | Minutes to days depending on model detail and target workload. | Simulator evidence is scoped by abstraction, calibration, and unsupported states. | Simulator version, configuration, seeds, workload revision, and calibration notes. |
-| RTL, gate-level, or EDA feedback | Hours to days when synthesis, timing closure, power analysis, or physical DRC/LVS feedback enters the loop. | High-fidelity samples are scarce and multiobjective. | Tool versions, constraints, process assumptions, waived warnings, and rejected candidates. |
-| FPGA, emulation, or prototype | High setup and shared-resource cost; high throughput once mapped. | Speed changes observability and debugging semantics, not only wall-clock time. | Mapping constraints, observability limits, debug hooks, and queue/resource state. |
+| Analytical model or mapper | Milliseconds to seconds; low direct cost; results depend heavily on model assumptions. | Supports pruning and sensitivity checks within the model's scope. | Model assumptions, workload slice, constraints, and proxy-validity notes. |
+| Trace, profile, or replay | Seconds to hours depending on capture and replay setup. | Reveals workload behavior under a stated capture or replay policy. | Trace version, sampling policy, software stack, and filtering choices. |
+| Cycle-level simulation | Minutes to days depending on model detail and target workload. | Returns a simulated observation scoped by abstraction, calibration, and unsupported states. | Simulator version, configuration, seeds, workload revision, and calibration notes. |
+| RTL, gate-level, or EDA feedback | Hours to days for synthesis, timing closure, power analysis, or physical DRC/LVS. | Supplies scarce, multiobjective implementation observations. | Tool versions, constraints, process assumptions, waived warnings, and rejected candidates. |
+| FPGA, emulation, or prototype | High setup and shared-resource cost; high throughput once mapped. | Higher speed changes observability and debugging semantics as well as wall-clock time. | Mapping constraints, observability limits, debug hooks, and queue/resource state. |
 | Post-silicon bring-up or validation | Weeks to months and high acquisition cost. | Real hardware reveals integration, timing, power, reliability, and validation failures that earlier evidence missed. | Hardware stepping, firmware or microcode version, test context, failure mode, waiver, and owner. |
-| Field or fleet telemetry | Months to years and operationally confounded. | Real deployment shows workload drift, cohort effects, incidents, rollback triggers, and user-visible regressions. | Population, deployment version, sampling policy, privacy filter, incident context, and decision owner. |
+| Field or fleet telemetry | Months to years; deployment changes can complicate interpretation. | Real deployment shows workload drift, cohort effects, incidents, rollback triggers, and user-visible regressions. | Population, deployment version, sampling policy, privacy filter, incident context, and decision owner. |
 
-: **Cost, fidelity, and scope of feedback.** A feedback event is useful only when the representation records its cost, assumptions, and the decisions it can support or reject. {#tbl-sample-cost-regimes tbl-colwidths="[20,24,24,22]"}
+: **Cost, fidelity, and scope change across evaluation paths.** The representation records the resources, assumptions, and context needed for a reviewer to judge what each observation can support. {#tbl-sample-cost-regimes tbl-colwidths="[20,24,24,22]"}
 
-For tools like simulators, the timing side of this cost is multiplicative. A simulator is not slow in the abstract; it
-is slow relative to the target cycles the workload demands. For a target clock
+Cheap feedback supports broad screening but carries more model risk.
+Implementation and deployment observations may support stronger claims after
+review, yet only a small number of candidates can receive them. The
+representation must preserve which evaluation path produced each observation
+so that a proxy result is not mistaken for implementation evidence.
+
+For tools like simulators, the timing side of this cost is multiplicative.
+Simulation cost depends on the target cycles the workload demands and the rate
+at which the simulator executes them. For a target clock
 $f_{\mathrm{target}}$, workload duration $T_{\mathrm{workload}}$, and
 simulation throughput $R_{\mathrm{sim}}$, the wall time is
 $$
@@ -388,88 +373,22 @@ T_{\mathrm{wall}} =
 \frac{N_{\mathrm{cycles}}}{R_{\mathrm{sim}}}
 = \frac{f_{\mathrm{target}} \times T_{\mathrm{workload}}}{R_{\mathrm{sim}}}.
 $$
-For a 1 GHz target, @tbl-simulation-time shows the corresponding wall-clock time.
-Read each row as a span of target execution time, each column as a
-simulator throughput, and each cell as the wall-clock time to simulate that
-span. One second of a 1 GHz target takes about 11.6 days at 1 kcycle/s but only
-10 s at 100 Mcycle/s. The rates are illustrative, but the multiplication is the
-point. For example, evaluating a cache prefetcher on a 10-second database query
-trace would take about 116 days at the illustrative 1 kcycle/s rate. An
-automated optimizer therefore cannot search a large parameter space at that
-fidelity; it must first use a faster proxy and then escalate selected
-candidates. A loop can afford many cheap proxy samples, fewer cycle-level
-samples, and very few high-fidelity samples unless it has a disciplined plan
-for escalation and rejection.
-
-```{python}
-#| output: asis
-#| echo: false
-import math
-
-def human_time(s):
-    if s < 60:
-        return f"{s:g} s"
-    m = s / 60
-    if m < 60:
-        return f"{m:.1f}".rstrip("0").rstrip(".") + " min"
-    h = s / 3600
-    if h < 24:
-        return f"{h:.1f}".rstrip("0").rstrip(".") + " h"
-    d = s / 86400
-    if d < 365:
-        return f"{d:.1f}".rstrip("0").rstrip(".") + " days"
-    y = d / 365
-    return (f"{y:.1f}".rstrip("0").rstrip(".") if y < 10 else f"{y:.0f}") + " years"
-
-def sci(x):
-    e = int(math.floor(math.log10(x)))
-    m = x / 10 ** e
-    return f"$10^{{{e}}}$" if abs(m - 1) < 0.05 else f"${m:g}\\times 10^{{{e}}}$"
-
-freq = 1e9
-workloads = [("1 ms", 1e-3), ("1 s", 1.0), ("1 min", 60.0), ("1 h", 3600.0)]
-rates = [("1 kcycle/s", 1e3), ("100 kcycle/s", 1e5), ("10 Mcycle/s", 1e7), ("100 Mcycle/s", 1e8)]
-
-rows = [
-    "| **Target workload at 1 GHz** | **Target cycles** | " + " | ".join(f"**{r[0]}**" for r in rates) + " |",
-    "|:--|:--|" + "|".join([":--:"] * len(rates)) + "|",
-]
-for wname, dur in workloads:
-    cyc = freq * dur
-    cells = " | ".join(human_time(cyc / rate) for _, rate in rates)
-    rows.append(f"| {wname} | {sci(cyc)} | {cells} |")
-rows.append("")
-rows.append(
-    ": **Target cycles turn simulator throughput into wall-clock pressure.** Even "
-    "simple workloads become expensive when target execution time is multiplied by "
-    "target frequency and divided by simulation throughput. Wall-clock values are "
-    "computed from the cycle count and rate. {#tbl-simulation-time}"
-)
-print("\n".join(rows))
-```
-
-Plotted on log-log axes, the same multiplication becomes four parallel cost
-lines, one per throughput, and a shaded one-day band shows how little of the
-table a single working day can buy (@fig-simulation-wallclock). At the
-illustrative 1 kcycle/s rate only the 1 ms workload finishes within a day; at
-100 Mcycle/s even the one-hour workload still fits. Because a faster simulator
-shifts its whole line down by the same factor at every workload, the only ways
-to pull a run inside the band are higher throughput, a shorter workload slice,
-or accepting fewer high-fidelity samples.
+@fig-simulation-wallclock plots this relationship for four illustrative
+throughputs at a 1 GHz target. The shaded band marks runs that finish within one
+day.
 
 ```{python}
 #| label: fig-simulation-wallclock
 #| fig-cap: |
-#|   **A one-day budget cuts across the wall-clock lines:** Each line plots the illustrative wall-clock time $T_{\mathrm{wall}} = f_{\mathrm{target}} \times T_{\mathrm{workload}} / R_{\mathrm{sim}}$ for one simulator throughput at a 1 GHz target, and the markers are the sixteen cells of @tbl-simulation-time. The shaded band marks runs that finish within one day.
+#|   **Simulation throughput limits how much target execution can be evaluated in a day.** Each line plots the illustrative wall-clock time $T_{\mathrm{wall}} = f_{\mathrm{target}} \times T_{\mathrm{workload}} / R_{\mathrm{sim}}$ for one simulator throughput at a 1 GHz target. The shaded band marks runs that finish within one day.
 #| out-width: "86%"
 #| fig-alt: "Log-log chart of wall-clock simulation time versus target execution time at 1 gigahertz, with four parallel lines for simulator throughputs from 1 kilocycle per second to 100 megacycles per second and a shaded band marking runs that finish within one day. At 1 kilocycle per second only the 1 millisecond workload stays inside the band, at about 17 minutes, while one second of target time takes 11.6 days; at 100 megacycles per second even the one-hour workload finishes in about 10 hours."
 
 import matplotlib.pyplot as plt
 from _python.arch2_plots import COLORS, apply_style
 
-# Same illustrative computation as @tbl-simulation-time: wall time =
-# (f_target x T_workload) / R_sim for a 1 GHz target. No external dataset;
-# every point is computed in-cell from the table's illustrative rates.
+# Illustrative wall time = (f_target x T_workload) / R_sim for a 1 GHz target.
+# No external dataset; every point is computed from the stated rates.
 freq = 1e9
 workloads = [("1 ms", 1e-3), ("1 s", 1.0), ("1 min", 60.0), ("1 h", 3600.0)]
 rates = [
@@ -523,149 +442,60 @@ plt.show()
 plt.close(fig)
 ```
 
-Stack a fixed evaluation budget against these per-sample costs and the
-affordable counts collapse by almost seven orders of magnitude, from roughly
-$10^8$ analytic evaluations to about ten prototype measurements in the same
-1,000 CPU-days (@fig-affordable-sample-collapse). Under that budget, only a few
-candidates can receive high-fidelity evaluation. A practical study must screen
-candidates cheaply and reserve the expensive tools for the most promising or
-uncertain cases.
 
-```{python}
-#| label: fig-affordable-sample-collapse
-#| fig-cap: |
-#|   **One evaluation budget buys wildly different sample counts across feedback regimes:** Under an illustrative fixed budget of 1,000 CPU-days, the assumed per-sample costs from @tbl-sample-cost-regimes collapse the affordable sample count by almost seven orders of magnitude, from roughly $10^8$ analytic evaluations to about ten prototype measurements. The rates are illustrative; the collapse is the point.
-#| out-width: "100%"
-#| fig-alt: "Log-scale row chart of affordable sample counts under a fixed 1,000 CPU-day budget: roughly ten to the eighth analytic-model evaluations, ten to the fourth cycle-level simulations, a few hundred RTL or EDA results, and about ten prototype measurements."
+At 1 kcycle/s in @fig-simulation-wallclock, simulating 1 ms of target execution
+takes about 17 minutes, while 1 s takes about 11.6 days. At 100 Mcycle/s, even
+1 hour of target execution takes about 10 hours. A faster simulator shifts the
+whole line down, but the architect still has to choose among a shorter workload
+slice, a faster model, and fewer high-fidelity evaluations. An AI method needs
+those limits in the representation before it can plan which candidates to run.
 
-import math
-import matplotlib.pyplot as plt
-from _python.arch2_plots import COLORS, add_note_box, apply_style, row_axis, top_log_axis
+Cost constrains search in more than one way. A co-design exercise with five
+workload slices, four architecture configurations, and six compiler settings
+has $5 \times 4 \times 6 = 120$ candidates. It may be practical to enumerate
+them with an analytical model and impossible to do so with a physical-design
+flow. Wall time, compute time, license capacity, access to shared hardware, and
+engineering attention are separate constraints; one does not automatically
+make up for another.
 
-# Illustrative budget-composition check. No external dataset: per-sample costs
-# take one representative value from the in-chapter ranges (analytic
-# "milliseconds to seconds" -> 1 s; cycle-level = 1 s of a 1 GHz target at
-# 100 kcycle/s = 2.8 h from tbl-simulation-time; RTL/EDA "hours to days" ->
-# 3 days; prototype/post-silicon "weeks to months" -> 90 days from
-# tbl-sample-cost-regimes). Budget: 1,000 CPU-days.
-budget_s = 1_000 * 86_400
-rows = [
-    {"display_label": "analytic model or mapper", "display_note": "~1 s per evaluation", "cost_s": 1.0, "color": COLORS["blue"]},
-    {"display_label": "cycle-level simulation", "display_note": "~2.8 h per run", "cost_s": 2.8 * 3600, "color": COLORS["green"]},
-    {"display_label": "RTL, gate-level, or EDA feedback", "display_note": "~3 days per result", "cost_s": 3 * 86_400, "color": COLORS["orange"]},
-    {"display_label": "FPGA prototype or silicon", "display_note": "~90 days per measurement", "cost_s": 90 * 86_400, "color": COLORS["red"]},
-]
+Learning-assisted chip placement makes the connection to representation
+concrete. A placement evaluation is useful only when it remains linked to the
+macros, nets, constraints, validity checks, and tool feedback that produced it
+[@MirhoseiniEtAl2021GraphPlacement]. The same is true beyond placement. For
+every expensive evaluation, the trajectory should record what it cost, what
+part of the design space it covered, what it ruled out, and why the next action
+was chosen.
 
-def approx_label(n):
-    if n >= 1000:
-        return r"$\sim$10$^{%d}$" % round(math.log10(n))
-    return rf"$\sim${round(n / 10) * 10 if n >= 30 else round(n)}"
+@sec-methods-generation-prediction-optimization discusses methods for using
+scarce evaluations efficiently. Those methods can distinguish useful
+exploration from disconnected measurements only if every observation records
+its cost, fidelity, and coverage.
 
-apply_style()
-fig, ax = plt.subplots(figsize=(4.65, 2.35))
-fig.subplots_adjust(left=0.43, right=0.86, top=0.78, bottom=0.30)
+## When Design State Is Left Implicit
 
-row_axis(ax, len(rows))
-top_log_axis(
-    ax,
-    xlim=(1, 1e9),
-    xticks=[1, 1e3, 1e6, 1e9],
-    xticklabels=[r"$10^0$", r"$10^3$", r"$10^6$", r"$10^9$"],
-    xlabel="affordable samples under a 1,000 CPU-day budget",
-    tick_fontsize=6.5,
-)
+Architecture projects rarely keep every relevant choice in one place. The
+workload version may live in a benchmark directory, simulator options in a
+script, an objective in a spreadsheet, and the reason for rejecting a candidate
+in review slides or someone's memory. Experienced architects also carry
+judgments that are easy to leave unstated, such as which proxy they distrust or
+which integration risk they will not accept. This resembles the hidden
+technical debt created by unmanaged data dependencies and assumptions in
+software systems [@SculleyEtAl2015Hidden].
 
-for y, row in enumerate(rows):
-    count = budget_s / row["cost_s"]
-    color = row["color"]
-    ax.axhline(y, color=COLORS["row"], linewidth=0.7, zorder=0)
-    ax.hlines(y, 1, count, color=color, linewidth=2.2, zorder=2)
-    ax.scatter([count], [y], marker="s", s=18, facecolor=COLORS["note_fill"], edgecolor=color, linewidth=0.9, zorder=3)
-    ax.text(-0.97, y - 0.17, row["display_label"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=6.8, fontweight="bold", color=COLORS["ink"], clip_on=False)
-    ax.text(-0.97, y + 0.25, row["display_note"], transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=5.5, color=COLORS["muted"], clip_on=False)
-    ax.text(1.04, y, approx_label(count), transform=ax.get_yaxis_transform(), ha="left", va="center", fontsize=6.8, fontweight="bold", color=color, clip_on=False)
+Architects and tool specialists working on the same project can sometimes fill
+these gaps from shared context. An AI method should not be expected to guess.
+If a constraint is missing, it may propose a change that the design cannot
+accept. If a simulator option or workload revision is missing, another run may
+not reproduce the result. If
+rejected candidates are absent, a search may repeat known failures. If a plot
+shows only the winner, another architect cannot tell why the alternatives were
+discarded. The tool can complete successfully while the resulting comparison
+is still wrong or impossible to review.
 
-add_note_box(fig, "The budget's composition is forced by arithmetic; escalation\nand rejection decide which few samples earn full fidelity.", xywh=(0.09, 0.055, 0.82, 0.13), fontsize=6.3)
-
-plt.show()
-plt.close(fig)
-```
-
-This cost structure changes how we should think about design spaces. A small
-co-design exercise with five workload slices, four architecture configurations,
-and six compiler or mapping settings has $5 \times 4 \times 6 = 120$
-candidates and can sometimes be enumerated. A physical-design, compiler,
-mapping, or chiplet-integration space may be combinatorial, sequential,
-tool-bound, and partially invalid.
-Learning-assisted chip placement makes the point concrete. The design problem
-can be formulated as a learning problem, but the value of each sample depends
-on the representation of macros, nets, constraints, tool feedback, and
-placement validity [@MirhoseiniEtAl2021GraphPlacement]; the later reproducibility
-dispute over that result (@sec-feedback-verification-trust)
-[@ChengEtAl2023AssessmentRL] only sharpens the point. The architecture
-lesson is broader than placement. When samples are expensive, the loop record
-must capture what each sample cost, what region of the space it informs, what it
-rules out, and how it should constrain the next optimizer action.
-
-@sec-methods-generation-prediction-optimization discusses methods for using scarce evaluations efficiently. Those
-methods can distinguish useful exploration from disconnected measurements only
-if every observation records its cost, fidelity, and coverage.
-
-## Architecture Descriptions as Boundary Objects {#sec-architecture-descriptions-as-boundary-objects}
-
-All of that recorded state has to live somewhere the loop and the architect can
-both read, and that artifact, the architecture description, is a boundary
-object. In the sense introduced by Star and Griesemer, a boundary object is
-shared across communities while still supporting their different local uses
-[@StarGriesemer1989BoundaryObjects]. It sits between human intent and tool action. It must be readable enough for architects to inspect, precise
-enough for tools to execute, and structured enough for automated optimizers or methods to
-modify without breaking the design contract.
-
-At minimum, an architecture description should state what it describes, what
-may change, what must remain fixed, what evidence may update the record, and
-which tools may consume it. For a
-memory hierarchy, this may include cache sizes, associativity, replacement
-policy, prefetching, coherence assumptions, bandwidth, latency, and workload
-mix. For an accelerator or compute subsystem, it may include supported
-operations, data layout, local storage, vector width, dataflow, quantization,
-compiler/runtime assumptions, and fallback behavior.
-For an optimizer-facing architecture description, fields alone are not enough.
-The representation must identify mutable fields, fixed constraints, and
-observations that may update the record. The environment defined in
-@sec-architecture-environments-tool-interfaces determines whether a proposed
-action is legal and how violations are rejected or escalated.
-
-Different kinds of work need different representations. A paper-reading loop,
-a simulator-driven design-space exploration loop, an RTL-generation loop, and
-a post-silicon telemetry loop should not have identical records. But they do
-need stated invariants.
-
-Without explicit boundaries, an architecture description remains too informal
-for a tool to modify safely.
-
-## Unstructured Design Data and Its Cost
-
-Implicit state also creates maintenance and coordination costs. Architecture
-teams accumulate undocumented design state, the same kind of hidden cost that
-software teams call technical debt when complex data
-dependencies and implicit assumptions go unmanaged [@SculleyEtAl2015Hidden].
-The cost appears whenever
-important design state is not captured in a versioned form another person can inspect.
-It may live in shell scripts, simulator flags, spreadsheet formulas,
-plotting notebooks, benchmark directories, issue threads, email, review
-slides, or the memory of the person who knows why one candidate was rejected.
-Some of this state is tacit rather than textual, including what an experienced architect
-chooses not to try, which proxy result they distrust, which corner case they
-ask about in review, and which risk they refuse to delegate.
-
-This gap is manageable when a small team manually coordinates the loop. It
-becomes a technical failure when an AI system acts inside the loop. If a
-constraint is implicit, the method may violate it. If a simulator flag is
-hidden, the result may not be replayable. If rejected candidates are missing,
-the search may rediscover known failures. If workload provenance is unclear,
-the loop may optimize for the wrong distribution. If plots preserve only the
-winning candidate, the evidence trail cannot explain why alternatives were
-discarded.
+AlphaChip illustrates a related boundary. An organization may have private
+training data and evaluation records that support an internal decision, while
+outside readers can inspect only the released artifacts. The internal decision
+and the public claim therefore do not rest on the same inspectable record.
 
 ::: {.callout-war-story title="The strongest training context remained private"}
 **The claim.** AlphaChip was reported to place production macros at expert quality and to have
@@ -680,309 +510,254 @@ public reassessments had therefore not reproduced the published method
 @GoldieEtAl2024ThatChipHasSailed].
 
 **The lesson.** The public artifacts can support narrower evaluations, but they cannot make the
-private setup independently replayable. This distinction is why a study must
-record provenance, access restrictions, and the exact effect of redaction while
-it runs. Restricted evidence may still support an internal decision, but the
-public claim must stop where outside inspection stops.
+private setup independently replayable. Because private evidence and public
+evidence support different claim boundaries, the evidence record must include
+provenance, access restrictions, and the exact effect of redaction.
+Restricted evidence may still support an internal decision, but the public
+claim must stop where outside inspection stops.
 :::
 
-@sec-appendix-b-design-loop-card gives a concrete redacted-card pattern. A
-product study should retain its complete context under appropriate access
-controls while publishing enough information to state the public boundary
-precisely.
+@sec-feedback-verification-trust revisits the broader reproducibility dispute.
+For restricted evidence, @sec-appendix-b-design-loop-card gives a concrete
+redacted-card pattern. The organization making the internal decision should
+retain the complete record under appropriate access controls and state
+precisely what outside readers can verify.
 
-This missing information typically hides in common, recurring sources of undocumented
-design state, which @tbl-representation-debt
-collects. Each row connects what an artifact enables, what it hides, and the
-failure that can follow. The study need not document everything. It must record
-enough state to compare, reject, and revise candidates, while a replay package
+Similar gaps appear across ordinary architecture artifacts.
+@tbl-representation-debt identifies what each artifact contributes, what
+context it often omits, and the failure that can follow. The representation
+links these artifacts so an AI method can compare candidates and an architect
+can review why one was accepted or rejected. A replay package separately
 contains the runnable inputs and environment.
 
 | **Artifact** | **What it enables** | **What it often hides** | **Failure mode** |
 | --- | --- | --- | --- |
-| Paper or plot | Claim, result, and comparison. | Tool flags, failed candidates, tuning history. | Reproduce only the story, not the loop. |
+| Paper or plot | Claim, result, and comparison. | Tool flags, failed candidates, tuning history. | Reproduce only the reported result, not the design process. |
 | Workload trace | Concrete input behavior and measurements. | Coverage, versioning, sampling policy, privacy filters. | Optimize for an unrepresentative slice. |
 | Simulator config | Model settings. | Defaults, unsupported states, calibration limits. | Trust a number outside its valid scope. |
 | RTL or EDA report | Implementation-facing feedback. | Process assumptions, constraints, waived warnings. | Accept an artifact that cannot close. |
-| Review notes | Human judgment and rationale. | Tacit assumptions and discarded alternatives. | Lose why a decision was made. |
+| Review notes | Architect and reviewer judgment and rationale. | Unstated assumptions and discarded alternatives. | Lose why a decision was made. |
 | Rejected candidate | Search boundary and negative evidence. | Why it failed and at what fidelity. | Rediscover known dead ends. |
 
-: **Architecture artifacts become reusable when their context is recorded.** Each artifact should include enough provenance, assumptions, constraints, and validity information for a method to use it and for a reviewer to audit it. {#tbl-representation-debt tbl-colwidths="[22,27,25,18]"}
+: **Architecture artifacts become reusable when their context is recorded.** Each artifact should include enough provenance, assumptions, constraints, and validity information for a method to use it and for a reviewer to trace the result. {#tbl-representation-debt tbl-colwidths="[22,27,25,18]"}
 
-## QuArch as a Stress Test
+No row in @tbl-representation-debt is sufficient alone. A workload trace needs
+the simulator configuration that consumed it, and an EDA report needs the
+candidate and constraints that produced it. Versioned links between the
+artifacts turn a folder of files into a traceable design trajectory.
 
-The artifacts in @tbl-representation-debt are internal and often unstructured.
-Public benchmarks sit at the opposite extreme, well structured but paper-bound.
-QuArch (@sec-architecture-20-ontology) is a useful example of what a public
-benchmark captures and omits [@PrakashEtAl2025QuArch]. It tests architectural
-knowledge derived from papers, but it does not contain the linked tool runs,
-failed candidates, and review decisions needed for an automated design study.
-The later QuArch reasoning benchmark makes the
-same point in a different form by organizing 2,671 expert-validated questions around
-recall, analysis, design, and implementation competencies
-[@PrakashEtAl2025QuArchReasoning]. QuArch can ask whether a model recalls
-concepts, tracks architectural relationships, reasons over published claims,
-and avoids obvious domain mistakes. That is valuable. A field cannot build
-credible AI-assisted systems if those systems lack basic architectural knowledge.
+## What Paper-Based Benchmarks Can and Cannot Test
 
-That achievement is necessary but not sufficient, as @fig-quarch-boundary-test
-makes clear. Paper-derived questions test one layer of architecture data, while
-tool use and claim review require linked study trajectories that papers often omit.
+Public benchmarks present a different case. QuArch uses published papers to
+test whether a model knows architectural concepts and can reason about reported
+designs [@PrakashEtAl2025QuArch]. The later QuArch reasoning benchmark organizes
+2,671 expert-validated questions around recall, analysis, design, and
+implementation competencies [@PrakashEtAl2025QuArchReasoning]. These are useful
+checks. A model that misunderstands basic architecture concepts is unlikely to
+propose or critique a credible design change.
 
-![**QuArch tests paper knowledge rather than complete study records.** Question-answering benchmarks can test architectural knowledge from papers, but AI-assisted architecture also needs linked records of claim scope, represented state and actions, tool outcomes, provenance, failed paths, review, and decision.](images/F5b-quarch-boundary-test){#fig-quarch-boundary-test width="100%" fig-alt="Two-panel diagram showing a paper-knowledge layer with concept recall, published relationships, and paper-level reasoning separated from a study-trajectory layer linking claim scope, state, actions, tool outcomes, provenance, failed paths, review, and decision."}
+Paper-based questions do not test the whole task in this chapter. They do not
+show whether an AI system can change a design under stated constraints, invoke
+the right tools, or preserve the record another architect needs to review the
+result. Published papers also rarely contain every simulator option, failed
+candidate, and review decision from the original project.
 
-The boundary is precise. QuArch represents architectural knowledge from papers,
-while a design trajectory represents what happened during an experiment. A
-model may answer a memory-system question correctly and still lack the tool
-configuration, workload slice, failed candidates, or review decision needed to
-act on the claim. QuArch is therefore one valuable layer of the data picture,
-not a substitute for recorded design trajectories.
+@fig-quarch-boundary-test separates these two requirements. The upper layer
+contains the concepts, published relationships, and paper-level reasoning that
+QuArch can test. The lower layer connects a particular claim and design state
+to proposed actions, tool observations, provenance, failed paths, review, and
+decision.
 
-## Action-Conditioned Architecture Models {#sec-toward-architecture-world-models}
+![**QuArch tests paper knowledge.** A complete design record additionally links claim scope, represented state and actions, tool observations, provenance, failed paths, review, and decision.](images/F5b-quarch-boundary-test){#fig-quarch-boundary-test width="100%" fig-alt="Two-panel diagram showing a paper-knowledge layer with concept recall, published relationships, and paper-level reasoning separated from a design-trajectory layer linking claim scope, state, actions, tool observations, provenance, failed paths, review, and decision."}
 
-QuArch tests what a model knows about architecture. An architecture world model,
-in the narrower sense used here, predicts what follows from an action. The
-earlier definition separated recorded state from predicted consequence. The
-remaining question is how to attach a prediction to a trajectory without
-confusing it with the observation later returned by a tool.
-
-A simulator configuration belongs to the representation. The simulator's
-action-conditioned behavior, scope, calibration, and failure modes can form an
-architecture world model. A learned surrogate or analytic predictor can do the
-same. Design rules and constraint checkers still serve the loop, but the broader
-term *consequence model* is more accurate when they do not predict a transition
-or outcome. Predictive design-space exploration built performance models from
-configuration two decades ago [@IpekEtAl2006PredictiveDSE]. For use in an
-AI-assisted study, a predictor must document the states and actions it supports,
-its calibration and uncertainty, and the conditions it cannot evaluate.
-@fig-architecture-world-model
-keeps that prediction distinct from the observation that later tests it.
-
-![**A scoped model predicts the consequence of an action.** A representation records what the study can read, compare, and update. The action-conditioned model predicts what a proposed change will do within stated limits. Tool observations become reusable when provenance, coverage, failed runs, and rejected alternatives are recorded; replay additionally requires runnable inputs and environment details.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Diagram showing representation records and a proposed action entering a scoped architecture world model, followed by predicted architectural consequences, tool observations, provenance, coverage, failed runs, and rejected alternatives, with replay requiring a separate replay package."}
-
-The executed study in @sec-executed-scale-study supplies a concrete instance.
-SCALE-Sim maps a represented workload and a proposed legal array geometry to
-predicted cycle and utilization consequences. @tbl-executed-study-world-model
-states exactly what that mapping covers and what it does not.
-
-| **World-model field** | **Executed SCALE-Sim study** |
-| --- | --- |
-| **Represented state** | Frozen three-layer GEMM workload, transposed mechanism-probe workload, legal array geometry, weight-stationary dataflow, 128 KiB SRAMs, and fixed interface bandwidth. |
-| **Action under evaluation** | Select a legal row-by-column array geometry under a 1,024-processing-element budget. |
-| **Predicted consequence** | SCALE-Sim 3.0.0 computes cycle count and average layer utilization for that workload-geometry pair. |
-| **Scope and calibration** | One simulator version, dataflow, memory configuration, workload slice, and score; the replay package records every setting and output. |
-| **Unsupported consequence** | Energy, area, compiler effects, RTL feasibility, physical design, and performance outside the frozen workload are not evaluated. |
-| **Challenge check** | Equal tool budgets, a shared baseline, a preregistered improvement margin, replay, and a matched transposition probe test the ranking and the proposed mechanism. |
-
-: **The executed study uses a real action-conditioned architecture model.** Its represented state and proposed geometry produce bounded performance predictions, while the record lists unsupported consequences. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
-
-Architecture world models may be simulator-backed, learned, symbolic, or
-hybrid. Each must limit its predictions about action consequences to a stated
-scope. The environment in @sec-architecture-environments-tool-interfaces
-defines which actions are legal and which observations tools return. The world
-model predicts the consequences of those actions; the environment still defines
-the permitted actions and available observations.
-
-No such model is automatically credible. It can fail under distribution
-shift[^fn-ml-distribution-shift], new workloads, different software stacks,
-tool changes, or stronger evaluation. Predictions must not be treated as truth.
-The study should report enough scope and calibration for reviewers to
-challenge it.
-
-The executed study demonstrates that separation without invented evidence.
-SCALE-Sim produced the study observations, but only for the declared performance
-scope. Under equal four-run budgets, the model and conventional arms tied; no
-nonbaseline candidate cleared the preregistered improvement margin. The matched
-transposition probe also falsified the model's directional mechanism. Those
-outcomes did not make SCALE-Sim an authority on energy, area, compiler behavior,
-RTL, or physical design. They became trajectory records tied to a bounded
-predictive model, including the null result and rejected explanation.
-
-[^fn-ml-distribution-shift]: Distribution shift is a situation where the data a model meets in use differs significantly from the data used to fit or calibrate it, often degrading performance [@QuinoneroCandelaEtAl2009DatasetShift]. It is one reason an action-conditioned predictor can leave its supported regime, so the loop records assumptions and calibration rather than treating every output as transferable.
+The separation in @fig-quarch-boundary-test explains why both layers are
+needed. Architectural knowledge can help an AI method propose or critique a
+change, but it does not reveal which simulator options were used or why a
+candidate was rejected. QuArch tests the knowledge layer; the linked trajectory
+is what allows the method to act on a particular design and another architect
+to inspect what happened.
 
 ## Provenance, Coverage, and Failed Alternatives {#sec-provenance-coverage-and-negative-traces}
 
-Knowing when to reject a consequence model's prediction or recommendation
-depends on records that many teams discard.[^fn-systems-negative-results-venues]
-Published work tends to preserve
-accepted artifacts, but architecture studies also need rejected alternatives.
-A failed simulator run, invalid configuration,
-proxy win that fails at higher fidelity, abandoned floorplan, or
-unsupported-software path identifies where the loop's boundary lies.
+Architecture projects often retain the accepted design and discard the work
+that did not advance. That loses several different kinds of information. A tool
+may crash before evaluating a candidate. A valid run may find no improvement.
+A candidate may violate a constraint, or a proxy improvement may disappear at
+higher fidelity. Each outcome should remain linked to the conditions under
+which it occurred.
 
-Other engineering communities already treat some failures this way. When a
-compiler bug becomes a regression test, later versions are checked against that
-specific failure. Architecture studies should preserve rejected candidates for
-the same reason, with enough provenance to determine whether an old failure
-still applies.
+Compiler regression tests already treat failures this way. Once a compiler bug
+becomes a regression test, later versions are checked against that specific
+failure. Architecture projects should preserve rejected candidates for the same
+reason, with enough provenance to determine whether an old failure still
+applies.
 
-[^fn-systems-negative-results-venues]: The wider computing-systems community has begun building places to publish exactly these records, so rigorous experiments that fail to confirm a hypothesis can still enter the shared record. Architecture needs more of that habit so failed runs, rejected candidates, and the assumptions behind them accumulate as shared evidence instead of disappearing before publication.
+An old failure does not automatically rule out a new candidate. The workload,
+tool version, process assumption, or surrounding design may have changed. An AI
+method can surface the earlier record and identify the conditions that match. A
+declared review policy may specify when a failure must be reconsidered. The
+architect or named reviewer then determines whether those conditions are met
+and what check is needed before trying again.
 
-Failed runs and rejected alternatives are necessary because a loop that records
-only winners cannot show the next method, reviewer, or architect which
-assumptions, tools, workloads, or regions of the design space were already ruled
-out. Architecture action spaces are full of invalid or misleading moves. A
-generated RTL fragment may be syntactically plausible
-but fail timing or violate an interface. A design-space search may find a
-candidate that looks good under a proxy but fails under a better power model.
-A benchmark result may improve because the workload slice is too narrow. A
-chiplet partition may appear modular but introduce unacceptable latency,
-thermal coupling, test complexity, or supply-chain risk.
+When a trajectory contains only winners, an AI method or reviewer cannot see
+which assumptions, tools, workloads, or regions of the design space were
+already ruled out. Many proposed changes are invalid or misleading. A
+generated RTL fragment may be syntactically plausible but fail timing or
+violate an interface. A design-space search may find a candidate that looks
+good under a proxy but fails under a better power model. A benchmark result may
+improve because the workload slice is too narrow. A chiplet partition may
+appear modular but introduce unacceptable latency, thermal coupling, test
+complexity, or supply-chain risk.
 
 Each of these failures should leave a record that identifies the candidate, the
 condition it violated, and the resulting change to the next search or review
 step. @tbl-negative-traces gives examples.
 
-| **Failed run or rejected alternative** | **What it records** | **What the loop learns** |
+| **Failed run or rejected alternative** | **What it records** | **How it changes later work** |
 | --- | --- | --- |
 | Synthesis or timing violation | Constraints, process, parameters, failing setup/hold paths. | Exclude this macro or parameter combination. |
 | Unroutable or PDN failing netlist | Placement, density, pin layout, congestion map, IR drop. | Add congestion-aware spacing or reshape the action space. |
-| Proxy win that fails fidelity | Cheap metric improves, but stronger evaluation rejects it. | Calibrate proxies and require sensitivity checks. |
+| Proxy win that fails fidelity | A cheap metric improves, but a higher-fidelity check overturns the apparent improvement. | Calibrate proxies and require sensitivity checks. |
 | Tool failure or crash | Simulator, synthesis, compiler, or harness cannot complete. | Separate design failure from environment failure. |
 | Coverage gap | Workload, input, scenario, or architecture class was not represented. | Mark the evidence boundary before committing. |
-| Rejected design rationale | Human review rejects a candidate for risk, maintainability, schedule, or integration. | Preserve architect judgment as training and audit data. |
+| Rejected design rationale | An architect or reviewer rejects a candidate for risk, maintainability, schedule, or integration. | Preserve the reason for later work and review. |
 
-: **Failed runs and rejected alternatives are architecture data.** Failed builds, invalid candidates, missed constraints, and rejected alternatives define the boundary of the design space and should be preserved rather than discarded. {#tbl-negative-traces tbl-colwidths="[26,32,32]"}
+: **Rejected work remains useful when its conditions are recorded.** Failed builds, invalid candidates, missed constraints, and rejected alternatives can prevent repeated mistakes without turning one local failure into a universal rule. {#tbl-negative-traces tbl-colwidths="[26,32,32]"}
 
 These records require enough provenance to interpret the environment that
 produced the result. A replay claim additionally requires the runnable
-environment and inputs. A failed result without context is not very useful. The
-minimum reusable record names the candidate and its context (workload slice,
-software stack, tool version, seed, parameters, and constraints), the fidelity
-level, the failure reason, the coverage boundary, and the decision owner. A
-failed run is reusable only when this information also states which part of the
-design space, workload space, or evidence regime the failure applies to.
+environment and inputs. Without context, a later architect cannot tell whether
+a failure still applies. The minimum reusable record names the candidate and
+its context (workload slice, software stack, tool version, seed, parameters,
+and constraints), the fidelity level, the failure reason, the coverage
+boundary, and the decision owner. A failed run is reusable only when this
+information also states which part of the design space, workload space, or
+claim the failure applies to.
 
-A failure record also needs a reason to survive ordinary deadline pressure. It
-should save a future run, justify a review decision, preserve a handoff, bound a
-public claim, or mark the condition under which an old rejection should be
-reopened. Otherwise failure records become either clutter or folklore, and the
-loop cannot tell whether a past rejection is still valid.
+Keeping a failure record is worthwhile when it can save a future run, justify a
+review decision, preserve a handoff, bound a public claim, or mark the condition
+under which an old rejection should be reopened. Otherwise failure records
+become either clutter or folklore, and the next architect or AI method cannot
+tell whether a past rejection is still valid.
 
-## When a Representation Becomes Actionable
+## When a Representation Can Support Action and Review
 
-The purpose of this representation is to support action and review, not to
-catalog every possible detail. A reviewer should be able to reconstruct the
-prior state, proposed action, returned observation, rejection or acceptance,
-and resulting decision. The record therefore needs versioned workloads and
-candidates, constraints, assumptions, observations with provenance and
-uncertainty, failed runs, rejected alternatives, and decision history. A replay
-package adds the environment and inputs needed for replay.
+A representation is ready for action and review when it answers two practical
+questions. Can the AI method identify the exact design version it may change,
+the fields intended to vary, and the constraints that remain fixed? Can another
+architect trace why the change was proposed, any model prediction used, the
+tool observation, and the decision that followed?
 
-This is a higher bar than asking whether a model can read it. Four failure
-patterns make that bar concrete:
+The minimum record covers three stages.
 
-- A representation that supports summarization may still omit the state a
-  method needs in order to act.
-- A representation that supports search may still hide which actions are
-  invalid.
-- A representation that stores scores may still omit their provenance.
-- A representation that records winners but omits rejected alternatives may
-  bias the loop's view of the design space.
+- **Before the action:** the versioned design and workload, mutable fields,
+  fixed constraints, proposed change, and anticipated effect.
+- **During evaluation:** any model prediction, the declared check and its
+  result, the tool path, returned observation or failure, units, cost, fidelity,
+  provenance, coverage, and uncertainty.
+- **After review:** the comparison, rejection reason when applicable, decision
+  owner, decision, and resulting design state.
 
-The same standard applies to abstractions. A useful Architecture 2.0 abstraction
-preserves the state and
-trajectory needed to connect a proposed change to a later observation. An
-abstraction that loses that connection may help people talk, but it has not made
-the loop easier to inspect.
+A replay package adds the runnable environment and inputs. The links matter
+more than the file format. A score without units or workload provenance cannot
+support a comparison. A candidate log without the declared mutable fields and
+constraints cannot show where the method was allowed to act. A log that omits
+rejected and invalid proposals cannot show what the method actually tried. A
+record that keeps only the winner cannot help the next architect distinguish
+an unexplored region from a known failure.
 
-In the executed study, the actionable representation included the frozen
-question, workload files, legal geometry, simulator configuration, proposal and
-repair records, every candidate result, the mechanism probe, claim conclusions,
-and replay bindings. That record made the state available for inspection. It did not itself
-define which actions were legal or which observations SCALE-Sim could return.
-@sec-architecture-environments-tool-interfaces defines that interface.
+In the SCALE-Sim example described earlier, the record declared which geometry
+fields could vary and which workload and simulator conditions remained fixed.
+The tool environment applied the geometry checks before invoking SCALE-Sim and
+recorded the result of each check.
+@sec-architecture-environments-tool-interfaces develops that interface.
 
-::: {#pri-record-usable-state .callout-design-principle title="Record the state needed for the work"}
-Record enough context to understand both successes and failures, including
-assumptions, provenance, costs, failed runs, and rejected alternatives. A
-method can use only the state it receives, and an architect can reject a result
-safely only when that state is open to inspection.
+::: {#pri-record-usable-state .callout-design-principle title="Check the links before reuse"}
+Before reusing a result for a new design change, check that the record connects
+the candidate version and proposed action to the anticipated effect, any model
+prediction, tool observation, cost, fidelity, provenance, and decision. A
+missing link narrows what the result can support and may require recovering the
+context or running a new check. A replay claim also requires the runnable
+environment and inputs.
 :::
 
-These requirements leave open how to preserve useful state without making it
-stale, unwieldy, or unsafe to share.
+Keeping state, actions, observations, and decisions connected still leaves open
+how to preserve useful records without making them stale, unwieldy, or unsafe
+to share.
 
 ## Open Research Questions
 
-The gap between public architecture knowledge and actionable loop state is
-significant. The questions here focus on representations and scoped consequence
-models, not yet on full tool environments or governance. Each question asks
-what structure, learning problem, or benchmark would make architecture state
-rejectable and useful inside an AI-assisted loop, and what a replay package
-must add.
+The minimum record is clear, but five implementation questions remain. Each
+concerns information an AI method needs in order to act and another architect
+needs in order to review the result.
 
-1. **What semantics make architecture proposals checkable and rejectable?**
-Representations must act as boundary objects between human intent and tool
-execution, as discussed in @sec-architecture-descriptions-as-boundary-objects.
-Yet optimizer proposals are still often described informally. A thesis-level
-contribution would define a machine-readable proposal language with operational
-semantics for task intent, design-space boundaries, evidence, and rejection.
-The evaluation should show that proposals can be checked, compared, and safely
-rejected from attached records, then replayed when the runnable environment,
-inputs, commands, expected observations, and provenance are also present.
+1. **How should an AI method express a proposed architecture change so tools and reviewers can check it?**
+Informal proposals leave room for a model, simulator wrapper, and architect to
+interpret the same change differently. A usable representation must show the
+architecture question, the fields allowed to change, the fixed constraints,
+the anticipated effect, and the required check. It must do so for work as
+different as cache tuning, compiler scheduling, and physical design without
+forcing every domain into the same schema. Invalid or ambiguous proposals also
+need to be caught before they consume expensive tool time.
 
-2. **How should multi-fidelity design trajectories be recorded?**
-Every simulation, synthesis run, trace collection, or physical-flow check is a
-scarce measurement of the design space. The needed dataset connects each sample
-to the prior state and action and preserves the full trajectory record for it,
-from workload provenance and tool versions through the result and resulting
-decision. Its value should be tested
-by whether it improves later prediction, prevents invalid transfer, or lets
-reviewers understand why a claim is or is not supported. The question treats
-sample cost as part of the trajectory, in the sense developed in @sec-sample-cost-is-architecture-data.
+2. **Which parts of a multi-fidelity trajectory should an AI method retain?**
+Keeping every intermediate file and log can make the record unusable, while
+keeping only winners removes the evidence needed for later action. A cache
+search may need rejected configurations and simulator settings, while an RTL or
+EDA flow may need failing paths, constraints, and waived warnings. In both
+cases, the AI method and reviewer need the links among prior state, action,
+workload and tool provenance, observation cost and fidelity, and the decision
+that followed. A retention policy must preserve those links without turning the
+trajectory into an undifferentiated archive
+(@sec-sample-cost-is-architecture-data).
 
-3. **When is an action-conditioned architecture model outside calibrated support?**
-@tbl-executed-study-world-model states the bounded scope, but a stronger
-research result would learn or verify where that boundary should be. A concrete
-paper could build a calibration-boundary model that predicts when a proxy has
-left its support region and should route a candidate to cycle-level simulation
-or physical synthesis. The success metric is not prediction accuracy alone. It
-is lower evidence cost at the same false-accept risk, or lower false-accept risk
-at the same evidence cost.
+3. **How can an AI method detect that a consequence model has moved beyond the conditions on which it was calibrated?**
+New workloads, software stacks, tool versions, and design regions can invalidate
+a predictor that was accurate on earlier candidates. The AI method needs
+signals that trigger a higher-fidelity simulator or implementation check before
+it relies on an unsupported prediction. Those signals must prevent false
+acceptance without spending the full evidence budget on every candidate.
 
-4. **What coverage record tells reviewers when a result generalizes?**
-Architecture loops need records that describe which workloads, phases, trace
-slices, objectives, constraints, and failure modes a representation has
-actually seen. The research artifact is a coverage record for architecture
-agents, tested on shifted-workload benchmarks. The goal is to tell reviewers
-when a claimed design-space lesson transfers, when it weakens, and when it
-should be rejected. This extends the generalization problem raised in @sec-toward-architecture-world-models.
+4. **What coverage information tells an AI method and reviewer whether a result transfers?**
+Workload phases, trace slices, objectives, constraints, and observed failure
+modes all affect whether an architectural relationship generalizes. A useful
+coverage summary must expose both the evaluated region and the gaps. The AI
+method and reviewer should be able to tell when a result applies, when its
+support weakens, and when a new workload or design state requires fresh
+evidence (@sec-toward-architecture-world-models).
 
-5. **How should representations preserve failed runs and rejected alternatives?**
-Rejected candidates, missed timing constraints, invalid parameters, and proxy
-wins that fail at higher fidelity define much of the design-space boundary, but many learned
-representations keep mainly successful artifacts. A paper-quality result would
-introduce a failure-and-rejection dataset or task suite and test whether models learn
-to avoid repeated failures without overgeneralizing one failure into a false
-universal rule. The provenance discussion in @sec-provenance-coverage-and-negative-traces and the examples in @tbl-negative-traces define the evidence such representations would need to
-preserve.
+5. **How should an AI method use failed runs without treating a local failure as a universal rule?**
+A candidate may fail because of one process assumption, tool version, workload,
+or parameter combination. Preserving the failure can prevent repeated mistakes,
+but applying it too broadly may exclude valid designs. The rejection record
+must name the conditions under which the failure occurred. The difficult part
+is determining which recorded conditions actually caused the failure and which
+changes are sufficient to justify trying the rejected alternative again
+(@sec-provenance-coverage-and-negative-traces).
 
 ## Conclusion
 
-This chapter asked what architecture data must record before an AI-assisted
-method can act and a reviewer can audit the resulting architectural claim.
-Representation is the first hard problem because a method can only act on what
-the loop can see. Get it wrong and a more capable model simply moves faster in
-the wrong direction. Get it right and the loop gains a versioned account of the
-state, action, observation, rejection, and decision, while a replay package adds
-the environment and inputs needed for replay.
+Before an AI method can act, the representation must identify the exact design
+and workload version, the fields intended to change, the constraints that
+remain fixed, the proposed change, and its anticipated effect. It must also
+retain any model prediction used to choose or justify that change. After a tool
+run, the same record adds the returned observation or failure, units, cost,
+fidelity, provenance, coverage, uncertainty, the decision, and the person
+authorized to make it.
+Those links let another architect trace the result back to what was proposed,
+what actually ran, and why the design did or did not advance.
 
-Clear prose is not enough. The record must also let a reviewer trace each
-result to its inputs, assumptions, provenance, and rejected alternatives. A
-representation that captures winning results but not rejected alternatives, or
-scores but not provenance, gives methods and reviewers a biased view of the
-space.
-
-The rule is to record the architecture state an automated method may use. That
-requires paired, versioned, multi-fidelity design trajectories with
-provenance, assumptions, coverage, failed runs, and rejected alternatives, not
-only successful endpoints. Scoped consequence models add bounded predictions or
-constraints rather than replacing that record. The term *world model* applies
-when the prediction is conditioned on represented state and action.
+Linked, versioned trajectories preserve accepted and rejected work across
+fidelity levels. A scoped consequence model separately estimates or constrains
+what a proposed action may do within stated limits. An architecture world model
+is the predictive case that maps represented state and action to a possible
+next state or consequence. The tool environment in
+@sec-architecture-environments-tool-interfaces checks whether the action can
+run and records what the tool returns. A replay package adds the runnable inputs
+and environment needed to repeat the work.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** Represent paired design trajectories so state, action, observation, provenance, coverage, rejection, and decision remain connected across versions and fidelity levels.
-- **Reader test:** Could an automated method connect a winning or rejected candidate to the state and action that produced it, the observation that judged it, and the decision that followed?
-- **Up next:** Representation says what the loop records. @sec-architecture-environments-tool-interfaces defines which actions are legal and which observations the tools can return.
+- **Carry forward:** Keep the design version, proposed change, anticipated effect, model prediction, tool observation, cost, fidelity, provenance, coverage, failure, and decision connected.
+- **Reader test:** Can an AI method tell exactly what it may change, and can another architect distinguish the prediction from the tool observation and trace the decision that followed?
+- **Up next:** The representation records the design state, proposed actions, and observations. @sec-architecture-environments-tool-interfaces explains how tool environments constrain those actions and produce interpretable tool results.
 :::
