@@ -2339,13 +2339,13 @@ def html_findings(html_path: Path = HTML_PATH) -> list[Finding]:
 
     text = html_path.read_text(encoding="utf-8", errors="replace")
     findings: list[Finding] = []
-    if "arch2-release-meta" not in text or "Architecture-2.0.pdf" not in text:
+    if "arch2-release-meta" not in text:
         findings.append(
             Finding(
                 "error",
                 "html-release-meta",
                 _relative(html_path),
-                "HTML is missing the release/date/download metadata strip",
+                "HTML is missing the release/date metadata strip",
             )
         )
 
