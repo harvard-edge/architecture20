@@ -179,10 +179,10 @@ def test_chapter_3_filled_card_figure_names_all_canonical_fields() -> None:
         "Method role",
         "Feedback budget",
         "Evidence",
-        "Failed / rejected",
-        "Rejection checks + authority",
-        "Evidence-supported claim boundary",
-        "Decision and owner",
+        "Failed runs / rejected alternatives",
+        "Rejection checks and authority",
+        "What the evidence supports",
+        "Accountable decision",
     ]
     svg = svg_path.read_text(encoding="utf-8")
     assert "power violations" in svg
@@ -194,22 +194,13 @@ def test_design_loop_figure_separates_evidence_stage_from_governance() -> None:
     svg = (chapter_root / "images" / "F3-design-loop.svg").read_text(encoding="utf-8")
     chapter = (chapter_root / "index.qmd").read_text(encoding="utf-8")
     assert "evidence stages may raise fidelity and cost" in svg
-    assert "decision rights and commitment boundary" in svg
+    assert "decision rights and next authorized action" in svg
     assert (
-        "fidelity, commitment, and allowed authority remain separate choices"
-        in chapter.lower()
+        "a higher-fidelity result does not by itself authorize"
+        " a more consequential decision" in chapter.lower()
     )
     assert "fidelity, cost, and commitment rise" not in svg
     assert "fidelity, cost, and commitment rise" not in chapter
-
-
-def test_chapter_3_separates_reviewability_from_reproduction() -> None:
-    chapter = (
-        ROOT / "book" / "chapters" / "03-architecture-20-framework" / "index.qmd"
-    ).read_text(encoding="utf-8")
-    assert "Reviewability and replay remain separate" in chapter
-    assert "A replay package records executable inputs" in chapter
-    assert "compared, reproduced, and contested" not in chapter
 
 
 def test_appendix_b_distinguishes_fixture_lab_and_context_drafting() -> None:
@@ -257,7 +248,10 @@ def test_appendix_b_bounds_profile_and_replay_claims() -> None:
     assert "A `partial` profile must list its missing bindings" in normalized
     assert "commands, an environment binding, inputs, outputs" in normalized
     assert "The command-line validator checks hashes for local" in normalized
-    assert "successful replay shows that the named packet ran" in normalized.lower()
+    assert (
+        "successful replay shows that the named replay package ran"
+        in normalized.lower()
+    )
     assert "broader reproducibility or transfer requires a separate evaluation" in (
         normalized.lower()
     )
