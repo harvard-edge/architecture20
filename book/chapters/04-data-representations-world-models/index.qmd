@@ -26,17 +26,15 @@ produced the result, and how the candidate compares with the baseline. A lower
 miss count under a different prefetcher or workload slice does not establish
 that the larger cache helped.
 
-@sec-architecture-20-ontology defined a bounded architecture study through its
-question, comparison, evidence, and intended decision. To carry out the L2
-comparison, the current design state and every proposed change must be explicit.
-The representation records the current state, the proposed change, the
-effect the architect or AI method anticipates, any model prediction used, the
-observation returned by the tool, and the decision that followed. A scoped
-model may predict or constrain the
-consequences of the change, but it does not replace the record of what actually
-ran. If a workload choice, coherence assumption, or rejected candidate remains
-hidden in a script or in an architect's memory, the AI method cannot reliably
-account for it and another architect cannot reconstruct the result.
+To carry out the L2 comparison, the current design state and every proposed
+change must be explicit. The representation connects the current state,
+proposed change, effect the architect or AI method anticipates, any model
+prediction used, observation returned by the tool, and decision that followed.
+A scoped model may predict or constrain the consequences of the change, but it
+does not replace the record of what actually ran. If a workload choice,
+coherence assumption, or rejected candidate remains hidden in a script or in
+an architect's memory, the AI method cannot reliably account for it and
+another architect cannot reconstruct the result.
 
 ::: {.callout-learning-objectives}
 After this chapter you can identify the design state an AI method needs and the
@@ -107,10 +105,8 @@ the fields that may change and their units, the fixed constraints and
 invariants, and the tools that consume the description. In the L2 example, the
 record might show a current capacity of 1 MiB, a proposed capacity of 2 MiB,
 and an unchanged line size, prefetcher, coherence assumption, and workload
-version. The environment defined in
-@sec-architecture-environments-tool-interfaces applies the declared legality
-checks and records whether the proposed change passes, fails, or requires
-review.
+version. The tool interface applies the declared legality checks and records
+whether the proposed change passes, fails, or requires review.
 
 The relevant fields depend on the architecture work. A memory-hierarchy
 description may include cache sizes, associativity, replacement policy,
@@ -195,16 +191,15 @@ the runnable inputs and environment details.
 The distinction matters when an AI method uses a cheap predictor to rank a
 thousand cache configurations. The simulator or implementation flow named in
 the plan returns an observation that a reviewer may later use as evidence for a
-specific claim. @sec-architecture-environments-tool-interfaces examines the
-interface that makes those actions and observations executable. When a
-simulator serves as the consequence model, its output predicts the behavior of
-the represented design. When the environment executes that same simulator, the
-run record also preserves its returned value as a simulated observation. One
-value therefore fills two roles, and the record must still identify its source
-and avoid presenting it as an RTL, silicon, or deployment measurement.
+specific claim. When a simulator serves as the consequence model, its output
+predicts the behavior of the represented design. When a tool interface executes
+that same simulator, the run record also preserves its returned value as a
+simulated observation. One value therefore fills two roles, and the record
+must still identify its source and avoid presenting it as an RTL, silicon, or
+deployment measurement.
 
-The SCALE-Sim case in @sec-executed-scale-study provides a concrete example.
-SCALE-Sim 3.0.0 is a cycle-accurate simulator for systolic accelerators
+SCALE-Sim 3.0.0 provides a concrete example. It is a cycle-accurate simulator
+for systolic accelerators
 [@RajEtAl2025ScaleSimV3]. Here it maps a represented workload and proposed array
 geometry to predicted cycle count and utilization. Because the prediction
 depends on both represented state and proposed action, SCALE-Sim also fits the
@@ -212,7 +207,6 @@ architecture world-model definition used here. The language-model proposal
 method and the deterministic baseline each receive four simulator runs. That
 comparison becomes meaningful only after the workload, geometry limits,
 simulator settings, and unsupported consequences are explicit.
-@sec-executed-scale-study evaluates the proposal methods and results.
 @tbl-executed-study-world-model shows exactly what SCALE-Sim sees and what its
 predictions leave out.
 
@@ -230,10 +224,10 @@ predictions leave out.
 
 Architecture world models may be simulator-backed, learned, symbolic, or
 hybrid. Each use must limit predictions about action consequences to a stated
-scope. The environment in @sec-architecture-environments-tool-interfaces
-enforces the declared input and legality checks, then records the observation
-or failure returned by the tool. The world model predicts what an action that
-passes those checks may do within its stated scope.
+scope. The tool environment enforces the declared input and legality checks,
+then records the observation or failure returned by the tool. The world model
+predicts what an action that passes those checks may do within its stated
+scope.
 
 Confidence in the model depends on calibration evidence within its declared
 scope. Distribution shift[^fn-ml-distribution-shift], new
@@ -322,8 +316,8 @@ expert review, and silicon measurement consume different resources and support
 different conclusions. The record should link the prior state and proposed
 action to the returned value or failure, then preserve the cost, fidelity,
 provenance, coverage, and decision that followed.
-@sec-architecture-environments-tool-interfaces explains how a run harness can
-capture these fields when it invokes a tool.
+A run harness should capture these fields when it invokes the tool rather than
+requiring an architect to reconstruct them after the comparison.
 
 These costs cannot be reduced to a single number. A simulation may consume
 little compute but wait for a license; a prototype may depend on shared hardware
@@ -466,10 +460,11 @@ every expensive evaluation, the trajectory should record what it cost, what
 part of the design space it covered, what it ruled out, and why the next action
 was chosen.
 
-@sec-methods-generation-prediction-optimization discusses methods for using
-scarce evaluations efficiently. Those methods can distinguish useful
-exploration from disconnected measurements only if every observation records
-its cost, fidelity, and coverage.
+Methods that allocate scarce evaluations can distinguish useful exploration
+from disconnected measurements only if every observation records its cost,
+fidelity, and coverage. Without those fields, a method may optimize the number
+of runs while consuming the wrong scarce resource or comparing results that do
+not support the same claim.
 
 ## When Design State Is Left Implicit
 
@@ -517,7 +512,6 @@ Restricted evidence may still support an internal decision, but the public
 claim must stop where outside inspection stops.
 :::
 
-@sec-feedback-verification-trust revisits the broader reproducibility dispute.
 For restricted evidence, @sec-appendix-b-design-loop-card gives a concrete
 redacted-card pattern. The organization making the internal decision should
 retain the complete record under appropriate access controls and state
@@ -669,8 +663,8 @@ an unexplored region from a known failure.
 In the SCALE-Sim example described earlier, the record declared which geometry
 fields could vary and which workload and simulator conditions remained fixed.
 The tool environment applied the geometry checks before invoking SCALE-Sim and
-recorded the result of each check.
-@sec-architecture-environments-tool-interfaces develops that interface.
+recorded the result of each check. Those checks are part of the represented
+comparison because changing them can change which candidates are evaluated.
 
 Before reusing a result for a new design change, check that the record connects
 the candidate version and proposed action to the anticipated effect, any model
@@ -749,10 +743,9 @@ Linked, versioned trajectories preserve accepted and rejected work across
 fidelity levels. A scoped consequence model separately estimates or constrains
 what a proposed action may do within stated limits. An architecture world model
 is the predictive case that maps represented state and action to a possible
-next state or consequence. The tool environment in
-@sec-architecture-environments-tool-interfaces checks whether the action can
-run and records what the tool returns. A replay package adds the runnable inputs
-and environment needed to repeat the work.
+next state or consequence. The tool environment checks whether the action can
+run and records what the tool returns. A replay package adds the runnable
+inputs and environment needed to repeat the work.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Keep the design version, proposed change, anticipated effect, model prediction, tool observation, cost, fidelity, provenance, coverage, failure, and decision connected.
