@@ -18,13 +18,13 @@
 What must an AI system know and represent so that it can propose a new architecture design, predict its consequences, and help improve it?
 :::
 
-Chapter 3 established the Architecture Design Loop as the engine of AI-driven architecture. But engines require fuel, and the design loop runs entirely on *data*. An AI system cannot iteratively improve a design without a formal representation of what it already knows, what the current design requires, and what prior attempts have discovered. In computer architecture, a "representation" is not merely a high-dimensional embedding space. It is a formal, explicit description of the design state, incorporating structural constraints, Register Transfer Level (RTL) code, configuration parameters, and architectural invariants.
+@sec-architecture-20-ontology established the Architecture Design Loop as the engine of AI-driven architecture. But engines require fuel, and the design loop runs entirely on *data*. To systematically explore and validate complex design spaces, an AI system requires a formal, explicit representation of architectural knowledge. A "representation" in Architecture 2.0 is not merely a high-dimensional embedding space or a collection of statistical priors. It is a rigid, executable description of the design state---incorporating structural constraints, Register Transfer Level (RTL) definitions, configuration parameters, and strict physical invariants.
 
-Why can a model know computer architecture and still be unable to act on a current design?
+Why can a model speak fluently about computer architecture, yet fail to act on a current design?
 
-Suppose an AI system is asked to optimize a processor to meet the requirements of a lighthouse prompt. The model may possess deep general knowledge of processor pipelines, branching, and execution units. Yet it remains entirely unaware of the current lighthouse comparison's specific constraints: it does not know that the engineering team recently updated the target workload trace, restricted the available thermal budget, fixed the fetch bandwidth to meet a new timing requirement, or adopted a different die area constraint.
+Consider an AI system asked to optimize a Lighthouse Tensor Core. The model may possess deep, generalized knowledge of spatial dataflows, systolic arrays, and MAC utilization. Yet, without an explicit representation of the project state, it remains completely oblivious to the active constraints: it does not know that the architect recently updated the target workload trace, restricted the SRAM capacity to meet a thermal budget, or fixed the fetch bandwidth to satisfy a rigid area envelope. Demonstrating fluency in generating hardware concepts does not grant an AI the context to waive physical constraints.
 
-General knowledge of computer architecture is not a substitute for the explicit state of the current design. To propose a valid change, an AI system must combine what it has learned about architectures in general with the concrete, versioned constraints of the specific project it is working on. The system must represent the design problem, express a legal change, and predict possible consequences. Knowledge is not merely a passive collection of facts or records; it is the basis for designing something new.
+General architectural knowledge is meaningless without the explicit bounds of the current design. To propose a viable change, an AI system must fuse its learned statistical priors with the concrete, versioned constraints of the specific project. The system must represent the design problem, express a legal architectural action, and predict precise consequences. We must build verifiable frameworks where the representation explicitly tracks what the AI consumes and returns, ensuring the AI accelerates the legwork while the architect commands the direction.
 
 ::: {.callout-learning-objectives}
 After this chapter you can identify how architectural knowledge enters an AI system and how it combines with current project state to support a design change. Specifically, you can:
@@ -42,7 +42,7 @@ Mastering these objectives provides the foundation necessary to build AI systems
 
 Before exploring where architectural knowledge comes from, we must define what it is. In the context of Architecture 2.0, true architectural knowledge is synonymous with the ability to conduct rigorous architectural research. It means understanding how to construct robust baselines, how to orchestrate the right tools (simulators, compilers, synthesizers), and crucially, how to interpret the fidelity and limits of those tools. To design something new, an AI method must draw on two different classes of information: this learned architectural knowledge (statistical priors) and the current project state (explicit facts).
 
-Recent literature has repeatedly highlighted a fundamental truth: AI models do not inherently "know" how to build a chip [@LiuEtAl2023ChipNeMo; @ThakurEtAl2023AutoChip; @PrakashEtAl2025QuArch]. Instead, their parameters encode recurring, general relationships among workloads, hardware mechanisms, tools, and design choices. These statistical priors explain *why* pipeline depths, fetch bandwidths, branch predictors, and execution unit configurations interact the way they do. They enable the system to recognize that widening the fetch bandwidth requires proportionally larger reorder buffers, or that a deep pipeline increases the penalty of branch mispredictions.
+Recent literature has repeatedly highlighted a fundamental truth: AI models do not inherently "know" how to build a chip [@LiuEtAl2023ChipNeMo; @ThakurEtAl2023AutoChip; @PrakashEtAl2025QuArch]. Instead, their parameters encode recurring, general relationships among workloads, hardware mechanisms, tools, and design choices. These statistical priors explain *why* spatial dataflow dependencies, SRAM capacities, and MAC array dimensions interact the way they do. They enable the system to recognize that widening the Tensor Core array requires proportionally larger SRAM capacities to sustain utilization, or that a larger MAC grid increases the penalty of underutilized edge workloads.
 
 Current project state serves a completely different purpose. It identifies the specific design version under active evaluation. It names the exact workload, software versions, mutable fields, fixed constraints, assumptions, prior observations, and unresolved conditions for a single study.
 
@@ -64,9 +64,9 @@ Changing the structure of the example changes the capability being trained or te
 But QA has a strict boundary. It tests the *knowledge layer* but cannot reconstruct a project execution history or executable tool state. Crucially, to capture an architect's true knowledge, ML models cannot just look at positive examples---the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space [@ChenEtAl2020SimCLR; @HeEtAl2020MoCo]. Without negative data, a model learns what works in one context, but not *why* it fails in others.
 
 ::: {.callout-field-note}
-**Observation:** In autonomous driving, vehicle models cannot learn road boundaries simply by driving perfectly straight; they require negative recovery data (swerving, crashes) to understand limits [@BojarskiEtAl2016EndToEnd].
+**Observation:** In hardware synthesis, models cannot learn the boundaries of valid placement and routing simply by observing successful macros; they require negative recovery data (unroutable layouts, timing violations, thermal hotspots) to understand physical limits.
 
-**Lesson:** Similarly, architecture AI requires failed synthesis runs and unroutable layouts to delineate the valid design space. Preserving these negative boundaries is a mathematical necessity for training models.
+**Lesson:** Architecture AI requires failed synthesis runs and unroutable layouts to delineate the valid design space. Preserving these negative boundaries is a mathematical necessity for training models.
 :::
 
 The architecture community has historically recognized the value of failure---such as through the NOPE (Negative Outcomes, Post-mortems, and Experiences) workshop---to prevent repeated costly mistakes. As AI-assisted architecture methods move beyond simple question-and-answer tasks, they will need datasets shaped around active design capabilities. The field currently lacks public, standardized collections of source-linked tool-use examples, versioned state-action-consequence execution histories, and importantly, negative and rejected candidates.
@@ -92,8 +92,6 @@ This dynamic means the spectrum of simulation fidelity directly dictates the vol
 : **Data generation costs across architectural fidelity levels.** While silicon/emulation runs at high speeds, the initial setup cost, bitstream compilation time, and non-recurring engineering (NRE) costs make acquiring the first sample extremely expensive. {#tbl-synthetic-data-costs tbl-colwidths="[20,20,20,20,20]"}
 
 ## Updating the Architect's World Model
-
-![**Different mechanisms update different parts of the AI agent.** Cheap, high-volume data (like pretraining) operates offline, while expensive, high-fidelity data (like tool simulation) explicitly updates the execution history during active design.](images/F4-knowledge-update){#fig-knowledge-update width="100%" fig-alt="Diagram showing Pretraining, Retrieval, and Explicit Updates feeding an Architect AI Agent."}
 
 Once we understand the cost and structure of architectural data, we must consider how an AI agent actually consumes this data. An AI system does not ingest all information in the same way. The mechanisms for updating an AI's internal representation operate on vastly different timescales and serve distinct purposes [@LiuEtAl2023ChipNeMo]:
 
@@ -143,7 +141,7 @@ The representation connects information that final artifacts often separate. It 
 
 An explicit design state must distinguish the fields that an AI method may mutate from the invariants and constraints that remain fixed to preserve system intent.
 
-If an AI method is tasked with optimizing against a lighthouse comparison, the representation might declare that the fetch bandwidth and reorder buffer size are mutable. The peak power limit and the target workload mix are fixed constraints. If these boundaries are not explicit, an AI method might propose a candidate that achieves high performance by silently violating a power constraint or altering the workload mix, invalidating the comparison.
+If an AI method is tasked with optimizing against a lighthouse comparison, the representation might declare that the SRAM capacity and MAC array dimensions are mutable. The peak power limit and the target workload mix are fixed constraints. If these boundaries are not explicit, an AI method might propose a candidate that achieves high performance by silently violating a power constraint or altering the workload mix, invalidating the comparison.
 
 Because search spaces are vast and evaluations are expensive, the representation must also record the tradeoffs and failures discovered along the way. Architecture projects often retain the accepted design and discard the work that did not advance. Discarding this negative evidence hinders future optimization. When an execution history contains only winners, an AI method or reviewer cannot see which assumptions, tools, workloads, or regions of the design space were already ruled out.
 
@@ -173,9 +171,9 @@ To choose the next change, an AI method needs an estimate of what that change ma
 > **Architecture world model:** A predictive model that maps the represented design and a proposed action to a predicted next state or architectural consequence. This adapts the world-model concept from artificial intelligence [@HaSchmidhuber2018WorldModels] to the architectural domain.
 
 ::: {.callout-field-note}
-**Observation:** In computational biology, predicting protein structures via physics-based molecular dynamics (MD) is prohibitively slow, much like cycle-accurate RTL simulation. AlphaFold bypassed this bottleneck by using AI to learn a high-fidelity surrogate model (a world model of protein folding) [@JumperEtAl2021AlphaFold]. Similarly, in meteorology, systems like GraphCast learn directly from historical weather data to predict future climate states orders of magnitude faster than traditional fluid-dynamics equations [@LamEtAl2023GraphCast].
+**Observation:** In computational biology, predicting protein structures via physics-based molecular dynamics is prohibitively slow, much like cycle-accurate RTL simulation. AlphaFold bypassed this bottleneck by using AI to learn a high-fidelity surrogate model. Similarly, in meteorology, systems like GraphCast learn directly from historical weather data to predict future climate states orders of magnitude faster than traditional fluid-dynamics equations [@JumperEtAl2021AlphaFold; @LamEtAl2023GraphCast].
 
-**Lesson:** We must adopt these best practices from other scientific ML communities. In computer architecture, learning an "Architecture World Model" allows an AI agent to bypass slow, expensive ground-truth simulators (like RTL) during the heavy exploration phase, relying on the true simulator only for final validation.
+**Lesson:** Computer architecture must follow suit. By learning an "Architecture World Model," an AI agent can bypass slow, expensive ground-truth simulators (like RTL) during the heavy exploration phase, relying on the true simulator only for final validation.
 :::
 
 An architecture world model performs a transition job. Given the current constrained state machine and a proposed mutation (semantic action), it emits a predicted consequence (such as cycle count or power) within a stated validity region, ideally including uncertainty. This prediction is *not* a tool observation. A later tool execution will test the prediction and return a high-fidelity candidate observation. The execution history must keep the prediction and the observation strictly distinct.
@@ -184,18 +182,18 @@ An architecture world model performs a transition job. Given the current constra
 
 ![**Prediction and observation follow different paths.** The represented state and proposed action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation. The execution history keeps the state, action, prediction, observation, failures, and decision connected.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Diagram showing represented state and a proposed action feeding a performance model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a simulation log that retains provenance, failures, and the decision."}
 
-ChampSim provides a concrete example of an architecture world model. As a trace-based simulator for cache hierarchies, it maps a represented workload trace and a proposed cache configuration to a predicted performance metric. @tbl-executed-study-world-model shows exactly what ChampSim consumes and what its predictions leave out.
+SCALE-Sim provides a concrete example of an architecture world model. As a cycle-accurate simulator for systolic arrays, it maps a represented workload trace and a proposed array configuration to a predicted performance metric. @tbl-executed-study-world-model shows exactly what SCALE-Sim consumes and what its predictions leave out.
 
-| **World-model field** | **Executed ChampSim comparison** |
+| **World-model field** | **Executed SCALE-Sim comparison** |
 | --- | --- |
-| **Represented state** | Frozen SPEC CPU2017 workload trace, declared L2 cache capacity bounds, LRU replacement policy, and fixed main memory latency. |
-| **Action under evaluation** | Propose a prefetcher degree and L2 associativity within a declared 2MB capacity budget. |
-| **Anticipated effect** | The proposed nonbaseline cache configuration aims to lower the execution cycle count relative to the baseline. |
-| **Predicted consequence** | ChampSim predicts instructions per cycle (IPC) and average memory bandwidth utilization for that workload-cache pair. |
-| **Scope and limits** | One simulator version, prefetcher model, memory configuration, and workload trace. |
-| **Unsupported consequence** | Energy, area, compiler effects, RTL feasibility, physical design, and performance outside the frozen trace. |
+| **Represented state** | Frozen GEMM workload trace, defined SRAM capacity bounds, weight-stationary dataflow, and fixed interface bandwidth. |
+| **Action under evaluation** | Propose array width and height within a declared MAC budget. |
+| **Anticipated effect** | The proposed nonbaseline array configuration aims to lower the execution cycle count relative to the baseline. |
+| **Predicted consequence** | SCALE-Sim predicts total cycles and average MAC utilization for that workload-array pair. |
+| **Scope and limits** | One simulator version, static mapping, memory configuration, and workload slice. |
+| **Unsupported consequence** | Energy, timing paths, compiler effects, RTL feasibility, physical design, and performance outside the frozen trace. |
 
-: **ChampSim predicts the effect of a proposed action.** It maps the represented workload and proposed cache configuration to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
+: **SCALE-Sim predicts the effect of a proposed action.** It maps the represented workload and proposed systolic array configuration to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
 
 @tbl-sample-cost-regimes shows how the required context changes with the source of feedback. Read each row from the time and resources needed to obtain an observation, through what that observation can reveal, to the information a later method or reviewer would need in order to reuse it.
 
