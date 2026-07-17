@@ -49,6 +49,14 @@ Capability and authority also remain separate. A successful tool call,
 prediction, repair, or verification step demonstrates a capability within its
 tested scope. It does not authorize a stronger architecture decision.
 
+::: {.callout-field-note title="Capability vs. Authority in the Simplex Architecture"}
+**Observation:** In safety-critical control theory (e.g., avionics), the Simplex architecture pairs an unverified, complex AI "High-Performance Controller" with a deterministic "Safety Controller."
+
+**Context:** If the AI pushes the system outside the safe physical envelope, the independent safety monitor instantly revokes its authority.
+
+**Lesson:** AI does not need to be perfect, as long as the simulator or oracle has absolute veto power. We must rigidly separate an AI's capability to propose from the authority to decide.
+:::
+
 > **Method role.** A method role is the specific job a model, search procedure,
 > tool, script, or person performs inside a design loop, together with the state
 > it may read, the actions it may take, the feedback it receives, and the
@@ -80,20 +88,18 @@ These learning objectives underscore the necessity of treating AI not as a monol
 
 ## Matching AI Roles to the Architecture Bottleneck
 
-Start with the architecture work that needs help. Design-space exploration,
+The design loop has distinct bottlenecks. Design-space exploration,
 workload characterization, benchmark construction, code generation, RTL
 repair, compiler/runtime tuning, accelerator search, chiplet partitioning,
 physical-design assistance, and evidence critique are not the same problem.
 They require different state, allow different actions, tolerate different
 errors, and require different feedback.
 
-ArchGym makes method comparisons more meaningful by defining tasks, actions,
-observations, workloads, and feedback
+Applying the wrong AI method wastes scarce evaluations. An architect who already has too many candidates needs better ranking or critique, not another generator. An architect with only a few expensive synthesis runs may need an optimizer that chooses where to spend them. If a generator is deployed when a predictor is required, the project burns checking capacity on plausible but incorrect proposals.
+
+We must map the AI role specifically to the bottleneck. ArchGym makes method comparisons more meaningful by defining tasks, actions, observations, workloads, and feedback
 [@KrishnanEtAl2023ArchGym]. A shared environment still does not decide which
-job an AI method should perform. An architect who already has too many
-candidates needs better ranking or critique, not another generator. An
-architect with only a few expensive synthesis runs may need an optimizer that
-chooses where to spend them.
+job an AI method should perform; the architect must assign a role that resolves the limiting factor.
 
 @fig-method-role-map connects that method choice to the rest of a bounded
 architecture study. Read it from the study conditions on the left, through the
@@ -114,8 +120,7 @@ returns estimates, and optimization selects the next experiment. Critique
 returns findings, while repair returns revisions. Verification returns check
 results, explanation develops a mechanism account, and coordination routes
 state and work among the roles. A project may use only one role or combine
-several. For
-example, a generator may propose spatial dataflows, a predictor may rank them,
+several. For example, a generator may propose spatial dataflows, a predictor may rank them,
 and independent tool checks may reject illegal or incorrect candidates.
 
 ## Comparing Method Roles
@@ -225,10 +230,8 @@ It is tempting to treat a plausible AI-generated artifact, such as an RTL fragme
 a configuration, or a benchmark question, as a result. It is a proposal. Tool
 checks, a matched baseline, and retained failures can challenge the proposal.
 The architect responsible for the decision determines whether it deserves
-further work.
+further work. Treating generation as design bypasses the rigorous validation required for architectural claims. A generated artifact is merely a starting point—its plausibility does not guarantee correctness, safety, or performance. The true design work lies in constructing the checks, establishing the baseline, and interpreting the tool feedback that either validates or rejects the AI's proposal.
 :::
-
-Treating generation as design bypasses the rigorous validation required for architectural claims. A generated artifact is merely a starting point—its plausibility does not guarantee correctness, safety, or performance. The true design work lies in constructing the checks, establishing the baseline, and interpreting the tool feedback that either validates or rejects the AI's proposal.
 
 Generation is especially useful for breadth. It can propose
 candidate decompositions, list assumptions, create alternative experiment
@@ -241,9 +244,7 @@ Kernel generation makes the separation visible because a compute subsystem
 depends on target-specific kernels that are both correct and efficient.
 KernelBench, an evaluation framework for AI-generated code, asks language
 models to produce GPU kernels for PyTorch workloads
-[@OuyangEtAl2025KernelBench]. Its harness compiles each candidate, checks
-numerical correctness, and compares performance with the PyTorch Eager
-baseline.
+[@OuyangEtAl2025KernelBench]. This platform perfectly illustrates why roles must remain distinct: the generator's job is solely to propose code, while the verification job belongs exclusively to a separate harness that checks numerical correctness and measures performance against a PyTorch Eager baseline. Conflating the generator with the verifier would hide the critical gap between fluency and execution.
 
 @fig-ch06-kernel-funnel shows the outcome of one attempt per task for four
 models across three difficulty levels. The dashed line marks attempted tasks,
@@ -348,18 +349,13 @@ impact. It might be a regression model, a learned surrogate, a calibrated
 analytic model, a simulator-backed approximation, or a hybrid that combines
 domain structure with data.
 
-Building a highly accurate surrogate model for architecture—one that can bypass slow simulation—requires adopting the methodologies that succeeded in other physics-based domains. As @sec-data-representations-world-models introduced, systems like AlphaFold and GraphCast achieved their breakthroughs not just by scaling model size, but by combining massive unsupervised structural data with highly precise physical constraints. AlphaFold learned the fundamental spatial relationships of amino acids from vast, unlabeled sequence databases, then constrained its predictions using known thermodynamic and stereochemical rules. Similarly, GraphCast modeled global weather patterns by learning fluid dynamics from decades of historical reanalysis data, structured through a mesh-graph representation that inherently respected spatial physics.
-
-To train an equivalent "Architecture World Model," architects must adopt these exact strategies. First, we need massive unsupervised data: the surrogate should pretrain on millions of cycles of raw RTL execution traces, unlabeled simulator logs, and compiled binaries to learn the fundamental "physics" of data movement and instruction execution. Second, we must enforce highly precise physical and structural constraints. Just as AlphaFold respects atomic distances, an architecture surrogate must be constrained by strict hardware rules: structural dataflow dependencies, SRAM port limits, pipeline hazards, and cache-coherence state transitions. An architect maps the methodology by feeding the model a structural graph representation of the RTL or cache hierarchy, training it to predict the next cycle's state (like GraphCast predicts the next weather state), and explicitly penalizing predictions that violate known physical constraints such as bandwidth limits. Only by grounding massive trace data in strict structural rules can AI reliably model highly constrained, physics-based architecture domains.
+The success of AlphaFold and GraphCast provides a core nexus for this approach. Both models achieved breakthroughs not by relying on raw scaling alone, but by baking domain-specific invariances and hard physical laws into their architectures. For hardware design, an AI cannot act as an "Architecture World Model" without explicitly encoding physical constraints and failing safely. A surrogate that predicts latency or power must internalize structural dataflow dependencies, SRAM port limits, pipeline hazards, and bandwidth ceilings. Just as GraphCast respects thermodynamic boundaries, an architecture surrogate must reject predictions that violate conservation of data movement. Without this structural grounding, the model remains a statistical guess rather than a safe, physics-based proxy.
 
 The estimate is only as useful as the feedback behind it. A latency predictor
 can score a Tensor Core dataflow without observing that its unrolling policy
 causes memory bandwidth thrashing or breaks timing after place and route. A single-kernel
 latency may have a clean calibration target, while deployment impact combines
-power, thermal behavior, reliability, and changing workloads. The predictor
-can supply an estimate that a declared policy uses to prune, defer, or request
-stronger feedback. It cannot set that policy or authorize the resulting
-action.
+power, thermal behavior, reliability, and changing work. The predictor can supply an estimate that a declared policy uses to prune, defer, or request stronger feedback. It cannot set that policy or authorize the resulting action. This highlights the crucial difference between Proxies vs. Ground Truth Oracles: the predictor is merely a proxy, and treating it as a ground truth oracle invites Out-of-Distribution failures where the model confidently hallucinates performance gains in untested physical regimes.
 
 For every estimate, the architect should know which workloads and design
 regions supplied the calibration data, whether the candidate changes memory
@@ -367,7 +363,7 @@ behavior, vector width, or technology assumptions, and which higher-fidelity
 result can test the estimate. Those details show whether the prediction is an
 interpolation inside known support or an extrapolation that needs escalation.
 
-These happened in ML, so we must adopt these best practices. The medical and science communities learned this the hard way: deploying predictive models without rigorous out-of-distribution detection leads to unsafe outcomes. Just as clinical trials demand strict boundaries on where a model's prediction is valid, architectural design-space exploration must treat uncalibrated surrogates as risks rather than results.
+We must aggressively adopt these ML epistemology warnings. Deploying predictive models without rigorous out-of-distribution detection guarantees Out-of-Distribution failures. Just as clinical trials demand strict boundaries on predictive validity, architectural design-space exploration must treat uncalibrated surrogates as risks rather than results. Conflating Proxies vs. Ground Truth Oracles will inevitably lead to catastrophic hardware flaws driven by Reward Hacking.
 
 Conformal prediction[^fn-stats-conformal-prediction] provides one rigorous way
 to attach a calibrated interval to a surrogate when its assumptions apply. The
@@ -562,18 +558,18 @@ Tensor-program autotuning makes the composition of method roles concrete.
 AutoTVM and Ansor combine schedule generation, cost prediction, experiment
 selection, compilation, and measured hardware feedback without treating those
 operations as one undifferentiated optimizer
-[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor].
+[@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. Schedule tuning in these platforms demonstrates why generation, optimization, and verification must remain completely distinct roles: the generator constructs the schedule space, the optimizer queries the cost model to select the next experiment, and the compiler performs the ultimate verification on hardware. If the optimizer were allowed to bypass hardware verification, its cost-model inaccuracies would silently become architectural flaws.
 
-::: {.callout-war-story title="Measured feedback corrected the search"}
-**The claim.** AutoTVM and Ansor use learned cost models to direct search through
+::: {.callout-field-note title="Measured feedback corrected the search"}
+**Observation:** AutoTVM and Ansor use learned cost models to direct search through
 large tensor-program schedule spaces rather than measuring every candidate.
 
-**The gap.** A cost-model score does not establish that a schedule is legal,
+**Context:** A cost-model score does not establish that a schedule is legal,
 correct, or fast on the target. Selected schedules still pass through the
 compiler and execute on hardware, where failures and measured latency can
 contradict the prediction.
 
-**The lesson.** The composition works because each role retains a separate
+**Lesson:** The composition works because each role retains a separate
 output and check. Generation supplies schedules, prediction ranks them,
 optimization selects measurements, and the compiler and target hardware return
 independently inspectable results.
@@ -598,7 +594,7 @@ that judgment concrete:
 If the run record cannot answer these questions, the optimizer may have
 improved a score without improving architectural understanding.
 
-### Allocating the Feedback Budget {#sec-sample-efficiency-under-expensive-feedback}
+## Allocating the Feedback Budget {#sec-sample-efficiency-under-expensive-feedback}
 
 Optimization makes the feedback budget visible because it chooses where the
 next evaluation goes. The same budget constrains every role. Simulator,
@@ -791,6 +787,14 @@ constraint, or hardware measurement. The model may help construct tests or
 route failures, but it cannot generate an artifact, judge the adequacy of its
 own tests, approve its output, and call that independent verification.
 
+::: {.callout-field-note title="Translation Validation over Correct-by-Construction"}
+**Observation:** In compiler design and formal methods, translation validation stops trying to formally verify that a complex optimizer (like an LLM) is "correct by construction."
+
+**Context:** The optimizer is treated entirely as a black box that might produce flawed output at any time.
+
+**Lesson:** We must spend our engineering effort building a simple, independent Verifier that checks the specific output artifact for correctness, rather than trying to prove the AI itself is flawless. This highlights the severe necessity of separating Proxies vs. Ground Truth Oracles.
+:::
+
 KernelBench provides a narrow example. The generated GPU kernel is compared
 with a reference implementation under a stated numerical tolerance, and only a
 correct kernel proceeds to the performance comparison
@@ -896,68 +900,32 @@ check still settles the claim.
 
 ## Open Research Questions
 
-1. **How can runtime checks keep an AI method inside its assigned authority as conditions change?**
-The role limits in @tbl-method-role-limits are easy to state and hard to
-enforce when feedback cost, uncertainty, or consequence changes during a run.
-Runtime checks need to detect when a predictor turns a scoped estimate into a
-recommendation, or when a coordinator combines limited permissions into a
-stronger action. They must distinguish real authority violations from harmless
-handoffs and report the cost of doing so.
+1. **Dynamic Authority Bounds in AI-Assisted Design.**
+While static role limits define what an AI method may propose or optimize, architectural design environments exhibit changing feedback costs, shifting uncertainty, and evolving failure consequences during execution. Current frameworks lack the mechanisms to enforce authority bounds dynamically. This limits the safety of autonomous assistants, as a predictor may silently escalate a scoped estimate into a design recommendation. A key challenge is developing runtime checks that intercept authority violations—distinguishing them from legitimate task handoffs—without imposing prohibitive overhead on the design loop.
 
-2. **How should an AI-assisted architecture project spend scarce feedback among method roles?**
-Generation, prediction, critique, repair, and optimization consume feedback in
-different ways. Under fixed simulator-hour, validation, latency, and
-human-review budgets, the architect must decide when another candidate is more
-useful than a refined predictor or a search for missing comparisons. The
-next-evaluation test in @sec-sample-efficiency-under-expensive-feedback asks
-which uncertainty a new result could resolve, whether it could change the
-ranking or claim, and what it would cost. Those choices do not transfer cleanly
-across architecture tasks because tool costs and review loads differ. Any
-allocation policy must decide when to switch among proposing a candidate,
-refining a predictor, and seeking missing comparisons.
+2. **Feedback-Aware Resource Allocation for Autonomous Methods.**
+Architecture simulation and physical design checks represent strictly bounded resources. Although generation, prediction, critique, and optimization accelerate exploration, they all compete for the same underlying feedback budget. Existing AI assistants greedily consume simulator hours to evaluate naive candidates, leaving insufficient capacity for high-fidelity verification. To scale AI methods, we must design feedback-allocation policies that dynamically trade off the cost of generating new candidates against the value of refining a surrogate predictor or seeking missing comparisons under rigid tool budgets.
 
-3. **How can AI optimizers learn from failures without confusing their fidelity?**
-Cheap warnings, proxy mismatches, synthesis timeouts, and high-fidelity failures
-all carry useful information, but they do not support the same conclusion. An
-optimizer must learn from this mixture without letting cheap negative evidence
-masquerade as a physical-design or silicon rejection. The difficulty is
-updating the search from all four signals while keeping each failure tied to
-the fidelity and scope that produced it.
+3. **Fidelity-Preserving Failure Updates for Optimization Algorithms.**
+Design space exploration encounters failures spanning cheap proxy mismatches, synthesis timeouts, and late-stage physical design violations. Standard machine learning optimizers discard the fidelity of these signals, treating all negative feedback as uniform penalties. Consequently, an optimizer may mistakenly interpret a cheap heuristic warning as a strict physical constraint, artificially truncating the search space. Future work must formulate update rules that allow optimizers to learn from diverse failures while rigidly preserving the fidelity and scope of the oracle that generated them.
 
-4. **What independent oracles can verify AI-generated architecture artifacts?**
-A reference kernel can check numerical behavior, while RTL, compiler schedules,
-and physical constraints require different executable or formal checks. The
-open problem is how to construct oracles that remain inspectable independently
-of the model, expose near misses as well as obvious failures, and state exactly
-which property a pass establishes. A model-generated test suite may help, but
-it cannot be its own sole adequacy check.
+4. **Independent Oracles for Generative Architecture Artifacts.**
+As language models demonstrate fluency in generating RTL, scheduling logic, and hardware testbenches, the gap between semantic plausibility and functional correctness becomes the primary bottleneck. A model cannot serve as its own correctness oracle. While reference software easily validates numeric kernels, architectural properties such as timing closure, routing congestion, and structural dataflow lack fast, independently inspectable formal checks. Developing independent, high-speed oracles that expose near-misses and rigorously define passing properties is critical for verifying AI-generated architecture candidates.
 
-5. **When can AI critique and repair reduce architecture work without creating a self-review loop?**
-A critic may find a missing workload or unsupported comparison, while a repair
-method may fix syntax or revise an artifact after a tool failure. Both roles can
-also reinforce the same mistaken assumption when they share context and model
-failures. The open problem is how to compare assisted critique and repair with
-expert review under matched artifacts, tool access, rerun budgets, false-alarm
-costs, and independent checks.
+5. **Breaking the Self-Review Loop in Automated Critique and Repair.**
+Automated agents that critique evaluation logs and repair failed hardware artifacts hold the promise of closing the iterative design loop. However, when the generator, critic, and repair routines share the same underlying model and context, they are prone to reinforcing their own mistaken assumptions in a self-review loop. Addressing this requires constructing multi-agent or hybrid human-AI evaluation methodologies that match automated critique against expert review, explicitly evaluating false-alarm rates and the ability to discover novel failure modes rather than repeating systematic biases.
 
-6. **How should AI explanation and coordination be evaluated as distinct architecture jobs?**
-Explanation should help an architect test a mechanism, while coordination
-should reduce lost state, repeated tool work, and delayed handoffs. Fluency and
-task throughput do not measure either result well. Architecture-specific
-evaluations need to test whether explanations lead to better discriminating
-experiments and whether coordination reduces end-to-end work without hiding
-failures or combining authority across roles.
+6. **Evaluating Explanation and Coordination as First-Class Tasks.**
+Beyond proposing candidates, AI assistants increasingly coordinate multi-tool workflows and synthesize natural-language explanations of hardware mechanisms. Current throughput and fluency metrics fail to capture the value of these tasks. A fluent explanation is useless if it does not lead to a discriminating experiment; automated routing is dangerous if it obscures tool failures or improperly merges authority across agents. We must establish rigorous, architecture-specific metrics that evaluate whether coordination provably reduces end-to-end human effort and whether explanations explicitly surface unresolved structural failures.
 
 ## Conclusion
 
 Ultimately, the purpose of AI in architecture is not to replace human judgment but to amplify our capacity to systematically explore and validate complex design spaces. An architect must deliberately target the specific bottleneck limiting their study—whether it is generating novel spatial dataflows, predicting performance impacts, or finding critical flaws—and deploy the right AI role for the job.
 
-We must remain vigilant in enforcing the boundaries between AI capabilities and architectural authority. Generation, prediction, optimization, critique, and verification each serve a distinct purpose and demand rigorous hardware grounding and transparent feedback costs. Demonstrating fluency in generating artifacts does not grant an AI method the authority to waive constraints or finalize system intents. By explicitly tracking what every method consumes, what it returns, and who reviews its output, architects can leverage AI to accelerate discovery while firmly retaining the reins of design decision-making. The goal is to build verifiable, robust systems where AI accelerates the legwork, but the architect commands the direction.
+We must remain vigilant in enforcing the boundaries between AI capabilities and architectural authority. Generation, prediction, optimization, critique, and verification each serve a distinct purpose and demand rigorous hardware grounding and transparent feedback costs. Demonstrating fluency in generating artifacts does not grant an AI method the authority to waive constraints or finalize system intents. By explicitly tracking what every method consumes, what it returns, and who reviews its output, architects can leverage AI to accelerate discovery while firmly retaining the reins of design decision-making. The goal is to build verifiable, robust systems where AI accelerates the legwork, but the architect commands the direction. These carry-forward principles ensure that readers not only grasp the distinctions between AI roles but actively apply them to retain architectural authority over automated tools in subsequent project phases.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Choose and compose AI roles according to the work limiting the bounded architecture study, not a model leaderboard.
 - **Reader test:** Can you state what each role reads or changes, returns, consumes, and hands off to an independent check or reviewer?
 - **Up next:** Once a method produces observations, @sec-feedback-verification-trust asks when those observations count as evidence and who may decide what happens next.
 :::
-
-These carry-forward principles ensure that readers not only grasp the distinctions between AI roles but actively apply them to retain architectural authority over automated tools in subsequent project phases.

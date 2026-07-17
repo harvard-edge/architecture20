@@ -54,6 +54,14 @@ Where does architectural knowledge come from? Papers, manuals, specifications, c
 
 Crucially, architectural data differs fundamentally from traditional ML web data. First, architecture requires **zero semantic tolerance**: a single hallucinated or misplaced wire can break an entire chip, whereas a hallucinated word in a text generation task might be benign. Second, **execution is ground truth**: text is often its own ground truth, but an architecture representation is merely a hypothesis until it is verified by a rigorous simulator or physical synthesis. Finally, architectural parameters exhibit **tightly coupled constraints**: changing a single parameter, such as buffer size, cascades non-linearly into power, timing, and area outcomes.
 
+::: {.callout-field-note}
+**Observation:** Hardware has zero semantic tolerance for hallucinated, physically impossible geometries.
+
+**Context:** In Computational Physics (Fluid Dynamics), Physics-Informed Neural Networks (PINNs) embed the non-negotiable laws of physics directly into the neural network's loss function.
+
+**Lesson:** An AI surrogate can be mathematically tethered to strict physical constraints (SRAM limits, routing dependencies) so it doesn't propose impossible chips.
+:::
+
 - A **document corpus** (such as technical specifications or conference papers) can support reading, retrieval, and general concept acquisition.
 - A **question and answer pair** can teach or test recall, localization, and technical reasoning.
 - A **tool-use trace** can teach action selection and API syntax.
@@ -64,12 +72,14 @@ Changing the structure of the example changes the capability being trained or te
 But QA has a strict boundary. It tests the *knowledge layer* but cannot reconstruct a project execution history or executable tool state. Crucially, to capture an architect's true knowledge, ML models cannot just look at positive examples---the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space [@ChenEtAl2020SimCLR; @HeEtAl2020MoCo]. Without negative data, a model learns what works in one context, but not *why* it fails in others.
 
 ::: {.callout-field-note}
-**Observation:** In hardware synthesis, models cannot learn the boundaries of valid placement and routing simply by observing successful macros; they require negative recovery data (unroutable layouts, timing violations, thermal hotspots) to understand physical limits.
+**Observation:** In hardware synthesis, models cannot learn the boundaries of valid placement and routing simply by observing successful macros.
+
+**Context:** Machine learning models require negative recovery data (unroutable layouts, timing violations, thermal hotspots) to understand where physical limits lie and how constraints interact.
 
 **Lesson:** Architecture AI requires failed synthesis runs and unroutable layouts to delineate the valid design space. Preserving these negative boundaries is a mathematical necessity for training models.
 :::
 
-The architecture community has historically recognized the value of failure---such as through the NOPE (Negative Outcomes, Post-mortems, and Experiences) workshop---to prevent repeated costly mistakes. As AI-assisted architecture methods move beyond simple question-and-answer tasks, they will need datasets shaped around active design capabilities. The field currently lacks public, standardized collections of source-linked tool-use examples, versioned state-action-consequence execution histories, and importantly, negative and rejected candidates.
+The architecture community has historically recognized the value of failure---for example, in venues dedicated to negative outcomes and post-mortems---to prevent repeated costly mistakes. As AI-assisted architecture methods move beyond simple question-and-answer tasks, they will need datasets shaped around active design capabilities. The field currently lacks public, standardized collections of source-linked tool-use examples, versioned state-action-consequence execution histories, and importantly, negative and rejected candidates.
 
 ## The Cost of a Data Sample
 
@@ -93,7 +103,7 @@ fig, ax = plt.subplots(figsize=(8, 5))
 layers = [
     ("Silicon / FPGA", "Ground Truth, Astronomical Cost", 1),
     ("RTL Simulation", "Very High Fidelity, Very High Cost", 2),
-    ("Cycle-Accurate (e.g., gem5)", "High Fidelity, Medium Cost", 3),
+    ("Cycle-Accurate Simulation", "High Fidelity, Medium Cost", 3),
     ("Trace-Driven", "Medium Fidelity, Low Cost", 4),
     ("Analytical / Mathematical", "Low Fidelity, ~Zero Cost", 5)
 ]
@@ -130,7 +140,7 @@ plt.show()
 | --- | --- | --- | --- | --- |
 | **Analytical / Mathematical** | Low (Equations, steady-state) | Millions of samples/sec | ~$0 (Compute-bound, trivial) | Simple synthetic priors, rule-based generation |
 | **Trace-Driven** | Medium (Instruction streams) | Thousands of samples/sec | Low | Heuristic-based procedural generation |
-| **Cycle-Accurate (e.g., gem5)** | High (Microarchitecture state) | 10s - 100s of samples/sec | Medium (High CPU hours) | High-fidelity synthetic rendering |
+| **Cycle-Accurate Simulation** | High (Microarchitecture state) | 10s - 100s of samples/sec | Medium (High CPU hours) | High-fidelity synthetic rendering |
 | **RTL Simulation** | Very High (Logic gates, precise) | Fractions of a sample/sec | Very High (Days of compute) | Human-annotated expert data |
 | **Silicon / Emulation (FPGA)** | Ground Truth (Physical) | Real-time (Millions/sec)* | Astronomical (NRE, Setup) | Real-world deployment data |
 
@@ -216,9 +226,11 @@ To choose the next change, an AI method needs an estimate of what that change ma
 > **Architecture world model:** A predictive model that maps the represented design and a proposed action to a predicted next state or architectural consequence. This adapts the world-model concept from artificial intelligence [@HaSchmidhuber2018WorldModels] to the architectural domain.
 
 ::: {.callout-field-note}
-**Observation:** In computational biology, predicting protein structures via physics-based molecular dynamics is prohibitively slow, much like cycle-accurate RTL simulation. AlphaFold bypassed this bottleneck by using AI to learn a high-fidelity surrogate model. Similarly, in meteorology, systems like GraphCast learn directly from historical weather data to predict future climate states orders of magnitude faster than traditional fluid-dynamics equations [@JumperEtAl2021AlphaFold; @LamEtAl2023GraphCast].
+**Observation:** High-fidelity RTL simulation is too slow to use for generating training data or running heavy exploration loops.
 
-**Lesson:** Computer architecture must follow suit. By learning an "Architecture World Model," an AI agent can bypass slow, expensive ground-truth simulators (like RTL) during the heavy exploration phase, relying on the true simulator only for final validation.
+**Context:** In Reinforcement Learning, agents like DeepMind's MuZero learn a complex environment entirely from observation and search inside their own "imagination" before taking action.
+
+**Lesson:** An Architecture World Model can perform high-speed, accurate exploration purely in latent space, invoking the true simulator only when it has a high-confidence winner.
 :::
 
 An architecture world model performs a transition job. Given the current constrained state machine and a proposed mutation (semantic action), it emits a predicted consequence (such as cycle count or power) within a stated validity region, ideally including uncertainty. This prediction is *not* a tool observation. A later tool execution will test the prediction and return a high-fidelity candidate observation. The execution history must keep the prediction and the observation strictly distinct.
@@ -227,18 +239,18 @@ An architecture world model performs a transition job. Given the current constra
 
 ![**Prediction and observation follow different paths.** The represented state and proposed action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation. The execution history keeps the state, action, prediction, observation, failures, and decision connected.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Diagram showing represented state and a proposed action feeding a performance model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a simulation log that retains provenance, failures, and the decision."}
 
-SCALE-Sim provides a concrete example of an architecture world model. As a cycle-accurate simulator for systolic arrays, it maps a represented workload trace and a proposed array configuration to a predicted performance metric. @tbl-executed-study-world-model shows exactly what SCALE-Sim consumes and what its predictions leave out.
+An illustrative systolic array simulator provides a concrete example of an architecture world model. As a cycle-accurate simulator, it maps a represented workload trace and a proposed array configuration to a predicted performance metric. @tbl-executed-study-world-model shows exactly what such a simulator consumes and what its predictions leave out.
 
-| **World-model field** | **Executed SCALE-Sim comparison** |
+| **World-model field** | **Illustrative simulator comparison** |
 | --- | --- |
 | **Represented state** | Frozen GEMM workload trace, defined SRAM capacity bounds, weight-stationary dataflow, and fixed interface bandwidth. |
 | **Action under evaluation** | Propose array width and height within a declared MAC budget. |
 | **Anticipated effect** | The proposed nonbaseline array configuration aims to lower the execution cycle count relative to the baseline. |
-| **Predicted consequence** | SCALE-Sim predicts total cycles and average MAC utilization for that workload-array pair. |
+| **Predicted consequence** | The simulator predicts total cycles and average MAC utilization for that workload-array pair. |
 | **Scope and limits** | One simulator version, static mapping, memory configuration, and workload slice. |
 | **Unsupported consequence** | Energy, timing paths, compiler effects, RTL feasibility, physical design, and performance outside the frozen trace. |
 
-: **SCALE-Sim predicts the effect of a proposed action.** It maps the represented workload and proposed systolic array configuration to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
+: **An illustrative simulator predicts the effect of a proposed action.** It maps the represented workload and proposed systolic array configuration to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
 
 @tbl-sample-cost-regimes shows how the required context changes with the source of feedback. Read each row from the time and resources needed to obtain an observation, through what that observation can reveal, to the information a later method or reviewer would need in order to reuse it.
 
