@@ -11,223 +11,157 @@
 :::
 
 ```{=latex}
-\abstract*{An AI method needs more than permission to call an architecture tool. The tool path must expose a read, action, and return contract that connects a candidate change to several legal tool actions. This chapter develops that environment contract across multi-action execution, cross-layer candidate identity, asynchronous execution mechanics, typed returns, and environment maintenance, ensuring the environment remains interpretable as tools and schemas change.}
+\abstract*{An AI method needs more than permission to call an architecture tool. The tool path must expose a read, action, and return interface that connects a candidate change to several legal tool actions. This chapter develops that environment interface across multi-action execution, cross-layer candidate identity, asynchronous execution mechanics, typed returns, and environment maintenance, ensuring the environment remains interpretable as tools and schemas change.}
 ```
 
-::: {.callout-crux}
-How do we turn system intent into a legal tool action, and how do we ensure the environment enforces a structured contract so that returns remain connected to candidate identity instead of becoming disconnected fragments?
-:::
+?@sec-data-representations-world-models established how we must *represent* architectural state to an AI agent, ensuring the mathematical world models align with physical reality. But representation is only half the battle. Once an agent formulates an intent---whether proposing a new cache hierarchy or adjusting a prefetcher---it must actually execute that intent to gather evidence.
+
+In a traditional workflow, the architect manually builds the design, launches a simulator like gem5 or Ramulator, parses the console output, and debugs any segmentation faults or license errors. As we transition to Architecture 2.0, this manual intervention becomes a critical bottleneck. If we are to leverage the speed and scale of generative AI or reinforcement learning, the agents must interact with the tools directly. However, simply giving an AI permission to execute a shell script is not an environment.
+
+In this chapter, we explore how to bridge the gap between an AI's abstract intent and the messy, stateful reality of computer architecture and Electronic Design Automation (EDA) tools. We will define how to structure the read, action, and return paths, handle asynchronous execution, distinguish between tool crashes and design failures, and distill massive simulation logs into dense semantic observations.
 
 ::: {.callout-learning-objectives}
-After this chapter, you can turn a tool path into a documented environment contract. You will be able to connect proposals to legal actions across MLIR-to-RTL paths, bind artifacts, handle asynchronous mechanics, distinguish typed returns, and maintain the environment over time.
+After this chapter, you will be able to turn an ad-hoc tool path into a documented environment interface. You will learn to connect proposals to legal actions across simulators and EDA tools, bind artifacts, handle asynchronous mechanics, distill massive log outputs, and maintain the environment over time.
 :::
 
-This core crux drives the design of an architecture environment. Architecture relies intrinsically on toolchains to validate any hypothesis, moving from abstract design down to physical implementation. However, the bottleneck in this process is tool compatibility and execution cost. An AI method needs more than access to knowledge and permission to invoke tools; AI needs an explicitly wrapped environment to handle failures and asynchronous paths. A *tool* performs an operation. A *wrapper* translates a permitted design action into a tool call, then translates the result into recorded observations and outcome statuses. A *harness* is the maintained runnable implementation of that contract, including workloads, versions, scripts, provenance, raw outputs, and outcome records. An *environment* is the tool flow governed by an explicit contract defining those paths.
+## The Origin Mismatch: Human Intuition vs. AI APIs
 
-The bounded study covers the architecture question, comparison, and intended decision. Its environment contract covers the tool flow. Whether the returned observations support an architectural claim is a separate question developed in @sec-feedback-verification-trust. Similarly, a scoped consequence model and an architecture environment answer different questions. The model predicts or constrains what may happen after an action; the environment governs the actual tool interaction and records what happens. A candidate observation is not yet evidence until it is verified.
+### System Intent Is Not Yet a Tool Action
 
-Consider the Lighthouse comparison from earlier, where the system intent is to maximize throughput for a dense matrix workload. The candidate change—inserting a specialized Tensor Core rather than relying on generic MAC units—is not executable as one function call. Software must target the new instruction, generated hardware must implement the Tensor Core, a specific binary must run against a specific hardware artifact, and several tools may return different content. Evaluating the change requires specific MLIR-to-RTL lowering steps, compiler IR transformations (e.g., MLIR emitting matrix-multiply instructions), a generated RTL configuration (e.g., enabling the Tensor Core in Chipyard), a built binary, a correctly executed simulator (such as gem5), a formal equivalence check, an FPGA image, and physical implementation actions.
+The fundamental friction in AI-assisted hardware design stems from an origin mismatch. Decades of EDA and architecture tools (like CACTI, DRAMSys, or gem5) were painstakingly engineered for human intuition. They assume a human architect sitting at a workstation, interacting through Graphical User Interfaces (GUIs), interpreting color-coded waveforms, and entering commands into an interactive shell.
 
-The transition from environment design to method deployment relies completely on these principles. A fully realized environment acts as the foundation upon which generative models and optimization algorithms can operate reliably and independently.
+An autonomous AI, however, expects stateless, deterministic APIs. While recent advances in "computer use" models allow AI to visually parse GUIs and literally move a mouse to click buttons, relying on visual GUI automation for architecture design is incredibly brittle and computationally inefficient. A pixel-based interaction model cannot guarantee the mathematical rigor and reproducibility required to tape out a multi-million dollar SoC. Because of this, system intent, a GUI, and permission to call a tool are vastly insufficient for robust architecture work.
 
-## System Intent Is Not Yet a Tool Action
+Consider the **XR Lighthouse** example introduced in ?@sec-moonshot. The high-level system intent is to maximize XRBench throughput within a strict 3 W TDP thermal envelope. The candidate change---inserting a specialized Tensor Core accelerator block---is not executable as one simple function call. A compiler must successfully emit the right memory mapping for the tensor instructions; the hardware configuration must instantiate the block; the RTL generator must pass simulation; and the EDA flow must synthesize it to check for routing congestion in the 3 nm layout. Each tool call can "succeed" (exit code 0) while the architecture proposal itself remains unevaluated or logically broken.
 
-System intent, relevant knowledge, a function signature, and permission to call a tool are still insufficient for architecture work. A compiler may successfully emit tensor instructions while the selected hardware artifact lacks the Tensor Core feature, or a generated Tensor Core may pass simulation while the software path never uses it. Each tool call can succeed while the architecture proposal remains unevaluated.
+Tool meaning depends entirely on fixed context, legal actions, software and hardware specifications, tool versions, permissions, execution conditions, and explicitly defined failure behaviors. Two studies can call the exact same Ramulator instance while operating in totally different environments because their actions, workloads, constraints, and observation meanings differ. A computational method cannot infer these context dependencies via intuition; it requires the environment to explicitly expose what actions are permitted, what the tool returns, which states are invalid, and which runs can be repeated.
 
-Tool meaning depends on fixed context, legal actions, software and hardware contracts, tool versions, permissions, execution conditions, return semantics, and explicit failure behavior. The classic quantitative tradition in computer architecture shifted the field from intuition to rigorous simulation and measurement [@HennessyPatterson2017QuantitativeApproach]. Architecture 2.0 extends that discipline to the measurement interface itself. Two studies can call the same simulator or EDA tool while operating in different environments because their actions, workloads, constraints, and observation meanings differ.
+## The Semantic Gap: From Unstructured Logs to Observations
 
-An AI method can act only on the interface state it receives. An architect can sometimes infer that a simulator result is out of distribution, that a benchmark run used a stale configuration, or that a reported improvement is not meaningful because the compiler changed. A method cannot use those facts unless the wrapper exposes them. Naming a tool is not enough. The wrapper must expose what actions are permitted, what the tool returns, which states are invalid, and which runs can be repeated.
+### The Read, Action, and Return Paths
 
-## The Read, Action, and Return Paths
+When confronted with the massive semantic gap between an AI agent and legacy architecture tools, a critical philosophical question arises: do we throw all the traditional simulation and EDA data overboard and train AI models purely end-to-end?
 
-A usable environment has three distinct paths that cross its boundary before, during, and after execution (@fig-environment-tool-interface).
+The answer is a definitive *no*. We do not throw the traditional data overboard, because that data represents the unbreakable laws of physics---timing closure, thermal limits, memory bandwidth, and physical routing congestion. Without this data, an AI is just a stochastic hallucination engine. The physical ground truth provided by traditional tools remains indispensable.
 
-![**A tool becomes an environment when its interface is specified.** The contract fixes permitted actions and observation meaning before execution. The wrapper and harness then keep invalid actions, valid observations including declared constraint failures, execution failures, and unsupported observations distinct while preserving the raw output and provenance of every path.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="85%" fig-alt="Diagram of an architecture question and workload, action schema, constraints, and metric definitions entering an environment boundary. A wrapper checks the request, calls the tool, and parses the observation and status; a harness records the run and provenance. Separate branches represent invalid action before execution, valid observation returned, execution or tool-path failure, and unsupported or out-of-scope observation."}
+What *must* change is the ***interface*** and the ***role of the data***. To make this data usable, a robust environment achieves translation by establishing three distinct paths that cross its boundary before, during, and after execution.
 
-The **read path** supplies the state references, fixed context, source pointers, permissions, resource availability, tool versions, and current job state needed before an action is proposed or issued. The **action path** accepts a typed request that identifies the target candidate or artifact, requested transformation or execution, legal parameters, preconditions, permissions, budget, and expected return schema. The **return path** carries typed tool returns, raw artifacts, attempt and candidate identifiers, cost, latency, declared operational fidelity, provenance, environment version, lifecycle state, terminal outcome, and return-content kind.
+1. **The Read Path:** This supplies the state references, fixed context, source pointers, permissions, resource availability, tool versions, and current job state needed *before* an action is proposed. For example, before an agent proposes a new L2 cache size, the read path provides the maximum die area budget and the legal step sizes for the SRAM arrays.
+2. **The Action Path:** This accepts a typed request that identifies the target candidate, requested transformation, legal parameters, preconditions, and budget. It prevents the AI from proposing physically impossible states (like a 3.14MB cache) before wasting simulation time.
+3. **The Return Path:** This carries typed tool returns, raw artifacts, cost, latency, declared operational fidelity, provenance, lifecycle state, terminal outcome, and return-content kind.
 
-For the Lighthouse Tensor Core proposal, the read path returns the workload version, target contract, baseline artifacts, permissions, queue state, and resource availability. The action path requests one legal lowering, generator change, build, or run against an identified artifact. The return path identifies which artifact and attempt produced each binary, report, counterexample, measurement, or failure.
+Rather than providing raw Python code, we can formalize this interaction as a standard algorithmic interface, drawing inspiration from frameworks like OpenAI Gymnasium but tailored for the unique constraints of hardware design [@TowersEtAl2023Gymnasium; @KrishnanEtAl2023ArchGym].
 
-To manage these paths, an operational taxonomy requires three orthogonal fields rather than forcing every event into one status:
+::: {.callout-note title="Algorithm Listing: The Architecture Environment Interface"}
+**Input:** `action_request` (e.g., target L2 cache size, routing effort)
+**Output:** `observation_vector`, `status_flags`, `provenance_metadata`
 
-1. **Job lifecycle state:** Includes not submitted, submitted, queued, running, partial, cancel requested, retrying, and terminal.
-2. **Terminal tool outcome:** Records whether the attempt completed, was rejected before execution, was canceled, timed out, or failed during execution. A reason field distinguishes license, permission, wrapper, tool, host, and other causes.
-3. **Return-content kind:** Distinguishes an operational event or status, an intermediate or diagnostic artifact, a candidate observation produced by a declared evaluation, and an unsupported or out-of-scope return.
+1. **Validate Action (Read/Action Path):**
+   * Check if `action_request` violates fundamental fixed constraints (e.g., exceeds global area budget).
+   * *If invalid:* Return `INVALID_ACTION` immediately. Do not invoke tools.
+2. **Translate to Tool Commands:**
+   * Lower `action_request` into tool-specific configurations (e.g., CACTI `.cfg` files, gem5 command line arguments).
+3. **Asynchronous Execution (Return Path):**
+   * Submit job to cluster/queue.
+   * Handle timeouts, missing FlexLM licenses, or cluster preemption.
+   * *If infrastructure fails:* Return `TOOL_CRASH`. Do not penalize the architecture candidate.
+4. **Data Distillation:**
+   * Parse the 10,000-line tool stdout and gigabyte trace files.
+   * Extract the key performance indicators (KPIs) into a dense `observation_vector` (e.g., `[latency_ns, power_w, area_mm2]`).
+5. **Return State:**
+   * Package the `observation_vector`, `status_flags` (e.g., `TIMING_MET`, `ROUTING_FAILED`), and exact tool hashes for reproducibility.
+:::
 
-A canceled job does not become a rejected architecture candidate. A partial artifact is not a lifecycle state and becomes a candidate observation only if the declared return schema defines what it measures and its scope. Otherwise, it remains an intermediate or diagnostic artifact. A completed job likewise need not contain a candidate observation.
+## Executing Intent: Cloud and Bioinformatics Analogies
 
-ArchGym, a project from the author's group, organizes bounded architecture tasks as environments with defined actions and observations [@KrishnanEtAl2023ArchGym; @ReddiYazdanbakhsh2023Gymnasium]. It grounds the shared action-observation boundary and shows why task, workload, metric, budget, and status definitions must travel with the interface. ArchGym covers bounded tasks through shared interfaces, but a reviewable comparison still has to fill in metric meaning, tool outcomes, provenance, acquisition cost, and follow-up actions (@tbl-archgym-mini-contract).
+### One Architecture Change, Several Tool Actions
 
-| **Contract path** | **What an environment contract must expose** |
-| --- | --- |
-| **Read** | Workload version, target contract, baseline artifacts, permissions, queue state, resource availability, and fixed context. |
-| **Action** | Target candidate, legal parameters, requested transformations, budget, preconditions, and expected return schema. |
-| **Return** | Typed returns, candidate observations, intermediate artifacts, cost, fidelity, provenance, and the three operational taxonomy fields. |
+How does one candidate architecture change become several legal tool actions without losing its connection to the system intent? We must look to adjacent domains that have solved this exact problem of decoupling *intent* from *messy execution mechanics*.
 
-: **The three environment paths.** A usable environment explicitly separates what an AI method must read before acting, what it may request, and what the return path must preserve. {#tbl-archgym-mini-contract tbl-colwidths="[15,85]"}
+In computational biology, executing a genomic pipeline previously required brittle bash scripts. Frameworks like Nextflow and Snakemake emerged to formalize dataflow, completely isolating the *scientific logic* from the *execution mechanics* (cluster queues, retries, and tool crashes). In cloud computing, Kubernetes relies on "desired state reconciliation"---the user declares the intent, and the orchestration engine handles the low-level failures.
 
-## One Architecture Change, Several Tool Actions
+Architecture 2.0 environments must act as this orchestration layer. A semantic proposal may require several reads, transformations, builds, executions, and checks. Their dependencies form a graph rather than a single call or mandatory sequence.
 
-How does one candidate architecture change become several legal tool actions without becoming a fixed universal pipeline or losing its connection to the system intent? A semantic proposal may require several reads, transformations, builds, executions, and checks. Their dependencies form a graph rather than a single call or mandatory sequence.
+For the **XR Lighthouse** subsystem, adding a new Tensor Core accelerator unit requires explicit MLIR-to-RTL lowering and compiler IR transformations. It may demand a compiler transform to emit new instructions, a hardware target feature declaration, a hardware configuration change, generated RTL, a rebuilt binary, a correctness run, a simulator run, and one implementation check. Some branches can execute in parallel, some become legal only after earlier artifacts exist, and some are omitted because the bounded study does not need them.
 
-For the Lighthouse Tensor Core candidate, adding the new unit requires explicit MLIR-to-RTL lowering and compiler IR transformations. It may demand a compiler transform to emit new instructions, a hardware target feature declaration, a hardware configuration change, generated RTL, a rebuilt binary, a correctness run, a simulator run, and one implementation check. Some branches can execute in parallel, some become legal only after earlier artifacts exist, and some are omitted because the bounded study does not need them.
+### Candidate and Evaluation Identity Across Representation Changes
 
-The action graph includes nodes such as:
+Software variant S2 may be an MLIR-derived lowering compiled into binary B2 [@LattnerEtAl2020MLIR]. Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 [@chipyard]. Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
 
-1. Read the workload profile and target contract.
-2. Produce or select a legal software lowering.
-3. Produce or select a legal hardware configuration.
-4. Generate RTL and compile the software artifact.
-5. Bind a runnable evaluation instance.
-6. Run correctness and compatibility checks.
-7. Run selected simulation, formal, emulator, or EDA branches.
-8. Return artifacts and candidate observations to the study.
+An evaluation instance binds every layer relevant to that tool action. Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. Google's Bazel build system guarantees reproducibility by enforcing hermeticity---every output is a strict cryptographic hash of its inputs. This perfectly matches the architectural need to track hardware candidate identity as it lowers from a C++ memory model to RTL to Layout. A hash proves artifact identity, not architectural or functional equivalence.
 
-A failure in an early compatibility check may make the expensive branches inapplicable. This execution topology explains which actions depend on which other actions. It does not define candidate lineage, compare interface schemas, or select the participant or next path.
+## Killing the Synchronous `env.step()`
 
-## Candidate and Evaluation Identity Across Representation Changes
+### Asynchronous, Scarce, and Protected Tool Chains
 
-What does it mean for compiler IR, generated RTL, a binary, a simulator run, an FPGA image, and an EDA report to belong to the same candidate? Candidate identity is a typed, versioned lineage, not one filename or content hash. Software lineage and hardware lineage remain distinct until an evaluation instance binds the artifacts required for a particular tool path.
+Because of the physical and economic constraints of real hardware design, the standard synchronous `env.step()` wrapper---which blocks execution until a scalar reward is returned---is fundamentally the wrong abstraction. A blocking synchronous call will inevitably time out or hang when a placement job takes 40 hours, or waits three days for an EDA license checkout.
 
-The environment distinguishes four objects:
+Instead, real tool chains require asynchronous, scarce, and protected execution mechanics. Long simulations, FPGA builds, EDA stages, and signoff require explicit submit, poll, resume, cancel, timeout, retry, queue, license, permission, artifact-isolation, and partial-return behavior. These are architecture environment semantics because they determine which candidate ran, which stage completed, which artifacts are valid, and whether another attempt is comparable. For instance, a FireSim build or physical tool run may wait for an FPGA slot or EDA license, produce a checkpoint or partial report, time out, and later retry [@KarandikarEtAl2018FireSim].
 
-1. **Root proposal identity:** Links all work intended to investigate one semantic architecture change.
-2. **Software candidate identity:** Covers source or IR state, lowering and schedule choices, compiler and target versions, binary, and relevant runtime artifacts.
-3. **Hardware candidate identity:** Covers architecture parameters, generator inputs, generated RTL, elaborated or synthesized artifacts, FPGA image, and physical implementation descendants.
-4. **Evaluation instance identity:** Binds the exact software artifact, hardware artifact, workload or test artifact, tool configuration, and environment version used by one action or run.
+### Distinguishing Tool Failures from Design Failures
 
-![**An integrated environment ties the backends together.** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="85%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
+A critical requirement of this asynchronous system is explicitly distinguishing between an **infrastructure failure** and an **architectural constraint violation**.
 
-Software variant S2 may be an MLIR-derived lowering compiled into binary B2 [@LattnerEtAl2020MLIR]. Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 [@chipyard] (@fig-chipyard-framework). A FireSim simulator action evaluates the binding of B2, R3, workload W1, and environment E4. Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
+If an AI proposes an SRAM configuration and the simulator crashes due to an Out-Of-Memory (OOM) error on the host server, or because a FlexLM license server went offline, this is an infrastructure failure. If the AI is merely fed a scalar reward of `-1` for this attempt, the AI will incorrectly learn that the SRAM configuration is architecturally invalid. It will update its weights or policy to avoid that configuration, polluting the design space exploration with infrastructure noise.
 
-An evaluation instance binds every layer relevant to that tool action. An omitted layer must inherit an explicit baseline or be marked not applicable; it must never be silently absent. A software-only compiler study may bind the baseline hardware target. A pure EDA action may mark workload execution as not applicable while binding the exact hardware artifact and constraints.
+The environment harness must catch infrastructure failures and flag them as `RETRY_ELIGIBLE` or `TOOL_CRASH`, preventing the AI from absorbing false negative architectural lessons. Only true architectural failures---such as failing to meet a timing constraint in synthesis, or causing a thermal violation in the system's 3 W envelope---should be passed back to the AI as negative design feedback.
 
-Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. A lowering or optimization intended to preserve semantics remains a derived artifact only under a declared relation. A hash proves artifact identity, not architectural or functional equivalence.
+## The Economic Reality of EDA
 
-## Asynchronous, Scarce, and Protected Tool Chains
+### Different Tools Return Different Things
 
-Real tool chains require asynchronous, scarce, and protected execution mechanics. Long simulations, FPGA builds, EDA stages, and signoff require explicit submit, poll, resume, cancel, timeout, retry, queue, license, permission, artifact-isolation, and partial-return behavior. These are architecture environment semantics because they determine which candidate ran, which stage completed, which artifacts are valid, and whether another attempt is comparable. For instance, a FireSim build or physical tool run may wait for an FPGA slot or EDA license, produce a checkpoint or partial report, time out, and later retry [@KarandikarEtAl2018FireSim].
+Modern AI research operates under the assumption of infinite, cheap, highly parallel compute. In domains like reinforcement learning for Atari games or text generation for LLMs, environments run at thousands of frames per second, allowing models to rapidly brute-force their way to a solution through massive trial and error.
 
-```{mermaid}
-%%| label: fig-asynchronous-state
-%%| fig-cap: "**Asynchronous execution mechanics.** Tool-path states including queueing, partial artifacts, and retries."
-stateDiagram-v2
-    [*] --> Submitted
-    Submitted --> Queued
-    Queued --> Running : Resource available
-    Queued --> Canceled : Timeout / Cancel
-    Running --> Canceled : Timeout / Cancel
-    Running --> Failed : Execution failure
-    Running --> Partial : Preempted / Checkpoint
-    Partial --> Queued : Resume
-    Running --> Completed : Tool returns
-    Completed --> [*]
-    Failed --> Queued : Retry (if eligible)
-    Failed --> [*]
-    Canceled --> [*]
-```
+Hardware design, however, is bound by a harsh economic reality. Architecture tools are locked behind expensive licenses, and a single high-fidelity simulation or physical design run may sit in a Slurm queue for days before executing. The compute required for a single physical design signoff can be *orders of magnitude* slower and more expensive than an AI model's inference pass. This economic clash dictates how environments must be constructed. As fidelity increases toward silicon, the sample budget shrinks exponentially from millions of cheap functional checks to handfuls of expensive layout runs.
 
-The contract must specify queue and license state, disclosure tier, pollable lifecycle state, cancellation semantics, attempt or idempotency identifiers, retry eligibility, partial-artifact schema, and artifact isolation across concurrent jobs.
+Because of this reality, different tools return profoundly different things, and we cannot afford to blur them together. The three-path interface is shared, but its types are tool-specific. Architecture semantics live in the differences among interfaces.
 
-A retry either reuses an idempotency key under identical conditions or creates a linked new attempt when conditions differ. Returns from several attempts remain distinct. A requested cancellation, queue timeout, license outage, wrapper crash, and tool crash are not architecture measurements. They use the lifecycle and outcome taxonomy without redefining it.
-
-Commercial tool and foundry constraints limit what Architecture 2.0 should try to standardize. The field does not need a universal vendor API or an open substitute for every foundry rule. It needs a stable way for reviewers to see what changed, what was observed, what stayed confidential, and which tool-level status was returned, while leaving proprietary implementation details protected (@tbl-standardizable-proprietary-contract).
-
-| **Contract layer** | **Can be standardized** | **Usually remains proprietary** |
-| --- | --- | --- |
-| **Action schema** | Task identifiers, legal edit classes, invalid-action categories, and stage labels. | Vendor command syntax, internal scripts, and product-specific flow recipes. |
-| **Observation schema** | Metric names, fidelity labels, report hashes, warning classes, and failure categories. | Full report bodies, foundry rule details, and confidential workload traces. |
-| **Run record** | Tool/version hashes, seed records, queue or license state, elapsed time, and artifact pointers. | License-server behavior, internal tool telemetry, and nonpublic debug artifacts. |
-| **Tool outcome** | Four common status categories, affected artifact, raw-output pointer, and retry eligibility. | Internal warning semantics, protected failure details, and vendor-specific recovery procedures. |
-| **Disclosure boundary** | Redaction reason, disclosure tier, artifact hash or signature, and which observations remain unavailable. | Raw PDK contents, proprietary RTL, private baselines, and customer data. |
-
-: **Run records for closed tool flows.** Commercial EDA and foundry flows can use common action, observation, provenance, outcome, and disclosure fields without exposing vendor implementations, foundry rules, or protected design state [@Synopsys2023DSOai; @Cadence2021Cerebrus]. {#tbl-standardizable-proprietary-contract tbl-colwidths="[18,34,38]"}
-
-## Different Tools Return Different Things
-
-The three-path contract is shared, but its types are tool-specific. Architecture semantics live in the differences among interfaces. The same Tensor Core candidate can return compiler diagnostics, a binary, simulation counters, a formal counterexample, a FireSim run record, and an EDA timing report. These returns are not interchangeable and should not be collapsed into one reward without preserving their source schemas.
-
-Each interface differs mechanically while serving one bounded study. Compare each path through what it reads, the legal action it accepts, and the typed content it returns:
-
-- **Compiler or MLIR path:** Reads IR, target contract, and software candidate. Applies a legal lowering, schedule, vectorization, or code-generation action. Returns transformed IR, binary, diagnostics, target usage, and transformation provenance.
-- **Hardware generator path:** Reads a hardware configuration and generator version. Applies a legal parameter or composition action. Returns generated RTL and elaboration diagnostics.
-- **Correctness or runtime path:** Reads a bound software-hardware evaluation instance and tests. Executes the workload or test. Returns pass or failure cases, traces, runtime behavior, and integration diagnostics.
-- **Simulator path:** Reads the evaluation instance, workload, simulator configuration, warm-up rules, and seed. Executes the modeled system. Returns counters, traces, warnings, modeled timing, and declared scope.
-- **Formal or equivalence path:** Reads exact compared artifact identifiers, property or equivalence relation, assumptions, abstraction boundary, and tool version. Returns proven for the stated property, failed with a counterexample, inconclusive, unsupported, or execution-path failure. It does not return a performance score [@KaivolaEtAl2009Corei7Formal].
-- **FireSim or FPGA path:** Reads generated target artifacts, host mapping, workload image, instrumentation, and runtime configuration. Returns counters and other declared candidate observations, target-host status, and mapping or execution failures.
-- **EDA path:** Reads progressively richer RTL or implementation artifacts, clocks, constraints, libraries, power intent, and process assumptions. Returns stage-specific reports that may contain area, timing, power, congestion, rule, warning, or closure candidate observations.
-- **Retrieval read path:** Reads a query, project and permission context, source version, and freshness requirement. Returns source-linked records or an operational failure.
-
-Physical-design environments make this staged contract particularly clear. Logic synthesis, placement, routing, and signoff expose different observations and failure modes. The contract must state the stage, raw output, and tool-level status for each return (@tbl-eda-stage-contract).
+Physical-design environments make this staged interface particularly clear. Logic synthesis, placement, routing, and signoff expose different observations and failure modes. The interface must state the stage, raw output, and tool-level status for each return. We detail this progression in @tbl-eda-stage-interface.
 
 | **EDA stage** | **Observation returned** | **Problem it can reveal** | **Tool-level outcome to preserve** |
 | --- | --- | --- | --- |
-| Logic synthesis | Mapped gates, area estimates, timing estimates, constraint warnings, and early power estimates. | Nonsynthesizable RTL, impossible constraints, and early area or timing problems. | A completed report, including declared constraint failures, is a valid observation; failure to produce the report is a tool-path failure. |
-| Floorplanning and placement | Cell locations, utilization, congestion hints, timing pressure, and macro or memory placement effects. | Floorplans that create severe congestion, timing pressure, or integration problems. | Congestion or timing violations are valid observations from this stage, while an unsupported floorplan state remains out of scope. |
-| Clock, routing, and power closure | Routed timing, clock behavior, congestion, design-rule checks, power integrity, and closure failures. | Physical effects absent from earlier tool stages. | Preserve each reported violation and warning separately from a timeout, license failure, or broken run. |
-| Signoff analysis | Signoff reports, warning classes, violations, analysis conditions, and waived tool messages. | Conditions that remain unresolved at the end of the declared physical tool path. | Record the report and tool outcome without treating the tool status as an architecture decision. |
+| **Logic synthesis** | Mapped gates, area estimates, timing estimates, constraint warnings, and early power estimates. | Nonsynthesizable RTL, impossible constraints, and early area or timing problems. | A completed report, including declared constraint failures, is a valid observation; failure to produce the report is a tool-path failure. |
+| **Floorplanning and placement** | Cell locations, utilization, congestion hints, timing pressure, and macro or memory placement effects. | Floorplans that create severe congestion, timing pressure, or integration problems. | Congestion or timing violations are valid observations from this stage, while an unsupported floorplan state remains out of scope. |
+| **Clock, routing, and power closure** | Routed timing, clock behavior, congestion, design-rule checks, power integrity, and closure failures. | Physical effects absent from earlier tool stages. | Preserve each reported violation and warning separately from a timeout, license failure, or broken run. |
+| **Signoff analysis** | Signoff reports, warning classes, violations, analysis conditions, and waived tool messages. | Conditions that remain unresolved at the end of the declared physical tool path. | Record the report and tool outcome without treating the tool status as an architecture decision. |
 
-: **EDA stages return different findings.** From logic synthesis through signoff, each physical-design stage can reveal different candidate problems. {#tbl-eda-stage-contract tbl-colwidths="[18,26,25,21]"}
+: **EDA stages return different findings.** From logic synthesis through signoff, each physical-design stage can reveal different candidate problems. To prevent AI hallucination, the environment must strictly map the output of the specific stage to the appropriate semantic meaning, never conflating an early synthesis estimate with a final signoff violation. {#tbl-eda-stage-interface tbl-colwidths="[20,25,25,30]"}
 
-## Costs, Operational Fidelity, Nondeterminism, and Integrity
+### Costs, Operational Fidelity, Nondeterminism, and Integrity
 
-The return path exposes tool stage, acquisition cost, latency, declared operational fidelity, modeled scope, raw result, evaluation instance, attempt, environment version, variability, and integrity context. It does not rank epistemic strength or decide what the candidate observation proves.
+Two post-route attempts for the same hardware artifact may differ because of seed, thread count, host state, or tool heuristics. To manage nondeterminism and flakiness, distinguish three cases: expected statistical variation, declared tool nondeterminism, and flaky/unstable execution. Do not silently average contradictory returns from different stages, sources, or attempts.
 
-Use fidelity only for what the tool models or implements, such as an analytical estimate, instruction-level model, cycle-level model, compiled RTL simulation [@Veripool2026Verilator], FPGA-accelerated cycle-exact simulation, synthesis, post-route analysis, or deployed measurement (@fig-data-fidelity-pyramid).
+As an illustrative parallel, software engineering benchmarks like SWE-bench demonstrate that disconnected scripts lead to unreproducible models. AI cannot navigate tools via "vibes"; it needs explicit read/action/return paths to avoid hallucinating success. Architecture 2.0 must adopt similar best practices for tool execution, ensuring strict data provenance and reproducible environment snapshots.
 
-As @sec-data-representations-world-models established, tool paths have different acquisition costs and sample budgets. As fidelity increases up the pyramid toward silicon, the sample budget shrinks exponentially from millions to handfuls. FireSim reports 1,024-node cycle-exact simulation at 3.4 MHz, less than 1,000 times slower than the 3.2 GHz targets it models [@KarandikarEtAl2018FireSim]. An updated macro-placement assessment reports 11 hours per design for simulated annealing and 38 to 55 hours for the reinforcement-learning flow, against under 12 hours of expert effort, for one physical-design stage evaluated through a commercial post-route flow [@ChengEtAl2026UpdatedAssessment].
+### Distilling Massive Logs into Semantic Observations
 
-Two post-route attempts for the same hardware artifact may differ because of seed, thread count, host state, or tool heuristics. A simulator and an EDA stage may also return contradictory candidate observations because they model different conditions. The environment preserves those distinctions; it does not average them into one claim. To manage nondeterminism and flakiness, distinguish three cases:
+A critical requirement of the Return Path is **Data Distillation**. Traditional architecture and EDA tools are excessively verbose. A standard gem5 run might generate gigabytes of cycle-accurate memory traces. A commercial synthesis run easily produces a 10,000-line log file filled with thousands of informational warnings, thread initialization outputs, and deep hierarchical paths.
 
-1. **Expected statistical variation:** Comes from workload sampling, randomized methods, or repeated measurement under a declared population.
-2. **Declared tool nondeterminism:** Comes from multithreading, randomized placement, seeds, heuristics, or host-dependent execution that the tool contract acknowledges.
-3. **Flaky or unstable execution:** Means nominally comparable attempts alternate between valid returns and execution failures or materially inconsistent outputs for an unexplained operational reason.
+If we pipe these raw logs directly into the context window of a Large Language Model, the model will suffer from "lost in the middle" attention failures, drowning in the textual noise and hallucinating fixes based on spurious correlations.
 
-Do not silently average contradictory returns from different stages, sources, or attempts. Preserve seeds, thread counts, host state, tool and dependency versions, attempt identifiers, run-level values, warnings, and raw artifacts.
+Instead, the architect must build rigid **log-to-semantic parsers** into the environment wrapper. Much like DevOps engineers use monitoring tools to distill millions of server logs into a single red or green dashboard light, architecture environments must translate sprawling, human-targeted outputs into a single, unified mathematical observation vector. If the AI is trying to solve routing congestion for the XR Lighthouse subsystem, the environment wrapper must parse the EDA log, ignore the 9,900 irrelevant setup warnings, extract the 10 specific design-rule violations (DRCs), format them into a structured JSON or tensor representation, and return *only* that dense semantic observation to the AI.
 
-## Build and Maintain an Architecture Environment
+### Build and Maintain an Architecture Environment
 
-Environment maintenance protects architecture-specific semantics. It keeps workloads and software contracts, legal actions, candidate bindings, compiler and generator versions, simulator and FPGA configurations, EDA stages, return schemas, operational outcomes, permissions, licenses, and archived contexts aligned with the bounded study.
+By demanding distinct read, action, and return paths, the environment guarantees that architectural intent survives across domain boundaries---from the compiler's intermediate representation to the final physical design signoff. It deliberately stops short of making the final architectural decision, preserving its objectivity as a trusted observation platform.
 
-As an illustrative parallel, software engineering benchmarks like SWE-bench demonstrate that disconnected scripts lead to unreproducible models. AI cannot navigate tools via vibes; it needs explicit read/action/return paths to avoid hallucinating success. Architecture 2.0 can adopt similar best practices for tool execution, ensuring strict data provenance and reproducible environment snapshots.
-
-An MLIR version change can alter software lineage. A Chipyard change can alter generated RTL. A FireSim change can alter target-host artifacts. An EDA version or PDK change can alter stage returns. A workload or compiler change can alter the exact software-hardware binding. A schema change can alter the meaning of a previously stored status.
-
-After a change, replay a small set of bound software-hardware candidates (like the Tensor Core integration) that exercises legal actions, invalid actions, successful returns, stage-specific constraint violations, and one controlled failure. The replay tests continuity of action and return meaning. It does not prove that the architecture result transfers or remains valid for a new workload.
-
-The construction and maintenance recipe requires four test groups:
-
-1. **Read-path tests:** Confirm state version, source linkage, permissions, freshness, and resource visibility.
-2. **Action-path tests:** Confirm legal and illegal parameters, preconditions, permissions, idempotency, and transformation outputs.
-3. **Return-path tests:** Confirm lifecycle state, terminal outcome, return-content kind, raw-artifact links, stage, units, scope, cost, and provenance.
-4. **Cross-layer lineage tests:** Confirm software and hardware parent-child links, evaluation-instance bindings, and the effect of representative tool or schema changes.
-
-A multi-year retirement rule is also required. @sec-data-representations-world-models owns old corpora, but @sec-architecture-environments-tool-interfaces must retain or retire tool versions, schemas, bindings, environment releases, and replay artifacts intentionally. A prior result should remain tied to its original environment even when the current environment can no longer execute it.
+If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound. An environment provides the reliable foundation upon which generative models and optimization algorithms can operate independently.
 
 ## Open Research Questions
 
-Five parts of making this contract executable remain difficult across real tool flows.
+As the discipline moves from ad-hoc script wrappers to formalized, asynchronous architecture environments, several critical research frontiers remain open. Solving these challenges will dictate how effectively AI can scale beyond isolated, single-tool optimizations into full-stack, cross-layer SoC design.
 
-1. **What is the smallest read, action, and return contract that lets another method use a tool flow without private knowledge?** Required detail varies across simulators, compilers, commercial EDA flows, and deployment systems. Research should identify which omissions actually cause an independent method to take invalid actions, mislabel a tool return, or produce an observation another architect cannot interpret.
+1. **How can environments dynamically adjust fidelity to preserve AI compute budgets?**
+In ?@sec-data-representations-world-models, we explored how data representations must align with physical reality. However, querying high-fidelity physical reality (like full signoff simulation) for every AI proposal is economically impossible. Can an environment wrapper automatically deploy multi-fidelity simulators---using fast, cycle-approximate analytical models (like ALADDIN) for the first 10,000 AI proposals, and only triggering cycle-accurate RTL simulation (like Verilator) when the AI agent crosses a confidence threshold? Defining the interface contracts for these dynamic fidelity handoffs remains an open systems engineering challenge.
 
-2. **Can an environment infer a contract from legacy scripts and traces without treating accidental behavior as a rule?** Legacy EDA flows and simulators expose warnings, timeouts, partial artifacts, and unstructured logs rather than clean APIs. Inferred action schemas and outcome rules must capture stable tool behavior without treating undocumented defaults or one tool version's quirks as rules.
+2. **Can environments automatically infer causal architectural graphs from legacy EDA logs?**
+Currently, architects must manually write the log-to-semantic parsers described in this chapter, an incredibly labor-intensive process requiring deep domain expertise. Is it possible to train specialized foundation models that act purely as "Environment Parsers"---models that ingest decades of legacy, unstructured simulator warnings and automatically construct causal dependency graphs (e.g., mapping a specific setup violation warning directly to a pipeline depth constraint) without requiring hand-coded regular expressions?
 
-3. **How should candidate identity be maintained across transformations that claim to preserve semantics?** A lowering or schedule optimization changes the IR, RTL, or binary. Validating that semantic identity persists across cross-layer binding changes remains a challenge.
-
-4. **How should the environment classify and preserve ambiguous outcomes?** A timeout, requested cancellation, or partial artifact could reflect an extreme candidate or a flaky infrastructure. The classification must preserve that ambiguity without assigning them prematurely to the candidate or infrastructure.
-
-5. **What can a closed EDA or foundry flow expose so another architect can identify the action and scope without revealing protected implementation details?** Identifying how much metadata is required to evaluate a closed-tool observation without violating proprietary boundaries remains an open question.
+3. **What is the standardized schema for cross-vendor tool provenance and failure isolation?**
+While adjacent fields like bioinformatics have standardized dataflow languages (like Nextflow), the EDA and architecture community lacks a unified schema for tracking artifact provenance across competing, proprietary commercial tools. How can an environment securely expose the *architectural scope* of a proprietary foundry rule violation to an open-source AI agent without leaking the protected, confidential parameters of the PDK itself?
 
 ## Conclusion
 
-An architecture environment transforms opaque tool executions into an explicit, rigorous contract that AI methods and human architects can trust. It creates a robust linkage showing precisely which tensor-enabled software artifact ran against which hardware artifact, exactly which tools completed, which actions failed or lacked support, and the typed meaning of every return.
+An architecture environment transforms opaque tool executions into an explicit, rigorous interface that AI methods and human architects can trust. It creates a robust linkage showing precisely which tensor-enabled software artifact ran against which hardware artifact, exactly which tools completed, which actions failed or lacked support, and the typed meaning of every return.
 
-By demanding distinct read, action, and return paths, the environment guarantees that architectural intent survives across domain boundaries—from the compiler's intermediate representation to the final physical design signoff. It deliberately stops short of making the final architectural decision, preserving its objectivity as a trusted observation platform.
-
-Ultimately, architecture 2.0 cannot succeed on ad-hoc scripts and undocumented tool behavior. A one-time wrapper might suffice for a single publication, but a rigorously maintained environment empowers continuous, verifiable architectural discovery and ensures the harness remains structurally sound as tools, methods, and schemas evolve over time.
-
-::: {.callout-carry-forward}
-If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound. An environment provides the reliable foundation upon which generative models and optimization algorithms can operate independently.
-:::
-
-The transition from environment design to method deployment relies completely on these carry-forward principles. A fully realized environment acts as the foundation upon which generative models and optimization algorithms can operate reliably and independently. Once the environment defines what action and feedback mean, @sec-methods-generation-prediction-optimization asks which models, algorithms, scripts, formal methods, conventional tools, specialists, and architects should perform each role.
+Ultimately, architecture 2.0 cannot succeed on ad-hoc scripts and undocumented tool behavior. A one-time wrapper might suffice for a single publication, but a rigorously maintained environment empowers continuous, verifiable architectural discovery and ensures the harness remains structurally sound as tools, methods, and schemas evolve over time. Once the environment defines what action and feedback mean, ?@sec-methods-generation-prediction-optimization asks which models, algorithms, scripts, formal methods, conventional tools, specialists, and architects should perform each role.
