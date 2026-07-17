@@ -79,8 +79,53 @@ Understanding the "cost of a data sample" is critical because it dictates what a
 
 Conversely, low-fidelity generation---such as analytical models or high-level trace-driven simulations---can rapidly generate millions of synthetic data points at a fraction of the cost. However, this cheap data often lacks the nuance of complex microarchitectural interactions, such as deep pipeline stalls, coherence races, or thermal throttling effects. The challenge lies in balancing these extremes: utilizing cheap, low-fidelity synthetic data to broadly map the design space, while reserving expensive, high-fidelity RTL or silicon data for fine-tuning models near optimal or boundary conditions.
 
-This dynamic means the spectrum of simulation fidelity directly dictates the volume and variance of the available dataset. @tbl-synthetic-data-costs illustrates the cost, speed, and fidelity trade-offs across different architectural simulators.
+This dynamic means the spectrum of simulation fidelity directly dictates the volume and variance of the available dataset, much like a cache memory hierarchy limits fast, expensive memory while expanding slow, cheap memory (@fig-data-fidelity-pyramid). @tbl-synthetic-data-costs illustrates the specific cost, speed, and fidelity trade-offs across different architectural simulators.
 
+```{python}
+#| label: fig-data-fidelity-pyramid
+#| fig-cap: "The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant."
+#| fig-alt: "A pyramid chart showing that low-fidelity analytical models cost nothing and generate huge data volume, while high-fidelity silicon tests are incredibly expensive and rare."
+#| echo: false
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(8, 5))
+
+layers = [
+    ("Silicon / FPGA", "Ground Truth, Astronomical Cost", 1),
+    ("RTL Simulation", "Very High Fidelity, Very High Cost", 2),
+    ("Cycle-Accurate (e.g., gem5)", "High Fidelity, Medium Cost", 3),
+    ("Trace-Driven", "Medium Fidelity, Low Cost", 4),
+    ("Analytical / Mathematical", "Low Fidelity, ~Zero Cost", 5)
+]
+
+# Use a harmonious color palette representing heat/cost (red top, blue bottom)
+colors = ['#d73027', '#fc8d59', '#fee090', '#e0f3f8', '#91bfdb']
+
+y_start = 0
+height = 1
+for i, (name, desc, width) in enumerate(layers):
+    top_w = layers[i-1][2] if i > 0 else 0
+    bottom_w = width
+
+    x = [-bottom_w/2, -top_w/2, top_w/2, bottom_w/2]
+    y = [y_start+height, y_start, y_start, y_start+height]
+
+    ax.fill(x, y, color=colors[i], edgecolor='white', linewidth=2)
+
+    # Text
+    text_color = 'white' if i < 2 else 'black'
+    ax.text(0, y_start + height/2 - 0.15, name, ha='center', va='center', fontsize=12, fontweight='bold', color=text_color)
+    ax.text(0, y_start + height/2 + 0.25, desc, ha='center', va='center', fontsize=10, color=text_color)
+
+    y_start += height
+
+ax.set_ylim(0, 5)
+ax.set_xlim(-2.6, 2.6)
+ax.axis('off')
+ax.invert_yaxis()
+plt.tight_layout()
+plt.show()
+```
 | **Simulator / Model Type** | **Fidelity Level** | **Speed / Throughput** | **Cost of a Data Sample** | **ML Principle Equivalent** |
 | --- | --- | --- | --- | --- |
 | **Analytical / Mathematical** | Low (Equations, steady-state) | Millions of samples/sec | ~$0 (Compute-bound, trivial) | Simple synthetic priors, rule-based generation |
