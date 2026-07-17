@@ -194,7 +194,7 @@ Specialization also made architecture decisions more tightly coupled. A new
 dataflow can change memory traffic, compiler mapping, verification effort, and
 physical feasibility at once. As the number of alternatives and cross-layer
 dependencies grows, architects must coordinate more models, tools, and
-evidence before they can defend a choice. This pressure does not make AI
+evidence before they can defend a choice. While this historical expansion of cross-layer relationships introduces the pressure, @sec-design-loop-no-longer-scales explains the mechanisms by which workload change, software dependence, evaluation cost, and coordination pressure make design work harder to complete. This pressure does not make AI
 necessary, but it explains why architects are exploring AI assistance.
 
 AI is now being applied to the design process that produced those accelerators,
@@ -212,7 +212,7 @@ AI should improve the architecture work between a design prompt and a
 defensible decision rather than merely increase the amount of output.
 
 Imagine an architect entering the following design brief into a generative,
-tool-using AI system.
+tool-using AI system. The prompt tests system intent, not whether a current model can complete the design.
 
 > **Lighthouse prompt.** Design a low-power, 64-bit RISC-V-based compute subsystem for an
 > XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, accelerator, or SoC block under a 3 W TDP target in a 3 nm-class LP mobile process, and return a design-space report with evidence and rejected alternatives.
@@ -286,7 +286,7 @@ evidence behind an architectural conclusion.
 Architecture work has always moved through repeated analysis and revision.
 Architects frame a problem, choose abstractions, construct models or
 simulators, select workloads, explore alternatives, evaluate results, reject
-weak candidates, and revise assumptions. Consider an architect weighing a
+weak candidates, and revise assumptions. This work moves from intent and workload characterization to architecture decomposition, construction, evaluation, explanation, and decision. Consider an architect weighing a
 larger L2 cache for a stated workload mix. The architect might use gem5, a
 cycle-level architecture simulator, or FireSim, an FPGA-accelerated full-system
 RTL simulation platform, to sweep cache sizes and replacement policies across
@@ -365,9 +365,17 @@ participates in part of the work. Architecture 1.0 is shorthand for familiar,
 human-orchestrated design. The architect defines the problem, chooses models,
 uses tools, interprets feedback, and decides what to build. The Architecture
 2.0 vision retains that practice while allowing AI to take part in more of the
-work [@ReddiYazdanbakhsh2025Architecture20]. This book organizes that
-participation into six activities: formulate, explore, implement, evaluate,
-explain, and defend computer architecture decisions. Producing a plausible
+work [@ReddiYazdanbakhsh2025Architecture20]. AI may help interpret an initial
+request, characterize workload distributions, propose an architecture
+decomposition, construct artifacts, select and run evaluations, diagnose results,
+and prepare a recommendation. These are possible forms of assistance across
+several systems and methods, not a claim that one public system performs the
+complete workflow. This book organizes that participation into six activities:
+formulate, explore, implement, evaluate, explain, and defend computer architecture
+decisions. These are longitudinal learner capabilities, whereas intent,
+workload characterization, decomposition, construction, evaluation, explanation,
+and decision describe recognizable architecture work. They overlap, but they are
+not competing stage taxonomies. Producing a plausible
 artifact may help, but it does not complete that work.
 
 As AI takes on more work, the study evidence must identify the inputs and
@@ -377,15 +385,7 @@ responsible for the intent, constraints, abstraction, evidence standard,
 interpretation, and final decision. This information lets another architect
 determine what happened and what the result can support.
 
-Return to the L2-cache study. In a human-orchestrated version, the architect
-chooses the workloads, writes the gem5 configurations, runs the cache sweep,
-and inspects the miss and performance results. In an AI-assisted version, a
-method might propose cache sizes and replacement policies. A
-surrogate[^fn-ml-surrogate-model] could screen the configurations before a
-simulator evaluates selected points, while a critic flags a workload or latency
-assumption that makes a comparison invalid. The architect still decides
-whether the measured mechanism and evidence are strong enough to support a
-cache change.
+In an AI-assisted cache study, a method might propose cache sizes and replacement policies, a surrogate[^fn-ml-surrogate-model] could screen them, and a critic might flag invalid workload assumptions, but the architect still decides whether the evidence supports a cache change.
 The contribution might be a cache design, an architectural finding, a reusable
 method or dataset, or a decision supported by the available evidence.
 
@@ -399,29 +399,20 @@ reviewers to use.
 
 ![**AI participation makes design state explicit.** Both studies iterate, but AI participation requires the inputs, artifact versions, permitted actions, tool feedback, evidence, rejected candidates, and decision authority to be represented explicitly.](images/F2a-design-loop-breaks){#fig-design-loop-breaks width="100%" fig-alt="Two side-by-side loop diagrams compare human-orchestrated architecture work, where experts carry much of the study state, with an AI-assisted project that represents inputs, actions, evidence, rejection, and decision authority explicitly."}
 
-For each result, the evidence should identify the artifact version and tool
-settings used, the observations produced, rejected candidates, and any
-decision made by an architect or reviewer. A reviewer can then judge the whole
-body of work rather than inspect a generated artifact in isolation.
-
 An AI system that calls a simulator, writes RTL, or summarizes papers still
 depends on sound systems engineering. Architects need to identify the likely
 bottleneck, account for memory movement and physical limits, compare tradeoffs
-numerically, and decide what evidence justifies the next step. They should also
-keep source information and failed results so that reviewers can trace how the
-work reached its conclusion.
+numerically, and decide what evidence justifies the next step.
 
 When AI participates, it should also present a concise rationale that connects
 its proposals, tool results, and rejected alternatives to its recommendation.
-That rationale is not evidence by itself. It gives the architect a structured
+That rationale is not evidence by itself. @sec-feedback-verification-trust covers the criteria that make an observation relevant evidence for a bounded claim. A rationale gives the architect a structured
 account to inspect for missing assumptions, contradictions, or conclusions
 that the measurements do not support.
 
 Safety engineering offers a useful precedent. Later decisions are checked
 against the assumptions, hazards, and evidence on which they depended
-[@Leveson2012EngineeringSaferWorld]. In the cache study, that means keeping the
-workload slice, simulator configuration, memory-system assumptions, rejected
-cache policies, and measurements behind the recommendation. If a later
+[@Leveson2012EngineeringSaferWorld]. If a later
 workload changes the locality behavior, the architect can see why the earlier
 conclusion may no longer apply.
 
@@ -467,6 +458,8 @@ approach even though the complete goal remains out of reach.
 
 ![**Three conditions for an architecture moonshot:** The target combines a major architecture challenge, a substantial change in AI-assisted design work, and an advance in AI, data, or tools that makes part of the problem practical to study.](images/F1c-moonshot-venn){#fig-moonshot-venn width="100%" fig-alt="Three-circle Venn diagram showing an architecture moonshot at the intersection of a grand challenge, a radical practice target, and an enabling breakthrough."}
 
+Later chapters examine bounded parts of this target rather than claiming to deliver it whole.
+
 ```{=latex}
 \FloatBarrier
 ```
@@ -476,9 +469,7 @@ subsystem for mobile XR, fits all three conditions. Today, architects coordinate
 decisions across workloads, software, hardware, tools, and physical design. The
 long-term aim is for AI to contribute across that work while the architect
 remains responsible for the final claim. Advances in models, data, and tools
-make parts of the approach practical now. The complete goal remains beyond
-present capability, which is why it is a moonshot rather than a near-term
-product specification.
+make parts of the approach practical now.
 
 To apply that ambition to the lighthouse prompt, we first need to say what
 *architecture* and *architect* mean here. Architecture includes more than a
@@ -515,7 +506,7 @@ architectural decision.
 \FloatBarrier
 ```
 
-Start with the prompt itself. It asks the architect to compare several compute organizations
+Start with the prompt itself. High-level intent first becomes questions and coupled design choices, not a generated chip artifact. The prompt asks the architect to compare several compute organizations
 for a real-time mobile extended-reality (XR) workload while respecting a 3 W
 thermal-design-power (TDP) budget and the limits of a low-power (LP) process.
 Its individual phrases bound different parts of the study. "64-bit RISC-V-based
@@ -530,9 +521,7 @@ software, models, RTL, layouts, prototypes, or a chip. How far implementation
 must go depends on the claim. The report connects those artifacts and
 measurements to the proposed design and explains why alternatives were
 rejected. The prompt deliberately leaves the accelerator microarchitecture,
-memory system, software integration, and evaluation tools open. A supported
-answer therefore has to connect memory, data movement, compilers, runtimes,
-reliability, verification, and physical design within one architecture study.
+memory system, software integration, and evaluation tools open.
 
 Progress toward the moonshot will require more than isolated demonstrations.
 SPEC-style benchmarks made performance claims more comparable by specifying
@@ -547,7 +536,9 @@ here. Shared tasks, benchmarks, tool interfaces, evaluation methods, and
 evidence standards can make results useful beyond a single study.
 
 @tbl-moonshot-decomposition collects the architectural decisions implied by
-the lighthouse prompt and the checks that could disqualify an answer.
+the lighthouse prompt and the checks that could disqualify an answer. AI may
+suggest a hardware and software decomposition. The architect accepts, revises,
+or rejects that proposed scope and its coupled interfaces.
 
 | **Prompt fragment** | **Architectural decisions** | **What must be checked** |
 | --- | --- | --- |
@@ -601,7 +592,11 @@ can provide. XRBench, a benchmark suite for mobile XR workloads, supplies a
 workload anchor rather than a vague application label [@KwonEtAl2023XRBench].
 End-to-end XR research shows how tightly the stages from perception to display
 are coupled. Mobile XR is therefore a system-level architecture target, not a
-single kernel to optimize [@HuzaifaEtAl2021ILLIXR]. The process node is stated
+single kernel to optimize [@HuzaifaEtAl2021ILLIXR]. AI may analyze dataset or
+trace distributions to find missing phases and coverage gaps, complementing
+profiling, trace analysis, and expert workload judgment. The architect remains
+responsible for deciding whether the selected benchmark and distribution
+represent the system claim. The process node is stated
 as a class rather than as a named foundry process design kit (PDK). Current
 mobile SoCs are publicly described in 3 nm-class technology, but the architect
 must still name the process, libraries, voltage assumptions, and signoff path
@@ -633,7 +628,7 @@ the complete body of evidence.
 
 ## Efficiency Claims Across the Design Loop {#sec-efficiency-claims-need-rejectable-loops}
 
-The difference between a plausible candidate and a defensible design is
+Even if an AI-assisted process can produce a candidate and report end to end, the efficiency claim still requires a scoped system comparison. The difference between a plausible candidate and a defensible design is
 especially clear in an efficiency claim. The lighthouse subsystem cannot be
 judged from one score. Workload behavior, software support, data movement,
 physical limits, verification effort, and deployment conditions can all change
@@ -710,7 +705,7 @@ review carefully enough to reach a reliable conclusion. Reducing the cost of
 the study is valuable only when the remaining observations can still distinguish
 the alternatives and expose the failures that matter to the decision.
 
-These dimensions interact. Better simulated performance can be offset by added
+These dimensions interact. In the mobile XR setting anchored by XRBench and ILLIXR, frame latency, energy, sustained power, and data movement are tightly coupled; a gain in one can easily violate a deadline or thermal limit in another. Better simulated performance can also be offset by added
 verification work. Lower energy may depend on fragile software assumptions,
 and a candidate that wins under a proxy may fail on a more faithful workload.
 The architect must explain which tradeoffs are acceptable for the stated
@@ -726,11 +721,6 @@ They can then state what they expect AI to improve. The test is whether the
 assistance leads to a better system or a more reliable conclusion, not simply
 more artifacts.
 
-When candidate generation becomes cheap, evaluation and review may become the
-bottleneck. Architects should not assume that this has happened. They should
-compare the pace of proposal generation with the time required to test
-candidates, reject weak ones, explain the results, and reach a decision.
-
 The lighthouse prompt makes this concrete. The requested subsystem must
 support a workload class, meet a power envelope, fit a technology assumption,
 interact with software, and produce evidence. The comparison must weigh
@@ -745,36 +735,28 @@ the whole architectural judgment.
 ## Existing Systems Cover Parts of the Design Loop
 
 Current work has demonstrated useful parts of AI-assisted architecture under
-bounded conditions. Predictive design-space exploration estimates behavior in
-a specified space [@IpekEtAl2006PredictiveDSE], autotuning searches schedules
-through measured feedback [@ChenEtAl2018AutoTVM], and learned policies have
-acted inside a physical-design flow [@MirhoseiniEtAl2021GraphPlacement]. Each
-result should be read in terms of the task, environment, baseline, budget, and
-observations that were actually studied.
+bounded conditions. Predictive design-space exploration uses simulated performance to train surrogate models that estimate behavior across a specified design space [@IpekEtAl2006PredictiveDSE]. AutoTVM uses measured hardware execution to guide a statistical search for tensor-program schedules [@ChenEtAl2018AutoTVM]. In each case, the input, architecture job, feedback source, and bounded result remain clear.
 
-AlphaChip is a prominent physical-design example. The original paper reported
+AlphaChip is a prominent physical-design example. Its inputs include a netlist and macro descriptions; its job is macro placement; its feedback comes from proxy rewards like wirelength and congestion. The original paper reported
 macro placements produced in under six hours, and later first-party reports
 said the method contributed to several TPU generations
 [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum;
-@GoogleDeepMind2024AlphaChip]. Those reports describe a consequential bounded
-contribution, not a system that starts from product intent and defends a whole
-computer architecture. @sec-proxy-mismatch-metric-gaming-and-calibration
+@GoogleDeepMind2024AlphaChip]. @sec-proxy-mismatch-metric-gaming-and-calibration
 examines the public disagreement about its comparisons and proxy evidence.
 
-The distinction applies to every current component. Success on generation,
-prediction, search, repair, or tool use supports a claim about that task. It
-does not automatically establish that the surrounding architecture process is
-complete or that the same result will transfer to another workload, tool path,
-or stage of design.
+Success on generation, prediction, search, repair, or tool use supports a claim about that task. The demonstrated components remain distinct from the integration problem required to complete a whole architecture study.
 
 ## Open Problems in AI-Assisted Architecture
 
-The complete lighthouse process remains a research direction. It would have to
-connect high-level intent to bounded architecture questions, represent the
-relevant hardware and software state, act through real tools, learn from
-observations at several fidelity levels, explain architectural mechanisms, and
-assemble evidence an architect can challenge. The cited systems demonstrate
-parts of that work, not the integrated process.
+The complete lighthouse process remains a research direction. Architectural knowledge, tool execution, role composition, and evidence remain separate engineering problems. Later chapters take up those requirements:
+
+- @sec-data-representations-world-models explains architectural knowledge, current design state, and predicted consequences.
+- @sec-architecture-environments-tool-interfaces explains legal multi-tool action and typed feedback.
+- @sec-methods-generation-prediction-optimization explains AI roles and component organization.
+- @sec-feedback-verification-trust explains evidence, challenge, and decision relevance.
+- @sec-running-the-loop shows one bounded integrated study.
+- @sec-loop-patterns-across-stack shows what changes across feedback conditions and time.
+- @sec-what-architect-owns synthesizes architect responsibility.
 
 Models, tools, and benchmarks will continue to change. The durable questions
 concern the architecture decision each system advances, the work AI performs,
@@ -796,21 +778,14 @@ five questions unresolved. Progress will require better representations, tool
 interfaces, methods, evidence, and decision practices.
 
 1. **When does AI-assisted design work become an architecture contribution?**
-Candidate quality alone cannot settle this question. An AI method may be novel
-without improving what architects can understand, build, compare, or decide.
-Another method may improve an architecture decision under hardware/software
-and physical constraints without introducing a novel AI technique. Reviewers
-need to distinguish those cases and determine whether the work advances an
-artifact, method, dataset, environment, finding, or decision that supports an
-architectural claim.
+An AI method may be novel without improving what architects can understand, build, compare, or decide. Another method may improve an architecture decision under hardware/software and physical constraints without introducing a novel AI technique. Reviewers must distinguish those cases. An architecture contribution can include improved formulation or decomposition, not only a candidate artifact. The work must advance an artifact, method, dataset, environment, finding, or decision that supports an architectural claim.
 
 2. **How can we tell whether AI helped the architect understand the design?**
-A candidate score does not show whether AI exposed an overlooked bottleneck,
-chose a more informative experiment, connected measurements to mechanisms, or
+A candidate score does not show whether AI exposed a missing cross-layer dependency,
+changed the next experiment, connected measurements to mechanisms, or
 recognized why an apparent improvement will not transfer. The hard part is
 distinguishing an explanation that changes what the architect understands or
-does next from a fluent summary written after the result is known. Unfamiliar
-problems make that distinction especially important because useful assistance
+does next from a fluent summary written after the result is known. Useful assistance
 must reveal a mechanism or support a decision rather than repeat an expected
 explanation. This is Hamming's distinction between producing insight and
 producing more numbers.
@@ -838,7 +813,7 @@ inputs, actions, results, and human judgments that affected the decision must
 still be available for review.
 
 5. **What should architects share so AI-assisted results can be compared and built on?**
-If AI-assisted architecture remains a collection of isolated demonstrations,
+If AI-assisted architecture remains a collection of isolated demonstrations like the bounded systems discussed earlier,
 architects will struggle to compare results. A common basis could include
 shared problem definitions and case studies, workload and tool environments,
 baselines and experiment protocols, and records of rejected alternatives.
@@ -850,10 +825,7 @@ problem into one fixed benchmark.
 ## Conclusion
 
 The lighthouse prompt shows what an AI-assisted architecture process would have
-to combine before an architect could defend its result. The process needs a
-clear question, meaningful alternatives, checkable artifacts, real tool paths,
-experiments, a mechanism-level explanation, and a recommendation with stated
-limits. A plausible artifact demonstrates only one part of that work.
+to combine before an architect could defend its result. The complete work moves from intent toward a bounded, reproducible architecture result. A plausible artifact demonstrates only one part of that work.
 
 Efficiency now couples performance, energy, power delivery, reliability,
 sustainability, cost, and verification effort. The process used to choose the
@@ -862,19 +834,16 @@ expert review. Faster proposal generation helps only when the remaining work
 can still distinguish alternatives and expose important failures.
 
 AI models and tool interfaces are changing quickly, and current results do not
-establish how far they can contribute to architecture work. That uncertainty is
+establish how far they can contribute to architecture work. Predictive design-space exploration, AutoTVM, and AlphaChip demonstrate particular forms of assistance but do not answer the lighthouse request end to end. That uncertainty is
 part of the research problem. The useful near-term task is to connect bounded
 capabilities to architecture questions and state what each result does and does
 not support.
 
 This opening chapter therefore makes a provisional assignment. An architect
-frames the task and remains answerable for the resulting claim, while the
-choices that shape representation, tools, experiments, evidence, and
-automation must become visible enough to challenge. Later chapters show how
-those responsibilities can be divided among roles and carried across a handoff.
+frames the task and remains answerable for the resulting claim. Later chapters make knowledge, tools, experiments, and decisions inspectable so that another architect can review and challenge the result.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** Evaluate the complete AI-assisted architecture process, not only its generated artifact. Look for the question, alternatives, tool paths, experiments, explanation, recommendation, and limits of the evidence.
-- **Reader test:** Can you reconstruct how AI contributed well enough to challenge the architectural claim and state what evidence would change it?
-- **Up next:** @sec-design-loop-no-longer-scales asks where AI genuinely improves that work and where it merely moves the bottleneck.
+- **Carry forward:** Evaluate AI across the complete architecture work it claims to assist. A generated artifact matters only in relation to the question, alternatives, implementation path, evaluation, explanation, and decision it advances.
+- **Reader test:** Can a reader take the lighthouse request, identify its workload, software, hardware, memory, physical, verification, and decision questions, and state which parts current AI systems have and have not demonstrated?
+- **Up next:** @sec-design-loop-no-longer-scales explains why the architecture work introduced here has become harder to complete as specialization, software change, evaluation cost, and cross-layer coordination reinforce one another.
 :::
