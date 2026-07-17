@@ -30,13 +30,15 @@ conditions call for different assistance. A generator can propose legal array
 geometries, a predictor can estimate which geometry might reduce cycles, an
 optimizer can choose the next configuration to evaluate, and a critic can find
 a missing comparison. A cycle-level simulator can then test the selected
-configurations.
-
-The first method question is therefore not which model performs best overall.
+configurations.The first method question is therefore not which model performs best overall.
 It is what work prevents the bounded study from reaching its next defensible
 result. Current model rankings will age, while the distinction among missing
 alternatives, expensive evaluation, poor experiment selection, weak review,
 malformed artifacts, and disconnected tool work remains useful.
+
+Crucially, Architecture 2.0 is not synonymous with Large Language Models (LLMs). While generative foundation models are powerful tools for code synthesis and unstructured reasoning, they are merely one class of components. A rigorous architecture study relies equally on Bayesian optimization for scarce sampling, reinforcement learning for sequential state manipulation, conformal prediction for uncertainty bounds, and deterministic formal solvers. Treating AI-assisted architecture as solely an "LLM problem" obscures the vast, heterogeneous toolkit required to navigate the physical realities of silicon.
+
+## Comparing Method Roles: The Epistemological Hierarchy
 
 Eight roles cover the work developed in this chapter. Generation proposes
 candidates. Prediction estimates consequences. Optimization chooses what to
@@ -116,10 +118,15 @@ several. For
 example, a generator may propose array geometries, a predictor may rank them,
 and independent tool checks may reject illegal or incorrect candidates.
 
-## Comparing Method Roles
+## Comparing Method Roles: The Epistemological Hierarchy
 
-All of those outputs go through evidence review on the right. The reviewer
-records whether the claim is supported, unsupported, or needs a stronger
+All of those outputs go through evidence review on the right. Before comparing the mechanics of these roles, we must establish their *epistemological hierarchy*. The cardinal sin of Architecture 2.0 is treating all AI outputs equally. If an architect treats a generated hypothesis as verified ground truth, the entire design loop collapses into hallucination. These roles are not just components in a software stack; they represent different tiers of truth:
+
+1. **Generative Roles (Hypotheses):** Generation and repair produce plausible artifacts. They hold zero authority and act merely as an automated brainstorming engine.
+2. **Predictive Roles (Heuristics):** Prediction and optimization produce probabilities. They are navigators guiding the search, not evidence.
+3. **Evaluative Roles (Evidence):** Verification and critique produce ground truth by checking artifacts against independent oracles (like a simulator). This is the only tier the architect can trust.
+
+With this hierarchy in mind, the reviewer records whether the claim is supported, unsupported, or needs a stronger
 check. The assigned decision owner then authorizes the next transition; a
 method output cannot take either step on its own. The roles in
 @tbl-method-role-limits differ in the state or artifact they work on, the result
@@ -197,11 +204,15 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
+Think of generation not as a solo artist, but as a station on a manufacturing assembly line. In a physical factory, pushing an uninspected part down the line is fatal; it jams the expensive machinery downstream. Similarly, passing an unchecked RTL fragment or malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. To isolate faults, generation must be paired with localized *rework stations*.
+
+We formalize these rework stations using the distributed systems concept of *consumer-driven contracts*. The downstream "consumers" (e.g., the compiler, physical-design tools, the thermal simulator) publish executable expectations—rules about syntax, interface limits, and memory bounds.
+
 In the bounded accelerator study, generation proposes three legal array
 geometries, qualitative behavior, a failure mode, and a directional mechanism
-that can be tested. Schema and semantic checks establish that the response is a
+that can be tested. Schema and semantic checks act as these initial contracts to establish that the response is a
 legal proposal within the declared constraints. They do not establish that the
-proposal is faster or that its mechanism is correct.
+proposal is faster or that its mechanism is correct, but they ensure it will not crash the machinery downstream.
 
 That distinction holds for any generated artifact. A syntactically valid RTL
 fragment may still fail simulation, routing, or timing closure. Before an
@@ -357,8 +368,10 @@ behavior, vector width, or technology assumptions, and which higher-fidelity
 result can test the estimate. Those details show whether the prediction is an
 interpolation inside known support or an extrapolation that needs escalation.
 
+This relationship mirrors a hospital's tiered triage system. A fast predictive model acts as a triage nurse taking vitals: it can rapidly flag anomalies, bound uncertainty, and rule out obviously disastrous configurations. However, the triage nurse cannot prescribe surgery. The cycle-accurate simulator acts as the attending physician, providing the ground truth necessary to authorize a major design commitment. This separation of powers protects the design loop from the *sim-to-silicon gap*—the danger of optimizing so aggressively for a cheap proxy's score that the resulting hardware becomes fragile to physical variation.
+
 Conformal prediction[^fn-stats-conformal-prediction] provides one rigorous way
-to attach a calibrated interval to a surrogate when its assumptions apply. The
+to formalize this triage step by attaching a calibrated interval to a surrogate when its assumptions apply. The
 interval has marginal coverage at a chosen probability under an exchangeability
 assumption[^fn-stats-exchangeability] and a valid calibration set and
 nonconformity score [@AngelopoulosBates2021Conformal]. Architecture workloads,
@@ -708,7 +721,9 @@ verification role itself.
 
 Explanation uses recorded state, tool results, and rejected alternatives to connect a result to a proposed architectural mechanism. In an accelerator study, it should connect array geometry to utilization and cycle count and name a declared contrast that could challenge that account. A fluent explanation is a mechanism hypothesis and interpretation. It cannot repair a failed probe or make a weak observation support a stronger claim.
 
-Coordination routes state, tasks, and artifacts when work crosses several tools or roles. A coordinator might send a failed synthesis result to a repair method, request a rerun, and return the new report to the reviewer. It needs versioned shared state, stated permissions, and stop conditions to do that work. Routing does not merge the authority of the generator, repair method, tool, and reviewer, nor does it turn their outputs into evidence by itself.
+Coordination routes state, tasks, and artifacts when work crosses several tools or roles. Rather than viewing the coordinator as a simple shell script, architects should treat it as an *architectural control plane*, functioning much like Kubernetes does for cloud microservices. The coordinator monitors the desired state of the study, measures the actual state (tool outputs), and issues compensating actions.
+
+When acting as an API gateway or load balancer, the coordinator routes tasks based on the economic principle of the *value of information*. It dynamically decides whether to send a candidate to a cheap, cached surrogate or to allocate a precious Slurm queue slot for an expensive backend EDA tool, spending high-fidelity evaluations only when the resulting information could change the architect's final decision. A coordinator might send a failed synthesis result to a repair method, request a rerun, and return the new report to the reviewer. It needs versioned shared state, stated permissions, and stop conditions to do that work. Routing does not merge the authority of the generator, repair method, tool, and reviewer, nor does it turn their outputs into evidence by itself.
 
 A handoff contract manages this routing. It should specify the artifact identifier, source role, requested work, permitted action, current assumptions, unresolved failures, return destination, timeout, and recovery path.
 
@@ -716,11 +731,15 @@ Every handoff incurs operational costs. Context can drop, an artifact can become
 
 AgentDSE's persistent workspace provides one example of inspectable coordination state, while Chip-Chat demonstrates human-model-tool coordination where the person retains the decision boundary [@WangEtAl2026AgentDSE; @BlockloveEtAl2023ChipChat]. Explanation and coordination can consume substantial expert attention even when they do not use a simulator license. Their value should be measured by the analysis or handoff work they save and by whether architects can still inspect the mechanism account, underlying artifacts, and unresolved failures.
 
-## One Model, Specialists, or a Hybrid System {#sec-one-model-specialists-hybrid}
+## One Model, Specialists, or a Hybrid System: The Separation of Powers {#sec-one-model-specialists-hybrid}
 
 Choose components only after role outputs and checks are specified. A single large model, a team of specialized agents, or a hybrid system with conventional architecture tools are engineering choices rather than stages of maturity.
 
-Before comparing AI organizations, an architect should state the minimum non-AI backbone. Deterministic schemas and scripts enforce legal formats and routine routing. Compiler, simulator, synthesis, formal, equivalence, and measurement tools return the domain observations or property checks they are built to produce. A person owns unresolved intent, coupled architectural tradeoffs, permission changes, ambiguous failures, and decision preparation. The comparison in @tbl-method-organization is therefore about where a model or search method adds value to this backbone, not about replacing every component with an agent.
+Why not simply use one monolithic AI oracle for everything? The first reason is the **Separation of Powers**. If the exact same neural network generates the RTL, predicts its performance, and verifies its own logic, the system lacks an independent oracle. This does not produce a verified design; it produces a *correlated hallucination*. The generator and the verifier must share no assumptions.
+
+The second reason lies in the **Silicon ADMET** funnel. In molecular biology, discovering a molecule that binds to a target (performance) is relatively easy, but passing toxicity, metabolism, and excretion constraints (ADMET) is where most drugs fail. Silicon design faces an identical funnel: finding a configuration that increases IPC is trivial compared to the "toxicity" of routing congestion, thermal limits, and physical data movement constraints. A single monolithic model cannot manage all of these coupled, nonlinear physical constraints simultaneously without hallucinating or losing calibration. To survive the Silicon ADMET funnel, the system must separate concerns into heterogeneous, specialized tools.
+
+Before comparing AI organizations, an architect should state the minimum non-AI backbone. Deterministic schemas and scripts enforce legal formats and routine routing. Compiler, simulator, synthesis, formal, equivalence, and measurement tools return the domain observations or property checks they are built to produce. A person owns unresolved intent, coupled architectural tradeoffs, permission changes, ambiguous failures, and decision preparation. The comparison in @tbl-method-organization is therefore about where a specialized model or search method adds value to this backbone, rather than replacing every component with a monolithic agent.
 
 | **Organization** | **When it fits** | **Benefits** | **Costs and failure modes** | **Independence and permissions** |
 | --- | --- | --- | --- | --- |
