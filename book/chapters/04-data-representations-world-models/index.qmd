@@ -72,11 +72,11 @@ Changing the structure of the example changes the capability being trained or te
 But QA has a strict boundary. It tests the *knowledge layer* but cannot reconstruct a project execution history or executable tool state. Crucially, to capture an architect's true knowledge, ML models cannot just look at positive examples---the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space [@ChenEtAl2020SimCLR; @HeEtAl2020MoCo]. Without negative data, a model learns what works in one context, but not *why* it fails in others.
 
 ::: {.callout-field-note}
-**Observation:** In hardware synthesis, models cannot learn the boundaries of valid placement and routing simply by observing successful macros.
+**Observation:** In hardware synthesis, models cannot learn the boundaries of the valid design space simply by observing successful, winning configurations.
 
-**Context:** Machine learning models require negative recovery data (unroutable layouts, timing violations, thermal hotspots) to understand where physical limits lie and how constraints interact.
+**Context:** In "End to End Learning for Self-Driving Cars" (Bojarski et al.), autonomous vehicles require negative "recovery data" (off-center or failure-state images) to learn how to steer back to the center of the lane.
 
-**Lesson:** Architecture AI requires failed synthesis runs and unroutable layouts to delineate the valid design space. Preserving these negative boundaries is a mathematical necessity for training models.
+**Lesson:** AI agents for architecture design must explicitly train on negative samples---performance bottlenecks, deadlocks, and constraint violations---to learn corrective design maneuvers and map the true boundaries of the design space.
 :::
 
 The architecture community has historically recognized the value of failure---for example, in venues dedicated to negative outcomes and post-mortems---to prevent repeated costly mistakes. As AI-assisted architecture methods move beyond simple question-and-answer tasks, they will need datasets shaped around active design capabilities. The field currently lacks public, standardized collections of source-linked tool-use examples, versioned state-action-consequence execution histories, and importantly, negative and rejected candidates.
@@ -98,7 +98,7 @@ This dynamic means the spectrum of simulation fidelity directly dictates the vol
 #| echo: false
 import matplotlib.pyplot as plt
 
-fig, ax = plt.subplots(figsize=(8, 5))
+fig, ax = plt.subplots(figsize=(10, 5))
 
 layers = [
     ("Silicon / FPGA", "Ground Truth, Astronomical Cost", 1),
@@ -129,8 +129,18 @@ for i, (name, desc, width) in enumerate(layers):
 
     y_start += height
 
+# Add Left Arrow (Upwards) for Fidelity & Cost
+ax.annotate('', xy=(-2.8, 0.5), xytext=(-2.8, 4.5),
+            arrowprops=dict(facecolor='#d73027', edgecolor='none', width=3, headwidth=10))
+ax.text(-3.1, 2.5, 'Increasing Fidelity & Cost', rotation=90, va='center', ha='center', fontsize=12, fontweight='bold', color='#d73027')
+
+# Add Right Arrow (Downwards) for Speed & Volume
+ax.annotate('', xy=(2.8, 4.5), xytext=(2.8, 0.5),
+            arrowprops=dict(facecolor='#313695', edgecolor='none', width=3, headwidth=10))
+ax.text(3.1, 2.5, 'Increasing Speed & Abundance', rotation=270, va='center', ha='center', fontsize=12, fontweight='bold', color='#313695')
+
 ax.set_ylim(0, 5)
-ax.set_xlim(-2.6, 2.6)
+ax.set_xlim(-3.6, 3.6)
 ax.axis('off')
 ax.invert_yaxis()
 plt.tight_layout()
@@ -188,7 +198,7 @@ An architecture representation provides three related views of this design probl
 
 @fig-execution-history shows how these views connect over time. Begin at design state V1. The design trace identifies a proposed action and the consequence the architect or AI method anticipates. Evaluation produces an observation with its cost, fidelity, and provenance. If the decision owner accepts the change, the decision advances the design to V2. A rejected action remains attached to V1 with the observation and decision that stopped it. The rejected branch does not disappear merely because it did not produce the next version.
 
-![**A versioned execution history records accepted and rejected work.** Each iteration links the prior design state, proposed action, anticipated effect, tool observation, cost, fidelity, provenance, and decision. A rejected candidate remains associated with the state and action that produced it, so later work can account for the failure.](images/F5a-trajectory-record){#fig-execution-history width="100%" fig-alt="Two-iteration simulation log diagram. From design state version one, a proposed action and anticipated effect lead to a tool observation tagged with cost, fidelity, and provenance and then to a decision that either produces design state version two or retains the rejected candidate with its failure record."}
+![**A versioned execution history records accepted and rejected work.** Each iteration links the prior design state, proposed action, anticipated effect, tool observation, cost, fidelity, provenance, and decision. A rejected candidate remains associated with the state and action that produced it, so later work can account for the failure.](images/F5a-trajectory-record){#fig-execution-history width="85%" fig-alt="Two-iteration simulation log diagram. From design state version one, a proposed action and anticipated effect lead to a tool observation tagged with cost, fidelity, and provenance and then to a decision that either produces design state version two or retains the rejected candidate with its failure record."}
 
 The representation connects information that final artifacts often separate. It does not need to be one monolithic file. It may span a configuration schema, workload manifest, candidate table, run log, and version-control history, provided those artifacts refer to the same design versions and proposed changes.
 
@@ -237,7 +247,7 @@ An architecture world model performs a transition job. Given the current constra
 
 @fig-architecture-world-model separates the model prediction from the tool observation. The proposal records an anticipated effect. The represented state and action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation with its cost, fidelity, and provenance.
 
-![**Prediction and observation follow different paths.** The represented state and proposed action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation. The execution history keeps the state, action, prediction, observation, failures, and decision connected.](images/F5-architecture-world-model){#fig-architecture-world-model width="100%" fig-alt="Diagram showing represented state and a proposed action feeding a performance model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a simulation log that retains provenance, failures, and the decision."}
+![**Prediction and observation follow different paths.** The represented state and proposed action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation. The execution history keeps the state, action, prediction, observation, failures, and decision connected.](images/F5-architecture-world-model){#fig-architecture-world-model width="85%" fig-alt="Diagram showing represented state and a proposed action feeding a performance model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a simulation log that retains provenance, failures, and the decision."}
 
 An illustrative systolic array simulator provides a concrete example of an architecture world model. As a cycle-accurate simulator, it maps a represented workload trace and a proposed array configuration to a predicted performance metric. @tbl-executed-study-world-model shows exactly what such a simulator consumes and what its predictions leave out.
 

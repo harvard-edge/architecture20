@@ -15,9 +15,11 @@
 ```
 
 ::: {.callout-crux}
-**Observation:** System intent and architectural knowledge must cross into real tool paths without losing meaning.
-**Context:** AI methods often treat tools as black boxes, leading to disconnected experimental fragments where the AI loses the ability to reason about the lineage of its own tool invocations.
-**Lesson:** The environment must enforce a structured contract to answer how intent becomes a legal tool action and how returns remain connected to candidate identity.
+How do we turn system intent into a legal tool action, and how do we ensure the environment enforces a structured contract so that returns remain connected to candidate identity instead of becoming disconnected fragments?
+:::
+
+::: {.callout-learning-objectives}
+After this chapter, you can turn a tool path into a documented environment contract. You will be able to connect proposals to legal actions across MLIR-to-RTL paths, bind artifacts, handle asynchronous mechanics, distinguish typed returns, and maintain the environment over time.
 :::
 
 This core crux drives the design of an architecture environment. Architecture relies intrinsically on toolchains to validate any hypothesis, moving from abstract design down to physical implementation. However, the bottleneck in this process is tool compatibility and execution cost. An AI method needs more than access to knowledge and permission to invoke tools; AI needs an explicitly wrapped environment to handle failures and asynchronous paths. A *tool* performs an operation. A *wrapper* translates a permitted design action into a tool call, then translates the result into recorded observations and outcome statuses. A *harness* is the maintained runnable implementation of that contract, including workloads, versions, scripts, provenance, raw outputs, and outcome records. An *environment* is the tool flow governed by an explicit contract defining those paths.
@@ -26,13 +28,7 @@ The bounded study covers the architecture question, comparison, and intended dec
 
 Consider the Lighthouse comparison from earlier, where the system intent is to maximize throughput for a dense matrix workload. The candidate change—inserting a specialized Tensor Core rather than relying on generic MAC units—is not executable as one function call. Software must target the new instruction, generated hardware must implement the Tensor Core, a specific binary must run against a specific hardware artifact, and several tools may return different content. Evaluating the change requires specific MLIR-to-RTL lowering steps, compiler IR transformations (e.g., MLIR emitting matrix-multiply instructions), a generated RTL configuration (e.g., enabling the Tensor Core in Chipyard), a built binary, a correctly executed simulator (such as gem5), a formal equivalence check, an FPGA image, and physical implementation actions.
 
-::: {.callout-learning-objectives}
-**Observation:** Tool paths often lack documented contracts, making autonomous interaction unsafe.
-**Context:** Ad-hoc scripts are brittle; AI needs robust infrastructure to map proposals to legal tool actions.
-**Lesson:** After this chapter, you can turn a tool path into a documented environment contract. You will be able to connect proposals to legal actions across MLIR-to-RTL paths, bind artifacts, handle asynchronous mechanics, distinguish typed returns, and maintain the environment over time.
-:::
-
-These objectives emphasize the practical skills required to transform ad-hoc scripts into robust infrastructure. Mastering them guarantees that your architecture workflows can safely and reproducibly interface with autonomous AI methods.
+The transition from environment design to method deployment relies completely on these principles. A fully realized environment acts as the foundation upon which generative models and optimization algorithms can operate reliably and independently.
 
 ## System Intent Is Not Yet a Tool Action
 
@@ -46,7 +42,7 @@ An AI method can act only on the interface state it receives. An architect can s
 
 A usable environment has three distinct paths that cross its boundary before, during, and after execution (@fig-environment-tool-interface).
 
-![**A tool becomes an environment when its interface is specified.** The contract fixes permitted actions and observation meaning before execution. The wrapper and harness then keep invalid actions, valid observations including declared constraint failures, execution failures, and unsupported observations distinct while preserving the raw output and provenance of every path.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="100%" fig-alt="Diagram of an architecture question and workload, action schema, constraints, and metric definitions entering an environment boundary. A wrapper checks the request, calls the tool, and parses the observation and status; a harness records the run and provenance. Separate branches represent invalid action before execution, valid observation returned, execution or tool-path failure, and unsupported or out-of-scope observation."}
+![**A tool becomes an environment when its interface is specified.** The contract fixes permitted actions and observation meaning before execution. The wrapper and harness then keep invalid actions, valid observations including declared constraint failures, execution failures, and unsupported observations distinct while preserving the raw output and provenance of every path.](images/F6-environment-tool-interface){#fig-environment-tool-interface width="85%" fig-alt="Diagram of an architecture question and workload, action schema, constraints, and metric definitions entering an environment boundary. A wrapper checks the request, calls the tool, and parses the observation and status; a harness records the run and provenance. Separate branches represent invalid action before execution, valid observation returned, execution or tool-path failure, and unsupported or out-of-scope observation."}
 
 The **read path** supplies the state references, fixed context, source pointers, permissions, resource availability, tool versions, and current job state needed before an action is proposed or issued. The **action path** accepts a typed request that identifies the target candidate or artifact, requested transformation or execution, legal parameters, preconditions, permissions, budget, and expected return schema. The **return path** carries typed tool returns, raw artifacts, attempt and candidate identifiers, cost, latency, declared operational fidelity, provenance, environment version, lifecycle state, terminal outcome, and return-content kind.
 
@@ -100,7 +96,7 @@ The environment distinguishes four objects:
 3. **Hardware candidate identity:** Covers architecture parameters, generator inputs, generated RTL, elaborated or synthesized artifacts, FPGA image, and physical implementation descendants.
 4. **Evaluation instance identity:** Binds the exact software artifact, hardware artifact, workload or test artifact, tool configuration, and environment version used by one action or run.
 
-![**An integrated environment ties the backends together.** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="100%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
+![**An integrated environment ties the backends together.** A reproducible SoC generation framework connects a configuration system, RTL generators, and a compiler to simulation, synthesis, and FPGA-emulation backends, so one configuration reaches every evaluation path.](images/F6b-chipyard-framework){#fig-chipyard-framework width="85%" fig-alt="Flow diagram in which a configuration system feeds Chisel RTL generators (Rocket, BOOM, Hwacha) and a FIRRTL compiler, which fan out to RTL simulation, VLSI synthesis, and FPGA emulation backends."}
 
 Software variant S2 may be an MLIR-derived lowering compiled into binary B2 [@LattnerEtAl2020MLIR]. Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 [@chipyard] (@fig-chipyard-framework). A FireSim simulator action evaluates the binding of B2, R3, workload W1, and environment E4. Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
 
@@ -231,9 +227,7 @@ By demanding distinct read, action, and return paths, the environment guarantees
 Ultimately, architecture 2.0 cannot succeed on ad-hoc scripts and undocumented tool behavior. A one-time wrapper might suffice for a single publication, but a rigorously maintained environment empowers continuous, verifiable architectural discovery and ensures the harness remains structurally sound as tools, methods, and schemas evolve over time.
 
 ::: {.callout-carry-forward}
-**Observation:** Generative models and optimization algorithms require a reliable foundation to operate independently.
-**Context:** Without explicit tool paths, costs, permissions, and return types, another method cannot interpret results.
-**Lesson:** An environment provides this foundation. If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound.
+If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound. An environment provides the reliable foundation upon which generative models and optimization algorithms can operate independently.
 :::
 
 The transition from environment design to method deployment relies completely on these carry-forward principles. A fully realized environment acts as the foundation upon which generative models and optimization algorithms can operate reliably and independently. Once the environment defines what action and feedback mean, @sec-methods-generation-prediction-optimization asks which models, algorithms, scripts, formal methods, conventional tools, specialists, and architects should perform each role.
