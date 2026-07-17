@@ -7,836 +7,246 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** Dijkstra's warning marks the distinction this chapter needs.
-Passing tests supports only the conditions that were tested. A failed test can
-still decisively reject a candidate or block an unsupported architecture
-claim.
+**Author's Note:** Dijkstra's warning marks the distinction this chapter needs. Passing tests supports only the conditions that were tested. A failed test can still decisively reject a bounded claim.
 :::
 
 ```{=latex}
-\abstract*{An AI-generated result is feedback, not yet evidence or a decision. It can count as evidence when it is tied to a specific architectural claim, comparison, tool path, scope, uncertainty, and consequence. Contrary results and failed checks can trigger rejection, narrowing, or escalation only when the check covers the relevant failure and an assigned role may block the transition. The evidence record must also preserve proxy limitations, protected review, waivers, and the conditions that require a decision to be revisited.}
+\abstract*{An AI-generated result is feedback, not yet an architecture decision. A tool path converts feedback into a typed observation. Evidence bounds that observation to a specific claim, comparison, scope, and uncertainty. A review judges whether the evidence supports the claim. Two independent branches then follow: a knowledge-update decision about what the project or model should learn, and an architecture decision about whether to transition the design. Proxy mismatch, calibration, confounding, nondeterminism, and correlated checks can weaken apparently favorable evidence. Strong internal claims may remain protected, but public claims must stay within the public or audited record. Scarce evaluations must be budgeted for decisions where they can change the outcome or where the consequence of the next transition demands them. When a condition fails, a waiver records an accepted exception, not a pass, and changing evidence reopens the claim.}
 ```
 
 ::: {.callout-crux}
-When does feedback support a bounded architectural claim, what check can
-overturn it, and what later change requires the decision to be reviewed again?
+When does a returned observation count as evidence for a bounded architecture claim, what independent check could overturn that claim, and what separate decisions determine whether the result updates project knowledge or changes the design?
 :::
 
-Once an AI method returns a candidate, ranking, simulation result, or
-explanation, an architect still has to decide what that output establishes.
-Three questions govern the review. Does the feedback actually support the
-architectural claim? What contrary result or failed check would stop the claim?
-Who may reject the result, approve a waiver, or authorize the next action?
+A synthesis report says that an AI-proposed wider issue queue misses the declared clock target. What exactly has happened, what does the report establish, what should be recorded, and which action, if any, should follow?
 
-Consider an AI method that proposes a cache configuration and reports an IPC
-improvement in gem5, a computer-architecture simulator. The number is feedback.
-It can support a bounded
-performance claim only when the architect can connect it to the configuration,
-workload, baseline, simulator version, metric, assumptions, and uncertainty. A
-failed regression test, timing check, or security check may still overturn the
-recommendation. Even if every declared check passes, the result does not grant
-the method permission to change RTL or an interface. That decision belongs to
-the role assigned to approve the proposed transition.
+The synthesis run returns feedback. A versioned report records negative slack under named constraints; that is a tool observation. The observation contradicts the bounded claim that this implementation meets the clock target under that flow and corner. It says nothing by itself about functional correctness, security, or every possible implementation. A reviewer records the timing claim as unsupported for the proposed RTL transition or unresolved pending a revised implementation.
 
-The same separation applies to every method role. A search method can find a
-strong proxy score, a surrogate can rank candidates, and an AI system can call
-a simulator and summarize its output.
-Each result remains feedback until reviewers can connect it to the claim,
-inspect its limitations and contrary evidence, apply a check that can stop the
-work, and identify the named decision owner. The design-loop card summarizes
-that path and points to the run, evidence, check, waiver, and decision records
-that document it.
+From the review result, the team separately decides whether the failed candidate belongs in the project trajectory or a timing-surrogate calibration set. It does not automatically fine-tune a model. Also from the review result, and not through the knowledge-update branch, the assigned architect decides whether to stop, revise the queue, change the target, spend a more expensive check, or seek a bounded waiver.
+
+This scenario is an illustrative design review. It shows that a single timing report can have several interpretations and prompt different subsequent actions.
 
 ::: {.callout-learning-objectives}
-After this chapter you can review an AI-assisted architectural claim from its
-first observation through the decision about the next transition.
-That means you can:
+By the end of the chapter, readers should be able to:
 
-- **Judge** whether feedback is relevant evidence by examining fidelity, provenance, uncertainty, and claim scope;
-- **Trace** a claim through supporting evidence, contrary evidence, failed checks, review result, and assigned decision;
-- **Match** evidence requirements and decision rights to reversibility, the systems and people affected, and the consequences of error;
-- **Inspect** a rejection path through its condition, executing check, independence basis, blocked transition, check owner, and waiver holder;
-- **Explain** why architects must understand the evidence path even when tools execute routine checks.
+- **Distinguish** feedback, observation, evidence, review, knowledge update, and architecture decision;
+- **Bound** evidence by claim, comparator, scope, validity region, provenance, and uncertainty;
+- **Diagnose** proxy mismatch, confounding, nondeterminism, and correlated checks;
+- **Judge** what protected evidence and public evidence can each establish;
+- **Select** a decision-relevant next check under limited tool and reviewer capacity; and
+- **Record** a dispute, bounded waiver, or reopening condition without converting a failed check into a pass.
 :::
 
-## Feedback, Evidence, and Decisions Differ
+## 1. From Feedback to Observation, Evidence, and Decision {#sec-from-feedback-to-decision}
 
-*Feedback* is an observation returned by a model, tool, experiment, deployment,
-or review. It becomes *evidence* when the record connects that observation to a
-bounded claim and shows why it supports or challenges the claim under the
-stated conditions. A *decision* authorizes a transition, such as running a
-deeper experiment, changing RTL, or accepting a waiver. Evidence can justify a
-decision, but it cannot issue one.
+Architecture studies need a typed epistemic path. Feedback says that something returned. A tool observation records what the declared path actually produced. Evidence connects that observation to a bounded claim. A review result judges the claim. A knowledge-update decision selects what, if anything, should change in project memory or a model. An architecture decision selects the next design action. These stages can stop, branch, or disagree.
 
-Review depends on rejection checks that fail visibly and stop or redirect an
-invalid or unsupported candidate or claim. A check may be a type check,
-regression test, baseline replay, simulator comparison, synthesis constraint,
-physical-design warning, security review, workload-coverage review, or expert
-design review. Formal verification remains distinct. It proves a stated
-property under a formal model's assumptions. Not every rejection check is a
-formal proof.
+Three nonautomatic transitions keep these stages distinct:
 
-@tbl-verification-authorities groups checks by the kind of failure they can
-detect. It does not rank them. A parser can decisively reject malformed IR, but
-it says nothing about the performance of legal IR. A protocol checker can stop
-an illegal transaction, while a workload or security check can stop a
-functionally correct design whose evidence does not cover the proposed use.
-Each row therefore names both a check and the next action its failure can
-block.
+1. A tool return does not automatically become a valid architecture observation. A broken environment, malformed request, timeout, license failure, or unsupported action may report only the state of the tool path.
+2. A valid observation does not automatically become evidence for the claim. It must be relevant to the property, comparison, state, and scope.
+3. Evidence and a review result do not automatically become either training data or an architecture decision.
+
+@tbl-six-part-branch maps this progression. It separates the evaluation of a claim from the two independent choices that follow: the knowledge-update branch and the architecture-action branch.
+
+| **Part** | **Visible record** | **Question answered** | **Invalid inference to avoid** |
+| --- | --- | --- | --- |
+| **Feedback** | Returned signal or response | What came back? | Something came back, so the candidate was measured. |
+| **Tool observation** | Typed result, status, versions, inputs, outputs, uncertainty | What did this path observe? | The observation addresses every property of the candidate. |
+| **Evidence relation** | Claim, comparator, scope, supporting and contrary observations | What does the observation bear on? | A favorable number supports the design in general. |
+| **Review result** | Supported, unsupported, or unresolved, with rationale | What is justified at this scope? | The reviewer has authorized implementation. |
+| **Knowledge-update branch** | Named update surface and acceptance criteria | What project or model knowledge should change? | Every result should become training data or parameter change. |
+| **Architecture-action branch** | Stop, continue, reject, revise, escalate, waive, implement | What action is authorized? | The tool or evidence grants its own permission, or the knowledge update must occur first. |
+
+: **The six-part branching result map.** A claim is reviewed against evidence. From that review result, knowledge updates and architecture actions branch independently. {#tbl-six-part-branch tbl-colwidths="[18,25,25,32]"}
+
+The design-loop card introduced in @sec-architecture-20-ontology acts as the binding artifact across these stages. It points to the observation, evidence, review, update, and decision records rather than trying to contain every detail itself.
+
+Returning to the issue queue, the synthesis report is the observation. The evidence relation connects that report to the claim about clock speed. The review result states the claim is unsupported. The knowledge-update branch decides to store the failure in the project trajectory, while the architecture decision stops the transition to RTL.
+
+::: {.callout-design-principle title="Keep Support Separate from Permission"}
+Record what each result supports, what can overturn it, and which assigned role may approve the next transition. A strong result does not widen the claim or authorize action on its own.
+:::
+
+## 2. Evidence Is Specific to the Claim and Scope {#sec-evidence-specific-to-claim-and-scope}
+
+Evidence has no useful strength independent of a claim. An observation bears on a property for a candidate relative to a comparator under a stated workload, design state, tool path, metric, assumptions, validity region, uncertainty, and proposed action. A cycle estimate can support a bounded performance comparison while remaining irrelevant to power, timing, isolation, software usability, or product readiness.
+
+A compact claim frame reads: candidate and comparator; property and metric; workload and design state; tool path and assumptions; validity region and uncertainty; proposed action and nonclaims.
+
+This traceable link among claim, assumption, evidence, and challenge mirrors the Goal Structuring Notation (GSN) used in safety-critical engineering, without implying that every architecture experiment is safety critical [@Kelly2004GSN]. In the quantitative architecture tradition, measurement and abstraction serve bounded comparisons rather than universal conclusions [@HennessyPatterson2017QuantitativeApproach].
+
+For the issue queue, a structural check can reject an invalid parameterization. A regression suite can support functional behavior for covered cases. Workload experiments can support a bounded performance comparison. A synthesis report can address timing and area under its constraints. None of those checks silently establishes the other properties.
+
+@tbl-verification-authorities provides a taxonomy of architecture checks, showing how different tools address entirely separate property classes.
 
 | **Check scope** | **Representative checks or signals** | **What a failure can block** |
 | --- | --- | --- |
-| Syntax and interface checks | Parsers, type checks, API checks, ISA or ABI conformance, and schema validation. | Artifacts that cannot legally enter the tool flow. |
-| Functional checks | Unit tests, reference outputs, assertions, formal equivalence checking, and regression suites. | Candidates that compute the wrong behavior before performance matters. |
-| Model and workload checks | Baseline replay, sensitivity studies, calibration, coverage, and drift tests. | Proxy wins outside the represented workload or calibrated support. |
-| Implementation checks | Synthesis constraints, timing closure, power envelopes, area budgets, gate-level simulation (GLS), and design-rule checks (DRC). | Architecture candidates that violate physical limits or fail pre-silicon validation. |
-| Operational checks | SLOs, canary rollouts, rollback, telemetry, reliability, security, and incident review. | Claims that do not survive deployment conditions or policy boundaries. |
-| Expert review | Design review, waived-warning review, evidence-adequacy review, and residual-risk review. | Results whose evidence is too weak for the proposed transition. |
+| Syntax and interface | Parsers, type checks, API checks, ISA or ABI conformance, schema validation | Artifacts that cannot legally enter the tool flow. |
+| Functional | Unit tests, reference outputs, assertions, formal equivalence, regressions | Candidates that compute the wrong behavior before performance matters. |
+| Model and workload | Baseline replay, sensitivity studies, calibration, coverage, drift tests | Proxy wins outside the represented workload or calibrated support. |
+| Implementation | Synthesis constraints, timing closure, power envelopes, area budgets, GLS, DRC | Architecture candidates that violate physical limits or pre-silicon validation. |
+| Operational | SLOs, canary rollouts, rollback, telemetry, reliability, security, incident review | Claims that do not survive deployment conditions or policy boundaries. |
+| Expert review | Design review, waived-warning review, evidence-adequacy, residual-risk review | Results whose evidence is too weak for the proposed transition. |
 
-: **Checks that can reject a claim.** A credible claim should state
-which check can detect a failure in syntax, function, model support,
-implementation feasibility, or deployment behavior, how independent it is from
-the producer, what transition its failure blocks, and who holds the
-corresponding rejection right. {#tbl-verification-authorities tbl-colwidths="[21,36,33]"}
+: **Architecture check taxonomy.** Checks are grouped by the property class they cover and the transition their failure can block. {#tbl-verification-authorities tbl-colwidths="[20,38,42]"}
 
-The rows run in the order a candidate may encounter them, from artifact
-legality through expert review of the proposed transition. No single row
-establishes a complete architectural claim. For an AI-proposed
-prefetcher, syntax and functional checks may establish that the RTL builds and
-preserves architectural behavior, workload checks may overturn the performance
-claim, and implementation checks may show that timing or area makes the change
-unacceptable. The architect must state which check applies to each part of the
-claim, what failure it detects, and what action it can stop.
-
-@tbl-trust-record-map follows a claim from its supporting and contradictory
-evidence through review and final decision. Read down the table as a sequence.
-The architect states what is under review, and reviewers examine what the
-available tools and reviews can observe. They separate supporting results from
-contradictory ones and apply the declared checks. Only then does the named
-decision owner decide whether to continue, reject, revise, escalate, or approve
-a waiver.
-
-| **Chain stage** | **Visible record** | **Reviewer question** |
-| --- | --- | --- |
-| **Claim** | Bounded task, workload, objectives, constraints, baseline, and proposed transition. | What result is being claimed, and what action is it meant to support? |
-| **Feedback and cost** | Available checks, observations, latency, cost, coverage, and fidelity. | What feedback can the available tools and reviews provide within the budget? |
-| **Supporting evidence** | Claim-relevant observations with provenance, assumptions, uncertainty, and scope. | Which observations actually support the claim? |
-| **Counterevidence and failed checks** | Failed runs, rejected alternatives, disagreements, missing coverage, and unresolved warnings. | What weakens or blocks the claim? |
-| **Review result** | Passed and failed conditions, rationale, and whether the claim is supported, unsupported, or needs a stronger check. | What does the evidence support at the stated level? |
-| **Assigned decision** | Decision owner, approved rejection, revision, escalation, transition, or waiver; accepted residual risk; and reopening conditions. | Who may authorize the next action, and what are they accepting? |
-
-: **Evidence supports only the action under review.** Completing the card does not establish that the evidence is adequate, and adequate evidence does not replace approval from the assigned decision role.
-{#tbl-trust-record-map tbl-colwidths="[22,37,31]"}
-
-The design-loop card summarizes this path and points to its supporting records.
-Detailed observations remain in those records, and a replay package bundles the
-card, inputs, runs, checks, and decisions when replay is required. A complete
-card does not make weak evidence adequate, and adequate evidence does not expand
-the decision owner's assigned approval scope.
-
-::: {.callout-design-principle title="Keep support separate from permission"}
-Record what each result supports, what can overturn it, and which assigned role
-may approve the next transition. A strong result does not widen the claim or
-authorize action on its own.
-:::
-
-## Evidence Is Specific to the Claim and Scope {#sec-evidence-by-consequence}
-
-Feedback can count as evidence only when a reviewer can connect it to the
-candidate, baseline, workload, tool path, metric, assumptions, uncertainty,
-and proposed action. A gem5 cycle count can bear on a bounded performance
-claim. It does not establish power, physical feasibility, software usability,
-or security merely because the run completed successfully.
-
-Evidence types therefore cannot be ranked on one universal fidelity scale. A
-cycle estimate, synthesis report, formal proof, post-route result, and
-deployment trace answer different questions under different assumptions. For
-each item, the record should capture the dimensions in
-@tbl-evidence-dimensions.
+Evidence types cannot be ranked on one universal fidelity scale. Cheap legality checks can decisively reject a candidate, while expensive out-of-scope measurements might be useless for the specific transition. @tbl-evidence-dimensions lists what an evidence record must capture.
 
 | **Dimension** | **Question the record must answer** |
 | --- | --- |
 | **Producer and status** | Who or what produced the result, and is it measured, computed, digitized, illustrative, or author judgment? |
-| **Source and fidelity** | Which simulator, tool stage, experiment, review, or deployment path produced the observation, at what cost? |
-| **Scope** | Which workload, design state, technology assumptions, objective, and comparison does the observation cover? |
-| **Uncertainty and limits** | What variability, calibration error, missing behavior, or known blind spot bounds the result? |
-| **Integrity and provenance** | Which versions, inputs, outputs, commands, hashes, and access controls associate the record with the run? |
-| **Independence** | Which actors, models, data, objectives, and tool paths are shared with the producer, and which are independent? |
+| **Source and property observed** | Which simulator, tool stage, experiment, or review produced the observation, and what specific architectural property does it cover? |
+| **Scope** | Which candidate, comparator, workload, design state, and validity region are involved? |
+| **Uncertainty and repetitions** | What metric, limits, error bounds, repetitions, and nondeterminism constrain the result? |
+| **Integrity and provenance** | Which versions, inputs, outputs, commands, and hashes associate the record with the run? |
+| **Shared assumptions** | What models, data, workloads, and paths are shared? (See @sec-independent-checks-and-correlated-errors for check independence.) |
 
-: **Dimensions of an evidence record.** Adequacy depends on the claim and the
-next decision. Expensive evidence can still be out of scope, and cheap evidence
-can be decisive for a narrow rejection condition. {#tbl-evidence-dimensions tbl-colwidths="[24,66]"}
+: **Dimensions of an evidence record.** {#tbl-evidence-dimensions tbl-colwidths="[26,74]"}
 
-The dimensions work together. Exact provenance does not turn a cycle count into
-evidence for power because the source and scope do not cover power. Conversely,
-a parser can decisively reject an illegal configuration even though it is
-cheap. The claim and proposed action determine which dimensions are adequate.
+## 3. Proxy Mismatch, Calibration, Confounding, and Nondeterminism {#sec-proxy-mismatch-metric-gaming-and-calibration}
 
-Safety-critical engineering uses an *assurance case*, a structured argument
-linking a claim to subclaims, assumptions, supporting evidence, and potential
-defeaters. Goal Structuring Notation[^fn-safety-gsn] makes those links
-traceable. Architecture 2.0 borrows the connection among claim, assumptions,
-evidence, and challenge without treating an architecture study as a safety
-case. The useful lesson is that support and contradiction must remain attached
-to the exact claim they bear on.
+A well-bounded, correctly recorded favorable result can still fail to support the intended architecture conclusion. Four different problems can weaken a result:
 
-[^fn-safety-gsn]: Goal Structuring Notation (GSN) is a graphical argumentation notation used in safety-critical engineering to document the elements of an assurance case, making each inference and its supporting evidence traceable [@Kelly2004GSN].
+- **Proxy mismatch:** the optimized metric omits or diverges from the architecture property that matters.
+- **Calibration failure:** the proxy no longer tracks a stronger measurement in the region where it is being used.
+- **Confounding:** another difference in workload, implementation, budget, baseline, tool conditions, or system version could explain the observed change.
+- **Nondeterminism or variability:** repeated executions under nominally the same declared conditions produce a distribution, unstable ordering, or intermittent tool status that the headline result hides.
 
-For an AI-proposed cache, simulator results may support a comparison among the
-evaluated configurations under the named workloads and settings. A calibrated
-power model may support a separate modeled-power claim. Neither result
-establishes timing closure or product readiness. This follows the quantitative
-architecture tradition, where measurement and abstraction serve bounded
-comparisons rather than universal conclusions
-[@HennessyPatterson2017QuantitativeApproach].
+These are not synonyms. A deterministic proxy can be invalid. A calibrated proxy comparison can be confounded. A matched comparison can be too noisy to resolve the declared margin. A flaky environment can fail to return a valid observation at all. AI can exploit an incomplete objective more quickly than a human, searching thousands of candidates and consistently finding the same omitted cost in new forms.
 
-## Budgeting Evaluation and Review
+@tbl-proxy-diagnostics pairs these concerns with diagnostic checks.
 
-An architect should spend limited tool and review capacity on checks that could
-change the decision. That requires treating feedback as a budget across
-machines, tools, schedule, and expert attention rather than as an unlimited
-stream of samples.
-
-Feedback is not free, uniform, or automatically useful. An architecture task
-may allow thousands of cheap proxy evaluations, hundreds of simulations, tens
-of synthesis or physical-design
-runs, a few emulation opportunities, and almost no chances to learn from
-silicon or deployment mistakes. It may also have scarce human review time,
-limited tool licenses, long queue delays, confidential workloads, and
-organizational deadlines.
-
-@sec-stronger-evaluation-expensive showed that verification staffing has grown
-faster than design staffing. @fig-ch07-verification-economics adds the share of
-the project schedule already spent in verification. It shows the review load
-present before an AI method produces another stream of candidates.
-
-```{python}
-#| label: fig-ch07-verification-economics
-#| fig-cap: |
-#|   **Verification already consumes much of the project schedule.** Wilson Research Group / Siemens EDA functional-verification studies report that IC/ASIC projects spent roughly half their schedules in verification from 2014 through 2022 [@Foster2021WilsonICASICResources; @Foster2022WilsonVerificationStudy]. The 2022 band is the study's reported 50–60 percent median. Staffing growth from the same study series appears once, in @fig-verification-demand-scissors.
-#| out-width: "64%"
-#| fig-alt: "Bar chart showing the share of IC and ASIC project time spent in verification staying near 53 to 57 percent from 2014 through 2020, with a 50 to 60 percent median band for 2022."
-
-import matplotlib.pyplot as plt
-from _python.arch2_plots import COLORS, apply_style
-
-apply_style()
-
-# Source receipt: data/source-receipts/chapter7-wilson-verification-economics.csv
-# Wilson Research Group / Siemens EDA functional-verification studies (IC/ASIC),
-# via Foster's published study summaries [@Foster2021WilsonICASICResources;
-# @Foster2022WilsonVerificationStudy].
-# Time-share values 2014-2020 are study-figure annotations; 2022 is a stated
-# 50-60% median. Staffing data from the same series are shown in Chapter 2 and
-# are not replotted here.
-time_share = [(2014, 57), (2016, 54), (2018, 53), (2020, 56)]
-time_2022_band = (50, 60)  # stated median range, 2022 wave
-
-fig, ax = plt.subplots(figsize=(3.0, 1.95))
-fig.subplots_adjust(left=0.18, right=0.98, top=0.86, bottom=0.185)
-
-ax.bar([t[0] for t in time_share], [t[1] for t in time_share], width=1.15,
-       color=COLORS["blue"], zorder=2)
-lo, hi = time_2022_band
-ax.bar([2022], [hi - lo], bottom=lo, width=1.15, facecolor=COLORS["note_fill"],
-       edgecolor=COLORS["blue"], linewidth=0.8, zorder=2)
-ax.annotate("50-60%\n(median)", (2022, hi), textcoords="offset points",
-            xytext=(0, 3), ha="center", fontsize=5.3, color=COLORS["workload_ink"])
-ax.set_ylim(0, 78)
-ax.set_ylabel("project time in\nverification (%)", fontsize=6.4)
-ax.set_xticks([2014, 2018, 2022])
-ax.set_title("Schedule share in verification", fontsize=6.6, pad=4)
-ax.tick_params(axis="both", labelsize=6, length=2.5, width=0.6, pad=2)
-ax.grid(axis="y", color=COLORS["grid"], linewidth=0.55)
-for spine in ["top", "right"]:
-    ax.spines[spine].set_visible(False)
-ax.spines["left"].set_color(COLORS["ink"])
-ax.spines["bottom"].set_color(COLORS["ink"])
-```
-
-The schedule share remains near half across the reported years, including the
-50–60 percent median band in 2022. These measurements do not estimate the cost
-of reviewing AI-generated work. They establish the existing constraint. An AI
-method that increases candidate throughput without reducing invalid candidates
-or review effort can make the verification bottleneck worse.
-
-Available review capacity therefore depends on people as well as compute. The
-evidence plan should budget both and reserve scarce checks for results that can
-change the action under review. @tbl-feedback-budget lists the information that
-lets a reviewer see those limits. For each feedback source, the record must
-state which claim it may help support, what failure it can expose, and which
-decision it can affect.
-
-| **Budget item** | **What to record** | **Why it matters** |
+| **Concern** | **Diagnostic check** | **What a failure means** |
 | --- | --- | --- |
-| **Latency and cost** | Runtime, queue time, dollar cost, tool hours, license limits, model calls, GPU-hours, energy use, estimated emissions when relevant, and human review time. | Shapes whether the architect can support broad search, selective sampling, or mainly critique. |
-| **Signal quality** | Fidelity level, metric definition, noise, determinism, coverage, and uncertainty. | Helps a reviewer decide whether the feedback is adequate for the claim and proposed decision. |
-| **Sample budget** | Number of possible runs at each fidelity, including failed runs and invalid candidates. | Limits how many evaluations the architect can spend and makes failed runs and rejected alternatives worth preserving. |
-| **Reversibility** | Whether the action can be undone cheaply, re-run, patched, or rolled back. | Connects delegated execution to consequence. Reversible actions can tolerate a different evidence burden than difficult-to-reverse decisions. |
-| **Decision impact** | Claim level supported, condition triggered, transition blocked, and decision owner. | Ties each feedback source to the decision it can change. |
-| **Scarce attention** | Expert review, debugging effort, validation bandwidth, security review, and integration time. | Shows whether automation saves expert time or merely shifts work to reviewers. |
+| Proxy mismatch | Compare the proxy with a more decision-relevant tool or physical measure on matched cases. | The proxy win cannot carry the stronger claim. |
+| Calibration boundary | Use held-out workloads, cross-fidelity comparisons, and sensitivity around the candidate. | The result lies outside the region in which the proxy ranking was validated. |
+| Confounding | Use matched contrasts, stable budgets and versions, ablations, explicit alternative explanations. | The observation reports a difference but does not identify the proposed cause. |
+| Nondeterminism | Repeat runs, preserve seeds and state, report variance or ranking stability, distinguish flaky status from measured variability. | A single run or mean without dispersion may not resolve the decision margin. |
 
-: **What a feedback budget must record.** The supporting record states what feedback is available, what it costs, what evidence it can support, and when scarce expert attention or difficult-to-reverse action should limit automation. {#tbl-feedback-budget tbl-colwidths="[22,34,32]"}
+: **Diagnostics for weak evidence.** Each check is tied to a specific failure it can expose. {#tbl-proxy-diagnostics tbl-colwidths="[18,41,41]"}
 
-Cost records help reviewers compare architecture tasks that use feedback
-differently. A project that screens 10,000 cheap proxy scores has a different
-review record from one that selects three candidates for expensive synthesis. A
-run record that includes failures,
-timeouts, warnings, rejected candidates, and review notes provides more
-information than one that records only the winning score.
+For the issue queue, an early analytic or learned estimate might predict performance improvements for a wider queue. However, synthesis under declared constraints might reverse the apparent preference due to severe timing degradation. Or, if the performance check omits thermal considerations, moving a compute block might create a thermal hotspot.
 
-Budget arithmetic can remain explicit without assigning a numerical value to
-confidence. If feedback type $i$ costs $c_i$ per evaluation and the architect
-requests $n_i$ evaluations, the total budget is
-
-$$
-B = \sum_i n_i \cdot c_i.
-$$
-
-This sum tells an architect how many evaluations fit within the available
-resources. It does not say how much confidence an evaluation buys. That remains
-an engineering judgment about whether a possible result would strengthen or
-weaken the claim or require a different review.
-
-The cost and fidelity ranges in @fig-fidelity-cost-confidence show why cheap
-proxies can support broad screening while synthesis, physical design, and
-deployment checks are scarce. Here the budget tells the architect what another
-check will cost, not what conclusion that check will support.
-
-The engineering choice is therefore whether the next evaluation can change
-the decision enough to justify its computational and human cost. An architect
-should not spend another 100 CPU-hours refining cycle estimates when every
-plausible outcome leaves the candidate ordering unchanged. An hour of security
-review may be more useful if it can expose a design-blocking flaw. Cheap checks
-should remove invalid candidates before scarce, higher-cost checks are spent on
-the survivors. In the cache study, a cheap legality screen can remove
-unsupported configurations before simulator and power-model runs consume the
-budget. The cost record should identify the candidate, requested evaluation,
-possible result, failure it could expose, and decision it would affect.
-
-### Consequence Sets the Evidence Burden {#sec-consequence-and-reversibility}
-
-The evidence required for a candidate depends on the action being considered.
-A simulator configuration, RTL change, chiplet boundary, package interface,
-signoff waiver, and fleet rollout have different rollback costs, affected
-interfaces, and consequences. The burden of proof depends on who bears those
-consequences when the recommendation is wrong, regardless of whether AI is
-involved.
-
-@tbl-evidence-by-consequence gives representative consequence classes. They are
-not maturity levels. The same candidate can move from one row to another as the
-proposed action changes, and each move requires a fresh review of the evidence
-and decision rights. An escalation threshold states when the current evidence
-can no longer support the proposed transition.
-
-A proxy result may justify another experiment, but not an interface change,
-signoff waiver, or power claim. As an action becomes harder to reverse or
-affects more systems or people, the architect needs stronger evidence and
-approval from the appropriate owner. The review plan should state in advance
-which events require that additional review. Examples include uncertainty
-outside the calibrated range, a benchmark coverage gap, a failed tool check, a
-security boundary, a high rollback cost, or a change to a shared interface or
-product obligation.
-
-Architects do not need to execute every routine check, but they must understand
-the chain. They set the claim scope, decide what execution may be delegated,
-judge evidence sufficiency, and identify who may grant waivers and who owns the
-system consequences. An organization may distribute those rights across design,
-verification, security, product, or release roles. The card must record that
-distribution rather than treating every check as a singular human decision or
-as an autonomous tool choice.
-
-| **Proposed transition** | **Consequence cues** | **Evidence and review requirements** | **Rights that must be stated** |
-| --- | --- | --- | --- |
-| Continue local exploration | Candidate can be discarded; no shared interface or external obligation changes. | Basic validity, provenance, scope, and a comparison sufficient to decide what to test next. | What AI may propose or execute, which checks reject automatically, and which architect is responsible for the exploration. |
-| Advance a bounded experiment | Scarce tool time, shared data, or a deeper test is consumed, but rollback remains local. | Versioned workload, matched baseline, uncertainty, failed alternatives, and criteria for stopping or escalating. | Who controls the execution budget, who may reject, who recommends, and who judges whether the evidence is adequate. |
-| Change an implementation or interface | RTL, generator, compiler, runtime, memory, chiplet, security, or cross-component contract changes. | Regression and integration evidence, compatibility checks, cross-tool challenge, and residual-risk review. | Who may reject, approve a waiver, recommend the change, represent affected interfaces, and make the final decision. |
-| Authorize signoff or consequential deployment | Rollback is difficult, customer- or silicon-facing effects are possible, or a formal obligation is accepted. | Independent evidence appropriate to the claim, fully specified rejection checks, audit trail, recorded waivers, and reopening conditions. | Who may reject or approve a waiver, plus a named decision owner. |
-
-: **Evidence burden follows consequence.** Reversibility, the systems and people
-affected, and check independence determine what must be shown and who may
-advance the transition. {#tbl-evidence-by-consequence tbl-colwidths="[20,23,30,19]"}
-
-AI methods may automate routine checks while different people retain the rights
-to reject, approve a waiver, recommend, or make the final decision. Some useful
-systems make no final design choices. They narrow the design space, identify
-contradictions, preserve evidence, and help the responsible people decide.
-
-State which outcomes move a candidate from local exploration to broader review
-before an AI method begins work. A failed integration check, an estimate
-outside calibration, a shared-interface change, or a costly rollback should
-trigger the stronger evidence and named approval required for that consequence.
-
-Stronger evidence matters only if a failed check can block an unsupported
-transition.
-
-## Rejection Checks Need Independence and Assigned Rights
-
-> **Rejection right.** A rejection right is the assigned right
-> to block a candidate, claim, or transition when a declared condition fails.
-> The assignment must identify the check, the relevant failures it covers, the
-> transition it can block, the check owner, and the separate waiver holder.
-
-Exercising that right requires an inspectable rejection path. The executing
-check may be a parser, simulator, formal tool, regression test, synthesis flow,
-cross-tool comparison, signoff rule, deployment signal, security policy,
-benchmark rule, or expert review. Its rejection condition may detect a proxy
-mismatch, protocol violation, physical limit, or policy boundary.
-
-Suppose an AI method recommends a wider issue queue, but a post-synthesis timing
-report misses the declared clock target. The timing miss is the rejection
-condition, the synthesis flow executes the check, and the failed check blocks
-the RTL change. The implementation owner is responsible for interpreting the
-report, while only the assigned waiver holder may accept the
-timing risk. A summary from the generating method cannot override that path.
-
-Early automated checks can reduce the number of candidates that require
-expensive review. Their benefit depends on how many cases they settle
-accurately and how much human or tool time each check consumes. A cheap check
-is useful when its rejection condition is reliable enough to keep invalid work
-away from a scarce downstream tool or reviewer.
-
-For a reviewer, naming a check is not yet an inspectable rejection path. The
-record must show what failure the check can observe, which blind spots remain,
-what action it can block, and who owns the check and any waiver
-(@tbl-rejection-review-properties).
-
-| **Review property** | **What the record must state** |
-| --- | --- |
-| **Rejection condition** | The exact observation or missing requirement that causes failure. |
-| **Executing check** | The tool, test, policy, review process, or deployment signal that evaluates the condition. |
-| **Relevant failure coverage** | Which failures bearing on the claim the check can observe, and which known blind spots remain. |
-| **Independence basis** | What the check does not share with the generator, such as model family, training data, objective, tool path, workload, or evidence source. |
-| **Transition it can block** | The state change or decision that cannot proceed after failure. |
-| **Check owner** | The role responsible for the check's operation, maintenance, and interpretation. |
-| **Waiver holder** | The named person or role allowed to override the failure, with rationale, scope, expiration, and reopening conditions. |
-
-: **Information required to review a rejection.** Naming a check is
-insufficient unless the record also states its relevant coverage, independence
-basis, blocked action, owner, and waiver holder. {#tbl-rejection-review-properties tbl-colwidths="[25,65]"}
-
-The issue-queue example fills every row in
-@tbl-rejection-review-properties. It names a measurable failure, the tool that
-detects it, the RTL transition it blocks, the role that owns the check, and the
-separate waiver holder. The coverage entry says that the check can observe
-timing failure under the stated constraints, not functional, power, or security
-failures. The independence entry must also say whether the synthesis result
-shares a model, objective, or tool path with the estimate that motivated the
-candidate. Without those details, “timing check” names a tool but not a
-rejection path.
-
-A violated constraint, timing miss, benchmark violation, or expert objection
-can identify a design-space boundary. A simulator crash or failed build is
-recorded first as a tool-path failure and becomes a candidate rejection only
-when a declared validity or constraint rule makes the candidate responsible for
-that outcome.
-
-Before a transition proceeds, the review should answer three questions:
-
-1. **Is the candidate legal?** It violates no declared structural, ISA,
-   software, interface, security, or policy contract.
-2. **Does the evidence meet the named criteria?** The required records exist,
-   refer to this claim and comparison, cover the stated scope, and survive the
-   declared challenge checks.
-3. **Has the decision owner accepted the remaining risk?** Before deciding, the
-   decision owner can inspect what is still uncertain, the consequences of
-   being wrong, any waiver, and the conditions for reopening the decision.
-
-These conditions are sets of requirements, not scalar scores. A failed item
-triggers rejection, revision, or escalation. Only the person assigned waiver
-rights may override a failed check. The waiver rationale, scope, expiration,
-and reopening conditions become part of the review record.
-
-The cache example shows the distinction. Parameter checks can reject an
-unsupported configuration, simulation can challenge the performance claim,
-and the power model can reject a candidate that exceeds the modeled envelope.
-Those checks still cannot support a timing, security, or product-readiness
-claim because they do not cover those failures.
-
-Comparable claims need shared comparison rules rather than private judgment
-calls. Architects comparing results must use the same workload,
-metric, baseline, tool versions, budgets, and reference checks. A result
-produced under different rules belongs to a different comparison, even if its
-headline metric looks similar.
-
-A failed check must change the work. Depending on the condition, the architect
-may discard the candidate, record missing state, add an environment validity
-test, restrict the method's actions, narrow workload coverage, weaken the
-claim, or escalate the decision. Without one of those responses, a failed
-check is only a log message.
-
-A rejection path also protects against polished but unsupported outputs.
-AI systems can generate convincing summaries, plots, design reports,
-and review notes. Those artifacts are useful only when a failed check can block
-their use. In architecture, a polished explanation cannot overrule a failed
-timing check, an invalid workload, a missing baseline, or a security boundary.
-
-The independence requirement grows sharper as verification itself becomes
-AI-assisted. Machine-learning-assisted verification tools, such as Cadence
-Verisium for triaging failures, ranking likely root causes, and directing
-coverage, can be valuable [@Cadence2022Verisium]. But they move part of the
-verification work into a learned system. Reviewers must therefore ask whether
-the check is independent of the system that produced the design. AI-assisted
-verification can share failure modes with generation, particularly when the
-two systems use the same model family, training data, objective, or evidence.
-In that case, agreement does not provide an independent check.
-
-The same rule applies when rejection is split across components. A generator,
-critic, verifier, and summarizer may be separate components in an
-implementation, but they do not become independent merely by having different
-prompts or names. Independence depends on what they share, such as training
-data, model family, objective, tool path, evidence source, or human instruction.
-Software fault tolerance learned this empirically. Knight and Leveson's
-multiversion-programming experiment found that independently developed program
-versions fail on correlated inputs far more often than an independence
-assumption predicts [@KnightLeveson1986Multiversion]. An implementation that
-asks several correlated components to agree has created consensus, not
-an independent rejection path, unless a declared failure can block the candidate
-regardless of the generator's explanation.
-
-Coding-agent evaluation shows that the evaluator also needs later challenge.
-SWE-bench tied repository-level tasks to tests withheld from the agent
-[@JimenezEtAl2024SWEBench]. SWE-bench Verified then added professional human
-review to remove faulty or underspecified cases and a containerized evaluation
-environment to make execution more reliable [@OpenAI2024SWEBenchVerified]. A
-later audit found remaining
-test flaws and training exposure that weakened the benchmark's interpretation
-[@OpenAI2026SWEBenchLimits]. The transferable lesson is not a score. A check
-must be reopened when new evidence shows that its coverage or independence was
-weaker than the decision assumed.
-
-## Proxy Mismatch, Calibration, and Confounding {#sec-proxy-mismatch-metric-gaming-and-calibration}
-
-Proxy mismatch occurs when the stand-in metric a method optimizes diverges from
-the architectural outcome under review. It is a recurring failure that
-rejection checks must catch. A proxy win may justify further evaluation. It
-supports a consequential decision only when an independent, decision-relevant
-check shows that the optimized metric tracks the intended outcome.
-
-The appropriate verification response depends on the source of the mismatch. A
-poorly calibrated proxy or one applied outside its validated region may need
-better fitting or broader validation. A search method may instead exploit an
-objective that omits an important cost, a failure commonly called reward
-hacking [@AmodeiEtAl2016ConcreteProblems]. For example, it might improve
-estimated wire delay by moving a compute
-block while ignoring the resulting thermal hotspot. An independent thermal
-check is then necessary because improving the proxy alone may not prevent the
-search from finding another version of the same flaw.
-
-AI did not create this problem. Benchmarks, simulators, cost models,
-and design rules have always been approximations. What changes in Architecture
-2.0 is how quickly an AI method can test and exploit the approximation. A
-search may evaluate thousands of candidates against an incomplete objective
-and keep finding the same omitted cost in new forms. A generated explanation
-can then make the proxy win sound more complete than it is. Calibration and an
-independent check must test the architectural claim rather than the method's
-story about it.
-
-Calibration and matched comparison address different failures. Calibration
-tests whether a proxy tracks a decision-relevant measurement in the region
-where it is used. Confounding occurs when another difference in the cases,
-budgets, implementations, or tool conditions could explain the result. A
-matched comparison holds those conditions sufficiently stable to attribute a
-difference. A result can be calibrated yet confounded, or matched yet built
-around a proxy that does not track the intended outcome.
-
-The public AlphaChip disagreement brings those failures together at placement
-scale. Its purpose here is not to decide which unmatched experiment should
-prevail. It is to separate the claims that each public record can support.
-
-::: {.callout-war-story title="A proxy under dispute"}
-**The claim.** The 2021 AlphaChip paper reported that a reinforcement-learning
-method generated macro placements in under six hours with quality comparable
-to or better than expert placements on reported metrics. Later reports said
-the method contributed to several TPU generations
-[@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum;
-@GoogleDeepMind2024AlphaChip].
-
-**The gap.** Independent assessments questioned proxy correlation, baselines,
-compute comparisons, implementation details, and reproducibility. The authors
-replied that the assessments did not reproduce the proprietary pretraining and
-production setup behind the strongest claims and used different cases and
-budgets [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment;
-@GoldieEtAl2024ThatChipHasSailed].
-
-**The lesson.** Both sides reported meaningful checks, but the public cases,
-training context, implementations, budgets, and physical-design flows did not
-align into one experiment. The record can expose proxy and comparability
-questions. It cannot adjudicate unmatched experiments as though they tested
-one identical claim.
-:::
-
-The public record contains several different evaluations rather than one
-shared replay. @tbl-alphachip-evidence-comparison separates what each record
-contributes from the comparison it cannot settle.
-
-| **Public record** | **What it directly contributes** | **Why it does not settle the whole dispute** |
-| --- | --- | --- |
-| Original paper, addendum, and deployment report [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip] | Reported placement method, comparisons, production context, and later use across TPU generations. | The strongest production blocks, pretraining corpus, and full internal evaluation context are not independently replayable. |
-| Independent assessments [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment] | Tested released artifacts and public cases, examined proxy correlation and baselines, and added later physical-design evaluations. | Their cases, implementation, training context, compute budgets, and tool flow do not match the strongest proprietary setup. |
-| Authors' response [@GoldieEtAl2024ThatChipHasSailed] | Identified disputed experimental differences and argued that the public reassessments did not reproduce the reported method. | A response can clarify scope and missing conditions but cannot turn unmatched public evaluations into a shared experiment. |
-| ChiPBench [@WangEtAl2025ChiPBench] | Provides an end-to-end placement benchmark using final power, performance, and area measures rather than only an intermediate proxy. | It supplies a new comparison framework; it does not retroactively align earlier cases, training inputs, budgets, or tools. |
-
-: **Why the AlphaChip records support different readings.** The records test
-related placement claims under different cases and conditions. A reviewer must
-compare matched tasks and tool paths before attributing disagreement to the
-method itself. {#tbl-alphachip-evidence-comparison tbl-colwidths="[25,34,31]"}
-
-Missing public information does not show that internal evidence was absent,
-and a production report does not establish an independently reproducible
-comparison. The bounded conclusion is that the public record supports several
-narrower claims and challenges but no single matched adjudication of the
-strongest proprietary result.
-
-Calibration should specify where a proxy may rank candidates and when a
-stronger evaluation is required. Architecture predictors have long been
-validated against held-out data[^fn-ml-held-out-data], more
-decision-relevant measurements, or carefully designed experiments
-[@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. The same rule
-applies to AI-assisted work. If an architect claims that a candidate satisfies
-a power envelope, the evidence should state how the estimate was calibrated,
-which workload region it covers, what uncertainty remains, and what result
-would overturn the claim.
-
-[^fn-ml-held-out-data]: Held-out data is a subset of a dataset reserved during training and used only to test whether a model generalizes to unseen inputs. A prediction validated against held-out cases provides stronger evidence than one fitted and reported on the same data.
-
-The practical question is whether the candidate remains inside the region for
-which the proxy was validated.
+Calibration checks whether a proxy tracks a decision-relevant measurement in the region where it is used. Architecture predictors must be validated against held-out data or stronger evaluations [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
 
 ::: {.callout-architect-checkpoint title="The Calibration Check"}
-Has the architect stated when a candidate falls outside the range where the
-generator's proxy was validated? A proxy win supports a claim only within that
-range. Outside it, the architect must seek a decision-relevant or independent
-check rather than treat the prediction as evidence.
+Has the architect stated when a candidate falls outside the range where the generator's proxy was validated? A proxy win supports a claim only within that range. Outside it, the architect must seek a decision-relevant or independent check rather than treat the prediction as evidence.
 :::
 
-Calibration does not preserve comparability by itself. Benchmark versions and
-run rules must also be recorded because changes to them can alter a result.
-Shared benchmarks need published rules, versions, and submission practices if
-results are to remain comparable. When a benchmark changes, affected claims
-should be reevaluated rather than compared as though the setup were unchanged.
+Nondeterministic observations require careful interpretation relative to the decision margin. Recording a seed is not enough. The review question is whether the observed variation—whether a stochastic tool measurement, an unstable ranking across workloads, or a flaky execution path—is small enough, and sampled appropriately enough, to support the declared margin and ordering.
 
-## Attributing Later Performance Gains
+## 4. Independent Checks and Correlated Errors {#sec-independent-checks-and-correlated-errors}
 
-Architecture evidence continues to change after a design is selected. Hardware
-may remain fixed while compilers, kernels, libraries, runtimes, firmware,
-workloads, and deployment policies improve. A later performance gain is useful
-feedback, but it does not identify which change caused the gain when several
-parts of the system changed together.
+Diagnostics are useful only when a purportedly stronger check observes the missing property and is not merely another expression of the same assumptions. Independence is relative to a claim and a failure class, not a binary property of components.
 
-The local evidence rule is simple. Pair the hardware revision with the
-compiler, libraries, runtime, workload and benchmark rules, deployment
-configuration, and observation time. A software-enablement claim needs a
-comparison that holds the hardware and workload stable; otherwise the result
-can report change but not assign its cause. AI can align version histories and
-propose the next comparison, but it cannot recover attribution that the
-recorded comparisons do not contain. @sec-loop-patterns-across-stack develops
-the distinct feedback timescales, including continuing software enablement.
-
-## Protected Evidence Must Remain Challengeable
-
-Calibration, provenance, and benchmark rules make a claim assessable, but a
-consequential decision still requires a named reviewer and a decision owner.
-Evidence may remain confidential, but it cannot become invisible to the
-decision process. The review record should state who can inspect it and what
-that inspection can establish. RTL, design specifications, process assumptions,
-timing constraints, floorplans, tool logs, customer workloads, proprietary
-traces, compiler settings, design reviews, and deployment telemetry can all
-reveal valuable or restricted information.
-
-The architect should identify which data must remain private, which tools may
-access it, what can be shared or redacted, and who can inspect the complete
-record. For generated designs, the record should also cover license
-provenance, ownership, export or release classification, and who may authorize
-disclosure. These technical records support the architecture review; they do
-not replace appropriate legal or organizational review.
-
-::: {.callout-architect-checkpoint title="The Protected Review Check"}
-State which evidence is restricted, which AI tools may access it, who can
-inspect the complete record, what a redacted result cannot establish, and who
-may approve disclosure or a waiver. Confidentiality changes the review path;
-it does not remove the need for challenge.
-:::
-
-Protected review is also necessary when the property under examination is
-security-sensitive. Performance evidence does not establish isolation. An AI
-method that optimizes IPC may favor shared predictors, translation lookaside
-buffers, caches, or other state across trust boundaries when the objective does
-not price leakage. A functional check and an isolation check cover different
-failures, even when both inspect the same RTL.
-
-```{=latex}
-\Needspace{20\baselineskip}
-```
+A useful check must first observe the relevant property. It then adds stronger challenge when it does not share the producer's critical model, training data, objective, workload, implementation, tool path, or architectural assumption. Separate prompts, agent names, or reports do not create independence. Correlated checks can still find defects, but agreement among them should be described as corroboration, not independent validation.
 
 ::: {.callout-field-note title="What Spectre's Missing Check Exposed"}
-For decades, improving instructions per cycle has been a powerful
-microarchitectural optimization pressure, pursued through increasingly
-aggressive speculation and reuse of predictors, caches, and buffers across
-execution contexts. Ordinary functional tests could pass because speculation
-computed the correct architectural results. In 2018 that same optimization
-pressure was shown to have built a class of side channels that leak across
-privilege boundaries [@KocherEtAl2019Spectre]. Ordinary functional checks did
-not catch it because the performance objective measured IPC while omitting
-leakage.
-
-Functional correctness does not establish security. If non-interference and
-timing-channel evidence fall outside the comparison, performance wins can
-accumulate risk that ordinary correctness tests never see.
+Functional correctness does not establish security. In 2018, side channels were shown to leak across privilege boundaries through speculation and shared microarchitectural state [@KocherEtAl2019Spectre]. Ordinary functional checks did not catch this because the performance objective measured instructions per cycle (IPC) and omitted information flow or timing channels. A check cannot reject a property it does not observe.
 :::
 
-The architecture lesson is property mismatch. A check can reject only the
-failures it is designed to observe. When the full security analysis would
-expose sensitive design details, an authorized reviewer may inspect it under
-protection while the public record states the check class, scope, reviewer, and
-bounded conclusion.
+When AI is used to assist verification, it can share failure modes with generation. A generator, critic, verifier, and summarizer may share a foundation model, training exposure, objective, or tool wrapper. Several agreeing outputs may therefore share one error. In software engineering, Knight and Leveson's multiversion-programming experiment found that independently developed program versions failed on correlated inputs far more often than an independence assumption predicted [@KnightLeveson1986Multiversion]. As an analogy for AI-assisted architecture, a consensus among correlated checkers is not an independent rejection path.
 
-Shared research infrastructure must distinguish public artifacts from private
-state. Public benchmarks, datasets, papers, and tool environments support
-comparison, while private workloads, proprietary RTL, product traces, and
-process-specific assumptions often cannot be released. The design-loop card
-should state the restricted data class, which tools may access it, which
-conclusions a public proxy cannot support, what authorized reviewers can
-inspect, what cannot be disclosed, and who may approve an exception.
-Reproducibility may then mean authorized audit rather than public release.
+@tbl-independence-check separates check independence from the property observed.
 
-## Disputes, Waivers, and Reopening {#sec-evidence-disputes-and-the-trust-checklist}
+| **Check property** | **Question** |
+| --- | --- |
+| **Property observed** | Which part of the claim can this check accept or reject? |
+| **Failure condition** | What exact returned observation counts as failure? |
+| **Coverage and blind spots** | Which relevant failures can and cannot be seen? |
+| **Independence basis** | Which models, data, objectives, workloads, code, tools, and assumptions are shared or different? |
+| **Effect of failure** | Which bounded claim or proposed transition must stop, narrow, or escalate? |
 
-Even after accuracy and policy boundaries are stated, reviewers may disagree
-about the baseline, workload, assumptions, tool setup, missing failures, or
-decision criteria. The first question is whether they are evaluating the same
-claim under sufficiently aligned conditions. If not, the review should expose
-the difference rather than force one result to overturn another. Private
-evidence may further limit what can be released, but the record must still name
-the role that can inspect it and the conclusion that inspection can support.
+: **Evaluating check independence and rejection paths.** {#tbl-independence-check tbl-colwidths="[26,74]"}
 
-@fig-evidence-dispute-anatomy shows the information needed to evaluate a
-contested claim. Model confidence does not settle the dispute. Reviewers inspect
-the evidence, assumptions, baseline, contrary results, and failed checks. A
-named reviewer then applies the declared rules and records whether the claim is
-supported, unsupported, or needs a stronger check. The decision owner uses that
-disposition to authorize the next transition.
+## 5. Protected Evidence and Public Claims {#sec-protected-evidence-and-public-claims}
 
-![**Evidence review and action authority remain separate.** A contested architectural claim is reported with its supporting evidence, fidelity, scope, provenance, baseline, contrary evidence, and failed checks. The reviewer records the claim disposition; the assigned decision owner authorizes the next transition.](images/F9b-evidence-dispute-anatomy){#fig-evidence-dispute-anatomy width="100%" fig-alt="Flow diagram showing a contested architectural claim and its evidence reaching a named reviewer, who records whether it is supported, unsupported, or needs a stronger check before a decision owner authorizes the next transition."}
+A technically appropriate independent check may rely on workloads, flows, or results that cannot be released. Confidentiality changes who can inspect evidence and what can be released; it does not erase the need to state the claim, scope, method, uncertainty, reviewer, and bounded conclusion.
 
-Read @fig-evidence-dispute-anatomy from left to right. The contested claim first
-states its scope and proposed action. The evidence packet then places
-feedback and proxy results beside fidelity, scope, provenance, baseline,
-counterevidence, and failed checks. A named reviewer applies the declared
-rules and records one of three dispositions: supported at the stated level,
-unsupported, or requiring a stronger check. The evidence makes the claim
-reviewable; it neither records its own disposition nor authorizes the next
-action. That authority remains with the assigned decision owner.
+Internal protected evidence may support an internal decision when an authorized reviewer can inspect it. A public claim must remain within what the public record or a credible protected audit can establish. Missing public information is not proof that internal evidence did not exist, while a production report is not an independently replayable comparison.
 
-The AlphaChip comparison in @tbl-alphachip-evidence-comparison illustrates this
-separation. Each record can support or challenge a bounded placement claim, but
-a check run on one set of cases and tool conditions cannot reject a claim made
-for another set without an argument connecting them. When proprietary state or
-training context remains unavailable, the public conclusion must narrow to
-what independent reviewers can inspect.
+::: {.callout-war-story title="A proxy under dispute"}
+**The claim.** The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on reported metrics. Later reports noted its contribution to TPU generations [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip].
 
-A waiver does not convert a failed check into a pass. It records that the
-assigned waiver holder accepts the failed condition for a stated scope and
-period. The record should include the failure, rationale, residual risk,
-affected transition, compensating checks, expiration, and the observation that
-would end the waiver. A dispute can instead trigger an appeal to a more
-independent tool, reviewer, or matched experiment.
+**The gap.** Independent assessments questioned proxy correlation, baselines, and reproducibility. The authors replied that the assessments did not reproduce the proprietary pretraining and production setup and used different cases and budgets [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment; @GoldieEtAl2024ThatChipHasSailed].
 
-Decisions also need concrete reopening conditions. Revisit the claim when the
-workload or benchmark drifts, the compiler or runtime changes, a stronger tool
-reverses the candidate ranking, a calibration boundary is crossed, a protected
-review exposes a missing failure, or implementation and deployment produce an
-unexpected regression. Reopening does not mean the original decision was
-irrational. It means the evidence now bears on a changed claim or context.
+**The lesson.** The public records test related placement claims under different cases and conditions. Bounded claims are supportable within each specific setup, but unmatched evaluations cannot be forced into a single, retroactive shared experiment.
+:::
 
-@tbl-trust-checklist turns the claim-to-decision path into a compact review. Its
-ten questions also include state, tool semantics, fidelity, provenance, and
-protected evidence, which determine whether the evidence can be interpreted.
+@tbl-alphachip-evidence-comparison separates what each public record contributes from what it cannot establish.
 
-| **Question** | **What a credible answer contains** | **Warning sign** |
+| **Public record** | **What it directly contributes** | **What it cannot establish** |
 | --- | --- | --- |
-| **What output is under review?** | Candidate, ranking, report, code/RTL change, or recommended transition, with generator and method role named. | The result is described only as an AI improvement. |
-| **What is the claim?** | A bounded architecture task, comparator, objective, workload, scope, non-claims, and proposed transition. | Vague claims of automation or improvement. |
-| **What state and allowed actions are exposed?** | Design and workload state, legal actions, tool interfaces, invalid transitions, and replay material. | An AI method can act through hidden state or unlogged tool behavior. |
-| **What evidence supports it?** | Claim-relevant metrics, tool outputs, logs, and reviews, with enough detail to inspect their scope and limitations. | Only the winning score is shown. |
-| **What weakens or blocks it?** | Counterevidence, failed runs, rejected alternatives, coverage gaps, warnings, and unresolved disagreements. | Contrary results or failed checks are omitted. |
-| **What is the fidelity?** | The record states proxy, simulation, synthesis, emulation, signoff, deployment, or silicon level. | Treating all measurements as equivalent. |
-| **What is the provenance?** | Workload and exact tool versions, tech nodes, configs, seeds, run-to-run variance or other nondeterminism, constraints, assumptions, and baselines needed for the declared audit or replay claim. | Hidden scripts, unstated defaults, or unrecorded nondeterminism. |
-| **What evidence is protected, and how can it be challenged?** | Data classes, access rules, redaction limits, public-claim limits, assigned protected reviewer, and an audit path. | Restricted evidence is treated as invisible or unverifiable. |
-| **What can reject it?** | The rejection condition, executing check, relevant coverage, independence basis, transition blocked, check owner, and waiver holder. | A check is named without the coverage or right needed to block anything. |
-| **Who decides whether the work proceeds?** | The role assigned to approve the transition, any waiver, accepted residual risk, and the conditions that reopen the decision. | The workflow silently treats output as a decision. |
+| Original paper, addendum, deployment report | Reported placement method, proxy comparisons, and later use across TPUs. | The strongest proprietary blocks, pretraining corpus, and production context are not independently replayable. |
+| Independent assessments | Tested released artifacts and public cases, examined proxy correlation and baselines. | Their cases, compute budgets, and tool flow do not match the strongest proprietary setup. |
+| Authors' response | Identified disputed differences and argued the assessments did not reproduce the reported method. | A response can clarify missing conditions but cannot turn unmatched evaluations into a shared experiment. |
+| ChiPBench [@WangEtAl2025ChiPBench] | Provides an end-to-end placement benchmark using final metrics rather than an intermediate proxy. | It supplies a new framework; it does not retroactively align earlier training inputs, budgets, or tools. |
 
-: **Questions for reviewing a design claim.** A credible report includes its
-supporting and contrary evidence, fidelity, provenance, protected-review limits,
-rejection path, waiver holder, decision role, and reopening conditions before
-the proposed action proceeds. {#tbl-trust-checklist tbl-colwidths="[24,38,26]"}
+: **Why the records support different claims.** {#tbl-alphachip-evidence-comparison tbl-colwidths="[25,37,38]"}
 
-The checklist translates the design-loop card and its supporting files into a
-review sequence. A paper, tool, or project does not need to solve a full
-subsystem problem to be valuable. It should state what it contributes, the
-results and records behind that contribution, its limitations, the checks that
-can reject its result, and who may authorize the proposed action.
+A protected evidence frame must document the restricted data class, allowed tool access, authorized reviewer, method and scope visible to the reviewer, redaction limits, public nonclaims, and the bounded conclusion.
 
-## Open Research Questions
-
-1. **How can evidence records keep an AI-assisted claim inside its supported
-scope and identify when it must be reopened?**
-Proxy observations, simulation runs, synthesis reports, waivers, rejection
-events, redactions, and paired hardware and software histories may be stored by
-different tools. Missing or inconsistent support must remain detectable without
-forcing every architecture task into one record format. The hard cases include
-incomplete replay information, workload drift, software changes, stronger
-later evaluations, and deployment failures that may invalidate only part of the
-original claim.
-
-2. **Which architecture benchmarks reveal when an AI method has exploited a proxy?**
-Misleading proxy wins, calibration-boundary violations, and candidates that
-fail only under a more expensive tool can test whether the review process
-escalates an AI-generated result at the right time. A benchmark must cover
-enough workloads, proxies, and tool stages to distinguish robust detection from
-memorized failure cases while keeping false rejections and evidence cost
-visible.
-
-3. **How can architects tell whether an AI-assisted rejection check is independent?**
-A verifier may share a model family, training data, objective, workload, or
-tool path with the generator it checks. Withheld workloads, separately
-configured tools, and human review can expose some shared failures, but there
-is no general test for how much independence a consequential architecture
-decision requires or when an AI method can optimize around the check.
-
-4. **How can AI-assisted review use confidential evidence without exposing protected design state?**
-Proprietary workloads, physical-design flows, licensed reports, process design
-kit (PDK)-bound evidence, internal baselines, and deployment data often
-cannot be shared publicly. A reviewer needs enough access to verify fidelity,
-provenance, failed checks, and decision scope without allowing an AI tool,
-public artifact, or redacted report to reveal protected information. Some
-public claims may remain unsupported when the necessary evidence cannot be
-inspected outside the organization.
-
-## Conclusion
-
-A tool result can count as evidence only when it is tied to the exact
-architectural claim, comparison, tool path, scope, provenance, uncertainty, and
-action under review. A favorable score or fluent explanation is insufficient.
-Cost determines how many checks are affordable; it does not determine how much
-confidence a result deserves.
-
-A declared check can overturn the claim when it covers the relevant failure and
-its assigned right can block the proposed transition. The record must name the
-failed condition, executing check, coverage and blind spots, independence
-basis, blocked action, check owner, and separate waiver holder. More
-consequential or difficult-to-reverse actions require stronger evidence and
-more independent challenge.
-
-Evidence can also expire or change meaning. Workload drift, software evolution,
-a stronger tool result, calibration failure, or deployment regression can
-reopen the decision. Protected evidence remains useful only when an assigned
-reviewer can challenge it and the public claim stays within what the available
-record supports. AI methods can organize these records and run routine checks,
-but no score, tool result, or evidence packet grants itself permission to act.
-
-::: {.callout-carry-forward}
-- **Carry forward:** Advance a claim only after reviewing the supporting and contrary evidence, failed checks, waivers, and the named decision owner.
-- **Reader test:** What would overturn the AI-assisted claim, what action would that check block, who may waive the failure, and what later observation would reopen the decision?
-- **Up next:** @sec-running-the-loop applies these review questions in a complete worked example and inspects the resulting records.
+::: {.callout-architect-checkpoint title="The Protected Review Check"}
+State which evidence is restricted, which AI tools may access it, who can inspect the complete record, what a redacted result cannot establish, and who may approve disclosure.
 :::
+
+## 6. Evidence Cost and Consequence {#sec-evidence-cost-and-consequence}
+
+Cost limits which observations an architect can obtain; it does not assign confidence or evidentiary strength. A cheap legality check may decisively reject an invalid candidate. An expensive post-route result may still be irrelevant to a security claim. The useful next check is one whose plausible outcomes could change the claim disposition, candidate ordering, scope, or proposed action enough to justify its computational and human cost.
+
+Verification schedule and review bandwidth are constrained resources (@sec-design-loop-no-longer-scales details the high schedule share of verification in ASIC projects). Available capacity limits both compute and expert attention. A feedback budget must record latency, execution cost, fidelity, uncertainty, failure budget, interpretation time, and review cost.
+
+The burden of proof depends heavily on the action being considered. The proposed action and its reversibility determine how much evidence is adequate.
+
+| **Proposed transition** | **Consequence cues** | **Evidence and review requirements** |
+| --- | --- | --- |
+| Continue local exploration | Candidate can be discarded; no shared interface changes. | Basic validity, provenance, scope, and comparison to decide what to test next. |
+| Advance a bounded experiment | Scarce tool time or deeper test is consumed; rollback is local. | Versioned workload, matched baseline, uncertainty, criteria for escalating. |
+| Change an implementation or interface | RTL, generator, chiplet, security, or cross-component change. | Regression evidence, cross-tool challenge, residual-risk review. |
+| Authorize signoff or deployment | Rollback is difficult, formal obligation or customer effect. | Independent evidence, specified rejection checks, audit trail, recorded waivers. |
+
+: **Evidence burden follows consequence.** {#tbl-evidence-by-consequence tbl-colwidths="[28,30,42]"}
+
+Returning to the issue-queue prototype, a cheap structural check rejects illegal parameters quickly. Simulation determines if a performance hypothesis deserves scarce synthesis time. A synthesis flow exposes a timing failure. Security review might be more valuable than an additional cycle estimate if it reveals a shared-state flaw. Each check has a different cost and a different decision job.
+
+## 7. Disputes, Waivers, and Reopening {#sec-disputes-waivers-and-reopening}
+
+A finite evidence plan can still produce disagreement or leave a failed condition that someone proposes to accept. A dispute should first determine whether the parties are testing the same claim under aligned workloads, baselines, budgets, implementations, versions, metrics, and tool paths. A review then records supported, unsupported, or unresolved within the declared scope.
+
+A waiver does not turn a failed check into a pass. It accepts a bounded exception and residual risk for a named action and period. For the issue-queue timing miss, accepting a clock shortfall for a local prototype does not establish timing closure. A waiver requires stating the exact scope, compensating check, expiration, and residual uncertainty.
+
+Reopening is required when new evidence or changed conditions make the old evidence bear on a different claim. For the issue-queue, a revised target, stronger flow, or shared-interface transition reopens the review. (@sec-loop-patterns-across-stack discusses reopening caused by software evolution, workload drift, and deployment telemetry.)
+
+The design-loop card acts as the compact ledger for the disputed claim, review result, bounded waiver, and reopening condition. The technical record relies on nine review questions (@tbl-trust-checklist).
+
+| **Question** | **What a credible answer contains** |
+| --- | --- |
+| 1. What bounded claim and action are under review? | A defined architecture task, comparator, workload, scope, nonclaims, and proposed transition. |
+| 2. Which typed observations support or weaken it? | Scope, provenance, uncertainty, and nondeterminism for the supporting and contrary observations. |
+| 3. What proxy, calibration, confounding risk remains? | Explicit diagnostics of mismatch, boundary violations, or alternative explanations. |
+| 4. Which check observes the relevant failure? | The specific tool or review and its independence basis. |
+| 5. Which evidence is protected? | Data classes, authorized reviewer, and what the public can establish. |
+| 6. What is the review result? | Supported, unsupported, or unresolved at the stated level. |
+| 7. Is any failure waived? | Scope, expiration, and compensating condition. |
+| 8. What separately changes in knowledge and architecture? | Named update surface destination, and explicit next action. |
+| 9. What event reopens the claim? | Drift, tool upgrades, new data, or new lifecycle bounds. |
+
+: **Checklist for reviewing a design claim.** {#tbl-trust-checklist tbl-colwidths="[30,70]"}
+
+## Open Research Questions {#sec-open-research-questions}
+
+1. **How can evidence systems preserve claim scope as observations, tools, and design state change?** The problem is detecting when a new observation no longer bears on the same comparator, workload, tool path, validity region, or proposed action.
+2. **How can architecture evaluations expose proxy exploitation before scarce high-fidelity checks are exhausted?** Benchmarks need cross-fidelity reversals, held-out regions, omitted objectives, and matched contrasts.
+3. **How can check independence be measured for AI-assisted architecture systems?** The problem is determining which shared models, datasets, objectives, and assumptions materially weaken coverage of architecture failures.
+4. **How can nondeterministic observations support bounded architecture decisions without hiding instability?** This includes deciding how many repetitions are useful and which variation matters to the decision margin.
+5. **How can protected architecture evidence remain challengeable while public claims stay within inspectable support?** Authorized audit, reproducible public cases, and explicit nonclaims solve different parts of this problem.
+6. **How should an observation be screened before it updates project or model knowledge?** This connects evidence review to the update surfaces in @sec-data-representations-world-models and @sec-loop-patterns-across-stack without assuming all feedback should train a model.
+
+## Conclusion and Carry Forward {#sec-conclusion-and-carry-forward}
+
+A returned signal counts as feedback. A declared tool path may turn it into a typed observation. The observation becomes evidence only through a bounded claim, comparator, scope, validity region, provenance, and uncertainty. A review records whether the claim is supported, unsupported, or unresolved. Separate decisions determine whether the result updates project or model knowledge and whether the architecture advances.
+
+Proxy mismatch, calibration error, confounding, nondeterminism, and correlated checks limit what apparently favorable results establish. Protected evidence may support an internal decision when authorized review remains possible, but public claims must stay within the public or audited record. Evidence cost limits available checks without determining their strength. A waiver records a bounded accepted failure rather than a pass, and changed evidence or conditions reopen the claim.
+
+**Carry forward:** @sec-running-the-loop uses the branching result map explicitly in a SCALE-Sim study. The model and simulator return different feedback; SCALE-Sim returns typed observations under one frozen path; those observations bear on separate claims. The review records a no-change architecture outcome, an AI tie, a failed mechanism explanation, and a stopping result. The failed path and candidates can be preserved without automatic model updating, and the architect, not the model or evidence packet, decides to stop.
