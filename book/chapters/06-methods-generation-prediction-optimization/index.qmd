@@ -38,6 +38,8 @@ malformed artifacts, and disconnected tool work remains useful.
 
 Crucially, Architecture 2.0 is not synonymous with Large Language Models (LLMs). While generative foundation models are powerful tools for code synthesis and unstructured reasoning, they are merely one class of components. A rigorous architecture study relies equally on Bayesian optimization for scarce sampling, reinforcement learning for sequential state manipulation, conformal prediction for uncertainty bounds, and deterministic formal solvers. Treating AI-assisted architecture as solely an "LLM problem" obscures the vast, heterogeneous toolkit required to navigate the physical realities of silicon.
 
+To navigate this heterogeneous toolkit, we must draw a strict line: **A role is the *job description*; the method is the *candidate* we hire for the job.** While roles are conceptually fixed, the methods we select to fulfill them vary wildly based on the modality and physics of the task.
+
 ## Comparing Method Roles: The Epistemological Hierarchy
 
 Eight roles cover the work developed in this chapter. Generation proposes
@@ -204,6 +206,8 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
+The choice of generative method depends entirely on the modality of the artifact. For textual artifacts—like RTL, C++ models, or compiler scripts—Large Language Models (LLMs) are the natural candidates. However, when the artifact is spatial—such as macro placement, floorplanning, or layout generation—architects increasingly turn to **Diffusion Models**. While the underlying mathematics differ wildly, their epistemological status remains identical: both LLMs and diffusion models produce hypotheses, not evidence.
+
 Think of generation not as a solo artist, but as a station on a manufacturing assembly line. In a physical factory, pushing an uninspected part down the line is fatal; it jams the expensive machinery downstream. Similarly, passing an unchecked RTL fragment or malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. To isolate faults, generation must be paired with localized *rework stations*.
 
 We formalize these rework stations using the distributed systems concept of *consumer-driven contracts*. The downstream "consumers" (e.g., the compiler, physical-design tools, the thermal simulator) publish executable expectations—rules about syntax, interface limits, and memory bounds.
@@ -339,8 +343,11 @@ before recent foundation models,[^fn-ml-foundation-models] architects used
 statistical and machine-learning models to reduce the cost of exploring large
 design spaces. Regression models for microarchitectural performance and power,
 and predictive models for architectural design-space exploration, are part of
-this lineage [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE]. A
-predictor can guide an architecture decision only when its support region,
+this lineage [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
+
+Unlike generative brainstorming, prediction requires calibratable surrogates. Here, the candidates diverge from sequence-to-sequence foundation models. To predict routing congestion or critical path delays from a netlist, **Graph Neural Networks (GNNs)** are increasingly the preferred candidate, as they natively capture the topological structure of the circuit. For power and thermal estimation, **Physics-Informed Neural Networks** can embed thermodynamic constraints directly into the loss function.
+
+A predictor can guide an architecture decision only when its support region,
 uncertainty, calibration source, escalation trigger, and decision owner are
 stated.
 
@@ -508,6 +515,8 @@ observations from the region being pruned.
 ## Optimization Chooses What to Evaluate Next
 
 Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics.
+
+To allocate this feedback budget efficiently, we use algorithms that formalize uncertainty and sequential decision-making. We "hire" **Bayesian Optimization** when cycle-accurate simulations are extremely expensive and we need sample-efficient search. We hire **Reinforcement Learning (RL)** when the problem is sequential, like ordering compiler passes or routing step-by-step. These methods act as our "Value of Information" engines—they do not generate the design, they decide *where* to search next.
 
 The useful outcome may be a Pareto region,[^fn-math-pareto-region] a constraint boundary, a sensitivity, a ruled-out class of candidates, or a decision about which expensive experiment to run next. Hardware design spaces are often discrete, non-differentiable, and highly constrained, so an optimizer must work with sparse feedback and reject illegal actions rather than assume a smooth search space.
 
