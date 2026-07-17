@@ -1,4 +1,4 @@
-# Why Architecture Work Is Harder to Complete {#sec-design-loop-no-longer-scales}
+# Why the Design Loop No Longer Scales {#sec-design-loop-no-longer-scales}
 
 ::: {.epigraph}
 > *"Feedback is the control of a system by reinserting into the system the results of its performance. If these results are merely used as numerical data for the criticism of the system and its regulation, we have the simple feedback of the control engineers."*
@@ -11,7 +11,7 @@
 :::
 
 ```{=latex}
-\abstract*{This chapter explains why familiar architecture work has become harder to complete and where AI may help. It examines five problems that can keep the work from reaching a decision. Relevant information may be missing, the available design choices may be unhelpful or invalid, evaluation may be expensive, reviewers may have too much to examine, or the results may not point to a clear next step. AI is useful only when it reduces one of these burdens without weakening the comparison or moving the work elsewhere.}
+\abstract*{This chapter explains why familiar architecture work has become harder to complete and where AI may help. More information and feedback must stay synchronized, specialization and chiplets create coupled choices, a hardware proposal needs an executable software path, software keeps moving before and after release, and stronger evidence can reverse an early result. These pressures compound into missing information, unhelpful choices, scarce evaluation, overloaded review, and unclear decisions. AI is useful only when it reduces one of those burdens without weakening the comparison or moving the work elsewhere.}
 ```
 
 ::: {.callout-crux}
@@ -53,11 +53,12 @@ complete and judge where AI may help. That means you can:
 
 - **Explain** how specialization, software change, physical constraints, and verification make architecture work harder to coordinate;
 - **Distinguish** missing information, unhelpful or invalid choices, scarce evaluation, overloaded review, and unclear decisions, then explain how these problems can compound;
-- **Identify** where common AI assumptions fail in architecture and what engineering work a specific method could reduce;
+- **Explain** why a hardware proposal needs an executable software path and why that path can change before and after release;
+- **Identify** what engineering work a specific AI method could reduce;
 - **Judge** whether AI reduced that work without weakening the evidence or shifting the burden elsewhere.
 :::
 
-## Architecture Has Always Relied on Feedback
+## Architecture State and Evaluation Results
 
 Computer architecture has always advanced through feedback and revision. A
 typical project begins with an aim such as improving latency, reducing energy,
@@ -98,7 +99,7 @@ comparison from the one the architect intended. The system and reviewer
 therefore need access to the workload and interface assumptions, tool settings,
 failed alternatives, and decision under review.
 
-## How Architecture Has Adapted Its Design Process
+### How Architecture Practice Made Inputs and Checks Explicit
 
 Architects have repeatedly changed their working methods when informal
 coordination stopped being sufficient. Some changes stabilized an interface.
@@ -150,7 +151,7 @@ depends on access to the engineering artifacts and on an explicit account of
 how architects use them. Modern projects make this harder because several
 technical boundaries must be coordinated at once.
 
-## Comparing Modern Designs Requires More Information
+### Design State Required for Modern Comparisons
 
 For decades, technology scaling improved established design styles with
 smaller, faster, cheaper, and more energy-efficient transistors. As Dennard
@@ -200,7 +201,7 @@ must decide which workloads, interfaces, and implementation constraints could
 change the claim and whether the available information is complete enough for
 exploration to begin.
 
-## Specialization and Chiplets Multiply Design Choices
+## Specialization and Chiplets Create Coupled Choices
 
 Specialization also changes the range of choices that an architect must consider. A
 battery- and thermally limited mobile part and a warehouse-scale
@@ -228,6 +229,15 @@ die-to-die integration more composable by standardizing interface layers,
 protocols, software models, and compliance expectations
 [@UCIeConsortium2026Spec]. The architect must still decide what to partition,
 which interface to use, and what evidence will show that the partition works.
+
+AMD's MI300 family makes the coupling concrete. MI300A combines CPU and GPU
+compute dies with shared high-bandwidth memory, while MI300X uses additional GPU
+compute dies in place of the CPU dies. The product variants change compute,
+memory, communication, packaging, and the software-visible machine together.
+They are not independent chiplet selections from a catalog. AMD's
+CDNA 3 architecture white paper documents the partition and the associated
+programming model [@AMD2025CDNA3]. The source establishes AMD's published
+product organization; it is not an independent performance evaluation.
 
 The lighthouse prompt expands a choice among a CPU, accelerator, or SoC block
 into workload, software, memory, physical-design, and verification questions.
@@ -302,7 +312,7 @@ sizes are counted, the unconstrained mapspace already contains $(7!)^4 \times
 | --- | --- | --- |
 | DNN accelerator mapping | Timeloop enumerates loop permutations, factorization choices, and level-bypass alternatives. | Mapping is itself a combinatorial problem; architecture evaluation depends on the mapper and its constraints. |
 | DNN accelerator DSE | MAESTRO, an analytical cost model for estimating DNN dataflow performance, reports 480M candidates, 2.5M valid designs, and 0.17M designs/s [@KwonEtAl2019MAESTRO]. | Pruning rules determine which candidates are evaluated and which are never seen. |
-| TPU-block floorplanning | Learned floorplanning reduced macro-placement production from months to hours [@MirhoseiniEtAl2021GraphPlacement]. | Routed physical quality and strong baselines still require separate evaluation. |
+| TPU-block floorplanning | The AlphaChip paper reported reducing placement generation from months of human effort to hours of machine time [@MirhoseiniEtAl2021GraphPlacement]. | Routed physical quality and strong baselines still require separate evaluation. |
 | Tensor-program tuning | AutoTVM, a machine learning-based tensor program optimizer, describes tensor-operator search spaces on the order of billions of possible implementations for a single GPU operator [@ChenEtAl2018AutoTVM]. | Compiler schedules create a hardware-dependent search problem of their own. |
 
 : **Large search spaces place different demands on evaluation.** Mapping, accelerator DSE, floorplanning, and tensor-program tuning combine candidate scale, validity constraints, feedback cost, and different evidence requirements. {#tbl-design-loop-scale-anchors tbl-colwidths="[25,36,28]"}
@@ -389,7 +399,7 @@ still needs the constraints, permitted changes, and evaluation budget to judge
 whether the survivors are valid and worth deeper analysis. A hardware ranking
 also remains provisional until the software can use the design.
 
-## Specialized Hardware Depends on Software
+## A Hardware Proposal Includes an Executable Software Path
 
 The available choices extend beyond hardware. An accelerator, vector unit,
 memory hierarchy, or chiplet partition may look efficient in isolation but
@@ -417,8 +427,9 @@ performance could not be studied through issue width alone. The relevant
 evidence included the parallelism that compilers found in representative
 workloads.
 
-Intel's Larrabee similarly assumed that software rasterization on many x86
-cores would match fixed-function GPUs [@SeilerEtAl2008Larrabee]. Transmeta's
+Intel's Larrabee moved rasterization, interpolation, and post-shader blending
+into software on many x86 cores while retaining fixed-function texture
+filtering where software was too slow [@SeilerEtAl2008Larrabee]. Transmeta's
 Crusoe assumed that code-morphing software would let a simple core match x86
 [@DehnertEtAl2003Transmeta]. In all three designs, software capability
 determined whether the proposed hardware could be used as intended. A hardware
@@ -470,18 +481,25 @@ the predicted benefit. A design that cannot be compiled, scheduled, and tested
 should not advance because a hardware proxy looks favorable. The software path
 can also change while the hardware is still being designed.
 
-## Software Can Change Before Hardware Ships {#sec-software-changes-faster-than-silicon}
+## Software Moves the Target Before and After Release {#sec-software-changes-faster-than-silicon}
 
 A hardware comparison can become outdated while the chip is still being designed.
-AI models, precision formats, sparsity patterns, compiler passes, kernel
-libraries, runtimes, serving systems, batching strategies, fleet policies, and
-benchmarks all change faster than a typical silicon program. Precision formats
+During a multiyear silicon program, AI models, precision formats, sparsity
+patterns, compiler passes, kernel libraries, runtimes, serving systems, batching
+strategies, fleet policies, and benchmarks can all change. Precision formats
 such as FP8, INT4, and block-scale formats[^fn-hw-block-scale-formats] may change
 even though the hardware must commit to its supported data types years in
 advance. Sparsity patterns, the structured or unstructured zeros in weights or
 activations that hardware can skip, can change as models and software evolve.
 When a long-lived hardware decision still rests on an outdated workload, the
 evidence no longer supports the original commitment.
+
+The target moves in two different periods. Before release, hardware and software
+teams can revise the design together, although late changes become increasingly
+expensive. After release, the hardware is fixed but compilers, kernels,
+libraries, runtimes, and deployment policies can continue to improve. A useful
+comparison must say which period it covers because design-time co-design and
+post-release enablement create different architectural evidence.
 
 AI can reduce some of the work needed to track this change. A system can compare
 workload traces, compiler versions, and benchmark definitions, then flag an
@@ -509,10 +527,12 @@ it changes, and revisit the hardware decision when its original assumptions no
 longer hold.
 
 Software can also adapt to deployed hardware. Compilers, kernels, and runtimes
-often improve after launch and recover performance that the initial evaluation
-did not capture. The architect should distinguish improvements made for the hardware
-from unrelated changes in the workload. The former can strengthen the case for
-an existing design, while the latter can make its original evidence stale.
+may improve after launch, changing performance that the initial evaluation did
+not capture. A claim about that change requires paired hardware, workload, and
+software versions, as developed in @sec-loop-patterns-across-stack. The
+architect should distinguish improvements made for the hardware from unrelated
+changes in the workload. The former can strengthen the case for an existing
+design, while the latter can make its original evidence stale.
 
 AI workloads provide an unusually visible example of changing scale. An
 analysis of Epoch AI's model database estimated roughly four- to fivefold
@@ -529,7 +549,7 @@ Compiler 2.0 offers a related warning about changing abstractions. Amarasinghe
 argues that compilers once hid much of the hardware from programmers, whereas
 multicore processors, vector instructions, accelerators, and heterogeneous
 systems have returned more of the performance burden to software developers
-[@Amarasinghe2020Compiler20; @Amarasinghe2026Compiler20CSAIL]. Architects face
+[@Amarasinghe2026Compiler20CSAIL]. Architects face
 a similar shift. Abstractions remain essential, but architects must now represent
 more of the workload, software, hardware, and physical information that earlier
 abstractions could safely hide.
@@ -542,8 +562,9 @@ and systems spanning at least three orders of magnitude in power and five in
 performance. The first submission round produced more than 600 reproducible
 measurements from 14 organizations [@ReddiEtAl2020MLPerfInference]. Those
 measurements are comparable because the benchmark specifies scenarios, latency
-constraints, accuracy targets, software stacks, and reporting rules
-[@ReddiEtAl2021VisionBehindMLPerf]. A benchmark remains useful only while the
+constraints, accuracy targets, and reporting rules while allowing submitters
+to optimize their own software toolchains [@ReddiEtAl2021VisionBehindMLPerf].
+A benchmark remains useful only while the
 community maintains the tasks and run rules that make results comparable.[^fn-inst-nist]
 When those rules change, an earlier comparison may no longer answer the same
 question.
@@ -565,7 +586,7 @@ and runtime assumptions, and tool results allow reviewers to see whether the
 hardware claim still applies. The project also needs a trigger for repeating the
 comparison when one of those inputs changes.
 
-## Physical Constraints Can Reverse an Early Result {#sec-physical-constraints-move-into-architecture}
+## Stronger Evidence Can Reverse an Early Result {#sec-physical-constraints-move-into-architecture}
 
 Physical effects create two distinct problems for an architecture comparison. An
 early model may omit an effect that later overturns the ranking. The measurement
@@ -698,7 +719,7 @@ For the 3\ nm-class lighthouse comparison, a cheap energy proxy can support earl
 screening, but finalists need a current power model before they can support a
 power or efficiency decision.
 
-## High-Fidelity Evaluation Is Expensive
+### Stronger Evaluation Is Expensive {#sec-stronger-evaluation-expensive}
 
 Architects cannot run every candidate through every available tool.
 Simulation, synthesis, physical design, emulation, verification, and expert
@@ -900,7 +921,7 @@ be measured by invalid runs avoided, decision-relevant measurements selected,
 tool time saved, and time saved for architects and reviewers, not only by the
 number of candidates produced.
 
-## How the Challenges Compound
+## Combined Pressure on the Design Loop
 
 Each problem described above can stall architecture work on its own. In
 practice, they reinforce one another. Specialization expands the choice set,
@@ -961,7 +982,7 @@ The last asks what action the evidence supports.
 | Missing information | The comparison omits memory-movement cost, so a later estimate overturns the ranking of XR compute organizations. | Every new candidate is judged with the same incomplete view of the system. |
 | Unhelpful or invalid choices | The allowed choices let AI retune parameters but not change the accelerator interface needed to meet both the deadline and power limit. | A larger search cannot reach a design that lies outside the permitted choices. |
 | Expensive evaluation | Only a few higher-fidelity estimates are affordable, so most candidates receive only cheap estimates. | More candidates compete for the same scarce measurements. |
-| Overloaded review | Proxy, simulator, and compiler results disagree across several candidates, but reviewers cannot reconcile them before the next design gate. | More candidates add results to the same unresolved review queue. |
+| Overloaded review | Proxy, simulator, and compiler results disagree across several candidates, but reviewers cannot reconcile them before the next design review. | More candidates add results to the same unresolved review queue. |
 | Unclear decision | A candidate clears the available checks, but the architect has not said whether that supports more exploration or implementation. | Additional results do not resolve what action the current evidence permits. |
 
 : **Five problems that can keep architecture work from moving forward.** The examples show why more candidates may not help. {#tbl-loop-bottleneck-diagnostic tbl-colwidths="[24,40,36]"}
@@ -978,13 +999,13 @@ supports more exploration, implementation, or no action at all.
 Industry-wide trends cannot tell an individual project what is slowing it
 down. Across the Wilson Research Group functional-verification studies,
 first-silicon success fell from roughly one third of surveyed IC/ASIC projects
-to 14 percent in 2024 [@Foster2022WilsonVerificationStudy;
+to 14 percent in 2024 [@Foster2023WilsonVerificationResults;
 @Foster2025WilsonVerification2024]. The series shows unresolved risk, but it
 cannot say whether the cause was design, verification, integration, physical
 implementation, manufacturing, scheduling, or organization. Each project needs
 its own workload, tool, review, and decision information to find the problem.
 
-## Faster Generation Does Not Settle a Comparison {#sec-feedback-and-verification-become-the-bottleneck}
+## AI Assistance at Architecture Bottlenecks {#sec-feedback-and-verification-become-the-bottleneck}
 
 Faster candidate generation and a stronger architecture comparison are
 different results. Faster generation helps only when architects can compare the
@@ -993,35 +1014,25 @@ actually the bottleneck, a project would need to measure how quickly candidates
 arrive and are reviewed, whether the queue is growing, and why candidates are
 rejected. No single throughput limit applies to every project.
 
-The public AlphaChip debate provides a neutral case for a narrower question:
-does faster candidate production reveal what is slowing architecture work? We
-do not use the case here to judge whether learned placement is effective.
-
-::: {.callout-war-story title="Candidate speed did not reveal the bottleneck"}
-**The claim.** The 2021 AlphaChip paper reported that a reinforcement-learning
-method could produce macro placements in hours
-[@MirhoseiniEtAl2021GraphPlacement].
-
-**The gap.** The later public disagreement turns on differences in cases,
-compute budgets, implementations, and downstream physical-design checks. Those
-comparisons do not measure candidate-arrival rates, review queues, or why
-candidates were rejected
-[@ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed].
-
-**The lesson.** Faster placement demonstrates candidate-production speed. It
-does not establish that reviewer capacity is the bottleneck or identify which
-part of the project limits progress.
-:::
+The public AlphaChip debate illustrates a narrower point. The 2021 paper
+reported producing macro placements in hours, while later disagreement turned
+on cases, budgets, implementations, and downstream checks
+[@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023AssessmentRL;
+@GoldieEtAl2024ThatChipHasSailed]. None of those comparisons measured review
+queues or why candidates waited or failed. Candidate speed therefore does not
+establish that reviewer capacity is the project bottleneck. The complete
+evidence dispute belongs to
+@sec-proxy-mismatch-metric-gaming-and-calibration.
 
 The technical disagreement remains open. The diagnostic point is that a fair
 comparison must align cases, implementations, proposal and simulator budgets,
 downstream checks, and the evidence required for the architectural claim. A
 bottleneck claim additionally needs measurements of candidate arrival,
-evaluation, review, and rejection. Equal proposal and simulator budgets are
-needed to separate an architectural result from the question of whether AI
-helped produce it.
+evaluation, review, and rejection. Matching the task, proposal count, and tool
+budget can make the comparison more informative, although model inference,
+human setup, prior knowledge, and total engineering work may still differ.
 
-## Where AI Can Reduce Architecture Work
+### Use AI at the Architecture Bottleneck
 
 Viewed together, the five problems in
 @tbl-loop-bottleneck-diagnostic show why there is no generic place to insert AI.
@@ -1038,73 +1049,6 @@ expensive evaluation, compare tool outputs, or prepare evidence for a decision.
 Those are different jobs. Each should save something concrete, such as tool
 time, invalid runs, or reviewer effort, while leaving the decisive source
 evidence, tool check, or design decision open to independent review.
-
-### What AI Cannot Assume in Architecture
-
-A conventional machine-learning workflow shows what an AI method may leave
-implicit in architecture.
-Students often learn a pipeline from data collection and preprocessing through
-training, validation, deployment, and monitoring. That pipeline remains useful,
-but it does not expose all the conditions that can change an architecture
-decision (@fig-ai-workflow-mismatch). Architects must also know what
-information the comparison included, which choices were legal, what each
-measurement cost, how the workload changed, why candidates were rejected, and
-who can act on the final claim.
-
-![**Architecture work requires more than an introductory ML workflow.** In addition to data, preprocessing, training, validation, and deployment, architects must account for design information, allowed choices, evaluation cost, rejected candidates, workload changes, the architectural claim, and who is responsible for the decision.](images/F2c-ai-workflow-mismatch){#fig-ai-workflow-mismatch width="100%" fig-alt="Comparison diagram showing architecture work with design information, allowed choices, costly evaluation, rejected candidates, workload changes, claim review, and a named decision role alongside an introductory machine-learning pipeline."}
-
-The lower row in @fig-ai-workflow-mismatch follows one possible path from
-collecting design information to review. Missing or stale inputs and an
-incomplete view are both information failures. Invalid or overly narrow edits
-belong to the available choices, while costly feedback, conflicting results,
-and an unclear next action separate evaluation, review, and decision problems.
-The row does not prescribe a fixed sequence. It shows engineering conditions
-that a conventional training pipeline often leaves implicit. A model can
-perform well on its validation data while proposing a design that violates an
-interface, depends on stale workload assumptions, or cannot be checked with the
-available tools. Architecture work must expose those conditions because any one
-of them can change the result.
-
-Architecture projects rarely have the conditions assumed by an introductory
-supervised-learning pipeline or a benchmarked AI task. Available datasets may
-be proprietary, incomplete, stale, or omit the failed and rejected candidates
-that reveal the boundaries of the design space.
-Feedback can range from a quick proxy to simulation, synthesis, a
-physical-design report, expert review, emulation, or silicon measurement. Each
-has different latency, cost, fidelity, and authority. Many generated
-configurations are also illegal, unsupported by tools, unverifiable, or
-incompatible with software and physical constraints.
-
-Community benchmarks demonstrate the difference. SPEC CPU and MLPerf provide
-more than inputs. They specify run rules, reporting conventions, versioned
-tasks, and a basis for comparing claims [@SPEC2017CPU;
-@MattsonEtAl2020MLPerf]. AI-assisted architecture work needs similar
-clarity about its inputs, permitted choices, measurements, review outcomes, and
-decisions.
-
-The mismatch is not the same in every project.
-@tbl-ai-assumptions-architecture-violations pairs each convenient condition with
-an architecture condition that can invalidate it. The final column identifies
-what architects must account for before treating the AI result as useful.
-
-| **Convenient condition in many benchmarked AI tasks** | **What can go wrong in architecture** | **What architects must account for** |
-| --- | --- | --- |
-| Abundant labeled data | Many labels are proprietary, expensive, stale, or not recorded. | Check whether the available information covers the decision. |
-| Cheap feedback | Simulation, synthesis, EDA, emulation, and review can be slow or scarce. | Check whether the project can afford enough measurements and review for the decision it needs to make. |
-| Stable distribution | Workloads, software stacks, compilers, models, and deployment policies drift. | Revisit decisions when their workload assumptions change. |
-| Valid design choices are easy to define | Many generated configurations are invalid, unsafe, unverifiable, or unsupported by tools. | Separate legal choices from invalid or unsupported designs. |
-| Reward is clear | Efficiency mixes performance, energy, area, cost, reliability, sustainability, verification burden, and risk. | State which tradeoffs the decision is allowed to make. |
-| Proxy metrics are enough | Proxy wins can vanish under stronger checks or different workloads. | State which conclusions a proxy cannot settle. |
-| Failures are just bad samples | Failed runs, rejected candidates, and invalid states describe the design space. | Preserve why alternatives failed or were rejected. |
-
-: **Architecture work cannot rely on the convenient conditions of a benchmarked AI task.** Proprietary or incomplete data, expensive feedback, invalid choices, changing workloads, multiobjective efficiency, proxy failures, and rejected candidates all affect what a result can establish. {#tbl-ai-assumptions-architecture-violations tbl-colwidths="[28,31,30]"}
-
-The rows describe different risks, not a checklist that every project satisfies
-in the same way. A compiler-schedule comparison may have abundant measurements
-but many invalid schedules. A chiplet comparison may have few examples and
-expensive physical feedback. The useful question is which of these conditions
-does not hold in the current project and what engineering work would address
-the problem.
 
 @tbl-ai-contributions-by-bound returns to the five problems in
 @tbl-loop-bottleneck-diagnostic. The second column gives AI a specific job, the
@@ -1137,6 +1081,13 @@ clear question and scope, inspectable artifacts and tool outputs, an
 architectural claim tied to evidence, and named responsibility for the decision.
 Making those elements visible allows the architect to choose where AI belongs
 and to judge whether it helped.
+
+::: {.callout-design-principle title="Reduce the work that limits the decision"}
+Assign AI to a specific architecture task, name the engineering work it should
+save, and retain an independent check for the claim. Then measure the whole
+comparison again. A local speedup is not an improvement if it creates more
+evaluation or review work elsewhere.
+:::
 
 The practical test is to identify the work limiting progress before choosing a
 method. AI is useful only when it reduces that specific burden without creating
@@ -1215,10 +1166,12 @@ visible part of the project.
 
 Architecture has always relied on feedback, and it has repeatedly adapted by
 making interfaces, design rules, tool outputs, and comparison standards
-explicit. AI now enters a process that must also coordinate specialization,
-heterogeneous integration, data movement, changing software, physical
-constraints, and expensive validation. Together, these problems can keep the
-work from reaching a defensible decision in several different ways.
+explicit. Modern projects must synchronize more of those artifacts, make
+coupled specialization and chiplet choices, establish an executable software
+path, revisit assumptions as software changes, and reserve scarce engineering
+capacity for evidence strong enough to reverse an early result. Together, these
+pressures can keep the work from reaching a defensible decision in several
+different ways.
 
 AI-assisted architecture must handle five practical challenges.
 
