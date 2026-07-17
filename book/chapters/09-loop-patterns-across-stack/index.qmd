@@ -14,6 +14,8 @@
 \abstract*{An AI-assisted architecture study should change with its next decision. Feedback latency, reversibility, interface span, consequence, and check independence determine what AI may do and what evidence is needed. These conditions overlap, so their requirements accumulate. Design-time evaluation, field evidence, and continuing software enablement also arrive on different clocks and answer different questions. A limited service-cost model describes cases in which evaluation and review capacity, rather than candidate generation, limit progress.}
 ```
 
+At the core of this discussion is the necessity to continuously adapt our evaluation methods to the realities of the decision boundary.
+
 ::: {.callout-crux}
 How should an AI-assisted architecture study change when its next decision is
 slower to evaluate, spans more interfaces, is harder to reverse, or carries
@@ -61,6 +63,8 @@ be model-mediated, cross-interface, and high consequence at the same time.
 Classify the work by its next decision boundary, not by the noun in its title.
 When several conditions apply, retain the requirements of each rather than
 choosing the least demanding description.
+
+To navigate these overlapping conditions effectively, an architect must establish a structured framework for assessing each decision boundary. This framework clarifies what an AI agent is permitted to do and what evidence it must produce.
 
 ::: {.callout-learning-objectives}
 After this chapter you can classify the next decision before deciding what work to automate.
@@ -239,7 +243,7 @@ based on a stale, narrow, or leaky slice.
 | Profile behavior: locality, branch behavior, memory traffic, bandwidth, latency, energy, and phase behavior. | Record workload features for prediction, search, critique, and active test selection. | Feature schema, measurement provenance, tool configuration, uncertainty, and known blind spots. | A predictor learns a proxy that does not survive another phase, input, or fidelity level. |
 | Compare architectures under a fixed benchmark. | Maintain an evidence record across workload variants, candidate designs, and fidelity levels. | Candidate IDs, workload IDs, simulator/tool versions, feedback cost, accepted results, and rejected results. | Design-space results cannot be audited or reused in another study. |
 | Build or curate benchmarks for community comparison. | Define an environment contract: valid tasks, inputs, actions, metrics, leakage rules, and rejection checks. | Benchmark harness, validity checks, metric definitions, seeds, test splits, and update policy. | The optimizer overfits benchmark artifacts or proposes actions outside the intended task. |
-| Explain why a workload matters. | Record workload intent, deployment context, and drift so the named owner can accept or reject a claim. | Use-case assumptions, deployment constraints, quality-of-service targets, telemetry hooks, and review notes. | The AI method produces a plausible result for the wrong product or deployment context. |
+| Explain why a workload matters. | Record system intent, deployment context, and drift so the named owner can accept or reject a claim. | Use-case assumptions, deployment constraints, quality-of-service targets, telemetry hooks, and review notes. | The AI method produces a plausible result for the wrong system or deployment context. |
 | Summarize results for a paper. | Preserve workload evidence as reusable architecture data. | Evidence record, failed runs, rejected alternatives, and rationale for final claims. | Architects repeat invalid experiments or lose why prior choices were rejected. |
 
 : **Workload records for an AI-assisted study.** Profiling and benchmark construction remain necessary, but the workload record must also include versions, provenance, coverage, rejection conditions, and failed runs. {#tbl-workload-characterization-20 tbl-colwidths="[20,26,25,20]"}
@@ -283,6 +287,8 @@ input-shape distribution, correctness oracle, target metadata, compiler and
 runtime versions, failed compiles, profiles, and rejected variants. More
 automated iteration is reasonable inside those checks. Crossing a software or
 hardware interface requires new evidence for the wider claim.
+
+When testing a candidate within a fast-feedback loop—such as modifying a cache prefetcher's aggressiveness—it is easy to assume that a local metric improvement directly translates to system-level success. However, optimizing for a single metric or workload slice frequently causes regressions elsewhere if the evaluation boundary is too narrow. A prefetcher might boast excellent coverage on a specific data access pattern but saturate the memory bus when exposed to a varied ML workload.
 
 ::: {.callout-failure-mode title="Fast feedback can miss system failures"}
 An AI-generated kernel that wins on one input size may regress another. An
@@ -332,6 +338,8 @@ results supported retaining the baseline for the simulated workload and
 metrics; authorizing implementation remains separate.
 Promoting the same candidate toward implementation would add more demanding
 conditions and require new evidence.
+
+Even simulated improvements must be checked for their holistic effect. Suppose an AI optimizer reshapes an L2 cache hierarchy to reduce core area, creating a seemingly superior baseline. Unless the evaluation specifically monitors memory traffic and compiler complexity, the "optimized" cache could force software to perform intricate data movement, negating any performance gains while inflating the verification burden.
 
 ::: {.callout-architect-checkpoint title="The Cross-Layer Rejection Check"}
 When an optimizer tunes against a local proxy such as core area, check whether
@@ -508,6 +516,8 @@ system measurement can reject the local win.
 That software path also defines where automated tuning must stop and a hardware
 interface decision begins.
 
+It is crucial to declare exactly when an optimization crosses from a software tweak to a hardware commitment. For instance, tuning software prefetch instructions for a cache is a reversible schedule choice, whereas altering the cache line size or eviction policy is a hardware interface change. The former can be fully automated; the latter demands rigorous end-to-end evaluation and explicit sign-off from a designated owner.
+
 ::: {.callout-architect-checkpoint title="The Hardware-Interface Authorization Boundary"}
 Record which kernel and schedule actions automation may execute or recommend, which hardware
 interface changes require stronger evidence, and who is authorized to approve
@@ -518,6 +528,8 @@ change.
 Without a declared hardware-interface authorization boundary, a local benchmark
 win can look like an architectural result even when the compiler and the
 complete system cannot use it.
+
+A classic pitfall is trusting isolated component metrics over system realities. An AI-optimized cache prefetcher might demonstrate a staggering 90% hit rate in microbenchmarks. Yet, if it cannot sustain bandwidth when integrated with real compilers and concurrent streams, the "win" vanishes. The optimizer exploited the narrow boundaries of the test rather than advancing the architecture.
 
 ::: {.callout-failure-mode title="The accelerator that won in isolation"}
 An AI-generated block posts a large kernel speedup, but the compiler cannot keep
@@ -577,6 +589,8 @@ objective included a 99th-percentile latency bound
 [@JouppiEtAl2017TPU]. The 8-bit datapath was therefore a cross-layer decision,
 and a throughput improvement that violated the latency target was not
 acceptable.
+
+Cross-layer interactions mean that an AI tuning one subsystem can easily sabotage another. If an agent increases a cache's associativity to boost hit rates, it might unwittingly push the thermal envelope past its limit or violate a strict rack-level power policy. Because these tradeoffs span multiple domains, no local optimizer can authorize them alone.
 
 ::: {.callout-architect-checkpoint title="Cross-Layer Ownership"}
 Before an optimizer acts, record which layer it may change, which other layer
@@ -798,6 +812,8 @@ not eliminate it; a poor policy can waste power, violate latency targets,
 create interference, or harm users before it is withdrawn. The mercurial-core
 case described earlier shows a more difficult failure, a silent error that
 manufacturing tests missed and fleet-scale cross-checking eventually found.
+
+Even heavily tested changes can fail catastrophically in deployment. Consider a dynamic cache-partitioning policy rolled out to a live fleet: if it incorrectly isolates a noisy neighbor, it could throttle a critical service. Because reversibility in production is expensive and carries user-facing risks, every automated rollout must be bound by clear operational safeguards and an immediate abort mechanism.
 
 ::: {.callout-architect-checkpoint title="The Operational Stop Path"}
 Reversibility is not free. Every proposed policy change needs a declared
@@ -1160,11 +1176,7 @@ revalidating the evidence and its scope, revising what the method may execute
 or recommend, and reassigning decision rights where necessary rather than
 copying prior results and approvals forward.
 
-::: {.callout-design-principle title="Accumulate the stricter requirements"}
-When several operating conditions apply, retain the evidence, checks, rollback,
-and authorization requirements of each. Close feedback for one artifact does
-not make a cross-interface or difficult-to-reverse decision locally reversible.
-:::
+Rigorous staging and evidence revalidation are not unique to hardware architecture. The medical, scientific, and ML communities have long recognized that a model trained on a narrow dataset can fail disastrously when exposed to broader clinical or field populations. They manage this by strictly separating exploratory studies from clinical trials and deployment monitoring. These happened in ML, so we must adopt these best practices: separate design-time claims from field realities, rigorously test models against distribution shifts, and require explicit human oversight before trusting an automated finding in a high-stakes environment.
 
 ## Open Research Questions
 
@@ -1204,30 +1216,13 @@ extrapolation.
 
 ## Conclusion
 
-The next architecture decision determines how an AI-assisted study should
-operate. Close feedback and local reversal can support more automated execution
-under bounded tests. Model-mediated work needs matched baselines, proxy
-calibration, rejected-region records, and new evidence before implementation.
-Cross-interface and deployment work adds versioned interfaces, system
-objectives, guarded rollout, telemetry limits, and rollback triggers.
-Difficult-to-reverse decisions shift useful AI work toward search narrowing,
-critique, bounded repair, and evidence organization under independent checks.
-These conditions overlap, and their requirements accumulate.
+The true test of an AI-assisted architecture study is not whether it generates a novel design, but whether that design can survive the rigorous journey from simulation to silicon. We cannot treat a hardware interface change or a silicon-facing signoff with the same leniency as a reversible compiler tweak. The next architecture decision—its latency, interface span, and irreversibility—must dictate the rules of engagement. As architects, our responsibility is to adapt the AI's authority, the necessary evidence, and the required human oversight to the severity of the decision at hand.
 
-Evidence also arrives on more than one clock. Design-time evaluation estimates
-behavior within a represented study. In-field evidence tests the hardware and
-software pair under deployment conditions. Continuing software enablement can
-change realized performance on fixed hardware, but any comparison must pair the
-hardware, workload, model, software stack, and submission versions. None of the
-three paths substitutes for the other.
+We must also respect the different clocks on which evidence arrives. Design-time evaluation provides initial estimates, in-field deployment reveals the chaotic realities of real-world workloads, and continuing software enablement shapes long-term performance. No single AI model or proxy can substitute for the holistic evidence gathered across these phases. A cache optimization that dominates a static benchmark must still prove its worth against live memory traffic and compiler interactions.
 
-Evaluation and review can limit progress under any combination of conditions.
-For a fixed stream of comparable cases, cheaper preliminary checks reduce
-review cost only for the cases they correctly settle. Audits, errors,
-misclassification, and rework count toward that cost, and only greater validated coverage raises
-the ceiling. Match AI actions, evidence, checks, and rollback to the next
-decision first; then determine whether proposals, evaluation, or review capacity
-are limiting useful progress.
+Ultimately, candidate generation is rarely the bottleneck in architectural innovation; evaluation and human review are. Flooding the pipeline with AI-generated proposals accomplishes nothing if our trusted review paths cannot settle them. We must build rigorous, cross-layer rejection checks, clarify operational boundaries, and establish named decision owners. By doing so, we ensure that AI accelerates our progress without compromising the systemic integrity of the architectures we build.
+
+As you conclude this analysis of feedback loops and decision boundaries, you should carry these principles into your own architectural practice.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** When the next decision changes, reclassify its operating

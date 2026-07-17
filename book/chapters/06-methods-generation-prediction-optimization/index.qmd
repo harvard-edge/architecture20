@@ -23,11 +23,11 @@ What work is limiting a bounded architecture study, and which AI role or
 composition can reduce it without obscuring its checks or authority limits?
 :::
 
-An accelerator study can stall for several different reasons. The architect may
-lack viable array organizations, have too few simulator runs to evaluate the
+A tensor core integration study can stall for several different reasons. The architect may
+lack viable dataflow configurations, have too few simulator runs to evaluate the
 ones already proposed, or face a review backlog of inconsistent results. Those
-conditions call for different assistance. A generator can propose legal array
-geometries, a predictor can estimate which geometry might reduce cycles, an
+conditions call for different assistance. A generator can propose legal spatial
+dataflow unrolling and buffering policies, a predictor can estimate which configuration might maximize throughput, an
 optimizer can choose the next configuration to evaluate, and a critic can find
 a missing comparison. A cycle-level simulator can then test the selected
 configurations.
@@ -73,8 +73,10 @@ That means you can:
 - **Compare** roles by what they read or change, return, consume, and hand off;
 - **Apply** hardware grounding and feedback budgets as tests on every role;
 - **Compose** roles while preserving independent checks and the decisions that
-  remain with the architect.
+   remain with the architect.
 :::
+
+These learning objectives underscore the necessity of treating AI not as a monolith, but as a collection of specialized methods—each requiring specific boundaries, feedback budgets, and validation strategies to be effectively integrated into architecture workflows.
 
 ## Matching AI Roles to the Architecture Bottleneck
 
@@ -113,7 +115,7 @@ returns findings, while repair returns revisions. Verification returns check
 results, explanation develops a mechanism account, and coordination routes
 state and work among the roles. A project may use only one role or combine
 several. For
-example, a generator may propose array geometries, a predictor may rank them,
+example, a generator may propose spatial dataflows, a predictor may rank them,
 and independent tool checks may reject illegal or incorrect candidates.
 
 ## Comparing Method Roles
@@ -150,10 +152,12 @@ into an architecture decision.
 For every method, state the artifact or parameter it changes, the interface it
 uses, the feedback it receives, the check that can reject its output, and the
 person responsible for the resulting decision. A concrete sentence might read,
-"The optimizer proposes array geometries, the cycle-level simulator evaluates
+"The optimizer proposes dataflow configurations, the cycle-level simulator evaluates
 them, and the responsible architect decides whether any candidate warrants
 further analysis."
 :::
+
+Stating the claim concretely forces the project to separate what the AI method generates from what the tools verify. Without this explicit breakdown, teams risk treating a fluent suggestion as a verified design. By naming the feedback loop and the decision owner, the architect ensures that automation remains bounded within verifiable limits.
 
 Two tests cut across every row in @tbl-method-role-limits. First, the method must
 be grounded in the hardware and software conditions that can change its result.
@@ -197,8 +201,8 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
-In the bounded accelerator study, generation proposes three legal array
-geometries, qualitative behavior, a failure mode, and a directional mechanism
+In the bounded tensor core integration study, generation proposes three legal spatial
+dataflows, qualitative behavior, a failure mode, and a directional mechanism
 that can be tested. Schema and semantic checks establish that the response is a
 legal proposal within the declared constraints. They do not establish that the
 proposal is faster or that its mechanism is correct.
@@ -224,9 +228,11 @@ The architect responsible for the decision determines whether it deserves
 further work.
 :::
 
+Treating generation as design bypasses the rigorous validation required for architectural claims. A generated artifact is merely a starting point—its plausibility does not guarantee correctness, safety, or performance. The true design work lies in constructing the checks, establishing the baseline, and interpreting the tool feedback that either validates or rejects the AI's proposal.
+
 Generation is especially useful for breadth. It can propose
 candidate decompositions, list assumptions, create alternative experiment
-plans, translate design intent into structured records, or draft the first
+plans, translate system intent into structured records, or draft the first
 version of a design-loop card. @sec-appendix-b-design-loop-card gives the full
 card and rubric. These outputs give the architect more structured material to
 inspect. They remain proposals until an appropriate check evaluates them.
@@ -342,9 +348,13 @@ impact. It might be a regression model, a learned surrogate, a calibrated
 analytic model, a simulator-backed approximation, or a hybrid that combines
 domain structure with data.
 
+Building a highly accurate surrogate model for architecture—one that can bypass slow simulation—requires adopting the methodologies that succeeded in other physics-based domains. As Chapter 4 introduced, systems like AlphaFold and GraphCast achieved their breakthroughs not just by scaling model size, but by combining massive unsupervised structural data with highly precise physical constraints. AlphaFold learned the fundamental spatial relationships of amino acids from vast, unlabeled sequence databases, then constrained its predictions using known thermodynamic and stereochemical rules. Similarly, GraphCast modeled global weather patterns by learning fluid dynamics from decades of historical reanalysis data, structured through a mesh-graph representation that inherently respected spatial physics.
+
+To train an equivalent "Architecture World Model," architects must adopt these exact strategies. First, we need massive unsupervised data: the surrogate should pretrain on millions of cycles of raw RTL execution traces, unlabeled simulator logs, and compiled binaries to learn the fundamental "physics" of data movement and instruction execution. Second, we must enforce highly precise physical and structural constraints. Just as AlphaFold respects atomic distances, an architecture surrogate must be constrained by strict hardware rules: structural dataflow dependencies, SRAM port limits, pipeline hazards, and cache-coherence state transitions. An architect maps the methodology by feeding the model a structural graph representation of the RTL or cache hierarchy, training it to predict the next cycle's state (like GraphCast predicts the next weather state), and explicitly penalizing predictions that violate known physical constraints such as bandwidth limits. Only by grounding massive trace data in strict structural rules can AI reliably model highly constrained, physics-based architecture domains.
+
 The estimate is only as useful as the feedback behind it. A latency predictor
-can score an accelerator matrix unit without observing that its SRAM banking
-causes congestion or breaks timing after place and route. A single-kernel
+can score a tensor core dataflow without observing that its unrolling policy
+causes memory bandwidth thrashing or breaks timing after place and route. A single-kernel
 latency may have a clean calibration target, while deployment impact combines
 power, thermal behavior, reliability, and changing workloads. The predictor
 can supply an estimate that a declared policy uses to prune, defer, or request
@@ -356,6 +366,8 @@ regions supplied the calibration data, whether the candidate changes memory
 behavior, vector width, or technology assumptions, and which higher-fidelity
 result can test the estimate. Those details show whether the prediction is an
 interpolation inside known support or an extrapolation that needs escalation.
+
+These happened in ML, so we must adopt these best practices. The medical and science communities learned this the hard way: deploying predictive models without rigorous out-of-distribution detection leads to unsafe outcomes. Just as clinical trials demand strict boundaries on where a model's prediction is valid, architectural design-space exploration must treat uncalibrated surrogates as risks rather than results.
 
 Conformal prediction[^fn-stats-conformal-prediction] provides one rigorous way
 to attach a calibrated interval to a surrogate when its assumptions apply. The
@@ -484,7 +496,7 @@ interval, the architect should stop using the surrogate for that region and
 request a higher-fidelity evaluation. Whether that observation supports the
 architectural claim remains a separate question.
 
-The accelerator study keeps the same distinction. The model's qualitative
+The tensor core integration study keeps the same distinction. The model's qualitative
 prediction and mechanism help select a test, but neither counts as performance
 evidence. The simulator evaluates the candidates, and the declared contrast
 fails the model's directional prediction without supplying a causally isolated
@@ -768,6 +780,8 @@ the violation and obtain a waiver from the person authorized to accept that
 risk before proceeding.
 :::
 
+Constraint waivers require human judgment because they alter the fundamental requirements of the system, often trading off power, area, or security for functional repair. An AI method lacks the overarching project context needed to authorize such compromises. Requiring an explicit waiver ensures that constraint relaxations remain deliberate architectural decisions rather than silent automated overrides.
+
 ### Verification Uses an Independently Inspectable Oracle
 
 Verification checks a stated property against an oracle that can be inspected
@@ -795,8 +809,8 @@ verification role itself.
 ## Explanation and Coordination
 
 Explanation uses recorded state, tool results, and rejected alternatives to
-connect a result to a proposed architectural mechanism. In an accelerator
-study, it should connect array geometry to utilization and cycle count and name
+connect a result to a proposed architectural mechanism. In a tensor core integration
+study, it should connect spatial dataflow to bandwidth utilization and cycle count and name
 a declared contrast that could challenge that account. A fluent explanation is a
 mechanism hypothesis and interpretation. It cannot repair a failed probe or
 make a weak observation support a stronger claim.
@@ -860,15 +874,8 @@ high-consequence design decision. Favorable conditions may justify a larger
 execution role. A reviewer records what the results support, and the assigned
 decision owner decides whether the work advances.
 
-::: {.callout-design-principle title="Keep each role's output and check visible"}
-Compose roles only when another architect can identify what each role read or
-changed, what it returned, what it consumed, and which independent check or
-reviewer received the result. If those boundaries disappear, the composition
-cannot show which method helped or where an error entered the study.
-:::
-
-The accelerator study follows this separation. The model proposes candidates,
-a fixed aspect-ratio heuristic supplies the comparison arm, SCALE-Sim produces
+The tensor core integration study follows this separation. The model proposes candidates,
+a baseline LRU heuristic supplies the comparison arm, ChampSim produces
 observations under the same run budget, and a declared contrast tests the
 proposed mechanism. Matching simulator calls does not equalize model inference,
 human setup, or prior knowledge. Because the jobs remain separate, a tie and a
@@ -943,22 +950,14 @@ failures or combining authority across roles.
 
 ## Conclusion
 
-An architect should choose an AI method by the work limiting the bounded study.
-Generation, prediction, optimization, critique, repair, verification,
-explanation, and coordination read or change different objects, return
-different results, consume different resources, and create different handoffs.
-Demonstrating one of those capabilities does not authorize the method to widen
-its scope, waive a constraint, or make the final architecture decision.
+Ultimately, the purpose of AI in architecture is not to replace human judgment but to amplify our capacity to systematically explore and validate complex design spaces. An architect must deliberately target the specific bottleneck limiting their study—whether it is generating novel spatial dataflows, predicting performance impacts, or finding critical flaws—and deploy the right AI role for the job.
 
-Hardware grounding and feedback cost test every role. Cheap checks can screen
-broad sets of candidates, while expensive tool runs should be reserved for
-questions that can change the study. For every method, the architect should
-state its job, feedback budget, independent check, stopping condition, and
-authority limit. A composition is useful when it reduces the limiting work
-without hiding which role produced each result or which check can reject it.
+We must remain vigilant in enforcing the boundaries between AI capabilities and architectural authority. Generation, prediction, optimization, critique, and verification each serve a distinct purpose and demand rigorous hardware grounding and transparent feedback costs. Demonstrating fluency in generating artifacts does not grant an AI method the authority to waive constraints or finalize system intents. By explicitly tracking what every method consumes, what it returns, and who reviews its output, architects can leverage AI to accelerate discovery while firmly retaining the reins of design decision-making. The goal is to build verifiable, robust systems where AI accelerates the legwork, but the architect commands the direction.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Choose and compose AI roles according to the work limiting the bounded architecture study, not a model leaderboard.
 - **Reader test:** Can you state what each role reads or changes, returns, consumes, and hands off to an independent check or reviewer?
 - **Up next:** Once a method produces observations, @sec-feedback-verification-trust asks when those observations count as evidence and who may decide what happens next.
 :::
+
+These carry-forward principles ensure that readers not only grasp the distinctions between AI roles but actively apply them to retain architectural authority over automated tools in subsequent project phases.
