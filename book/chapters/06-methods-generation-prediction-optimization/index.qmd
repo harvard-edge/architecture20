@@ -500,9 +500,7 @@ Nothing in the surrogate's own report changes at the shift boundary in
 @fig-ch06-conformal-coverage. The band keeps its width and its nominal 90
 percent claim; only the observed points climbing out of it reveal that
 empirical coverage has collapsed. When observations begin to fall outside the
-interval, the architect should stop using the surrogate for that region and
-request a higher-fidelity evaluation. Whether that observation supports the
-architectural claim remains a separate question.
+interval, the architecture system should trigger **Active Learning**. It stops using the surrogate for that region, requests a high-fidelity evaluation (like a cycle-accurate simulation), and uses that new ground-truth observation to *retrain and update* the surrogate on the fly. Whether that new observation supports the architectural claim remains a separate question.
 
 The accelerator study keeps the same distinction. The model's qualitative
 prediction and mechanism help select a test, but neither counts as performance
@@ -748,6 +746,8 @@ Why not simply use one monolithic AI oracle for everything? The first reason is 
 
 The second reason lies in the **Silicon ADMET** funnel. In molecular biology, discovering a molecule that binds to a target (performance) is relatively easy, but passing toxicity, metabolism, and excretion constraints (ADMET) is where most drugs fail. Silicon design faces an identical funnel: finding a configuration that increases IPC is trivial compared to the "toxicity" of routing congestion, thermal limits, and physical data movement constraints. A single monolithic model cannot manage all of these coupled, nonlinear physical constraints simultaneously without hallucinating or losing calibration. To survive the Silicon ADMET funnel, the system must separate concerns into heterogeneous, specialized tools.
 
+The third reason is governed by **Amdahl's Law for Inference**. The debate between "Big" models (hundreds of billions of parameters) versus "Small" models (highly distilled, task-specific networks) resolves perfectly across the epistemological hierarchy. Big models excel at outer-loop tasks—like generative brainstorming or explaining simulation anomalies—where queries are infrequent and high latency is tolerable. However, if an inner-loop optimizer needs to evaluate 10,000 architectural candidates to find a Pareto frontier, the inference latency of a massive foundation model becomes the bottleneck, destroying the value of the AI assistant. For tight, continuous feedback loops, small, fast-inference models (like distilled GNNs or light RL policies) are non-negotiable.
+
 Before comparing AI organizations, an architect should state the minimum non-AI backbone. Deterministic schemas and scripts enforce legal formats and routine routing. Compiler, simulator, synthesis, formal, equivalence, and measurement tools return the domain observations or property checks they are built to produce. A person owns unresolved intent, coupled architectural tradeoffs, permission changes, ambiguous failures, and decision preparation. The comparison in @tbl-method-organization is therefore about where a specialized model or search method adds value to this backbone, rather than replacing every component with a monolithic agent.
 
 | **Organization** | **When it fits** | **Benefits** | **Costs and failure modes** | **Independence and permissions** |
@@ -816,7 +816,7 @@ If a failure occurs, the composition changes: a proxy mismatch removes the surro
 
 Name the architecture work before naming the method. Define the role by what it reads, changes, returns, consumes, and hands off. Use the simplest component that fits the role. Split components only when their data, representations, tools, permissions, latency, cost, failure containment, or checking paths genuinely differ. Preserve backward edges because failure may change the role or method needed next.
 
-Demonstrating one capability does not authorize a method to widen its scope, waive a constraint, or make the final architecture decision. Hardware grounding and feedback cost test every role. Cheap checks can screen broad sets of candidates, while expensive tool runs should be reserved for questions that can change the study.
+Crucially, this framework redefines the human architect's core responsibility. As AI methods automate the generation of code and the optimization of parameters, the architect transitions from a *creator of artifacts* to an *auditor of evidence and specifier of constraints*. They become the **Manager of Experts**. Demonstrating one capability does not authorize a method to widen its scope, waive a constraint, or make the final architecture decision. Hardware grounding and feedback cost test every role. Cheap checks can screen broad sets of candidates, while expensive tool runs should be reserved for questions that can change the study.
 
 For every method, the architect should state its job, feedback budget, independent check, stopping condition, and authority limit:
 - Use generation when the study lacks candidates, but attach validity checks.
