@@ -30,15 +30,13 @@ conditions call for different assistance. A generator can propose legal array
 geometries, a predictor can estimate which geometry might reduce cycles, an
 optimizer can choose the next configuration to evaluate, and a critic can find
 a missing comparison. A cycle-level simulator can then test the selected
-configurations.The first method question is therefore not which model performs best overall.
+configurations. The first method question is therefore not which model performs best overall.
 It is what work prevents the bounded study from reaching its next defensible
 result. Current model rankings will age, while the distinction among missing
 alternatives, expensive evaluation, poor experiment selection, weak review,
-malformed artifacts, and disconnected tool work remains useful.
+malformed artifacts, and disconnected tool work remains useful. A rigorous architecture study relies on Bayesian optimization for scarce sampling, reinforcement learning for sequential state manipulation, conformal prediction for uncertainty bounds, and deterministic formal solvers.
 
-Crucially, Architecture 2.0 is not synonymous with Large Language Models (LLMs). While generative foundation models are powerful tools for code synthesis and unstructured reasoning, they are merely one class of components. A rigorous architecture study relies equally on Bayesian optimization for scarce sampling, reinforcement learning for sequential state manipulation, conformal prediction for uncertainty bounds, and deterministic formal solvers. Treating AI-assisted architecture as solely an "LLM problem" obscures the vast, heterogeneous toolkit required to navigate the physical realities of silicon.
-
-To navigate this heterogeneous toolkit, we must draw a strict line: **A role is the *job description*; the method is the *candidate* we hire for the job.** While roles are conceptually fixed, the methods we select to fulfill them vary wildly based on the modality and physics of the task.
+To navigate this heterogeneous toolkit, we must draw a strict line: **A role is the *job description*; the method is the *candidate* we apply to the job.** While roles are conceptually fixed, the methods we select to fulfill them vary wildly based on the modality and physics of the task.
 
 Eight roles cover the work developed in this chapter. Generation proposes
 candidates. Prediction estimates consequences. Optimization chooses what to
@@ -120,7 +118,7 @@ and independent tool checks may reject illegal or incorrect candidates.
 
 ## Comparing Method Roles: The Epistemological Hierarchy
 
-All of those outputs go through evidence review on the right. Before comparing the mechanics of these roles, we must establish their *epistemological hierarchy*. The cardinal sin of Architecture 2.0 is treating all AI outputs equally. If an architect treats a generated hypothesis as verified ground truth, the entire design loop collapses into hallucination. These roles are not just components in a software stack; they represent different tiers of truth:
+All of those outputs go through evidence review on the right. Before comparing the mechanics of these roles, we must establish their *epistemological hierarchy*. Treating all AI outputs as evidence is a fundamental error. If an architect treats a generated hypothesis as ground truth, the entire design loop collapses into an unverified state. These roles are not just components in a software stack; they represent different tiers of truth:
 
 1. **Generative Roles (Hypotheses):** Generation and repair produce plausible artifacts. They hold zero authority and act merely as an automated brainstorming engine.
 2. **Predictive Roles (Heuristics):** Prediction and optimization produce probabilities. They are navigators guiding the search, not evidence.
@@ -204,13 +202,9 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
-The choice of generative method depends entirely on the modality of the artifact. For textual artifacts—like RTL, C++ models, or compiler scripts—Large Language Models (LLMs) are the natural candidates. However, when the artifact is spatial—such as macro placement, floorplanning, or layout generation—architects increasingly turn to **Diffusion Models**. While the underlying mathematics differ wildly, their epistemological status remains identical: both LLMs and diffusion models produce hypotheses, not evidence.
+The choice of generative method depends entirely on the modality of the artifact. For textual artifacts—like RTL, C++ models, or compiler scripts—Large Language Models (LLMs) are the natural candidates. However, when the artifact is spatial—such as macro placement, floorplanning, or layout generation—architects increasingly turn to **Diffusion Models**. While the underlying mathematics differ wildly, their epistemological status remains identical: both LLMs and diffusion models produce hypotheses, not evidence. Passing an unchecked RTL fragment or malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource, causing 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled Slurm queues. To isolate faults, generation must be paired with localized *rework stations*.
 
-Think of generation not as a solo artist, but as a station on a manufacturing assembly line. In a physical factory, pushing an uninspected part down the line is fatal; it jams the expensive machinery downstream. Similarly, passing an unchecked RTL fragment or malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. To isolate faults, generation must be paired with localized *rework stations*.
-
-We formalize these rework stations using the distributed systems concept of *consumer-driven contracts*. The downstream "consumers" (e.g., the compiler, physical-design tools, the thermal simulator) publish executable expectations—rules about syntax, interface limits, and memory bounds.
-
-Returning to our Lighthouse prompt—*designing a low-power, 64-bit RISC-V-based compute subsystem for an XR platform*—generation might propose three legal pipeline depths or L1 cache configurations, alongside a qualitative behavior, a failure mode, and a directional mechanism that can be tested. Schema and semantic checks act as these initial contracts to establish that the response is a legal proposal within the declared constraints (e.g., valid RISC-V instruction extensions and compatible power-domain definitions). They do not establish that the proposal is faster or that its mechanism is correct, but they ensure it will not crash the machinery downstream.
+Returning to our Lighthouse prompt—*designing a low-power, 3W 64-bit RISC-V-based compute subsystem for an XR platform*—generation might propose three legal pipeline depths or L1 cache configurations, alongside a qualitative behavior, a failure mode, and a directional mechanism that can be tested. Schema and semantic checks act as these initial contracts to establish that the response is a legal proposal within the declared constraints (e.g., valid RISC-V instruction extensions and compatible power-domain definitions). They do not establish that the proposal is faster or that its mechanism is correct, but they ensure it will not crash the machinery downstream.
 
 That distinction holds for any generated artifact. A syntactically valid RTL
 fragment may still fail simulation, routing, or timing closure. Before an
@@ -362,7 +356,7 @@ behavior, vector width, or technology assumptions, and which higher-fidelity
 result can test the estimate. Those details show whether the prediction is an
 interpolation inside known support or an extrapolation that needs escalation.
 
-This relationship mirrors a hospital's tiered triage system. A fast predictive model acts as a triage nurse taking vitals: it can rapidly flag anomalies, bound uncertainty, and rule out obviously disastrous configurations. However, the triage nurse cannot prescribe surgery. The cycle-accurate simulator acts as the attending physician, providing the ground truth necessary to authorize a major design commitment. This separation of powers protects the design loop from the *sim-to-silicon gap*—the danger of optimizing so aggressively for a cheap proxy's score that the resulting hardware becomes fragile to physical variation.
+A fast predictive model acts as an initial filter: it can rapidly flag anomalies, bound uncertainty, and rule out obviously disastrous configurations. However, it cannot guarantee physical performance. The cycle-accurate simulator or RTL synthesis tool acts as the final arbiter, providing the ground truth necessary to authorize a major design commitment. This separation of powers protects the design loop from the *sim-to-silicon gap*—the danger of optimizing so aggressively for a cheap proxy's score that the resulting hardware becomes fragile to physical variation.
 
 Conformal prediction[^fn-stats-conformal-prediction] provides one rigorous way
 to formalize this triage step by attaching a calibrated interval to a surrogate when its assumptions apply. The
@@ -389,7 +383,7 @@ the growing separation between the red observations and the fixed band.
 ```{python}
 #| label: fig-ch06-conformal-coverage
 #| fig-cap: |
-#|   **A conformal interval is a diagnostic, not a safety promise:** Constructed illustration of a split-conformal band around a latency-like surrogate. Inside the calibrated support region, empirical coverage matches the nominal 90% level; under distribution shift the band keeps its width while coverage collapses, so the interval should trigger scrutiny and escalation rather than certify the proxy. All values are synthetic and illustrative, not measurements of any real system.
+#|   **A conformal interval is a diagnostic, not a safety promise:** Constructed illustration of a split-conformal band around a latency-like surrogate. Inside the calibrated support region, empirical coverage matches the nominal 90% level; when the workload shifts from integer benchmarks to XR spatial tracking, the band keeps its width while coverage collapses, so the interval should trigger scrutiny and escalation rather than certify the proxy. All values are synthetic and illustrative, not measurements of any real system.
 #| out-width: "92%"
 #| fig-alt: "Scatter plot of synthetic latency-like data with a fixed-width conformal prediction band around a surrogate curve. In the calibrated support region on the left, nearly all points fall inside the band; in the distribution-shift region on the right, observed behavior rises away from the unchanged band and most points escape it, showing coverage collapse."
 
@@ -454,7 +448,7 @@ ymin, ymax = ax.get_ylim()
 ax.set_ylim(ymin, ymax + 1.2)
 ax.text(SHIFT_X / 2, ax.get_ylim()[1] - 0.35, "calibrated support", ha="center",
         va="top", fontsize=6.0, fontweight="bold", color=COLORS["workload_ink"])
-ax.text((SHIFT_X + X_MAX) / 2, ax.get_ylim()[1] - 0.35, "distribution shift",
+ax.text((SHIFT_X + X_MAX) / 2, ax.get_ylim()[1] - 0.35, "workload shift to XR tracking",
         ha="center", va="top", fontsize=6.0, fontweight="bold", color=COLORS["constraints_ink"])
 ax.text(SHIFT_X / 2, ax.get_ylim()[1] - 1.15,
         f"empirical coverage ≈ {cov_in:.0%}\n(nominal 90%)", ha="center", va="top",
@@ -501,7 +495,7 @@ observations from the region being pruned.
 
 Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics.
 
-To allocate this feedback budget efficiently, we use algorithms that formalize uncertainty and sequential decision-making. We "hire" **Bayesian Optimization** when cycle-accurate simulations are extremely expensive and we need sample-efficient search. We hire **Reinforcement Learning (RL)** when the problem is sequential, like ordering compiler passes or routing step-by-step. These methods act as our "Value of Information" engines—they do not generate the design, they decide *where* to search next.
+To allocate this feedback budget efficiently, we use algorithms that formalize uncertainty and sequential decision-making. We apply **Bayesian Optimization** when cycle-accurate simulations are extremely expensive and we need sample-efficient search. We apply **Reinforcement Learning (RL)** when the problem is sequential, like ordering compiler passes or routing step-by-step. These methods act as our "Value of Information" engines—they do not generate the design, they decide *where* to search next.
 
 The useful outcome may be a Pareto region,[^fn-math-pareto-region] a constraint boundary, a sensitivity, a ruled-out class of candidates, or a decision about which expensive experiment to run next. Hardware design spaces are often discrete, non-differentiable, and highly constrained, so an optimizer must work with sparse feedback and reject illegal actions rather than assume a smooth search space.
 
@@ -530,7 +524,7 @@ Bayesian optimization was developed for sequential experiments on expensive blac
 
 One auditable acquisition rule is GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper Confidence Bound). The logged acquisition rule, not its abstract no-regret bound,[^fn-ml-no-regret] lets a reviewer examine why the optimizer selected a particular point [@SrinivasEtAl2010GPUCB].
 
-[^fn-ml-gp-ucb]: GP-UCB (Gaussian Process Upper Confidence Bound) is an acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model. Its value here is that the acquisition rule is auditable rather than ad hoc. The run record can show why uncertainty made a sample worth spending, while a reviewer checks the assumptions separately.
+[^fn-ml-gp-ucb]: GP-UCB (Gaussian Process Upper Confidence Bound) is an acquisition function that selects the next point to evaluate by weighing both the expected reward and the uncertainty of a Gaussian Process model. In the context of the 3W XR Lighthouse prompt, the acquisition function natively penalizes configurations likely to violate the 3W thermal threshold, mapping uncertainty directly to physical risk. Its value here is that the acquisition rule is auditable rather than ad hoc.
 
 [^fn-ml-no-regret]: A no-regret guarantee is a formal promise about a sampling rule under stated assumptions. Under those assumptions, it bounds cumulative regret across the sampling sequence. The logged acquisition score still explains the particular choice.
 
@@ -641,7 +635,11 @@ Multi-fidelity Bayesian optimization[^fn-ml-multi-fidelity-bo] makes one part of
 
 The progression in @tbl-sample-efficiency-regimes changes the job assigned to AI. With cheap feedback, generation and broad search may help. With only a few physical-design or deployment checks, organizing results and finding flaws may be more useful than proposing another candidate. Failed simulations, invalid candidates, timeouts, rejected configurations, and proxy mismatches mark the boundary of the design space and should be retained.
 
-The value of each evaluation also depends on what the environment records. If it logs only final scores, the method and reviewer cannot reuse much. Workload metadata, candidate structure, tool warnings, failure reasons, and fidelity make the result more useful. As evaluation becomes more costly, less reversible, or more consequential, preserving that context and routing the result to explicit review become more important.
+The value of each evaluation also depends on what the environment records. If it logs only final scores, the method and reviewer cannot reuse much. Workload metadata, candidate structure, tool warnings, failure reasons, and fidelity make the result more useful. As evaluation becomes more costly, less reversible, or more consequential, preserving that context and routing the result to explicit review ## Critique, Repair, and Verification: Evaluating Evidence
+
+![Artifact Lifecycle: Verification, Critique, and Repair route candidates through syntax checks and oracles. Failures dictate whether the loop repairs the artifact or escalates to the architect.](images/F6-verification-lifecycle.svg){#fig-verification-lifecycle}
+
+The core strength of a human-in-the-loop workflow is the architect's ability to examine a failed result, identify the likely root cause, and patch the error. When transitioning to automated loops, we decompose this capacity into critique, repair, and verification. These roles form the fundamental error-recovery cycle that keeps a design study alive without manual intervention.
 
 ## Critique, Repair, and Verification Challenge Artifacts
 
@@ -694,15 +692,7 @@ independently of the model output. The oracle may be a reference
 implementation, formal property, test suite, simulator behavior, synthesis
 constraint, or hardware measurement. The model may help construct tests or
 route failures, but it cannot generate an artifact, judge the adequacy of its
-own tests, approve its output, and call that independent verification.
-
-KernelBench provides a narrow example. The generated GPU kernel is compared
-with a reference implementation under a stated numerical tolerance, and only a
-correct kernel proceeds to the performance comparison
-[@OuyangEtAl2025KernelBench]. Compilation alone is not the oracle, and the
-model's explanation is not the oracle. The correctness harness is separately
-inspectable, which is why the drop shown in @fig-ch06-kernel-funnel can reject
-fluent but wrong code.
+own tests, approve its output, and call that independently. In physical design, verification might mean passing an LVS (Layout vs. Schematic) or DRC (Design Rule Check) before signing off on tapeout. For functional generation, a hardware equivalence check (using a formal solver like SymbiYosys) verifies whether a generated RTL block mathematically mirrors the golden specification. Similarly, KernelBench provides a narrow software example: if a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
 
 A verification result is no broader than the property and scope checked. A
 passing numerical test does not establish portability, timing closure, or
@@ -715,9 +705,7 @@ verification role itself.
 
 Explanation uses recorded state, tool results, and rejected alternatives to connect a result to a proposed architectural mechanism. In an accelerator study, it should connect array geometry to utilization and cycle count and name a declared contrast that could challenge that account. A fluent explanation is a mechanism hypothesis and interpretation. It cannot repair a failed probe or make a weak observation support a stronger claim.
 
-Coordination routes state, tasks, and artifacts when work crosses several tools or roles. Rather than viewing the coordinator as a simple shell script, architects should treat it as an *architectural control plane*, functioning much like Kubernetes does for cloud microservices.
-
-This routing naturally implements a macro-level **Mixture of Experts (MoE)** methodology [@JacobsEtAl1991MoE; @ShazeerEtAl2017MoE]. In a classic neural MoE, a gating network assesses an input and delegates it to the most qualified sub-network. In Architecture 2.0, the *Coordinator* acts as the gating network. The implementation specifics of this interface require **contract-based design** [@BenvenisteEtAl2012Contracts]. The coordinator does not need to understand the internal weights of the routing GNN or the prompt structure of the RTL generator; it only needs to interface with their *contracts*—their stated support regions, uncertainties, and resource costs. For the human acting as the ultimate "Manager of Experts," this intersection requires **mixed-initiative interfaces** [@Horvitz1999MixedInitiative], where the human specifies intent and bounds, and the experts bid for execution.
+Coordination routes state, tasks, and artifacts when work crosses several tools or roles. Rather than viewing the coordinator as a simple shell script, architects should treat it as an automated routing engine managing dependencies, version skew, and tool dispatch. The coordinator does not need to understand the internal weights of a GNN or the prompt structure of the RTL generator; it only needs to interface with their *contracts*—their stated support regions, uncertainties, and resource costs. For the human acting as the auditor of evidence, this intersection requires **mixed-initiative interfaces** [@Horvitz1999MixedInitiative], where the human specifies intent and bounds, and the tools execute.
 
 When acting as an API gateway or load balancer, the coordinator routes tasks based on the economic principle of the *value of information*. It dynamically decides whether to send a candidate to a cheap, cached surrogate or to allocate a precious Slurm queue slot for an expensive backend EDA tool, spending high-fidelity evaluations only when the resulting information could change the architect's final decision. A coordinator might send a failed synthesis result to a repair method, request a rerun, and return the new report to the reviewer. It needs versioned shared state, stated permissions, and stop conditions to do that work. Routing does not merge the authority of the generator, repair method, tool, and reviewer, nor does it turn their outputs into evidence by itself.
 
@@ -733,9 +721,9 @@ Choose components only after role outputs and checks are specified. A single lar
 
 Why not simply use one monolithic AI oracle for everything? The first reason is the **Separation of Powers**. If the exact same neural network generates the RTL, predicts its performance, and verifies its own logic, the system lacks an independent oracle. This does not produce a verified design; it produces a *correlated hallucination*. The generator and the verifier must share no assumptions.
 
-The second reason lies in the **Silicon ADMET** funnel. In molecular biology, discovering a molecule that binds to a target (performance) is relatively easy, but passing toxicity, metabolism, and excretion constraints (ADMET) is where most drugs fail. Silicon design faces an identical funnel: finding a configuration that increases IPC is trivial compared to the "toxicity" of routing congestion, thermal limits, and physical data movement constraints. A single monolithic model cannot manage all of these coupled, nonlinear physical constraints simultaneously without hallucinating or losing calibration. To survive the Silicon ADMET funnel, the system must separate concerns into heterogeneous, specialized tools.
+The second reason lies in the strict physical constraints of the design flow. Silicon design faces a rigid funnel: finding a configuration that increases IPC is trivial compared to closing timing, preventing EMIR (Electromigration and IR Drop) violations, and meeting power density limits. A single monolithic model cannot manage all of these coupled, nonlinear physical constraints simultaneously without hallucinating or losing calibration. To survive the tapeout process, the system must separate concerns into heterogeneous, specialized tools.
 
-The third reason is governed by **Amdahl's Law for Inference**. The debate between "Big" models (hundreds of billions of parameters) versus "Small" models (highly distilled, task-specific networks) resolves perfectly across the epistemological hierarchy. Big models excel at outer-loop tasks—like generative brainstorming or explaining simulation anomalies—where queries are infrequent and high latency is tolerable. However, if an inner-loop optimizer needs to evaluate 10,000 architectural candidates to find a Pareto frontier, the inference latency of a massive foundation model becomes the bottleneck, destroying the value of the AI assistant. For tight, continuous feedback loops, small, fast-inference models (like distilled GNNs or light RL policies) are non-negotiable.
+The third reason is governed by **Critical Path Inference Latency**. The debate between "Big" models (hundreds of billions of parameters) versus "Small" models (highly distilled, task-specific networks) resolves perfectly across the epistemological hierarchy. Big models excel at outer-loop tasks—like generative brainstorming or explaining simulation anomalies—where queries are infrequent and high latency is tolerable. However, if an inner-loop optimizer needs to evaluate 10,000 architectural candidates to find a Pareto frontier, the inference latency of a massive foundation model becomes the bottleneck, destroying the value of the AI assistant. For tight, continuous feedback loops, small, fast-inference models (like distilled GNNs or light RL policies) are non-negotiable.
 
 Before comparing AI organizations, an architect should state the minimum non-AI backbone. Deterministic schemas and scripts enforce legal formats and routine routing. Compiler, simulator, synthesis, formal, equivalence, and measurement tools return the domain observations or property checks they are built to produce. A person owns unresolved intent, coupled architectural tradeoffs, permission changes, ambiguous failures, and decision preparation. The comparison in @tbl-method-organization is therefore about where a specialized model or search method adds value to this backbone, rather than replacing every component with a monolithic agent.
 
@@ -805,7 +793,7 @@ If a failure occurs, the composition changes: a proxy mismatch removes the surro
 
 Name the architecture work before naming the method. Define the role by what it reads, changes, returns, consumes, and hands off. Use the simplest component that fits the role. Split components only when their data, representations, tools, permissions, latency, cost, failure containment, or checking paths genuinely differ. Preserve backward edges because failure may change the role or method needed next.
 
-Crucially, this framework redefines the human architect's core responsibility. As AI methods automate the generation of code and the optimization of parameters, the architect transitions from a *creator of artifacts* to an *auditor of evidence and specifier of constraints*. They become the **Manager of Experts**. Demonstrating one capability does not authorize a method to widen its scope, waive a constraint, or make the final architecture decision. Hardware grounding and feedback cost test every role. Cheap checks can screen broad sets of candidates, while expensive tool runs should be reserved for questions that can change the study.
+Crucially, this framework redefines the human architect's core responsibility. As AI methods automate the generation of code and the optimization of parameters, the architect transitions from a *creator of artifacts* to an *auditor of evidence and specifier of constraints*. Demonstrating one capability does not authorize a method to widen its scope, waive a constraint, or make the final architecture decision. Hardware grounding and feedback cost test every role. Cheap checks can screen broad sets of candidates, while expensive tool runs should be reserved for questions that can change the study.
 
 For every method, the architect should state its job, feedback budget, independent check, stopping condition, and authority limit:
 - Use generation when the study lacks candidates, but attach validity checks.

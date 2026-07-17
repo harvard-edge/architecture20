@@ -18,7 +18,7 @@
 Why is familiar architecture work becoming harder to complete, and where can
 AI reduce the burden without weakening the evidence behind a decision?
 
-Addressing this crux requires us to examine the specific bottlenecks in the modern Architecture Design Loop, separating the generation of candidates from the rigorous evaluation they demand.
+
 :::
 
 Every architecture project follows a fundamental Architecture Design Loop. An architect
@@ -59,7 +59,7 @@ complete and judge where AI may help. That means you can:
 - **Identify** what engineering work a specific AI method could reduce;
 - **Judge** whether AI reduced that work without weakening the evidence or shifting the burden elsewhere.
 
-Mastering these objectives will provide a concrete foundation for evaluating AI tools not just as novelties, but as practical solutions to architectural bottlenecks.
+
 :::
 
 
@@ -120,7 +120,7 @@ design work.
 | Mead--Conway VLSI and MOSIS | Design rules, layout abstractions, and fabrication access turned custom-chip design into a shareable and reusable loop [@MeadConway1980VLSI; @USCISI2025MOSISFirstYear]. | Shared representations and fabrication access broaden participation in architecture work. |
 | RISC | Workload, compiler, Very Large-Scale Integration (VLSI), and the quantitative cost/performance case became the architectural argument [@PattersonDitzel1980RISC]. | A complete comparison includes the workload, compiler, and implementation cost. |
 | SPEC-style benchmarking | Workload selection, run rules, reporting conventions, and comparability became community infrastructure [@SPEC2017CPU]. | Benchmarks govern workload choice, execution, and comparison. |
-| Logic synthesis and timing closure | Hardware Description Language (HDL), libraries, constraints, and timing reports let downstream checks reject upstream choices [@DeMicheli1994SynthesisOptimization]. | Implementation checks can rule out architecture candidates before the project commits to them. |
+| Logic synthesis and timing closure | Hardware Description Language (HDL), libraries, constraints, and timing reports let downstream checks reject upstream choices [@DeMicheli1994SynthesisOptimization]. Synthesis tools are not clean API calls; they require massive license servers, runtime budgets, and navigation of brittle failure logs. | Implementation checks can rule out architecture candidates before the project commits to them. |
 | CUDA-style GPU programming | Kernels, thread hierarchies, memory spaces, libraries, and toolchains made specialized hardware programmable [@NickollsEtAl2008CUDA]. | Specialized hardware needs a usable programming model and toolchain. |
 
 : **Six changes that made architecture work easier to inspect.** Each one established a shared representation, interface, tool path, benchmark, or decision criterion where informal coordination no longer sufficed. {#tbl-historical-loop-transformations tbl-colwidths="[22,39,28]"}
@@ -398,7 +398,7 @@ still needs the constraints, permitted changes, and evaluation budget to judge
 whether the survivors are valid and worth deeper analysis. A hardware ranking
 also remains provisional until the software can use the design.
 
-Because AI can generate a vast number of candidate designs, the true bottleneck becomes the finite capacity of high-fidelity simulators and human experts required to verify them. To close this gap, AI can act as more than just a simple filter. Drawing on the economic principle of the *Value of Information*, AI can dynamically route candidates between fast proxies and cycle-accurate simulators, only spending expensive compute if the result is likely to change the architect's final decision. In software engineering, for example, running every continuous integration test on every commit bankrupts infrastructure; instead, systems can predict which tests are likely to fail and skip the rest [@MachalicaEtAl2019PredictiveTestSelection]. Neural architecture search applies a similar principle: Hyperband treats evaluation strictly as a budget-allocation problem, aggressively culling weak candidates using cheap proxies and saving expensive evaluations only for the survivors [@LiEtAl2018Hyperband]. By adopting this approach, architects can optimally allocate their cycle-accurate simulation budgets to evaluate an otherwise unmanageable search space based on the value of the information gained.
+Because AI can generate a vast number of candidate designs, the true bottleneck becomes the finite capacity of high-fidelity simulators and human experts required to verify them. AI must route candidates between fast proxies and cycle-accurate simulators to save compute for designs that might actually change the final decision. In software engineering, for example, running every continuous integration test on every commit bankrupts infrastructure; instead, systems can predict which tests are likely to fail and skip the rest [@MachalicaEtAl2019PredictiveTestSelection]. Neural architecture search applies a similar principle: Hyperband treats evaluation strictly as a budget-allocation problem, aggressively culling weak candidates using cheap proxies and saving expensive evaluations only for the survivors [@LiEtAl2018Hyperband].
 
 ## Hardware Proposals Include an Executable Software Path
 
@@ -461,7 +461,7 @@ tests would catch unsupported semantics.
 
 The ISA defines the static software contract, but modern software stacks move fast. In distributed systems, teams manage rapid changes using "Consumer-Driven Contracts"—executable expectations published by the consumer. Similarly, AI workloads should publish living, executable contracts that hardware models must test against in a CI/CD environment. Compiler and runtime integration, generated code, and executable tests provide the evidence that software can use the proposed subsystem as claimed under these dynamic conditions.
 
-Recognizing this living software contract forces the design loop to evaluate hardware and software dependencies concurrently rather than in isolation.
+
 :::
 
 For the mobile XR subsystem comparison, a proposed accelerator interface and its compiler
@@ -564,7 +564,7 @@ community maintains the tasks and run rules that make results comparable.[^fn-in
 When those rules change, an earlier comparison may no longer answer the same
 question.
 
-Lessons from the machine learning and broader science communities emphasize how shared datasets and rigorous benchmarks steer entire fields. ImageNet drove a decade of progress in computer vision by standardizing the evaluation task [@RussakovskyEtAl2015ImageNet], while AlphaFold succeeded by combining deep learning with the physical constraints of structural biology to predict protein folding [@JumperEtAl2021AlphaFold]. Architecture faces a similar imperative: AI methods must be grounded in community-maintained datasets and benchmarks that reflect actual design constraints, lest they optimize for the wrong target.
+Lessons from the machine learning and broader science communities emphasize how shared datasets and rigorous benchmarks steer entire fields. ImageNet drove a decade of progress in computer vision by standardizing the evaluation task [@RussakovskyEtAl2015ImageNet], while AlphaFold succeeded by combining deep learning with the physical constraints of structural biology to predict protein folding [@JumperEtAl2021AlphaFold]. AI methods require community-maintained datasets reflecting actual design constraints to avoid optimizing for obsolete targets.
 
 [^fn-inst-nist]: Metrology offers a useful analogy. The U.S. National Institute of Standards and Technology (NIST) maintains reference standards and calibration chains so that a stated unit has the same meaning across laboratories. Architecture benchmarks require similar maintenance if their results are to remain comparable over time.
 
@@ -592,7 +592,7 @@ on every candidate. Architecture connects system intent and hardware
 mechanisms to these physical constraints. It does not replace the specialist
 EDA and implementation flows needed to verify them.
 
-Physical effects create tight, non-linear coupling between architectural choices—similar to *epistasis* in biology, where genes interact, or drug discovery, where early candidates fail late due to toxicity. Data movement and thermals are the "toxicity" of architecture. They must be shifted left in the evaluation cycle to avoid late-stage physical failure.
+Physical effects create tight, non-linear coupling. Data movement and thermals act as hard physical walls; if they are not modeled early, candidates that look great on compute will fail at implementation.
 
 Data-movement estimates, for example, can reverse an early ranking based on
 compute alone. Moving data through a memory hierarchy often costs far more
@@ -971,6 +971,8 @@ A growing evaluation or review queue makes the problem visible. A project can
 still be in trouble even when no queue is visible. It may be missing
 information that would reverse the result, or its available choices may exclude
 the design it needs.
+![The Bottleneck Causal Loop: Missing information leads to invalid choices, which waste expensive evaluation cycles, which in turn overload human review, ultimately worsening the original lack of information.](images/F2-bottleneck-causal-loop.svg){#fig-bottleneck-causal-loop}
+
 The pressures form a causal chain rather than a catalog. Missing information
 comes from inconsistent or stale state. Unhelpful or invalid choices come from
 coupled specialization and missing software paths. Expensive evaluation comes
@@ -1159,7 +1161,7 @@ visible part of the project.
 
 ## Conclusion
 
-The motivation for integrating AI into computer architecture arises not from the appeal of new technology, but from the crushing complexity of the modern design loop. Architecture has always relied on feedback, yet today's projects must synchronize unprecedented amounts of information. Coupled specialization and chiplet choices, evolving software stacks, and stringent physical constraints generate immense search spaces. More critically, they generate evidence requirements that easily outpace a team's simulation capacity and expert review bandwidth. We need AI because manual coordination and traditional heuristics can no longer keep up with the scale of validation and evaluation required to confidently close a design decision.
+Architecture has always relied on feedback, yet today's projects must synchronize unprecedented amounts of information. Coupled specialization and chiplet choices, evolving software stacks, and stringent physical constraints generate immense search spaces. More critically, they generate evidence requirements that easily outpace a team's simulation capacity and expert review bandwidth. We need AI because manual coordination and traditional heuristics can no longer keep up with the scale of validation and evaluation required to confidently close a design decision.
 
 To meaningfully accelerate this process, AI-assisted architecture must directly address five practical bottlenecks:
 
@@ -1169,7 +1171,7 @@ To meaningfully accelerate this process, AI-assisted architecture must directly 
 - **Architects and reviewers have finite time.** AI must help reviewers by isolating disagreements, filtering weak candidates early, and summarizing trade-offs, rather than merely flooding the queue with unverified options.
 - **The evidence must support a defined decision.** AI must map its outputs directly to the architect's required actions, organizing the exact evidence needed to move from exploration to implementation.
 
-Ultimately, the goal of AI in architecture is not to automate the architect away, but to restore the efficacy of the design loop. Producing more candidates is useless if the checks remain unaffordable or the next action remains unclear. Identifying the limiting engineering pressure is the necessary first step; @sec-architecture-20-ontology will define the bounded study that keeps this AI-assisted work coherent and actionable.
+Producing more candidates is useless if the checks remain unaffordable or the next action remains unclear. Identifying the limiting engineering pressure is the necessary first step; @sec-architecture-20-ontology will define the bounded study that keeps this AI-assisted work coherent and actionable.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Match AI's role to a specific architecture challenge and
@@ -1181,5 +1183,5 @@ Ultimately, the goal of AI in architecture is not to automate the architect away
   explicit about the question, available choices, tool path, evidence, and next
   decision so an AI system and another architect can work on the same problem.
 
-By carrying these concepts forward, you will be prepared to integrate AI responsibly, ensuring that each new capability directly targets a verified bottleneck in the design process.
+
 :::

@@ -201,17 +201,15 @@ Hardware specialization tightly couples the stack, making design space explorati
 
 From distributed systems, we learn that AI should act as an **architectural control plane**. It is not merely a script generator; like Kubernetes, it must take declarative intent, measure the actual state from simulators and EDA tools, and issue compensating actions—such as shrinking a cache to fix a thermal violation—to reconcile them.
 
-From molecular biology, we encounter the challenge of **silicon ADMET**. In drug discovery, finding a binder (performance) is easy, but passing ADMET (toxicity, metabolism) is hard. In architecture, data movement, thermal limits, and routing are our "toxicity and metabolism." The AI must navigate this full physical funnel concurrently, rather than optimizing performance in isolation.
+From molecular biology, we encounter the challenge of **silicon ADMET**. In drug discovery, finding a binder (performance) is easy, but passing ADMET (toxicity, metabolism) is hard. In architecture, data movement, thermal limits, and routing are our "toxicity and metabolism." The AI must navigate this full physical funnel concurrently, rather than optimizing performance in isolation. Finally, from robotics and control theory, we must manage the **sim-to-silicon gap**. Just as robotics AI often exploits fast simulators (the sim-to-real gap), architecture faces a sim-to-silicon gap. Drawing from robust control, the AI must seek a resilient design that survives physical variation and tool noise, not the fragile peak of a proxy's score.
 
-Finally, from robotics and control theory, we must manage the **sim-to-silicon gap**. Just as robotics AI often exploits fast simulators (the sim-to-real gap), architecture faces a sim-to-silicon gap. Drawing from robust control, the AI must seek a resilient design that survives physical variation and tool noise, not the fragile peak of a proxy's score.
-
-Indeed, because it is hard to solve this problem in isolation, one of the strengths of this lecture is that we look to these mature disciplines to learn how they orchestrate complex, constrained environments. We will draw from these first-principle approaches as we dive into the mechanisms in later chapters.
+![The "Silicon ADMET" Funnel: Drawing a parallel between the phased, rigorous filtering of drug discovery and the physical signoff funnel in computer architecture. Both disciplines must weed out high-scoring "decoys" early using increasingly expensive and faithful evaluations.](images/F1-silicon-admet-funnel.svg){#fig-silicon-admet-funnel}
 
 AI is now being applied to the design process that produced those accelerators,
 including architectural design-space exploration and physical placement
 [@WangEtAl2026AgentDSE; @MirhoseiniEtAl2021GraphPlacement].
 In this material, *AI* is an umbrella term rather than the name of one model
-family. An architecture project may combine several AI methods with simulators,
+family. It spans the entire computational spectrum: from traditional machine learning (such as Support Vector Machines and random forests) used for fast surrogate screening, to Small Language Models (SLMs) running locally for tactical code-generation, all the way to Frontier-class Large Language Models (LLMs) used for high-level reasoning and synthesis. An architecture project may combine several of these AI methods with simulators,
 compilers, EDA tools, and checking tools. Those methods may generate mechanisms
 or edit artifacts, predict behavior and risk, search design spaces, or choose
 experiments. They may also critique assumptions, repair invalid artifacts, or
@@ -219,7 +217,7 @@ check results. Not every project needs all of these roles. One may need more
 promising alternatives, while another may be limited by simulator time,
 physical-design runs, or the effort required to understand conflicting results.
 AI should improve the architecture work between a design prompt and a
-defensible decision rather than merely increase the amount of output.
+defensible decision rather than merely increase the amount of output. Crucially, we cannot assume that AI assistance is free. These models—especially Frontier LLMs—introduce massive computational overhead, latency, and financial cost. Orchestrating an AI-assisted design loop means strictly weighing the inference cost of the AI against the expensive simulator time it purports to save.
 
 Imagine an architect entering the following design brief into a generative,
 tool-using AI system. The prompt tests system intent, not whether a current model can complete the design.
@@ -385,7 +383,7 @@ work [@ReddiYazdanbakhsh2025Architecture20], as summarized in @tbl-arch1-vs-arch
 | --- | --- | --- |
 | **Orchestration** | Fully human-driven | AI-assisted and mixed-initiative |
 | **Exploration** | Manual sweeps over small parameter spaces | Generative models proposing novel architectures |
-| **Tool Execution** | Scripts and manual toolchain invocation | Autonomous tool agents handling execution and repair |
+| **Tool Execution** | Scripts and manual toolchain invocation | AI-assisted scripts navigating brittle EDA toolchains and parsing complex failure logs |
 | **Decision Making** | Solely human insight | AI rationale paired with human final judgment |
 
 : **Architecture 1.0 vs Architecture 2.0:** Moving from manual orchestration to AI-assisted workflows while retaining human accountability. {#tbl-arch1-vs-arch2}
@@ -397,10 +395,8 @@ and prepare a recommendation. These are possible forms of assistance across
 several systems and methods, not a claim that one public system performs the
 complete workflow. This book organizes that participation into six activities:
 formulate, explore, implement, evaluate, explain, and defend computer architecture
-decisions. These are longitudinal learner capabilities, whereas intent,
-workload characterization, decomposition, construction, evaluation, explanation,
-and decision describe recognizable architecture work. They overlap, but they are
-not competing stage taxonomies. Producing a plausible
+decisions. Intent, workload characterization, decomposition, construction, evaluation, explanation,
+and decision describe recognizable architecture work. Producing a plausible
 artifact may help, but it does not complete that work.
 
 As AI takes on more work, the study evidence must identify the inputs and
@@ -410,7 +406,7 @@ responsible for the intent, constraints, abstraction, evidence standard,
 interpretation, and final decision. This information lets another architect
 determine what happened and what the result can support.
 
-In an AI-assisted cache study, a method might propose cache sizes and replacement policies, a surrogate[^fn-ml-surrogate-model] could screen them, and a critic might flag invalid workload assumptions, but the architect still decides whether the evidence supports a cache change.
+In exploring the XR subsystem, a method might propose vector-lane configurations, a surrogate[^fn-ml-surrogate-model] could screen them for 3 W thermal violations, and a critic might flag unsupported compiler intrinsics, but the architect still decides whether the evidence supports a design change.
 The contribution might be a cache design, an architectural finding, a reusable
 method or dataset, or a decision supported by the available evidence.
 
@@ -741,7 +737,7 @@ the whole architectural judgment.
 ## Existing Systems Cover Parts of the Design Loop
 
 Current work has demonstrated useful parts of AI-assisted architecture under
-bounded conditions. Predictive design-space exploration uses simulated performance to train surrogate models that estimate behavior across a specified design space [@IpekEtAl2006PredictiveDSE]. AutoTVM uses measured hardware execution to guide a statistical search for tensor-program schedules [@ChenEtAl2018AutoTVM]. In each case, the input, architecture job, feedback source, and bounded result remain clear. We use a cache subsystem throughout this text as a running example of how an architect might leverage these tools to rapidly evaluate varying replacement policies or memory hierarchies.
+bounded conditions. Predictive design-space exploration uses simulated performance to train surrogate models that estimate behavior across a specified design space [@IpekEtAl2006PredictiveDSE]. AutoTVM uses measured hardware execution to guide a statistical search for tensor-program schedules [@ChenEtAl2018AutoTVM]. In each case, the input, architecture job, feedback source, and bounded result remain clear.
 
 AlphaChip is a prominent physical-design example. Its inputs include a netlist and macro descriptions; its job is macro placement; its feedback comes from proxy rewards like wirelength and congestion. The original paper reported
 macro placements produced in under six hours, and later first-party reports
@@ -750,11 +746,11 @@ said the method contributed to several TPU generations
 @GoogleDeepMind2024AlphaChip]. @sec-proxy-mismatch-metric-gaming-and-calibration
 examines the public disagreement about its comparisons and proxy evidence.
 
-While these tools succeed at their individual tasks, they also expose the integration problem required to complete a whole architecture study. To move from isolated tool successes to an end-to-end design loop, the architecture community must learn from adjacent fields. The ML and science communities accelerated their progress by adopting shared baselines, standardized datasets, and rigorous artifact evaluation. For example, ImageNet [@RussakovskyEtAl2015ImageNet] drove the deep learning revolution by providing a common benchmark, while CASP (Critical Assessment of Structure Prediction) [@MoultEtAl1995CASP] allowed AlphaFold's [@JumperEtAl2021AlphaFold] capabilities to be systematically measured against objective, community-held standards. These happened in ML and structural biology, so we must adopt them in computer architecture. Shared tasks, public datasets, and open evaluation protocols will be essential to combine narrow tool use into a robust, reviewable AI-assisted architecture practice.
+While these tools succeed at their individual tasks, they also expose the integration problem required to complete a whole architecture study. To move from isolated tool successes to an end-to-end design loop, the architecture community must learn from adjacent fields. The ML and science communities accelerated their progress by adopting shared baselines, standardized datasets, and rigorous artifact evaluation. For example, ImageNet [@RussakovskyEtAl2015ImageNet] drove the deep learning revolution by providing a common benchmark, while CASP (Critical Assessment of Structure Prediction) [@MoultEtAl1995CASP] allowed AlphaFold's [@JumperEtAl2021AlphaFold] capabilities to be systematically measured against objective, community-held standards. Computer architecture requires the same shared evaluation protocols to move from isolated demonstrations to verifiable practice. Shared tasks, public datasets, and open evaluation protocols will be essential to combine narrow tool use into a robust, reviewable AI-assisted architecture practice.
 
 ## Open Problems in AI-Assisted Architecture
 
-The complete Lighthouse process remains a research direction. Architectural knowledge, tool execution, role composition, and evidence remain separate engineering problems. Before addressing these specific capabilities, @sec-design-loop-no-longer-scales explores why the traditional architecture design loop is struggling to scale, and @sec-architecture-20-ontology provides the framework for decomposing the architecture task. We avoid being too specific about tools because they change, focusing on fundamentals. Later chapters take up the remaining requirements:
+The complete Lighthouse process remains a research direction. Architectural knowledge, tool execution, role composition, and evidence remain separate engineering problems. Before addressing these specific capabilities, @sec-design-loop-no-longer-scales explores why the traditional architecture design loop is struggling to scale, and @sec-architecture-20-ontology provides the framework for decomposing the architecture task. While tool names change, the friction of brittle interfaces, strict constraints, and messy logs *is* the fundamental challenge that AI must navigate. Later chapters take up the remaining requirements:
 
 - @sec-data-representations-world-models explains architectural knowledge, current design state, and predicted consequences.
 - @sec-architecture-environments-tool-interfaces explains legal multi-tool action and typed feedback.
@@ -836,7 +832,7 @@ While current point solutions like surrogate models or AlphaChip demonstrate wha
 
 Ultimately, faster proposal generation only matters if we have the evidence and insight to distinguish good ideas from dangerous failures. The tools and models will inevitably evolve, but the core responsibility remains unchanged: the architect must frame the problem, demand robust evidence, and remain accountable for the final design. The following chapters will provide the foundational framework to make this AI-assisted workflow a reality.
 
-As you move forward into the rest of the book, keep these core principles in mind. They form the basis for evaluating any new AI-assisted design technique.
+
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Evaluate AI across the complete architecture work it claims to assist. A generated artifact matters only in relation to the question, alternatives, implementation path, evaluation, explanation, and decision it advances.

@@ -20,13 +20,13 @@ What must an architect fix, execute, and preserve so that one bounded
 AI-assisted study reaches no conclusion stronger than its recorded results?
 :::
 
-This crux addresses a looming, AI-driven replication crisis in computer architecture. Generative AI creates "decoys"---designs that look beautiful in latent space but fail in physical selection. Because simulators are highly configurable and models are highly sensitive to phrasing, the architect must protect the integrity of the selection pressure from collapsing under the persuasive force of the mutator. Without methodological firewalls, architects will subconsciously perform "baseline shopping"---tweaking simulator parameters after the fact to validate plausible AI hallucinations---or "prompt shopping"---silently discarding dozens of failed prompts until one happens to produce the desired architecture, then presenting it as a zero-shot success. To prevent this, the design loop must be strictly bounded. The experiment below brings a bounded question, represented design state, constrained tool environment, defined model role, and independent review into one cohesive study.
+This crux addresses a looming, AI-driven replication crisis in computer architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, the architect must protect the integrity of the selection pressure. Without methodological firewalls, architects will subconsciously perform "baseline shopping"---tweaking simulator parameters after the fact to validate plausible candidates---or "prompt shopping"---silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, where a single iteration takes days of RTL simulation and fighting for limited flexlm license checkouts, such shopping hides immense physical and calendar cost. To prevent this, the design loop must be strictly bounded. The experiment below brings a bounded question, represented design state, constrained tool environment, defined model role, and independent review into one cohesive study.
 Before any model or simulator output is known, the architect fixes the workload,
 legal array shapes, simulator configuration, comparison budget, rejection
 criteria, and decision owner. Fixing those choices prevents post-result changes.
 It does not show that the choices were architecturally appropriate.
 
-The experiment is deliberately modest, yet it explicitly anchors back to our Lighthouse prompt from @sec-moonshot: *"Design a low-power, 64-bit RISC-V-based compute subsystem for an XR platform."* Specifically, we zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms under one frozen configuration [@RajEtAl2025ScaleSimV3]. A declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, a complete full-chip XR evaluation, and any path to tapeout, it perfectly illustrates how a bounded architectural question extracted from the Lighthouse prompt is rigorously executed. The question is whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported without being recast as a success.
+The experiment is deliberately modest, yet it explicitly anchors back to our Lighthouse prompt from @sec-moonshot: *"Design a 3W, 64-bit RISC-V-based compute subsystem for an XR platform."* Specifically, we zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms under one frozen configuration [@RajEtAl2025ScaleSimV3]. A declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, a complete full-chip XR evaluation, and any path to tapeout, it perfectly illustrates how a bounded architectural question extracted from the Lighthouse prompt is rigorously executed. The question is whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported without being recast as a success.
 
 The experiment still reaches a reviewable result. No nonbaseline shape clears
 the declared decision margin. The model and fixed heuristic arms tie. The
@@ -56,7 +56,6 @@ study. That means you can:
 - **Distinguish** replay of the recorded computation from independent reproduction and validation.
 :::
 
-These learning objectives emphasize that rigor in an architecture study comes from enforcing strict engine separation---delineating what the AI exploratory engine contributes versus what the confirmatory methodology enforces. By mastering these skills, architects can harness ML proposals without falling into a replication crisis or abdicating their engineering judgment.
 
 ## Four Separate Judgments
 
@@ -99,7 +98,7 @@ holding most of the environment still.
 ## Strict Engine Separation: Outcome vs. AI Claims
 
 The preregistration keeps the architecture-outcome and AI-contribution claims
-separate. This deliberate decoupling enforces a strict engine separation: the AI is the planner (proposal authority) and the deterministic simulator is the safety envelope (actuator/veto authority). Letting the AI alter the baseline is like letting an autopilot redefine gravity. The exploratory engine must never be allowed to grade its own homework. This ensures that a successful model invocation is not automatically conflated with a successful architectural design.
+separate. This deliberate decoupling enforces a strict engine separation: the AI is the planner (proposal authority) and the deterministic simulator is the safety envelope (actuator/veto authority). The exploratory engine must never be allowed to grade its own homework. This ensures that a successful model invocation is not automatically conflated with a successful architectural design.
 
 **Architecture-outcome claim.** At least one evaluated nonbaseline shape
 selected by either arm improves the local decision score over the 32 by 32
@@ -159,7 +158,9 @@ treated. The mechanism contrast challenges the generated explanation, while
 the final row leaves approval outside both the model and simulator.
 
 Predeclaring these choices prevents the study from replacing a candidate,
-metric, or stopping rule after seeing the results. Baseline shopping isn't human frailty; it's a principal-agent trap. The architect is economically incentivized to move the goalposts to justify the AI tool. Preregistration is an immutable economic contract to stop the metric from becoming a corruptible target. By heading off Goodhart's Law in this way, this rigorous commitment mirrors the defense against outcome switching in medicine.
+metric, or stopping rule after seeing the results. Baseline shopping isn't human frailty; it's a principal-agent trap. The architect is economically incentivized to move the goalposts to justify the AI tool. Preregistration stops the metric from becoming a corruptible target. By heading off Goodhart's Law [@Goodhart1984Law] in this way, this rigorous commitment mirrors the defense against outcome switching in medicine (e.g., the CONSORT statement [@BeggEtAl1996CONSORT]), addressing the broader ML replication crisis [@HendersonEtAl2018RL].
+
+**Lesson:** AI-assisted architecture requires scientific preregistration. Framing the AI proposal against a fixed baseline forces architects to formally lock their simulation configurations, metrics, prompt boundaries, and decision margins *before* the AI runs to establish rigorous evidence.
 
 ::: {.callout-field-note title="Field Note: Scientific Preregistration and the CONSORT Statement"}
 **Observation:** To prevent "outcome switching" in clinical trials, the medical field adopted the CONSORT statement, requiring researchers to declare exact baselines, sample sizes, and stopping criteria before a trial begins.
@@ -190,10 +191,12 @@ the workload would reverse the winner. The proposal therefore emitted both a
 design-state change and a consequence hypothesis that the simulator could
 challenge.
 
+![Systolic Array Mapping and Orientation visualizes how GEMM dimensions (M, N) map to the physical array dimensions (Height, Width) and how transposing the workload affects the mapping.](images/F8-array-mapping.svg){#fig-array-mapping}
+
 The record omits one important part of that connection. It names GEMM M, N, and
 K dimensions and fixes SCALE-Sim's weight-stationary mode, but it does not state
 how those dimensions map onto `ArrayHeight` and `ArrayWidth` under the selected
-mapping. The explanation assumes that array width corresponds to the relevant
+mapping (see @fig-array-mapping). The explanation assumes that array width corresponds to the relevant
 N-side effect. That premise was not grounded in the retained study context.
 The transposition still distinguishes the model's exact directional prediction,
 but it is not a causally isolated test of orientation. This mismatch is an open
@@ -248,7 +251,7 @@ amendment before inference.
 **Lesson:** The architect classified the event as an environment and schema failure, amended only that defect, and recorded the old and new hashes before inference. The repair was neither charged to the model nor treated as a failed architecture proposal.
 :::
 
-This field note highlights a critical boundary: toolchain failures must be isolated from architectural evaluations. Fixing the schema was a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol.
+Toolchain failures must be isolated from architectural evaluations. While this schema error was simple API friction, real hardware environment failures involve undocumented EDA tool segfaults, flexlm license server timeouts, or simulation deadlocks, which drastically alter the loop's cost mechanics compared to a fast Python simulator. Fixing the toolchain is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol.
 
 The subsequent call returned a schema-valid response. Semantic validation found
 three unique legal candidates, so no repair call was made. The complete response
@@ -431,7 +434,7 @@ before looking for another mechanism.
 
 ## Judge the Claims and Decide Whether to Stop
 
-The four conclusions in @tbl-study-claim-dispositions answer distinctly different questions. They collectively reinforce the principle that an AI-assisted outcome is multifaceted and must not be reduced to a single binary success or failure.
+The four conclusions in @tbl-study-claim-dispositions answer distinctly different questions.
 
 | **Claim** | **Observed evidence** | **Conclusion** | **Outside this conclusion** |
 | --- | --- | --- | --- |
@@ -514,7 +517,7 @@ claims requiring new evidence.
 ## Open Research Questions
 
 This small experiment leaves four problems unresolved once model behavior,
-comparison budgets, or evidence become harder to control. As architecture scales to more complex domains, addressing these gaps will be critical for maintaining rigorous evaluation standards.
+comparison budgets, or evidence become harder to control.
 
 1. **How should an AI proposal arm be compared with a fixed heuristic?**
 Equal simulator calls may control one scarce resource while leaving model
@@ -541,14 +544,12 @@ mapping semantics may matter more than another point in the same search?
 
 ## Conclusion
 
-This bounded integration study ends with a tie against the baseline, and that null result is not a boring outcome---it is a methodological triumph. The model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes, tying on the best simulator score. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the baseline. This demonstrates the preregistration methodology working perfectly to reject a flawed but plausible AI hallucination.
+This bounded integration study ends with a tie against the baseline. The model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes, tying on the best simulator score. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the baseline. This demonstrates the preregistration methodology rejecting a flawed candidate.
 
-More importantly, this study demonstrates how to contain AI by enforcing strict engine separation. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, post-hoc rationalizations, prompt shopping, and baseline shopping were completely blocked. Architecture must move beyond treating AI as an infallible oracle; instead, we must treat it as an exploratory hypothesis generator, while the simulator remains the confirmatory engine. A well-executed null result proves that the methodological firewalls hold, ensuring that every adopted proposal is grounded in unshakeable empirical evidence rather than persuasive model outputs.
+More importantly, this study demonstrates how to contain AI by enforcing strict engine separation. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, post-hoc rationalizations, prompt shopping, and baseline shopping were completely blocked. Architecture must treat AI as an exploratory hypothesis generator, while the simulator remains the confirmatory engine. A well-executed null result proves that the methodological firewalls hold, ensuring that every adopted proposal is grounded in empirical evidence rather than persuasive model outputs.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Keep the architecture outcome, AI contribution, mechanism explanation, and stopping decision separate, and preserve every evaluated candidate even when the result is no change, an equal-call tie, a contradicted directional prediction, or an unsupported mechanism explanation.
 - **Reader test:** Can another architect distinguish replay of the fixed computation from independent reproduction, identify the missing mapping semantics, and explain why stopping does not imply optimality?
 - **Up next:** @sec-loop-patterns-across-stack examines how the same study structure changes as feedback grows slower, rollback becomes harder, and decisions carry greater consequences.
 :::
-
-The takeaways in the carry-forward box encapsulate the discipline required for modern architectural research. By separating the outcome, contribution, and stopping decisions, architects retain their authority and ensure evaluations remain credible even when the AI fails to find a winner.

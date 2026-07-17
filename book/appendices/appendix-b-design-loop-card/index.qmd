@@ -140,8 +140,22 @@ replaces the executed AI-assisted study in @sec-running-the-loop.
 Use the one-page card to draft and review a study. Use
 [JSON Schema version 2.0](https://arch2.mlsysbook.ai/schemas/design-loop-card.v2.schema.json),
 the canonical machine contract, when software needs to validate a card, check
-links among records, or exchange the card across tools. The outline below shows
-the required structure without repeating every conditional rule.
+links among records, or exchange the card across tools.
+
+Before reading the schema, use this mental model for its three core pillars:
+- **1. Context/Environment (`context`, `environment`):** What are we doing? This bounds the task, the workload, and the permitted toolchain.
+- **2. Claims/Evidence (`claims`, `evidence`):** What do we claim, and how is it proven? This links assertions to checkable execution logs.
+- **3. Gates/Decision Rights (`gates`, `decision_rights`):** Who says it is okay? This is a lightweight adaptation of formal Verification and Validation (V&V) standards (like DO-178C in aerospace or ISO 26262 in automotive) applied to AI-assisted architecture, ensuring no automated action bypasses human accountability.
+
+```mermaid
+erDiagram
+    CLAIM ||--o{ EVIDENCE : requires
+    EVIDENCE ||--|| ENVIRONMENT : generated_in
+    EVIDENCE }|--o{ GATE : evaluated_by
+    GATE }|--|| ACCOUNTABLE_DECISION : authorizes
+```
+
+The outline below shows the required structure without repeating every conditional rule.
 
 ```yaml
 schema_version: "2.0"
@@ -261,7 +275,10 @@ expected status, observed status, hashes, and a verified result are present.
 The command-line validator checks hashes for local card-relative artifacts. It
 cannot fetch and revalidate remote or protected artifacts. Successful replay
 shows that the named replay package ran in the declared environment. Broader
-reproducibility or transfer requires a separate evaluation.
+reproducibility or transfer requires a separate evaluation. For proprietary EDA
+flows, NDAs, and closed-source PDKs, 'Replay' may only be verifiable by authorized
+internal reviewers. In these cases, the card must document the exact tool
+versions, licensing dependencies, and why public replay is impossible.
 
 ### Extensions and Compatibility
 

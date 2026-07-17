@@ -27,7 +27,7 @@ Consider an AI system given our lighthouse prompt: "Design a low-power, 64-bit R
 General architectural knowledge is meaningless without the explicit bounds of the current design. To propose a viable change, an AI system must fuse its learned statistical priors with the concrete, versioned constraints of the specific project. The system must represent the design problem, express a legal architectural action, and predict precise consequences. We must build verifiable frameworks where the representation explicitly tracks what the AI consumes and returns, ensuring the AI accelerates the legwork while the architect commands the direction.
 
 
-Mastering these objectives provides the foundation necessary to build AI systems that not only retrieve facts but actively participate in the architectural design loop. By explicitly managing the boundary between what a model knows and what a current project requires, we can avoid silent assumptions and ensure that proposed design changes align with the overall system intent.
+
 
 ::: {.callout-learning-objectives}
 After this chapter you can identify how architectural knowledge enters an AI system and how it combines with current project state to support a design change. Specifically, you can:
@@ -44,7 +44,7 @@ After this chapter you can identify how architectural knowledge enters an AI sys
 
 Before exploring where architectural knowledge comes from, we must define what it is. In the context of Architecture 2.0, true architectural knowledge is synonymous with the ability to conduct rigorous architectural research. It means understanding how to construct robust baselines, how to orchestrate the right tools (simulators, compilers, synthesizers), and crucially, how to interpret the fidelity and limits of those tools. To design something new, an AI method must draw on two different classes of information: this learned architectural knowledge (statistical priors) and the current project state (explicit facts).
 
-Recent literature has repeatedly highlighted a fundamental truth: AI models do not inherently "know" how to build a chip [@LiuEtAl2023ChipNeMo; @ThakurEtAl2023AutoChip; @PrakashEtAl2025QuArch]. Instead, their parameters encode recurring, general relationships among workloads, hardware mechanisms, tools, and design choices. These statistical priors explain *why* spatial dataflow dependencies, SRAM capacities, and MAC array dimensions interact the way they do. They enable the system to recognize that widening the Tensor Core array requires proportionally larger SRAM capacities to sustain utilization, or that a larger MAC grid increases the penalty of underutilized edge workloads.
+Recent literature highlights that AI models do not inherently "know" how to build a chip [@LiuEtAl2023ChipNeMo; @ThakurEtAl2023AutoChip; @PrakashEtAl2025QuArch]. Instead, their parameters encode recurring, general relationships among workloads, hardware mechanisms, tools, and design choices. These statistical priors explain *why* spatial dataflow dependencies, SRAM capacities, and MAC array dimensions interact the way they do. They enable the system to recognize that widening the Tensor Core array requires proportionally larger SRAM capacities to sustain utilization, or that a larger MAC grid increases the penalty of underutilized edge workloads.
 
 Current project state serves a completely different purpose. It identifies the specific design version under active evaluation. It names the exact workload, software versions, mutable fields, fixed constraints, assumptions, prior observations, and unresolved conditions for a single study.
 
@@ -65,7 +65,7 @@ Because hardware has this zero semantic tolerance for hallucinated, physically i
 
 Changing the structure of the example changes the capability being trained or tested. In computer architecture, the QuArch benchmark provides a bridge from general reading comprehension to expert-validated architectural reasoning [@PrakashEtAl2025QuArch]. QuArch evaluates whether an AI system understands core concepts across processor design, memory systems, and performance optimization. For example, a QuArch question might ask a model to calculate the effective memory access time given a specific cache hit rate and miss penalty.
 
-But QA has a strict boundary. It tests the *knowledge layer* but cannot reconstruct a project execution history or executable tool state. Crucially, to capture an architect's true knowledge, ML models cannot just look at positive examples---the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space [@ChenEtAl2020SimCLR; @HeEtAl2020MoCo]. Without negative data, a model learns what works in one context, but not *why* it fails in others.
+But QA has a strict boundary. It tests the *knowledge layer* but cannot reconstruct a project execution history or executable tool state. Crucially, to capture an architect's true knowledge, ML models cannot just look at positive examples---the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space. Just as Contrastive Learning pushes dissimilar images apart in the embedding space [@ChenEtAl2020SimCLR; @HeEtAl2020MoCo], negative compilation runs push the model away from the "sheer cliffs" of unroutable design spaces. Without negative data, a model learns what works in one context, but not *why* it fails in others.
 
 Just as models in hardware synthesis cannot learn the boundaries of the valid design space simply by observing successful configurations, other AI domains also rely heavily on negative examples. For instance, in end-to-end learning for self-driving cars [@BojarskiEtAl2016EndToEnd], autonomous vehicles require negative "recovery data"---such as off-center or failure-state images---to learn how to steer back to the center of the lane. In the same way, AI agents for architecture design must explicitly train on negative samples, including performance bottlenecks, deadlocks, and constraint violations, to learn corrective design maneuvers and map the true boundaries of the design space.
 
@@ -81,68 +81,15 @@ Conversely, low-fidelity generation---such as analytical models or high-level tr
 
 This dynamic means the spectrum of simulation fidelity directly dictates the volume and variance of the available dataset, much like a cache memory hierarchy limits fast, expensive memory while expanding slow, cheap memory (@fig-data-fidelity-pyramid). @tbl-synthetic-data-costs illustrates the specific cost, speed, and fidelity trade-offs across different architectural simulators.
 
-```{python}
-#| label: fig-data-fidelity-pyramid
-#| fig-cap: "The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant."
-#| fig-alt: "A pyramid chart showing that low-fidelity analytical models cost nothing and generate huge data volume, while high-fidelity silicon tests are incredibly expensive and rare."
-#| echo: false
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(figsize=(10, 5))
-
-layers = [
-    ("Silicon / FPGA", "Ground Truth, Astronomical Cost", 1),
-    ("RTL Simulation", "Very High Fidelity, Very High Cost", 2),
-    ("Cycle-Accurate Simulation", "High Fidelity, Medium Cost", 3),
-    ("Trace-Driven", "Medium Fidelity, Low Cost", 4),
-    ("Analytical / Mathematical", "Low Fidelity, ~Zero Cost", 5)
-]
-
-# Use a harmonious color palette representing heat/cost (red top, blue bottom)
-colors = ['#d73027', '#fc8d59', '#fee090', '#e0f3f8', '#91bfdb']
-
-y_start = 0
-height = 1
-for i, (name, desc, width) in enumerate(layers):
-    top_w = layers[i-1][2] if i > 0 else 0
-    bottom_w = width
-
-    x = [-bottom_w/2, -top_w/2, top_w/2, bottom_w/2]
-    y = [y_start+height, y_start, y_start, y_start+height]
-
-    ax.fill(x, y, color=colors[i], edgecolor='white', linewidth=2)
-
-    # Text
-    text_color = 'white' if i < 2 else 'black'
-    ax.text(0, y_start + height/2 - 0.15, name, ha='center', va='center', fontsize=12, fontweight='bold', color=text_color)
-    ax.text(0, y_start + height/2 + 0.25, desc, ha='center', va='center', fontsize=10, color=text_color)
-
-    y_start += height
-
-# Add Left Arrow (Upwards) for Fidelity & Cost
-ax.annotate('', xy=(-2.8, 0.5), xytext=(-2.8, 4.5),
-            arrowprops=dict(facecolor='#d73027', edgecolor='none', width=3, headwidth=10))
-ax.text(-3.1, 2.5, 'Increasing Fidelity & Cost', rotation=90, va='center', ha='center', fontsize=12, fontweight='bold', color='#d73027')
-
-# Add Right Arrow (Downwards) for Speed & Volume
-ax.annotate('', xy=(2.8, 4.5), xytext=(2.8, 0.5),
-            arrowprops=dict(facecolor='#313695', edgecolor='none', width=3, headwidth=10))
-ax.text(3.1, 2.5, 'Increasing Speed & Abundance', rotation=270, va='center', ha='center', fontsize=12, fontweight='bold', color='#313695')
-
-ax.set_ylim(0, 5)
-ax.set_xlim(-3.6, 3.6)
-ax.axis('off')
-ax.invert_yaxis()
-plt.tight_layout()
-plt.show()
-```
+![The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant.](images/F4-data-pyramid.svg){#fig-data-fidelity-pyramid}
 | **Simulator / Model Type** | **Fidelity Level** | **Speed / Throughput** | **Cost of a Data Sample** | **ML Principle Equivalent** |
 | --- | --- | --- | --- | --- |
 | **Analytical / Mathematical** | Low (Equations, steady-state) | Millions of samples/sec | ~$0 (Compute-bound, trivial) | Simple synthetic priors, rule-based generation |
 | **Trace-Driven** | Medium (Instruction streams) | Thousands of samples/sec | Low | Heuristic-based procedural generation |
 | **Cycle-Accurate Simulation** | High (Microarchitecture state) | 10s - 100s of samples/sec | Medium (High CPU hours) | High-fidelity synthetic rendering |
 | **RTL Simulation** | Very High (Logic gates, precise) | Fractions of a sample/sec | Very High (Days of compute) | Human-annotated expert data |
-| **Silicon / Emulation (FPGA)** | Ground Truth (Physical) | Real-time (Millions/sec)* | Astronomical (NRE, Setup) | Real-world deployment data |
+| **Emulation (FPGA)** | Ground Truth (Logical, Cycle-Accurate) | Real-time (Millions/sec)* | High (Hardware boards, compile time) | Real-world behavioral data |
+| **Physical Silicon (ASIC)** | Ground Truth (Physical, Timing, Power) | Real-time (Millions/sec)* | Astronomical ($10M+ NRE, Setup) | Real-world deployment data |
 
 : **Data generation costs across architectural fidelity levels.** While silicon/emulation runs at high speeds, the initial setup cost, bitstream compilation time, and non-recurring engineering (NRE) costs make acquiring the first sample extremely expensive. {#tbl-synthetic-data-costs tbl-colwidths="[20,20,20,20,20]"}
 
@@ -156,7 +103,7 @@ Once we understand the cost and structure of architectural data, we must conside
 - **In-Context Conditioning:** Assembles the transient working set actually supplied to one inference (e.g., instructions, retrieved sources, project state, and few-shot examples).
 - **Explicit Updates:** Revisions to persistent project objects, such as appending an execution history, updating a constraint file, or explicitly replacing a calibration set. This relies on expensive, high-fidelity simulation data.
 
-The flow of data from simulators to the AI system is not a monolith. Domain adaptation improves general architectural reasoning, while retrieval fetches specific technical context. However, retrieving a technical document or an EDA manual is not the same as retrieving the executable project state needed to run a simulation. An AI system's true capability emerges only when cheap background knowledge and expensive foreground execution history are explicitly combined.
+The flow of data from simulators to the AI system is not a monolith. Domain adaptation improves general architectural reasoning, while retrieval fetches specific technical context. However, retrieving a technical document or an EDA manual is not the same as retrieving the executable project state needed to run a simulation. An AI system becomes useful only when cheap background knowledge and expensive foreground execution history are explicitly combined.
 
 ## What Different Representations Preserve
 
@@ -253,7 +200,7 @@ An illustrative RISC-V core simulator provides a concrete example of an architec
 | Analytical model or mapper | Milliseconds to seconds; low direct cost; results depend heavily on model assumptions. | Supports pruning and sensitivity checks within the model's scope. | Model assumptions, workload slice, constraints, and proxy-validity notes. |
 | Trace, profile, or replay | Seconds to hours depending on capture and replay setup. | Reveals workload behavior under a stated capture or replay policy. | Trace version, sampling policy, software stack, and filtering choices. |
 | Cycle-level simulation | Minutes to days depending on model detail and target workload. | Returns a simulated observation scoped by abstraction, calibration, and unsupported states. | Simulator version, configuration, seeds, workload revision, and calibration notes. |
-| RTL, gate-level, or EDA feedback | Hours to days for synthesis, timing closure, power analysis, or physical DRC/LVS. | Supplies scarce, multiobjective implementation observations. | Tool versions, constraints, process assumptions, waived warnings, and rejected candidates. |
+| RTL, gate-level, or EDA feedback | Hours to days for synthesis and timing closure; weeks or months for full-chip gate-level simulation. | Supplies scarce, multiobjective implementation observations. | Tool versions, constraints, process assumptions, waived warnings, and rejected candidates. |
 | FPGA, emulation, or prototype | High setup and shared-resource cost; high throughput once mapped. | Higher speed changes observability and debugging semantics as well as wall-clock time. | Mapping constraints, observability limits, debug hooks, and queue/resource state. |
 | Post-silicon bring-up or validation | Weeks to months and high acquisition cost. | Real hardware reveals integration, timing, power, reliability, and validation failures that earlier evidence missed. | Hardware stepping, firmware or microcode version, test context, failure mode, waiver, and owner. |
 | Field or fleet telemetry | Months to years; deployment changes can complicate interpretation. | Real deployment shows workload drift, cohort effects, incidents, rollback triggers, and user-visible regressions. | Population, deployment version, sampling policy, privacy filter, incident context, and decision owner. |
@@ -264,7 +211,11 @@ An illustrative RISC-V core simulator provides a concrete example of an architec
 
 A tool result has several possible destinations. It may append an execution history, support a new design state, enter a retrieval index, refit a surrogate, or motivate foundation-model fine-tuning. These updates are different engineering decisions. A result does not automatically become evidence, training data, or an architecture decision.
 
-Because these updates happen on different schedules, architecture knowledge inevitably ages out of alignment. A current embedding index may point to an old corpus. A current design may use a new workload, while its execution history contains results from an earlier compiler version. In the terminology of distributed systems, an AI hallucinating a design based on stale manuals or a V1 baseline suffers from the "split-brain" problem---a failure of causal consistency. To prevent this, the environment must enforce a "causality vector" (similar to vector clocks) to mathematically prove that the AI's training data, retrieved manuals, and current project state are causally consistent before committing to a costly synthesis run. Versions and provenance expose these relationships, but they do not automatically resolve inconsistencies.
+Because these updates happen on different schedules, architecture knowledge inevitably ages out of alignment. A current embedding index may point to an old corpus. A current design may use a new workload, while its execution history contains results from an earlier compiler version. In the terminology of distributed systems, an AI hallucinating a design based on stale manuals or a V1 baseline suffers from the "split-brain" problem---a failure of causal consistency. 
+
+![The Split-Brain Causality Problem: When the AI retrieves stale manuals or training data while the project state advances, it hallucinated fixes that violate causal consistency.](images/F4b-split-brain-causality.svg){#fig-split-brain-causality}
+
+To prevent this, the environment must enforce a "causality vector"---similar to vector clocks (a data structure used to establish partial ordering of events in distributed systems [@Lamport1978TimeClocks])---to cryptographically verify that the AI's retrieved context and the current project state are causally consistent before committing to a costly synthesis run. Versions and provenance expose these relationships, but they do not automatically resolve inconsistencies.
 
 Furthermore, architecture projects suffer from massive missing state. Papers, textbooks, open-source tools, and benchmarks usually preserve endpoints (a winning design) but rarely preserve the path to that endpoint (simulator settings, excluded workloads, rejected candidates).
 
@@ -292,14 +243,12 @@ To move from knowledge to execution, an AI system must construct a minimum seman
 
 ## Open Research Questions
 
-As we move toward AI-driven computer architecture, the field is constrained less by the capability of machine learning algorithms and more by the fundamental nature of the data representing hardware. The historical reliance on ad-hoc benchmark suites and isolated simulators has resulted in fragmented, disjointed datasets that fail to capture the holistic complexity of a computing system. Addressing these data bottlenecks is crucial for building generalized models capable of true architectural innovation.
-
-These open problems highlight the critical need for better data representations, scalable generation techniques, and comprehensive world models in the architectural domain:
+The field currently faces four open data bottlenecks:
 
 1. **Universal Hardware Representation:** How can we design a unified, multi-modal embedding space capable of simultaneously representing structural (RTL graphs), behavioral (execution traces), and physical (power, thermal layouts) properties of microarchitectures across varying levels of fidelity?
 2. **Fidelity-Aware Generative World Models:** Can we train a predictive "world model" for computer architecture that accurately simulates cycle-level state transitions and performance metrics from abstract, low-fidelity structural descriptions, effectively bypassing the need for slow software simulators?
 3. **Automated Discovery of "Hard Negatives" in Design Spaces:** What active learning and adversarial generation techniques can automatically identify and synthesize architectural edge cases---such as rare deadlock conditions or transient performance cliffs---that maximize the learning signal for an AI architect agent without exhaustive simulation?
-4. **Sim-to-Silicon Transfer via Meta-Learning:** How can we mathematically bound and systematically bridge the "sim-to-real" gap, enabling reinforcement learning agents trained purely on cheap analytical and cycle-accurate synthetic data to deploy zero-shot on physical silicon with guaranteed correctness and optimal performance?
+4. **Sim-to-Silicon Transfer via Meta-Learning:** How can we mathematically bound and systematically bridge the "sim-to-real" gap, enabling reinforcement learning agents trained purely on cheap analytical and cycle-accurate synthetic data to achieve first-pass silicon success by closing the sim-to-real physical gap?
 
 ## Conclusion
 
@@ -315,4 +264,3 @@ Ultimately, an architecture world model must map the represented state and a sem
 - **Up next:** The representation records the design state, proposed actions, and predictions. @sec-architecture-environments-tool-interfaces explains how the tool environment translates those semantic proposals into executable actions and returns interpretable observations.
 :::
 
-By formally structuring the handoff between the AI's predictions and the execution environment, we build a bridge from theoretical knowledge to verifiable architectural improvements. This explicit handoff ensures that every proposed change is evaluated robustly, laying the groundwork for the automated tool interfaces explored in the next chapter.
