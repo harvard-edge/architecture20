@@ -76,7 +76,7 @@ The human-facing card keeps twelve review fields. Before execution, a study owne
 | **Feedback budget** | How many evaluations are available, at what latency, compute or tool cost, human-review cost, model cost, and fidelity? |
 | **Evidence** | Each evidence record identifies its producer, kind, status, tool and version, input and output artifacts, scope, uncertainty or limitations, and integrity check. |
 | **Failed runs / rejected alternatives** | What was an environment failure, invalid candidate, rejected alternative, failed rejection check, or superseded record, and which evidence or check explains the outcome? |
-| **Rejection checks and authority** | The schema calls each predeclared pass/fail check a `gate`. Its record includes the criterion, result, authority, waiver rule, evidence links, and outcome. `decision_rights` separately names who may propose, execute, reject, waive, recommend, and commit. |
+| **Rejection checks and authority** | The schema calls each predeclared pass/fail check a `check`. Its record includes the criterion, result, authority, waiver rule, evidence links, and outcome. `decision_rights` separately names who may propose, execute, reject, waive, recommend, and commit. |
 | **Evidence-supported claim boundary** | Each entry in `claims` states a type, statement, baseline or comparator, outcome, scope, non-claims, status, and evidence links. Architecture outcomes and AI contributions remain separate claims. |
 | **Accountable decision** | What action is pending, authorized, rejected, deferred, or superseded; who holds the commit right; what scope is authorized; and what would reopen the decision? |
 
@@ -145,14 +145,14 @@ links among records, or exchange the card across tools.
 Before reading the schema, use this mental model for its three core pillars:
 - **1. Context/Environment (`context`, `environment`):** What are we doing? This bounds the task, the workload, and the permitted toolchain.
 - **2. Claims/Evidence (`claims`, `evidence`):** What do we claim, and how is it proven? This links assertions to checkable execution logs.
-- **3. Gates/Decision Rights (`gates`, `decision_rights`):** Who says it is okay? This is a lightweight adaptation of formal Verification and Validation (V&V) standards (like DO-178C in aerospace or ISO 26262 in automotive) applied to AI-assisted architecture, ensuring no automated action bypasses human accountability.
+- **3. Checks/Decision Rights (`checks`, `decision_rights`):** Who says it is okay? This is a lightweight adaptation of formal Verification and Validation (V&V) standards (like DO-178C in aerospace or ISO 26262 in automotive) applied to AI-assisted architecture, ensuring no automated action bypasses human accountability.
 
 ```mermaid
 erDiagram
     CLAIM ||--o{ EVIDENCE : requires
     EVIDENCE ||--|| ENVIRONMENT : generated_in
-    EVIDENCE }|--o{ GATE : evaluated_by
-    GATE }|--|| ACCOUNTABLE_DECISION : authorizes
+    EVIDENCE }|--o{ CHECK : evaluated_by
+    CHECK }|--|| ACCOUNTABLE_DECISION : authorizes
 ```
 
 The outline below shows the required structure without repeating every conditional rule.
@@ -198,9 +198,9 @@ design_loop_card:
         limitations: [string]
         integrity: { sha256 } | { not_applicable_reason }
   failed_or_rejected:
-    - { record_id, kind, candidate_id?, stage, reason, gate_ref?, evidence_refs }
-  gates:
-    - { gate_id, category, criterion, result, authority_id, waiver_rule,
+    - { record_id, kind, candidate_id?, stage, reason, check_ref?, evidence_refs }
+  checks:
+    - { check_id, category, criterion, result, authority_id, waiver_rule,
         evidence_refs, disposition, notes? }
   decision_rights:
     - { action, holder_id, holder_type, scope, conditions }
@@ -230,7 +230,7 @@ rejection-check IDs exist. These checks establish structural consistency and
 reference integrity. They do not decide whether the linked evidence supports the
 statement.
 
-The machine schema retains the key `gates` for compatibility. Here it means only
+The machine schema uses the key `checks` to denote
 a predeclared pass/fail check; it never means a design change, workflow stage,
 reviewer, or general quality goal. Every entry has a typed category, a decidable
 criterion, result, authority, waiver rule, evidence links, and outcome. Free
