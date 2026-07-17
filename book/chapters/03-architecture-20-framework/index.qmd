@@ -44,7 +44,7 @@ the one the architect intended.
 Architecture already manages complexity by making important relationships
 inspectable. Architects use models, simulators, workload characterizations,
 cost estimates, design rules, and reviews to reason about large design spaces
-[@HennessyPatterson2017QuantitativeApproach]. An AI system cannot reliably
+[@HennessyPatterson2017QuantitativeApproach]. The Architecture 2.0 framework formalizes this familiar work, describing conceptual dependencies and revision paths rather than a fixed pipeline. An AI system cannot reliably
 recover the assumptions connecting those artifacts from a prompt or scalar
 score. Model choice therefore comes after the architecture task and comparison
 are clear.
@@ -101,7 +101,7 @@ rather than disposable errors.
 
 These conditions differ by project. A compiler-schedule study may have many
 measurements but many invalid schedules. A chiplet study may have few examples,
-coupled interfaces, and expensive physical feedback. The architect must state
+coupled interfaces, and expensive physical feedback. Tacit context also constrains structural change; a seemingly valid accelerator offload may be unavailable because an unstated software or latency contract fixes where the operation must execute. The architect must state
 which information is available, which choices are legal, which measurements
 can be afforded, and which decision the evidence is meant to inform. Otherwise,
 an AI system can complete a coherent study that answers the wrong question.
@@ -184,22 +184,7 @@ each task with an environment, a human-written solution, and verification tests
 [@MerrillEtAl2026TerminalBench].
 :::
 
-The shared structure connects a task to working state, allowed actions, tool
-feedback, and review. Architecture needs that connection without pretending
-that the domains are the same. A software issue or terminal task can often end
-with tests of the final state. No single architecture test usually settles
-performance, power, physical feasibility, software support, and product risk.
-
-Architecture state is also spread across specifications, traces, simulator
-settings, compiler paths, RTL, physical-design reports, and earlier decisions.
-The relevant tools return feedback with different costs and fidelity, and
-reviewers must decide what can serve as evidence. Some decisions are also
-expensive to reverse. An AI-assisted architecture study therefore needs the
-explicit task, state, actions, tools, and checks seen in coding-agent
-evaluations, together with a bounded architectural claim, evidence at the right
-fidelity, and a named decision owner.
-@fig-structured-layer-above-rtl connects that recorded task and working state to
-the tool path, evidence, and the next decision.
+While architecture needs the same explicit connections seen in software-agent evaluations, the domains remain distinct. A software issue can often end with tests of the final state, whereas no single architecture test usually settles performance, power, physical feasibility, software support, and product risk. Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study also requires a bounded architectural claim, evidence at the right fidelity, and a named decision owner. @fig-structured-layer-above-rtl connects that recorded task and working state to the tool path, evidence, and the next decision.
 
 The terms inside the middle layer refer to different things. The bounded
 architecture study is the unit of work, and it may produce understanding,
@@ -207,7 +192,7 @@ artifacts, findings, or decisions. An artifact is an implementation or proposal
 produced by that work. The architectural claim is what another architect
 evaluates. When the work iterates, the process used to execute and analyze it is
 a design loop. The design-loop card introduced near the end provides an index
-into the underlying records.
+into the underlying records. @sec-data-representations-world-models through @sec-feedback-verification-trust explain how the represented state, tool paths, method roles, and evidence checks are built and challenged; this chapter establishes why the links among them must be visible.
 
 @fig-ontology-chain shows the parts inside the bounded study introduced in
 @fig-structured-layer-above-rtl. It traces that work from a scoped question to
@@ -262,8 +247,11 @@ The product intent is to improve mobile XR efficiency. It is not yet an
 architecture task. The next piece of work might characterize the workload,
 compare cache organizations, estimate memory traffic, or prepare a design-space
 report. An AI system given only the product intent cannot know which of these
-comparisons the architect needs or what decision should follow. Once the
-architect chooses the next task, that choice determines which information,
+comparisons the architect needs or what decision should follow.
+
+Broad intent is decomposed into linked and revisable architecture questions. For example, the architect might first ask whether data movement is the limiting mechanism and, if so, whether a cache intervention merits more detailed evaluation. The first question often must be answered before the cache comparison becomes decision-relevant. If characterization instead traces the bottleneck to execution units, a different diagnosis could select a compute-partitioning or compiler-optimization study. This dependency is a reasoned decomposition for this decision, not a universal phase order.
+
+Once the architect chooses the next task, that choice determines which information,
 tools, and evidence are needed, what can be measured, how costly an error would
 be, and how much freedom an AI method should have.
 
@@ -312,21 +300,16 @@ answer.
 ### The Architectural Claim Defines What Gets Reviewed
 
 In @fig-structured-layer-above-rtl and @fig-ontology-chain, the bounded scope
-leads to an architectural claim. Stating the claim lets architects distinguish
-an artifact from the statement they intend to test. Asking whether an AI system
+leads to an architectural claim. The bounded study is the container, while the claim is the statement under review. Asking whether an AI system
 can design hardware is too broad to guide an architecture review. A more useful
-claim says what the comparison is meant to show, where that statement would
-apply, and what evidence could support or challenge it. Architects rarely
-accept an artifact in isolation. They judge what it shows for a stated
-workload, baseline, design space, objectives, and constraints. The statement
-they evaluate is the architectural claim.
+claim connects a mechanism to an expected outcome within stated limits. Architects rarely
+accept an artifact in isolation; they evaluate the architectural claim.
 
 > **Architectural claim.** An architectural claim says what result the architect
 > expects from a proposed change, why that result should occur, and where it
-> should hold. It identifies the proposed mechanism, workload or scenario,
-> baseline, allowed design choices, objectives, constraints, and evidence.
-> Before evaluation, it also identifies the evidence that would count against
-> the claim. After evaluation, the architect updates it if needed to match what
+> should hold. It identifies the proposed mechanism, expected outcome, workload or scenario,
+> baseline, allowed alternatives, constraints, and the evidence that would count against it.
+> After evaluation, the architect updates it if needed to match what
 > the evidence supports and states what remains unestablished.
 
 In the lighthouse cache comparison, a claim might say that one cache
@@ -453,7 +436,7 @@ including the datasets, abstractions, and validation they require.
 ### Tool Actions and Observations
 
 Representing the relevant information is not enough. Tool interfaces must make
-the permitted actions and returned observations clear. For the cache study, an
+the permitted actions and returned observations clear. A model prediction estimates a consequence, while a tool observation records what a declared execution returned. For the cache study, an
 interface might allow changes to cache capacity, associativity, and replacement
 policy, then return cycles, misses, estimated power, run time, provenance, and
 failure messages. Unsupported values should fail explicitly rather than enter
@@ -504,9 +487,9 @@ cache configuration, the allowed changes, and the named XRBench traces. An AI
 method proposes a legal configuration, and the simulator measures its
 performance. The power model may then show that the candidate exceeds the 3\ W
 envelope. If so, an automated check may remove it from consideration under the
-recorded rejection rule. If it survives, the architect records the result and
+recorded rejection rule. If it survives, interpretation or diagnosis connects the observation, such as a miss pattern or power increase, to the proposed mechanism. The architect records the result and
 decides whether another configuration is worth trying or whether the evidence
-is ready for review.
+is ready for review. Detailed representation and observation mechanics are covered in @sec-data-representations-world-models and @sec-architecture-environments-tool-interfaces.
 
 @fig-design-loop expands the execution-and-analysis box into one iteration. An
 architect or AI method reads the recorded state, makes an allowed change, and
@@ -590,7 +573,7 @@ next architectural step. Describing a system as autonomous does not specify
 what it is allowed to do. Authority belongs to particular actions; it does not
 come from the model's capability. Architects should assign separate decision
 rights instead of giving the system one overall level of automation
-(@tbl-decision-rights-matrix).
+(@tbl-decision-rights-matrix). This matrix provides the action-specific vocabulary needed to bound a study; @sec-feedback-verification-trust and @sec-what-architect-owns explain the detailed evidence and organizational accountability behind those assignments.
 
 | **Right** | **What it authorizes** | **Required record** |
 | --- | --- | --- |
@@ -628,11 +611,11 @@ stronger evidence and more independent challenge, a relationship developed in
 
 The scope, claim, represented state, tools, evidence, and authority assignments
 give a reader a practical way to inspect AI-assisted architecture work. Follow
-@fig-structured-layer-above-rtl in three passes. The first checks the intended
-comparison. The second checks what the architects and AI methods could see,
-change, and evaluate. The third asks what the evidence supports and what the
-decision owner may authorize next. These are reading passes, not fixed stages
-in the work.
+@fig-structured-layer-above-rtl in three reading passes, which are review actions rather than fixed stages in the work:
+
+- **Scope pass:** reconstruct the intended comparison.
+- **Execution pass:** inspect what could be seen, changed, run, and recorded.
+- **Judgment pass:** assess what the evidence supports and what action may follow.
 
 An early demonstration may not have every answer. It can still be useful, but
 its claim must remain narrow enough to match the information and evidence that
@@ -678,7 +661,7 @@ project or paper.
 
 Authors can fill in the card as the work proceeds. Readers can use it to locate
 missing information while the full evidence remains in linked artifacts. The
-card is an index, not the study record and not a score for architectural
+card is a static index of pointers into records, not the study record itself and not a score for architectural
 quality.
 
 In the public AlphaChip disagreement, the card would show which comparison and
@@ -711,15 +694,12 @@ reasoning. That can still be useful, but it does not by itself support an
 architectural claim.
 
 When the card omits the baseline, tool path, or supporting evidence, the author
-should supply the missing information or narrow the claim. A complete card can
-still describe an unsound design or unsupported claim, so completion does not
-establish quality, novelty, insight, or correctness.
-
-@sec-appendix-b-design-loop-card gives the full twelve-field card, review
+should supply the missing information or narrow the claim. @sec-appendix-b-design-loop-card gives the full twelve-field card, review
 rubric, and machine-checkable schema. Detailed evidence and replay packages
 remain linked artifacts rather than additional card fields. A validator can
-check that the required fields and links are present, but it cannot establish
-the quality of the architecture or its evidence.
+check that the required fields and links are present, but a complete card can
+still describe an unsound design or unsupported claim, so completion does not
+establish quality, novelty, insight, or correctness.
 
 ## Open Research Questions
 
@@ -736,17 +716,20 @@ evidence, decisions that reach beyond the evidence, or steps that cannot be
 examined. The design-loop card in @sec-appendix-b-design-loop-card provides one
 starting point rather than a settled minimum.
 
-2. **What workload and baseline information must architects preserve so
-reviewers can judge whether an AI-assisted result will hold elsewhere?**
+2. **What workload and baseline information must a bounded-study record preserve?**
 Likely records include input distributions, benchmark construction, excluded
 cases, holdout workloads, software versions, baseline assumptions, and
-provenance. It remains unclear which combination exposes a conclusion that
-fails on unseen workloads, under a changed baseline, or with higher-fidelity
-feedback. AI methods and reviewers need enough information to distinguish a
-useful architectural relationship from a result that holds only for one
-evaluation setup.
+provenance. The open question is which of these details must remain in the
+record so another architect can determine what the study did
+and did not establish, without requiring them to infer missing context.
 
-3. **What should architects keep about alternatives rejected during
+3. **How should broad intent be decomposed into bounded studies?**
+Architects and AI methods must break broad product goals into linked, revisable
+architecture questions. It remains an open question how to decompose these
+studies without prematurely freezing the design or hiding dependencies among
+them.
+
+4. **What should architects keep about alternatives rejected during
 AI-assisted work?**
 Rejected candidates show which parts of the design space were considered and
 why they failed. A shared record might include invalid actions, failed timing
@@ -755,7 +738,7 @@ review. The unresolved question is how much negative evidence another
 architect needs to determine which parts of the design space were actually
 explored without retaining every intermediate artifact.
 
-4. **What can reviewers catch before an AI method starts using expensive
+5. **What can reviewers catch before an AI method starts using expensive
 tools?**
 A reviewer or static checker can notice a missing baseline, invalid action
 space, weak evidence rule, or planned next decision that the proposed checks
@@ -766,8 +749,8 @@ judgment.
 
 ## Conclusion
 
-AI can participate in a bounded architecture study when four connections remain
-visible. Intent must become a specific comparison, the comparison must become
+AI can participate in a bounded architecture study when the connections across the work remain
+visible. Intent must be decomposed into a specific comparison, the comparison must become
 an executable loop, tool results must remain connected to review of a stated
 claim, and claim-relevant reviewed observations must lead to a decision with
 assigned authority. The architect
@@ -800,5 +783,5 @@ the comparison was the right one or that the evidence supports the decision.
 - **Reader test:** Can you identify the architecture question, AI role,
   alternatives, experiments and tools, claim, results that challenge it,
   explanation, and next decision?
-- **Up next:** @sec-data-representations-world-models asks what must be represented about a design, a proposed change, and its consequences so an AI method can act and another architect can trace the result.
+- **Up next:** @sec-data-representations-world-models answers how an AI-assisted architecture study obtains, represents, updates, and validates the architectural knowledge and predicted consequences that the design loop assumes.
 :::
