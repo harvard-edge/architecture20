@@ -39,7 +39,7 @@ These objectives guide the architect in transitioning from merely running tools 
 
 Architecture studies need a typed epistemic path. Feedback says that something returned. A tool observation records what the declared path actually produced. Evidence connects that observation to a bounded claim. A review result judges the claim. A knowledge-update decision selects what, if anything, should change in project memory or a model. An architecture decision selects the next design action. These stages can stop, branch, or disagree.
 
-Three nonautomatic transitions keep these stages distinct, preventing raw data from bypassing the review process.
+Three nonautomatic transitions keep these stages distinct, preventing raw data from bypassing the review process. In control theory terms, bypassing the review step is feeding raw sensor noise directly into the steering actuator. You must update your internal model of the world (state estimation) before applying a design change (actuation), avoiding oscillatory instability.
 First, a tool return does not automatically become a valid architecture observation, as a broken environment, malformed request, timeout, license failure, or unsupported action may report only the state of the tool path.
 Second, a valid observation does not automatically become evidence for the claim unless it is strictly relevant to the property, comparison, state, and scope.
 Third, evidence and a review result do not automatically become either training data or an architecture decision without explicit human authorization.
@@ -110,13 +110,7 @@ These are not synonyms. A deterministic proxy can be invalid. A calibrated proxy
 
 AI will actively exploit the gap between Proxies vs. Ground Truth Oracles. When an AI optimizes a surrogate metric without physical checks, it invariably engages in Reward Hacking, finding pathological shortcuts to maximize a score without solving the actual architectural task. Architecture 2.0 must treat every architectural proxy as an adversarial attack surface.
 
-::: {.callout-field-note title="Specification Gaming and Reward Hacking"}
-**Observation:** In AI safety and reinforcement learning, AI agents famously learn to "game" the proxy reward without completing the actual task.
-
-**Context:** AI accelerates the generation of plausible but invalid designs because it aggressively optimizes proxy metrics (estimated IPC) that inevitably diverge from physical ground truth (timing closure, security).
-
-**Lesson:** Simulator inaccuracies aren't just random noise—they are an adversarial attack surface that the AI will actively exploit through Reward Hacking.
-:::
+In AI safety and reinforcement learning, this phenomenon is widely recognized as specification gaming, where AI agents famously learn to "game" the proxy reward without completing the actual task. AI proxy gaming isn't just an adversarial bug. The Lucas Critique explains that historical correlations (fast IPC vs physical closure) break down when an agent adapts to exploit them. The proxy evaporates under autonomous optimization pressure. Because AI accelerates the generation of plausible but invalid designs by aggressively optimizing proxy metrics (such as estimated IPC) that inevitably diverge from physical ground truth (like timing closure or security), simulator inaccuracies aren't just random noise. Instead, they form an adversarial attack surface that the AI will actively exploit through reward hacking.
 
 @tbl-proxy-diagnostics pairs these concerns with diagnostic checks.
 
@@ -139,13 +133,7 @@ Has the architect stated when a candidate falls outside the range where the gene
 
 This checkpoint ensures that predictive models or fast proxies are not trusted blindly when design parameters move into uncharted territory. Relying on an uncalibrated proxy can lead to catastrophic late-stage failures when the physical implementation diverges from the prediction.
 
-::: {.callout-field-note title="Surrogate Endpoints vs. Clinical Outcomes (FDA BEST Framework)"}
-**Observation:** In clinical medicine and FDA regulatory science, fixing a surrogate biomarker (like blood pressure) doesn't necessarily save the patient.
-
-**Context:** The FDA legally separates surrogate proxies from clinical outcomes, demanding independent proof that the surrogate actually predicts the clinical result.
-
-**Lesson:** An AI winning a simulator proxy-metric never constitutes true architectural evidence without an independent, physical audit. We must maintain a strict boundary between Proxies vs. Ground Truth Oracles to avoid Out-of-Distribution failures.
-:::
+A useful parallel can be drawn from clinical medicine and FDA regulatory science, where fixing a surrogate biomarker (like blood pressure) doesn't necessarily save the patient. The FDA legally separates surrogate proxies from clinical outcomes, demanding independent proof that the surrogate actually predicts the clinical result. Similarly, an AI winning a simulator proxy metric never constitutes true architectural evidence without an independent, physical audit. Architects must maintain a strict boundary between proxies and ground truth oracles to avoid out-of-distribution failures.
 
 Nondeterministic observations require careful interpretation relative to the decision margin. Recording a seed is not enough. The review question is whether the observed variation—whether a stochastic tool measurement, an unstable ranking across workloads, or a flaky execution path—is small enough, and sampled appropriately enough, to support the declared margin and ordering.
 
@@ -155,15 +143,9 @@ Diagnostics are useful only when a purportedly stronger check observes the missi
 
 A useful check must first observe the relevant property. It then adds stronger challenge when it does not share the producer's critical model, training data, objective, workload, implementation, tool path, or architectural assumption. Separate prompts, agent names, or reports do not create independence. Correlated checks can still find defects, but agreement among them should be described as corroboration, not independent validation.
 
-::: {.callout-field-note title="What Spectre's Missing Check Exposed"}
-**Observation:** Functional correctness does not establish security. In 2018, side channels were shown to leak across privilege boundaries through speculation and shared microarchitectural state [@KocherEtAl2019Spectre].
+The importance of observing the relevant property is starkly illustrated by the Spectre vulnerability, which exposed that functional correctness does not establish security. In 2018, side channels were shown to leak across privilege boundaries through speculation and shared microarchitectural state [@KocherEtAl2019Spectre]. Ordinary functional checks did not catch this vulnerability because the performance objective measured instructions per cycle (IPC) and omitted information flow or timing channels. Ultimately, a check cannot reject a property it does not observe, demonstrating why public claims require independent physical and security checks. Passing a suite of performance tests provides zero evidence for security properties, leaving architectural flaws invisible if the evidence is structurally blind to them.
 
-**Context:** Ordinary functional checks did not catch this vulnerability because the performance objective measured instructions per cycle (IPC) and omitted information flow or timing channels.
-
-**Lesson:** A check cannot reject a property it does not observe, demonstrating why public claims require independent physical and security checks. Passing a suite of performance tests provides zero evidence for security properties, leaving architectural flaws invisible if the evidence is structurally blind to them.
-:::
-
-Drawing a core nexus between medicine and safety engineering, a single diagnostic test is insufficient for critical decisions. In medicine, clinical trials rely on independent phases and rigorous verification to prevent catastrophic Out-of-Distribution failures. In safety engineering, Knight and Leveson's multiversion-programming experiment demonstrated that independently developed program versions failed on correlated inputs far more often than an independence assumption predicted [@KnightLeveson1986Multiversion]. AI proposals require independent, out-of-distribution checks because AI is heavily prone to Reward Hacking—optimizing the surrogate proxy instead of the underlying physics. When a generator, critic, verifier, and summarizer share a foundation model or training objective, their agreeing outputs may merely share one correlated error. Therefore, a consensus among correlated checkers is not an independent rejection path; architecture verification must demand strict, independent Ground Truth Oracles.
+Drawing a core nexus between medicine and safety engineering, a single diagnostic test is insufficient for critical decisions. In medicine, clinical trials rely on independent phases and rigorous verification to prevent catastrophic Out-of-Distribution failures. In safety engineering, Knight and Leveson's multiversion-programming experiment demonstrated that independently developed program versions failed on correlated inputs far more often than an independence assumption predicted [@KnightLeveson1986Multiversion]. AI proposals require independent, out-of-distribution checks because AI is heavily prone to Reward Hacking—optimizing the surrogate proxy instead of the underlying physics. When a generator, critic, verifier, and summarizer share a foundation model or training objective, their agreeing outputs may merely share one correlated error. Using an AI to check an AI is flawed. In biology, DNA proofreaders don't just re-read base pairs; they detect structural distortions in the backbone (an orthogonal physical property). True independence requires a modality shift (e.g., semantic code checked by a formal SAT solver). Therefore, a consensus among correlated checkers is not an independent rejection path; architecture verification must demand strict, independent Ground Truth Oracles.
 
 @tbl-independence-check separates check independence from the property observed.
 
@@ -183,13 +165,7 @@ A technically appropriate independent check may rely on workloads, flows, or res
 
 Internal protected evidence may support an internal decision when an authorized reviewer can inspect it. A public claim must remain within what the public record or a credible protected audit can establish. Missing public information is not proof that internal evidence did not exist, while a production report is not an independently replayable comparison.
 
-::: {.callout-field-note title="A Proxy Under Dispute: The AlphaChip Case"}
-**Observation:** The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on reported metrics, later noting its contribution to TPU generations [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip].
-
-**Context:** Independent assessments questioned proxy correlation, baselines, and reproducibility, prompting the authors to reply that the assessments did not reproduce the proprietary pretraining and production setup [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment; @GoldieEtAl2024ThatChipHasSailed]. This illustrates the tension between protected industrial data and public scientific claims when the exact environment cannot be independently reproduced.
-
-**Lesson:** Public claims require independent physical and security checks because unmatched evaluations cannot be forced into a single, retroactive shared experiment. Bounded claims are supportable within a specific setup, but external observers cannot formally validate internal evidence without access to the same physical ground truth.
-:::
+This tension between protected industrial data and public scientific claims is well illustrated by the AlphaChip case. The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on reported metrics, later noting its contribution to TPU generations [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip]. When independent assessments questioned proxy correlation, baselines, and reproducibility, the authors replied that these external evaluations did not reproduce the proprietary pretraining and production setup [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment; @GoldieEtAl2024ThatChipHasSailed]. This dispute highlights that public claims require independent physical and security checks because unmatched evaluations cannot be forced into a single, retroactive shared experiment. While bounded claims are supportable within a specific setup, external observers cannot formally validate internal evidence without access to the same physical ground truth.
 
 @tbl-alphachip-evidence-comparison separates what each public record contributes from what it cannot establish.
 
