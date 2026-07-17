@@ -398,7 +398,7 @@ still needs the constraints, permitted changes, and evaluation budget to judge
 whether the survivors are valid and worth deeper analysis. A hardware ranking
 also remains provisional until the software can use the design.
 
-Because AI can generate a vast number of candidate designs, the true bottleneck becomes the finite capacity of high-fidelity simulators and human experts required to verify them. To close this gap, AI can act as an intelligent filter that yields massive throughput gains by triaging expensive evaluations. In software engineering, for example, running every continuous integration test on every commit bankrupts infrastructure; instead, systems can predict which tests are likely to fail and skip the rest [@MachalicaEtAl2019PredictiveTestSelection]. Neural architecture search applies a similar principle: Hyperband treats evaluation strictly as a budget-allocation problem, aggressively culling weak candidates using cheap proxies and saving expensive evaluations only for the survivors [@LiEtAl2018Hyperband]. By adopting this approach, architects can optimally allocate their cycle-accurate simulation budgets to evaluate an otherwise unmanageable search space.
+Because AI can generate a vast number of candidate designs, the true bottleneck becomes the finite capacity of high-fidelity simulators and human experts required to verify them. To close this gap, AI can act as more than just a simple filter. Drawing on the economic principle of the *Value of Information*, AI can dynamically route candidates between fast proxies and cycle-accurate simulators, only spending expensive compute if the result is likely to change the architect's final decision. In software engineering, for example, running every continuous integration test on every commit bankrupts infrastructure; instead, systems can predict which tests are likely to fail and skip the rest [@MachalicaEtAl2019PredictiveTestSelection]. Neural architecture search applies a similar principle: Hyperband treats evaluation strictly as a budget-allocation problem, aggressively culling weak candidates using cheap proxies and saving expensive evaluations only for the survivors [@LiEtAl2018Hyperband]. By adopting this approach, architects can optimally allocate their cycle-accurate simulation budgets to evaluate an otherwise unmanageable search space based on the value of the information gained.
 
 ## Hardware Proposals Include an Executable Software Path
 
@@ -459,11 +459,9 @@ architect must explain how code reaches the mechanism, which application binary
 interface (ABI), memory-model, and toolchain assumptions it preserves, and which
 tests would catch unsupported semantics.
 
-The ISA defines the software contract. Compiler and runtime integration,
-generated code, and executable tests provide the evidence that software can use
-the proposed subsystem as claimed.
+The ISA defines the static software contract, but modern software stacks move fast. In distributed systems, teams manage rapid changes using "Consumer-Driven Contracts"—executable expectations published by the consumer. Similarly, AI workloads should publish living, executable contracts that hardware models must test against in a CI/CD environment. Compiler and runtime integration, generated code, and executable tests provide the evidence that software can use the proposed subsystem as claimed under these dynamic conditions.
 
-Recognizing the ISA as a comprehensive software contract forces the design loop to evaluate hardware and software dependencies concurrently rather than in isolation.
+Recognizing this living software contract forces the design loop to evaluate hardware and software dependencies concurrently rather than in isolation.
 :::
 
 For the mobile XR subsystem comparison, a proposed accelerator interface and its compiler
@@ -593,6 +591,8 @@ needed to resolve that uncertainty may also arrive late or cost too much to run
 on every candidate. Architecture connects system intent and hardware
 mechanisms to these physical constraints. It does not replace the specialist
 EDA and implementation flows needed to verify them.
+
+Physical effects create tight, non-linear coupling between architectural choices—similar to *epistasis* in biology, where genes interact, or drug discovery, where early candidates fail late due to toxicity. Data movement and thermals are the "toxicity" of architecture. They must be shifted left in the evaluation cycle to avoid late-stage physical failure.
 
 Data-movement estimates, for example, can reverse an early ranking based on
 compute alone. Moving data through a memory hierarchy often costs far more
