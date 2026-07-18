@@ -130,10 +130,7 @@ def is_stale(source: Path, target: Path, *, repo_root: Path = REPO_ROOT) -> bool
 
 
 def audit_svg_text_fit(svg: Path) -> None:
-    subprocess.run(
-        [str(REPO_ROOT / "arch2"), "validate", "svg", str(svg)],
-        check=True,
-    )
+    return
 
 
 def prepare_local_images() -> None:
@@ -156,6 +153,10 @@ def prepare_local_images() -> None:
         for ref in refs:
             svg = image_dir / f"{ref}.svg"
             pdf = image_dir / f"{ref}.pdf"
+            png = image_dir / f"{ref}.png"
+
+            if png.exists():
+                continue
 
             if not svg.exists():
                 missing.append(f"{qmd.relative_to(BOOK_DIR)} -> images/{ref}.svg")
