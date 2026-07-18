@@ -55,7 +55,7 @@ After this chapter, you can define the core metrics required to evaluate an agen
 
 ## Lessons from Software Engineering Benchmarks
 
-To establish a baseline for how to benchmark agents, we can look to software engineering. The machine learning community has poured immense resources into evaluating code generation. Benchmarks like **HumanEval** measure whether a model can generate a single, functional Python snippet. More advanced frameworks like **SWE-bench** evaluate whether an agent can clone a real-world repository, parse a GitHub issue, and autonomously submit a patch that passes the project's hidden test suite.
+To establish a baseline for how to benchmark agents, we can look to software engineering. The machine learning community has poured immense resources into evaluating code generation. Benchmarks like **HumanEval** measure whether a model can generate a single, functional Python snippet. More advanced frameworks like **SWE-bench** [@JimenezEtAl2024SWEBench] evaluate whether an agent can clone a real-world repository, parse a GitHub issue, and autonomously submit a patch that passes the project's hidden test suite.
 
 What we learn from software benchmarks is the importance of *execution-based evaluation*. It is not enough to ask an LLM multiple-choice questions about Verilog syntax; the agent must physically execute the code in a sandbox. However, software benchmarks have a critical blind spot when imported into hardware design: they are almost entirely indifferent to **execution cost**.
 
@@ -79,7 +79,7 @@ If we cannot simply port SWE-bench into computer architecture, what exactly shou
 
 The following sections dissect each of these metrics, grounding them in the latent machine learning theories that make them necessary.
 
-## Pass-Rate and Bounds Adherence: Defeating Goodhart's Law
+## Defeating Reward Hacking with Bounds Adherence
 
 The most basic evaluation of an agent is its ability to produce a syntactically and semantically valid proposal. In an open-topology search, generative models will frequently propose illegal configurations. An agent might attempt to route a memory bus through a blocked macro, request an L2 cache size that violates the SRAM area budget, or output Verilog with syntax errors.
 
@@ -87,7 +87,7 @@ The most basic evaluation of an agent is its ability to produce a syntactically 
 
 **Why we measure it (Goodhart's Law & Reward Hacking):** In machine learning, Goodhart's Law states that when a measure becomes a target, it ceases to be a good measure. If we only reward an agent for maximizing IPC, the agent will learn to "reward hack." It will propose impossible chips—like a cache size larger than the die—because the analytical model mathematically predicts a massive IPC boost. Measuring bounds adherence proves the agent is actually engineering within physical reality, rather than exploiting the abstractions of the simulator.
 
-## Proxy Calibration: Evaluating Prediction
+## Proxy Calibration for Prediction
 
 Before an agent queries the slow simulator, it usually queries a fast surrogate model (a proxy) to predict the outcome. Evaluating the prediction role means measuring how much we can trust this proxy.
 
@@ -95,7 +95,7 @@ Before an agent queries the slow simulator, it usually queries a fast surrogate 
 
 **Why we measure it (The Proxy Mirage):** If a proxy model is poorly calibrated, the optimization algorithm will confidently navigate toward a "Proxy Mirage"—a region of the design space where the proxy predicts massive performance gains, but the actual simulator returns terrible results. Measuring calibration ensures that the agent's internal compass points toward true north, preventing the search algorithm from wasting time chasing ghosts.
 
-## Trajectory Efficiency and the Simulator Tax
+## Trajectory Efficiency and Simulation Costs
 
 An agent's true value is determined by its trajectory efficiency—how quickly it converges on an optimal design without wandering blindly.
 
@@ -103,7 +103,7 @@ An agent's true value is determined by its trajectory efficiency—how quickly i
 
 **Why we measure it (The Simulator Tax):** In AI alignment, researchers talk about the "alignment tax"—the compute overhead required to make a model safe. In computer architecture, there is a **Simulator Tax**. Every time an agent makes an unreasoned guess, it incurs a massive Simulator Tax. If Agent A finds a 5% performance improvement in 10 simulation cycles, and Agent B finds a 6% improvement but requires 1,000 simulation cycles, Agent A is vastly superior for practical deployment. Evals must penalize the Simulator Tax, heavily favoring agents that rely on reasoned, methodical exploration over brute-force generation.
 
-## Autonomous Recovery: Resolving Epistemic Uncertainty
+## Resolving Epistemic Uncertainty via Autonomous Recovery
 
 When an architecture environment returns an error—such as a setup time violation from OpenSTA or a routing congestion map—the agent must parse that complex output and adjust its next proposal.
 
@@ -121,13 +121,38 @@ Modern agents operate by calling tools—invoking a synthesis script, querying a
 
 **Why we measure it (The Credit Assignment Problem):** In reinforcement learning, the credit assignment problem asks: if an agent takes 1000 steps and achieves a massive reward at the end, which specific step was responsible for the success? If an AI designs a whole SoC and achieves a 10% speedup, was it the cache modification, the ALU change, or the interconnect routing? If the agent guesses blindly, neither the agent nor the human architect can assign credit to the correct mechanism. By measuring how precisely an agent invokes telemetry tools (e.g., explicitly querying the critical path using STA before modifying the ALU), we prove that the agent knows *why* a design works. It solves the credit assignment problem in real-time, making its architectural choices explainable and defensible.
 
-## Context Retention and Long-Horizon Planning
+## Context Retention for Long-Horizon Planning
 
 Hardware design is not a single-turn chat prompt; it is a multi-week, stateful project. An agent might learn a crucial insight about the memory subsystem's latency limits on Day 1, which it must remember and apply when fixing a pipeline deadlock on Day 14.
 
 **What to measure:** Long-horizon benchmarks must explicitly inject a constraint early in the context window (e.g., "Do not exceed a 10mW power limit on the ALU") and track whether the agent violates that constraint dozens of simulation turns later. This is the architectural equivalent of the "Needle-In-A-Haystack" evaluation.
 
 **Why we measure it:** As context windows grow to millions of tokens, models often suffer from amnesia, where they forget earlier instructions or silently drop constraints as the log history expands. Measuring long-horizon contextual awareness ensures the agent can manage complex engineering projects. The Artificial Analysis Briefcase explicitly tests this by grading deliverables that rely on context established weeks prior in the simulation; computer architecture benchmarks must do exactly the same for deep RTL state.
+
+## The Jevons Paradox of Agentic Tool Use
+
+As we evaluate these agents, we must confront a fundamental trade-off in computational complexity: the cost of the agent's inference versus the cost of the environment's simulation.
+
+Training a foundational architecture model (e.g., NVIDIA's ChipNeMo [@LiuEtAl2023ChipNeMo]) requires a massive, one-time Non-Recurring Engineering (NRE) cost. However, *running* that model as an autonomous agent inside a design loop incurs a recurring inference cost. In traditional EDA, the simulator was the undisputed computational bottleneck. But as agents scale to hundreds of billions of parameters, the $O(N^2)$ complexity of transformer inference begins to aggressively compete with the simulator's cost.
+
+This introduces a phenomenon akin to the Jevons Paradox. The Jevons Paradox states that as technological efficiency increases, resource consumption increases due to rising demand. In Architecture 2.0, as simulation tools become faster and more accessible via clean APIs, the agent simply queries them *more often*.
+
+Furthermore, there is a strict inverse relationship between an agent's intrinsic capability and its reliance on external tools. A highly capable agent can reason causally and only queries the simulator to verify its final answer. A weak agent relies entirely on the simulator, querying it thousands of times to find a working configuration through stochastic trial and error.
+
+```{mermaid}
+%%| label: fig-jevons-paradox
+%%| fig-cap: "The inverse relationship between intrinsic agent capability and required tool reliance. Weak agents compensate for poor reasoning by burning exorbitant environment compute."
+graph LR
+    subgraph "The Evaluation Trade-off"
+    direction LR
+    Agent[Intrinsic Reasoning] -.->|Inverse Relationship| Tool[Simulator / Tool Reliance]
+
+    HighReason[Strong Agent] ==>|Low Simulator Tax| LowCompute[Fewer Env Interactions]
+    LowReason[Weak Agent] ==>|High Simulator Tax| HighCompute[Stochastic Brute-Force]
+    end
+```
+
+When benchmarking agents, we must measure this total computational complexity. A benchmark that ignores the inference cost of the agent or the simulation cost of the environment fails to capture the true economics of the Agentic Design Space Exploration loop.
 
 ## Conclusion and Carry Forward {#sec-conclusion-and-carry-forward}
 
