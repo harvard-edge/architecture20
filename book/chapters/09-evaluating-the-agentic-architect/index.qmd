@@ -63,18 +63,19 @@ In SWE-bench, if an agent runs `pytest` 500 times in a row, iterating through br
 
 ## The Core Agentic Metrics
 
-If we cannot simply port SWE-bench into computer architecture, what exactly should we measure? Evaluating the process of design requires tracking a specific set of agentic metrics across the duration of the design loop.
+If we cannot simply port SWE-bench into computer architecture, what exactly should we measure? Evaluating the process of design requires tracking metrics across the three core AI roles introduced in @sec-methods-generation-prediction-optimization: **Generation** (creating the design), **Prediction** (estimating its value), and **Optimization** (searching the space).
 
-@tbl-agent-metrics provides the framework for what must be measured, how to measure it, and the underlying failure modes each metric is designed to expose.
+@tbl-agent-metrics provides the framework for what must be measured, which AI role it evaluates, and the underlying failure modes each metric is designed to expose.
 
-| **Metric** | **What it Measures** | **Why we Measure it** |
-| --- | --- | --- |
-| **Pass-Rate ($Pass@K$)** | The percentage of proposals that compile and meet physical constraints without errors. | Defeats Goodhart's Law; prevents the agent from reward hacking the simulator with illegal topologies. |
-| **Trajectory Efficiency (AUC)** | The ratio of environment interactions (compute time) to the quality of the final reward. | Exposes the Simulator Tax; proves the agent is reasoning causally rather than acting as a stochastic monkey. |
-| **Self-Correction Rate (SCR)** | The probability that an agent successfully resolves a failing error log on its next attempt. | Evaluates how well the agent resolves epistemic uncertainty and parses complex, multi-modal feedback. |
-| **Context Retention Length** | The maximum number of conversational turns the agent can endure before forgetting the original constraints. | Exposes the Credit Assignment problem; tests if the agent remembers *why* it made a change 10 steps ago. |
+| **Metric** | **AI Role** | **What it Measures** | **Why we Measure it** |
+| --- | --- | --- | --- |
+| **Pass-Rate ($Pass@K$)** | Generation | The percentage of proposals that compile without errors. | Defeats Goodhart's Law; prevents reward hacking with illegal topologies. |
+| **Proxy Calibration** | Prediction | The correlation between the fast analytical proxy and the slow ground-truth simulator. | Exposes the "Proxy Mirage"; ensures the agent's internal compass points true north. |
+| **Trajectory Efficiency (AUC)** | Optimization | The ratio of environment interactions to the quality of the final reward. | Exposes the Simulator Tax; proves the search algorithm is methodical rather than stochastic. |
+| **Self-Correction (SCR)** | Generation & Optimization | The probability that an agent successfully resolves a failing error log on its next attempt. | Evaluates how well the agent resolves epistemic uncertainty. |
+| **Context Retention Length** | Generation | The maximum number of conversational turns the agent can endure before forgetting constraints. | Exposes the Credit Assignment problem; tests if the agent remembers *why* it made a change. |
 
-: **Core Metrics for Evaluating the Agentic Architect.** A rigorous evaluation must track all four of these dimensions to prove an agent is capable of reliable exploration. {#tbl-agent-metrics tbl-colwidths="[25,35,40]"}
+: **Core Metrics for Evaluating the Agentic Architect.** A rigorous evaluation must map its metrics to the distinct roles of generation, prediction, and optimization. {#tbl-agent-metrics tbl-colwidths="[20,15,30,35]"}
 
 The following sections dissect each of these metrics, grounding them in the latent machine learning theories that make them necessary.
 
@@ -85,6 +86,14 @@ The most basic evaluation of an agent is its ability to produce a syntactically 
 **What to measure:** The zero-shot pass rate (success on the first try) versus the $k$-shot pass rate. In software, $Pass@K$ is calculated by sampling $c$ candidates to see if at least one passes. In architecture, a "pass" means the output successfully clears the first layer of validation (e.g., passing a Pydantic JSON schema check or compiling without errors under `verilator --lint-only`).
 
 **Why we measure it (Goodhart's Law & Reward Hacking):** In machine learning, Goodhart's Law states that when a measure becomes a target, it ceases to be a good measure. If we only reward an agent for maximizing IPC, the agent will learn to "reward hack." It will propose impossible chips—like a cache size larger than the die—because the analytical model mathematically predicts a massive IPC boost. Measuring bounds adherence proves the agent is actually engineering within physical reality, rather than exploiting the abstractions of the simulator.
+
+## Proxy Calibration: Evaluating Prediction
+
+Before an agent queries the slow simulator, it usually queries a fast surrogate model (a proxy) to predict the outcome. Evaluating the prediction role means measuring how much we can trust this proxy.
+
+**What to measure:** The Proxy Calibration Margin. This is the statistical correlation (e.g., Pearson or Spearman rank correlation) between the surrogate model's predicted reward and the ground-truth simulator's actual reward across a wide distribution of design points.
+
+**Why we measure it (The Proxy Mirage):** If a proxy model is poorly calibrated, the optimization algorithm will confidently navigate toward a "Proxy Mirage"—a region of the design space where the proxy predicts massive performance gains, but the actual simulator returns terrible results. Measuring calibration ensures that the agent's internal compass points toward true north, preventing the search algorithm from wasting time chasing ghosts.
 
 ## Trajectory Efficiency and the Simulator Tax
 
