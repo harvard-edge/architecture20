@@ -36,7 +36,7 @@ result. Current model rankings will age, while the distinction among missing
 alternatives, expensive evaluation, poor experiment selection, weak review,
 malformed artifacts, and disconnected tool work remains useful. A rigorous architecture study relies on Bayesian optimization for scarce sampling, reinforcement learning for sequential state manipulation, conformal prediction for uncertainty bounds, and deterministic formal solvers.
 
-To navigate this heterogeneous toolkit, we must draw a strict line: **A role is the *job description*; the method is the *candidate* we apply to the job.** While roles are conceptually fixed, the methods we select to fulfill them vary wildly based on the modality and physics of the task.
+To make sense of these options, we must draw a strict line: **A role is the *job description*; the method is the *tool* we hire for the job.** While roles stay the same, the methods we use depend on the specific hardware or software problem.
 
 Eight roles cover the work developed in this chapter. Generation proposes
 candidates. Prediction estimates consequences. Optimization chooses what to
@@ -116,13 +116,13 @@ several. For
 example, a generator may propose array geometries, a predictor may rank them,
 and independent tool checks may reject illegal or incorrect candidates.
 
-## Comparing Method Roles: The Epistemological Hierarchy
+## Comparing Method Roles: Levels of Trust
 
-All of those outputs go through evidence review on the right. Before comparing the mechanics of these roles, we must establish their *epistemological hierarchy*. Treating all AI outputs as evidence is a fundamental error. If an architect treats a generated hypothesis as ground truth, the entire design loop collapses into an unverified state. These roles are not just components in a software stack; they represent different tiers of truth:
+All of those outputs go through evidence review on the right. Before comparing the mechanics of these roles, we must establish their *levels of trust*. Treating all AI outputs as evidence is a fundamental error. If an architect treats a generated guess as a final result, the entire design process breaks down. These roles are not just components in a software stack; they represent different levels of reliability:
 
-1. **Generative Roles (Hypotheses):** Generation and repair produce plausible artifacts. They hold zero authority and act merely as an automated brainstorming engine.
-2. **Predictive Roles (Heuristics):** Prediction and optimization produce probabilities. They are navigators guiding the search, not evidence.
-3. **Evaluative Roles (Evidence):** Verification and critique produce ground truth by checking artifacts against independent oracles (like a simulator). This is the only tier the architect can trust.
+1. **Generative Roles (Guesses):** Generation and repair produce plausible code or configurations. They hold no authority and act merely as brainstorming tools.
+2. **Predictive Roles (Estimates):** Prediction and optimization produce probabilities. They guide the search, but are not evidence.
+3. **Evaluative Roles (Evidence):** Verification and critique produce hard facts by checking artifacts against independent ground truth (like a cycle-accurate simulator). This is the only tier the architect can trust.
 
 With this hierarchy in mind, the reviewer records whether the claim is supported, unsupported, or needs a stronger
 check. The assigned decision owner then authorizes the next transition; a
@@ -202,7 +202,7 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
-The choice of generative method depends entirely on the modality of the artifact. For textual artifacts—like RTL, C++ models, or compiler scripts—Large Language Models (LLMs) are the natural candidates. However, when the artifact is spatial—such as macro placement, floorplanning, or layout generation—architects increasingly turn to **Diffusion Models**. While the underlying mathematics differ wildly, their epistemological status remains identical: both LLMs and diffusion models produce hypotheses, not evidence. Passing an unchecked RTL fragment or malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource, causing 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled Slurm queues. To isolate faults, generation must be paired with localized *rework stations*.
+The choice of generative method depends on the type of artifact. For text—like RTL, C++ models, or compiler scripts—Large Language Models (LLMs) are the obvious choice. However, when the artifact is spatial—such as macro placement or floorplanning—architects use **Diffusion Models**. While the math under the hood differs, their reliability is exactly the same: both produce guesses, not evidence. Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource, causing 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled compute clusters. To catch these errors early, generation must be paired with fast, local checks (like syntax parsers or linters).
 
 Returning to our Lighthouse prompt—*designing a low-power, 3W 64-bit RISC-V-based compute subsystem for an XR platform*—generation might propose three legal pipeline depths or L1 cache configurations, alongside a qualitative behavior, a failure mode, and a directional mechanism that can be tested. Schema and semantic checks act as these initial contracts to establish that the response is a legal proposal within the declared constraints (e.g., valid RISC-V instruction extensions and compatible power-domain definitions). They do not establish that the proposal is faster or that its mechanism is correct, but they ensure it will not crash the machinery downstream.
 
@@ -333,7 +333,7 @@ design spaces. Regression models for microarchitectural performance and power,
 and predictive models for architectural design-space exploration, are part of
 this lineage [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
 
-Unlike generative brainstorming, prediction requires calibratable surrogates. Here, the candidates diverge from sequence-to-sequence foundation models. To predict routing congestion or critical path delays from a netlist, **Graph Neural Networks (GNNs)** are increasingly the preferred candidate, as they natively capture the topological structure of the circuit. For power and thermal estimation, **Physics-Informed Neural Networks** can embed thermodynamic constraints directly into the loss function.
+Unlike generative brainstorming, prediction requires models that can be calibrated against real data. Large Language Models are poor fits here. Instead, to predict routing congestion or critical path delays from a netlist, **Graph Neural Networks (GNNs)** are a better choice because they map directly to the circuit's wiring. For power and thermal estimation, **Physics-Informed Neural Networks** can enforce basic thermodynamic rules so the model doesn't predict impossible cooling rates.
 
 A predictor can guide an architecture decision only when its support region,
 uncertainty, calibration source, escalation trigger, and decision owner are
@@ -495,7 +495,7 @@ observations from the region being pruned.
 
 Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics.
 
-To allocate this feedback budget efficiently, we use algorithms that formalize uncertainty and sequential decision-making. We apply **Bayesian Optimization** when cycle-accurate simulations are extremely expensive and we need sample-efficient search. We apply **Reinforcement Learning (RL)** when the problem is sequential, like ordering compiler passes or routing step-by-step. These methods act as our "Value of Information" engines—they do not generate the design, they decide *where* to search next.
+To spend our simulation budget efficiently, we use algorithms built to handle uncertainty. We apply **Bayesian Optimization** when cycle-accurate simulations are extremely expensive and we must find good designs with very few runs. We apply **Reinforcement Learning (RL)** when the problem involves a sequence of steps, like ordering compiler passes or routing wires. These methods are our resource managers—they do not invent the design, they decide *where* to spend the next simulation run.
 
 The useful outcome may be a Pareto region,[^fn-math-pareto-region] a constraint boundary, a sensitivity, a ruled-out class of candidates, or a decision about which expensive experiment to run next. Hardware design spaces are often discrete, non-differentiable, and highly constrained, so an optimizer must work with sparse feedback and reject illegal actions rather than assume a smooth search space.
 
@@ -719,11 +719,11 @@ AgentDSE's persistent workspace provides one example of inspectable coordination
 
 Choose components only after role outputs and checks are specified. A single large model, a team of specialized agents, or a hybrid system with conventional architecture tools are engineering choices rather than stages of maturity.
 
-Why not simply use one monolithic AI oracle for everything? The first reason is the **Separation of Powers**. If the exact same neural network generates the RTL, predicts its performance, and verifies its own logic, the system lacks an independent oracle. This does not produce a verified design; it produces a *correlated hallucination*. The generator and the verifier must share no assumptions.
+Why not simply use one giant AI model for everything? The first reason is the **Separation of Powers**. If the exact same neural network generates the RTL, predicts its performance, and verifies its own logic, the system lacks an independent check. This does not produce a verified design; it produces a *shared delusion*. The generator and the verifier cannot be the same model.
 
-The second reason lies in the strict physical constraints of the design flow. Silicon design faces a rigid funnel: finding a configuration that increases IPC is trivial compared to closing timing, preventing EMIR (Electromigration and IR Drop) violations, and meeting power density limits. A single monolithic model cannot manage all of these coupled, nonlinear physical constraints simultaneously without hallucinating or losing calibration. To survive the tapeout process, the system must separate concerns into heterogeneous, specialized tools.
+The second reason is physical reality. Silicon design is a rigid funnel: finding a configuration that increases IPC is easy compared to closing timing, preventing voltage drop (IR drop), and meeting power limits. A single model cannot juggle all of these physical constraints simultaneously without making things up. To successfully tape out a chip, the system must break the problem down into specialized, independent tools.
 
-The third reason is governed by **Critical Path Inference Latency**. The debate between "Big" models (hundreds of billions of parameters) versus "Small" models (highly distilled, task-specific networks) resolves perfectly across the epistemological hierarchy. Big models excel at outer-loop tasks—like generative brainstorming or explaining simulation anomalies—where queries are infrequent and high latency is tolerable. However, if an inner-loop optimizer needs to evaluate 10,000 architectural candidates to find a Pareto frontier, the inference latency of a massive foundation model becomes the bottleneck, destroying the value of the AI assistant. For tight, continuous feedback loops, small, fast-inference models (like distilled GNNs or light RL policies) are non-negotiable.
+The third reason is **inference speed**. The debate between massive models and small, focused models comes down to where they sit in the loop. Massive models are great for "outer-loop" tasks—like brainstorming ideas or explaining a weird simulation result—where you only ask them a question once an hour. But if an "inner-loop" optimizer needs to score 10,000 cache configurations to find the best tradeoffs, waiting seconds for a massive model to reply to each query will stall the whole search. For tight, high-volume loops, small, fast-executing models are required.
 
 Before comparing AI organizations, an architect should state the minimum non-AI backbone. Deterministic schemas and scripts enforce legal formats and routine routing. Compiler, simulator, synthesis, formal, equivalence, and measurement tools return the domain observations or property checks they are built to produce. A person owns unresolved intent, coupled architectural tradeoffs, permission changes, ambiguous failures, and decision preparation. The comparison in @tbl-method-organization is therefore about where a specialized model or search method adds value to this backbone, rather than replacing every component with a monolithic agent.
 
