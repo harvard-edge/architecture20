@@ -1,4 +1,4 @@
-# Why the Design Loop No Longer Scales {#sec-design-loop-no-longer-scales}
+# The Scaling Limits of Traditional Design {#sec-design-loop-no-longer-scales}
 
 ::: {.epigraph}
 > *"Feedback is the control of a system by reinserting into the system the results of its performance. If these results are merely used as numerical data for the criticism of the system and its regulation, we have the simple feedback of the control engineers."*
@@ -154,9 +154,11 @@ consistent at once.
 
 ### Modern Comparisons Need More Design State
 
-For decades, technology scaling improved established design styles with
-smaller, faster, cheaper, and more energy-efficient transistors. As Dennard
-scaling weakened, architects leaned harder on caches,
+For decades, computing progressed through the predictable "TAO" stack: Technology, Architecture, and Optimization. Device scaling provided the foundation, architecture supplied the organization, and compilers optimized the software. However, the end of Dennard scaling forced a transition to "TAOS" by adding an 'S': Specialization.
+
+![**TAO vs TAOS:** The shift from a top-down technology stack to one tightly constrained by physical limitations at the bottom.](images/ch2_tao_vs_taos.svg){#fig-tao-vs-taos width="100%" fig-alt="TAO vs TAOS Stack"}
+
+As Dennard scaling weakened, architects leaned harder on caches,
 speculation, vector units, multicore processors, accelerators,
 specialization, and system-level optimization. These choices recovered
 efficiency, but they also increased the amount of information needed to compare
@@ -282,7 +284,7 @@ counting workload versions, process corners, thermal constraints, or reliability
 cases. Checking each candidate at three fidelity levels would create
 `{python} f"{toy_candidate_evaluations:,}"` candidate--evaluation combinations,
 even before rejecting a single invalid design. Real projects can grow far larger
-or take far longer before silicon measurements are available.
+or take far longer before silicon measurements are available. To put this in perspective, a simple processor with just 300 latches has $2^{300}$ possible states—more than the estimated number of atoms in the observable universe. A modern processor has billions of state elements. This state space explosion is why we cannot simply brute-force search the architectural space.
 
 The count alone says little about how many candidates can be evaluated well
 enough to matter. If each surviving configuration needs an analytical model,
@@ -431,12 +433,7 @@ code-morphing software would let a simple core match x86
 determined whether the proposed hardware could be used as intended. Hardware proposals remain incomplete when architects cannot inspect and test the software
 path needed to use it.
 
-Because hardware and software must be explored together, AI can help with the
-work between them. A system could explore compiler schedules alongside hardware
-parameters, generate interface code, or identify an unsupported operation
-before the design reaches expensive evaluation. Separate AI methods might
-propose the hardware organization, compiler schedule, runtime configuration,
-and test plan.
+Because hardware and software must be explored together, AI can help with the work between them. In Architecture 1.0, HW/SW Co-Design was largely a human-driven negotiation between isolated teams, leading to compromised, lowest-common-denominator interfaces. In Architecture 2.0, **HW/SW Co-Design becomes a joint AI optimization space**. An AI system can simultaneously explore compiler schedules alongside hardware parameters, generating the intermediate representation (IR) and the hardware RTL concurrently to find global optima that human teams would miss. Separate AI methods might propose the hardware organization, compiler schedule, runtime configuration, and test plan, orchestrated by a central coordinator.
 
 Those contributions are useful only when the pieces agree. They must use the
 same ISA, memory model, data layout, and workload. A hardware optimizer can
@@ -477,6 +474,10 @@ the hardware. The software path can also change while the hardware is still
 being designed.
 
 ## Software Moves the Target Before and After Release {#sec-software-changes-faster-than-silicon}
+
+The sheer velocity of the software ecosystem is forcing a profound shift in hardware design cadence. Historically, chip design cycles spanned several years, but the rapid emergence of new AI models and software architectures has accelerated the need for faster silicon turnouts. For instance, NVIDIA's accelerated roadmap now aims for new architectures annually, and Apple Silicon pushes out consistent generation upgrades year over year (@fig-apple-silicon-cadence). This increasing pace of rapid design means traditional, slow design loops are a major liability for keeping up with software needs.
+
+![**The Accelerating Pace of Silicon Cadence:** Hardware cycles are shrinking, making traditional slow design loops a major liability. Both Apple and NVIDIA are increasingly pushing year-over-year architecture and platform turnouts.](images/ch2_apple_silicon_cadence.png){#fig-apple-silicon-cadence width="100%" fig-alt="Accelerating Pace of Apple Silicon and NVIDIA Releases timeline"}
 
 A hardware comparison can become outdated while the chip is still being designed.
 During a multiyear silicon program, AI models, precision formats, sparsity
@@ -529,7 +530,7 @@ architect should distinguish improvements made for the hardware from unrelated
 changes in the workload. The former can strengthen the case for an existing
 design, while the latter can make its original evidence stale.
 
-AI workloads provide an unusually visible example of changing scale. An
+AI workloads provide an unusually visible example of changing scale. Furthermore, the nature of the computation is shifting. Traditional CNNs (like ResNet) performed fixed, deterministic computation. Modern Generative AI (like LLMs) perform dynamic, iterative computation where memory access patterns change constantly due to growing KV-caches and variable sequence lengths. This shift from static to dynamic workloads demands adaptive hardware and software systems that can reconfigure on the fly. An
 analysis of Epoch AI's model database estimated roughly four- to fivefold
 annual growth in training compute for recent notable and frontier models
 through May 2024, with results that depend on model class, outliers, and the
@@ -833,14 +834,7 @@ the cause of any single project's difficulty, but it does show that checking a
 design has consumed a growing share of engineering capacity. A generated
 candidate that reaches this stage is no longer cheap.
 
-The 1994 Pentium FDIV flaw shows why early checks matter. The defect arose from
-five omitted entries in the lookup table used by the division algorithm
-[@Edelman1997PentiumDivision]. Intel later reported a \$475M pretax charge
-covering replacement and other associated costs [@Intel1995PentiumCharge]. The
-episode does not represent the cost of a typical defect. It shows how a small
-omission can become expensive after a design has shipped, when the available
-responses are replacement, support, and public remediation rather than a local
-revision.
+Hardware is fundamentally irrevocable: once silicon tapes out, bugs are permanent. The 1994 Pentium FDIV flaw shows why early checks matter. The defect arose from five omitted entries in the lookup table used by the division algorithm [@Edelman1997PentiumDivision]. Intel later reported a \$475M pretax charge covering replacement and other associated costs [@Intel1995PentiumCharge]. More recently, the Meltdown and Spectre vulnerabilities exposed deep architectural flaws in speculative execution that could not be fully patched in software without severe performance penalties. Similarly, AMD's Bulldozer microarchitecture made a heavy bet on integer core sharing that failed to deliver expected single-thread performance, requiring years and a completely new architecture (Zen) to recover. These episodes show how architectural flaws become permanent, expensive liabilities after a design has shipped, when the available responses are replacement, support, and public remediation rather than a local software revision.
 
 The Pentium charge reflects one escaped defect, but leading-edge development
 raises the cost of commitment even when no public recall occurs. A 2023 report
@@ -973,7 +967,7 @@ information that would reverse the result, or its available choices may exclude
 the design it needs.
 ![The Bottleneck Causal Loop: Missing information leads to invalid choices, which waste expensive evaluation cycles, which in turn overload human review, ultimately worsening the original lack of information.](images/F2-bottleneck-causal-loop.svg){#fig-bottleneck-causal-loop fig-alt="The Bottleneck Causal Loop: Missing information leads to invalid choices, which waste expensive evaluation cycles, which in turn overload human review, ultimately worsening the original lack of information."}
 
-The pressures form a causal chain rather than a catalog. Missing information
+The pressures form a causal chain rather than a catalog (@fig-bottleneck-causal-loop). Missing information
 comes from inconsistent or stale state. Unhelpful or invalid choices come from
 coupled specialization and missing software paths. Expensive evaluation comes
 from the stronger checks that may reverse early models. Overloaded review

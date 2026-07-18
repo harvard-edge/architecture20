@@ -180,7 +180,8 @@ plt.show()
 plt.close(fig)
 ```
 
-Specialization brought major advances, but it also multiplied the number of
+
+This specialization brought major advances, but it also multiplied the number of
 architectures, software interfaces, and physical constraints that designers
 must consider. The rise of machine learning accelerated this change. The
 authors of Project Brainwave described the resulting spread of GPUs, FPGAs,
@@ -197,13 +198,6 @@ dependencies grows, architects must coordinate more models, tools, and
 evidence before they can defend a choice. This pressure does not make AI
 necessary, but it explains why architects are exploring AI assistance.
 
-Hardware specialization tightly couples the stack. Optimizing one parameter (like dataflow) cascades into breaking constraints across siloed simulation tools (thermal, synthesis, compilation). This coupled constraint problem is not unique to architecture. In aerospace engineering, designing an aircraft requires balancing aerodynamics, structures, and acoustics [@Sobieski1998BLISS]. Instead of building a single monolithic simulator, aerospace multidisciplinary design optimization (MDO) orchestrates fast *surrogate models* for broad exploration, reserving expensive physics simulators for final verification. AI in computer architecture should similarly orchestrate existing tools rather than replace them.
-
-AI should act as an **architectural control plane**. Rather than just generating scripts, it must take declarative intent, measure actual state from simulators and EDA tools, and issue compensating actions—such as shrinking a cache to fix a thermal violation.
-
-Like drug discovery, finding a high-performance design is often easier than passing physical limits—what we might call **silicon ADMET**. Data movement, thermal limits, and routing form a physical funnel the AI must navigate concurrently. Furthermore, architecture faces a **sim-to-silicon gap**. The AI must seek resilient designs that survive physical variation and tool noise, rather than fragile peaks in a proxy score.
-
-![The "Silicon ADMET" Funnel: Drawing a parallel between the phased, rigorous filtering of drug discovery and the physical signoff funnel in computer architecture. Both disciplines must weed out high-scoring "decoys" early using increasingly expensive and faithful evaluations.](images/F1-silicon-admet-funnel.svg){#fig-silicon-admet-funnel fig-alt="The "Silicon ADMET" Funnel: Drawing a parallel between the phased, rigorous filtering of drug discovery and the physical signoff funnel in computer architecture. Both disciplines must weed out high-scoring "decoys" early using increasingly expensive and faithful evaluations."}
 
 AI is now being applied to the design process that produced those accelerators,
 including architectural design-space exploration and physical placement
@@ -296,14 +290,6 @@ whether the evidence supports a cache change.
 
 For generative and tool-using systems, it is clearer to describe each method by
 the architecture job it performs than by its model family.
-@fig-architecture-development-triad previews the three roles most often used to
-produce and select candidates. Generation proposes or edits architecture
-artifacts, prediction estimates behavior and risk, and optimization searches
-tradeoffs under constraints. Three supporting roles challenge and check that
-work. Critique exposes weak assumptions, repair corrects invalid artifacts, and
-verification tests whether a result passes the declared checks.
-
-![**Three method roles within one architecture study:** Generation proposes artifacts and candidates, prediction estimates behavior and risk, and optimization searches tradeoffs under constraints. The architect still needs evidence, a mechanism-level explanation, and judgment about the result.](images/F1b-architecture-development-triad){#fig-architecture-development-triad width="85%" fig-alt="Three-circle diagram showing generation, prediction, and optimization as interacting method jobs within a broader AI-assisted architecture study." fig-alt="**Three method roles within one architecture study:** Generation proposes artifacts and candidates, prediction estimates behavior and risk, and optimization searches tradeoffs under constraints. The architect still needs evidence, a mechanism-level explanation, and judgment about the result."}
 
 These jobs need not occur in a fixed order. Generation can expose a missing
 constraint. Prediction can show that the available evidence does not separate
@@ -544,6 +530,8 @@ rejected. The prompt deliberately leaves the accelerator microarchitecture,
 memory system, software integration, and evaluation tools open.
 
 Progress toward the moonshot will require more than isolated demonstrations.
+In software engineering, benchmarks like SWE-bench provide immediate, exact correctness checks via unit tests. Hardware benchmarking is fundamentally harder. Evaluation is delayed, physical limits are non-linear, and "correctness" requires passing through a gauntlet of siloed EDA tools.
+
 SPEC-style benchmarks made performance claims more comparable by specifying
 workloads, run rules, and reporting standards. Shared simulators such as gem5
 made architecture experiments easier to inspect across labs. FPGA-accelerated
@@ -745,6 +733,8 @@ said the method contributed to several TPU generations
 @GoogleDeepMind2024AlphaChip]. @sec-proxy-mismatch-metric-gaming-and-calibration
 examines the public disagreement about its comparisons and proxy evidence.
 
+
+
 While these tools succeed at their individual tasks, they also expose the integration problem required to complete a whole architecture study. To move from isolated tool successes to an end-to-end design loop, the architecture community must learn from adjacent fields. The ML and science communities accelerated their progress by adopting shared baselines, standardized datasets, and rigorous artifact evaluation. For example, ImageNet [@RussakovskyEtAl2015ImageNet] drove the deep learning revolution by providing a common benchmark, while CASP (Critical Assessment of Structure Prediction) [@MoultEtAl1995CASP] allowed AlphaFold's [@JumperEtAl2021AlphaFold] capabilities to be systematically measured against objective, community-held standards. Computer architecture requires the same shared evaluation protocols to move from isolated demonstrations to verifiable practice. Shared tasks, public datasets, and open evaluation protocols will be essential to combine narrow tool use into a robust, reviewable AI-assisted architecture practice.
 
 ## Open Problems in AI-Assisted Architecture
@@ -772,56 +762,21 @@ what evidence is adequate, interpret the mechanisms, and determine what may be
 automated. AI can change how much of the work is delegated without deciding by
 itself what the resulting evidence supports.
 
-## Open Research Questions
+## The Five Fundamental Challenges
 
 The Lighthouse prompt and the bounded systems discussed in this chapter leave
-five questions unresolved. Progress will require better representations, tool
+five fundamental challenges unresolved. Progress will require better representations, tool
 interfaces, methods, evidence, and decision practices.
 
-1. **When does AI-assisted design work become an architecture contribution?**
-An AI method may be novel without improving what architects can understand, build, compare, or decide. Another method may improve an architecture decision under hardware/software and physical constraints without introducing a novel AI technique. Reviewers must distinguish those cases. An architecture contribution can include improved formulation or decomposition, not only a candidate artifact. The work must advance an artifact, method, dataset, environment, finding, or decision that supports an architectural claim.
+1. **The Dataset Crisis:** Architecture lacks the massive, standardized open datasets (like ImageNet or The Pile) that fueled other ML revolutions. Proprietary RTL and closed-source tools limit what models can learn about physical truth.
 
-2. **How can we tell whether AI helped the architect understand the design?**
-A candidate score does not show whether AI exposed a missing cross-layer dependency,
-changed the next experiment, connected measurements to mechanisms, or
-recognized why an apparent improvement will not transfer. The hard part is
-distinguishing an explanation that changes what the architect understands or
-does next from a fluent summary written after the result is known. Useful assistance
-must reveal a mechanism or support a decision rather than repeat an expected
-explanation. This is Hamming's distinction between producing insight and
-producing more numbers.
+2. **The Algorithm Evolution Treadmill:** Workloads, especially GenAI, evolve faster than silicon can tape out. Static hardware designs risk obsolescence before they are manufactured. Adaptive systems are required to handle this treadmill.
 
-3. **What evidence is sufficient for an AI-assisted claim when complete reproduction is impossible?**
-Architecture results often depend on proprietary workloads, process design
-kits, training inputs, tool settings, or deployed systems that outside groups
-cannot inspect. Reviewers must decide which combination of public artifacts,
-matched baselines, sensitivity studies, independent checks, and limited-access
-review is enough to understand what AI contributed and how broadly the
-architectural claim applies. AlphaChip makes this problem concrete, but the
-same difficulty appears throughout industrial architecture research. Any
-answer must distinguish a credible deployment report, a reproducible public
-comparison, and a claim that remains unresolved.
+3. **The Tools Infrastructure Gap:** AI struggles with the brittle, heavily siloed EDA tools of Architecture 1.0. Modern ML orchestration demands unified, API-driven execution environments rather than manual shell scripts and Tcl files.
 
-4. **How can reviewers identify unsupported decisions in AI-assisted architecture work?**
-Architecture reviewers already know how to inspect artifacts, baselines, and
-quantitative tradeoffs. AI participation adds questions about the inputs and
-artifact versions available to a method, the actions it was allowed to take,
-the alternatives it rejected, and the decisions reserved for people. Reviewers
-need enough of this information to reconstruct why a candidate advanced or
-failed and how the work reached a decision. They do not need every internal
-model trace, and proprietary tools may make full inspection impossible. But the
-inputs, actions, results, and human judgments that affected the decision must
-still be available for review.
+4. **Reproducibility:** If AI-assisted architecture remains a collection of isolated demonstrations, architects will struggle to compare results. A common basis could include shared problem definitions, baselines, and records of rejected alternatives.
 
-5. **What should architects share so AI-assisted results can be compared and built on?**
-If AI-assisted architecture remains a collection of isolated demonstrations like the bounded systems discussed earlier,
-architects will struggle to compare results. A common basis could include
-shared problem definitions and case studies, workload and tool environments,
-baselines and experiment protocols, and records of rejected alternatives.
-Independent groups need enough of this infrastructure to compare methods
-fairly, learn from negative results, and build on a finding after the original
-demonstration. It should support those uses without forcing every architecture
-problem into one fixed benchmark.
+5. **Robustness and OOD Failures:** Surrogate models are only valid within their calibrated range. When AI optimization pushes a design into out-of-distribution (OOD) space, proxies break down silently. The system must know when to fall back to ground-truth physics simulations.
 
 ## Conclusion
 

@@ -1,4 +1,4 @@
-# Roles for AI in Architecture Work {#sec-methods-generation-prediction-optimization}
+# Methods for Generation, Prediction, and Optimization {#sec-methods-generation-prediction-optimization}
 
 ::: {.epigraph}
 > *"But they are useless. They can only give you answers."*
@@ -79,6 +79,23 @@ That means you can:
 :::
 
 ## Matching AI Roles to the Architecture Bottleneck
+
+Rather than monolithic agents, AI-assisted architecture relies on distinct, orchestratable roles (@tbl-ai-roles).
+
+| **Role** | **Function in the Architecture Loop** |
+| :--- | :--- |
+| **Generation** | Proposes or edits net-new architecture artifacts (e.g., RTL, layout, scripts). |
+| **Prediction** | Estimates behavior and risk quickly (e.g., surrogate models for power/timing). |
+| **Optimization** | Searches tradeoffs under constraints to decide what to evaluate next. |
+| **Critique** | Exposes weak assumptions or unsupported claims in a candidate or plan. |
+| **Repair** | Corrects invalid artifacts (e.g., fixing syntax errors in generated RTL). |
+| **Verification** | Tests whether a result passes the declared, ground-truth physical checks. |
+| **Explanation** | Traces a decision back to its architectural mechanism. |
+| **Coordination** | Orchestrates the other roles, managing tool invocation and state. |
+
+: **The 8 AI Roles in Architecture 2.0:** Complex tasks are decomposed into these specialized jobs. {#tbl-ai-roles}
+
+![**The 8 AI Roles in Architecture 2.0:** Generation proposes artifacts and candidates, prediction estimates behavior and risk, and optimization searches tradeoffs under constraints. The architect still needs evidence, a mechanism-level explanation, and judgment about the result.](images/ch6_ai_roles.svg){#fig-architecture-development-triad width="100%" fig-alt="The 8 AI Roles in Architecture 2.0 diagram"}
 
 Start with the architecture work that needs help. Design-space exploration,
 workload characterization, benchmark construction, code generation, RTL
@@ -482,8 +499,9 @@ plt.close(fig)
 Nothing in the surrogate's own report changes at the shift boundary in
 @fig-ch06-conformal-coverage. The band keeps its width and its nominal 90
 percent claim; only the observed points climbing out of it reveal that
-empirical coverage has collapsed. When observations begin to fall outside the
-interval, the architecture system should trigger **Active Learning**. It stops using the surrogate for that region, requests a high-fidelity evaluation (like a cycle-accurate simulation), and uses that new ground-truth observation to *retrain and update* the surrogate on the fly. Whether that new observation supports the architectural claim remains a separate question.
+empirical coverage has collapsed. When an optimizer pushes a surrogate into a novel design space, it is highly vulnerable to Out-of-Distribution (OOD) failures where the model confidently returns wildly inaccurate proxy scores. When observations begin to fall outside the interval, the architecture system should trigger **Active Learning**. It stops using the surrogate for that region, requests a high-fidelity evaluation (like a cycle-accurate simulation), and uses that new ground-truth observation to *retrain and update* the surrogate on the fly. Whether that new observation supports the architectural claim remains a separate question.
+
+When a surrogate predicts a performance win but the cycle-accurate golden simulator shows a regression, the architect must debug the boundary between the two. The solution is not for the architect to manually tune the surrogate's weights. Instead, the architect must systematically update the AI's constraints or feature representations. For example, if the surrogate missed a routing congestion bottleneck, the architect adds a physical-design constraint to the generator or explicitly includes a congestion metric in the surrogate's training features. By constraining the search space or expanding the proxy's input features based on the simulator's failure report, the system learns the physical boundary without requiring the architect to act as a machine learning engineer tweaking hyperparameters.
 
 The accelerator study keeps the same distinction. The model's qualitative
 prediction and mechanism help select a test, but neither counts as performance
@@ -494,6 +512,8 @@ obviously bad candidates, but that use still needs calibration and independent
 observations from the region being pruned.
 
 ## Optimization Chooses What to Evaluate Next
+
+![**Bayesian Optimization:** The surrogate mean predicts the objective, the uncertainty bands capture epistemic unknowns, and the acquisition function guides the tradeoff between exploration and exploitation.](images/ch6_bayesian_optimization.png){#fig-bayesian-optimization width="100%" fig-alt="1D BO plot showing surrogate mean, uncertainty bands, and acquisition function"}
 
 Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics.
 
@@ -522,7 +542,7 @@ To optimize the RISC-V XR subsystem, an architect might select a cheap heuristic
 
 The lesson is not that one named method wins. It is that method, budget, and tuning procedure form one comparison.
 
-Bayesian optimization was developed for sequential experiments on expensive black-box functions [@JonesSchonlauWelch1998EGO; @SnoekLarochelleAdams2012BayesianOptimization]. Its surrogate and acquisition rule balance exploration against exploitation and make uncertainty part of the choice of what to evaluate next. Recording the acquisition rule, score, and current uncertainty lets a reviewer see why the optimizer selected a candidate. The run record should also include evaluation fidelity, expected benefit, and the stopping condition.
+Bayesian optimization was developed for sequential experiments on expensive black-box functions [@JonesSchonlauWelch1998EGO; @SnoekLarochelleAdams2012BayesianOptimization]. Its surrogate and acquisition rule balance exploration against exploitation and make uncertainty part of the choice of what to evaluate next. Crucially, Bayesian Optimization explicitly models epistemic uncertainty (uncertainty due to a lack of data in a region) versus aleatoric uncertainty (inherent system noise). By targeting regions of high epistemic uncertainty, the optimizer systematically maps the unknown design space rather than getting stuck in a local minimum. Recording the acquisition rule, score, and current uncertainty lets a reviewer see why the optimizer selected a candidate. The run record should also include evaluation fidelity, expected benefit, and the stopping condition.
 
 One auditable acquisition rule is GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper Confidence Bound). The logged acquisition rule, not its abstract no-regret bound,[^fn-ml-no-regret] lets a reviewer examine why the optimizer selected a particular point [@SrinivasEtAl2010GPUCB].
 
@@ -556,7 +576,7 @@ If the run record cannot answer these questions, the optimizer may have improved
 
 Optimization makes the feedback budget visible because it chooses where the next evaluation goes. The same budget constrains every role. Simulator, synthesis, and hardware runs are scarce, while checking generated artifacts, calibrating predictors, reviewing critiques, and rerunning repairs also take time. Failed runs and expert rejections can be useful feedback records, but they are not interchangeable ML samples.
 
-Architecture often has a few high-fidelity runs, more medium-fidelity simulations, many cheap proxies, and hidden costs such as tool setup, debugging, license availability, and review. The useful method role changes with that budget. Architecture design spaces hold orders of magnitude more candidates than any real evaluation budget can reach. @fig-evidence-gap places representative candidate counts and affordable feedback counts on one logarithmic axis.
+Architecture often has a few high-fidelity runs, more medium-fidelity simulations, many cheap proxies, and hidden costs such as tool setup, debugging, license availability, and review. The useful method role changes with that budget. Architecture design spaces suffer from the state space explosion—a simple processor has more possible configurations than there are atoms in 10^3,700 universes. These spaces hold orders of magnitude more candidates than any real evaluation budget can ever reach. We must explicitly balance the compute cost of the AI against the compute cost of the simulator: running an LLM agent in a loop might be cheap, but if it hallucinates and triggers 1,000 invalid RTL synthesis runs, it will bankrupt the project's compute budget. @fig-evidence-gap places representative candidate counts and affordable feedback counts on one logarithmic axis.
 ```{python}
 #| label: fig-evidence-gap
 #| fig-cap: |
@@ -748,7 +768,7 @@ Before comparing AI organizations, an architect should state the minimum non-AI 
 
 : **Comparing AI organizations for architecture work.** A separate component earns its place through a concrete difference in training data, representation, tool access, feedback, latency, cost, permissions, failure containment, or an independently justified check. {#tbl-method-organization tbl-colwidths="[18,22,20,20,20]"}
 
-Do not celebrate a multi-agent arrangement for having more named participants. If none differs in data, representation, or permissions, the split may only convert local context into a coordination problem.
+Do not celebrate a multi-agent arrangement for having more named participants. If none differs in data, representation, or permissions, the split may only convert local context into a coordination problem. True multi-agent orchestration involves adversarial or specialized teams: a Generator agent that proposes RTL, a Critic agent that reviews the code against a specific standard, and a Verifier agent that compiles it. But if the Generator and Critic share the exact same underlying foundation model weights, the Critic is unlikely to catch the Generator's blind spots.
 
 Account for total cost when comparing organizations. Include inference, context construction, model calls, simulator or EDA time, tool licenses, expert review, synchronization, retries, and recovery. Account for latency on the critical path, not only parallel throughput. Record shared assumptions because several polished outputs can fail together if they inherit the same workload, metric, proxy, or retrieval error.
 

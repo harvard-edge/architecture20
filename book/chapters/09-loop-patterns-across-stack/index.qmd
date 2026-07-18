@@ -1,4 +1,4 @@
-# Feedback Loops at Different Timescales {#sec-loop-patterns-across-stack}
+# Loop Patterns Across the Stack {#sec-loop-patterns-across-stack}
 
 ::: {.epigraph}
 > *"There is no single development, in either technology or management technique, which by itself promises even one order of magnitude improvement in productivity, in reliability, in simplicity."*
@@ -122,7 +122,7 @@ AI optimizers often find "cheats": they post massive local throughput gains by d
 
 ### Specialization and Executable Software Paths
 
-A specialization claim needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
+Historically, computer architecture progressed through the TAO framework: Technology scaling, Architecture innovations, and Optimization. Today, the plateauing of technology scaling forces us into TAOS, where the 'S' stands for Specialization. However, a specialization claim needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
 
 Amdahl's law [@Amdahl1967ValiditySingleProcessor] and the LogCA model [@AltafWood2017LogCA] require an end-to-end perspective. A compact form that includes interface and software cost is
 $$
@@ -351,6 +351,8 @@ Post-silicon bring-up and validation represent a controlled implementation retur
 
 ## Three Feedback Clocks
 
+![**The Three Feedback Clocks:** Design-time, In-field, and Continuing Enablement timescales must be analyzed separately rather than averaged into a single metric.](images/ch9_feedback_clocks.png){#fig-feedback-clocks width="100%" fig-alt="Timeline chart showing three feedback clocks"}
+
 Design-time, in-field, and continuing-enablement observations describe different system states and bear on different decisions. They must never be averaged into one performance number or narrated as one clean causal chain. @tbl-feedback-clocks outlines their characteristics.
 
 | **Feedback path** | **Question it can answer** | **State that must be paired** | **Limit on the claim** |
@@ -363,7 +365,7 @@ Design-time, in-field, and continuing-enablement observations describe different
 
 **Design-time evaluation** estimates behavior. The SCALE-Sim observations from @sec-running-the-loop evaluated candidates tied to frozen workload and software assumptions.
 
-**In-field evidence** tests the deployment context. Google and Meta discovered "mercurial" cores that silently returned wrong results after passing manufacturing tests [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. This observation rejected the sufficiency of earlier test regimes under fleet-scale operation, even though it did not identify a unique architectural cause. It showed that deployment can expose failure classes missed by prior checks.
+**In-field evidence** tests the deployment context. Google and Meta discovered "mercurial" cores that silently returned wrong results after passing manufacturing tests [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. This observation rejected the sufficiency of earlier test regimes under fleet-scale operation, highlighting the fundamental challenge of robustness at scale. It showed that deployment can expose failure classes missed by prior checks. Furthermore, in-field evidence frequently reveals the algorithm evolution treadmill: by the time a specialized accelerator is fabricated and deployed, the neural network architectures it was originally optimized for have often been superseded by entirely new models.
 
 **Continuing enablement** observes later software workloads using a fixed hardware contract. For example, NVIDIA reported single-node training performance improvements of up to 17 percent on the same H100 hardware between MLPerf Training v2.1 preview and v3.0 by identifying software optimizations. BERT improved 17 percent, ResNet-50 by 8.4 percent, 3D U-Net by 8.2 percent, and Mask R-CNN by 6.1 percent [@EassaEryilmaz2023H100MLPerfSoftware]. This is a vendor-reported, workload-specific public continuing-enablement comparison, not a dependable first-year improvement rate.
 
@@ -372,6 +374,14 @@ Design-time, in-field, and continuing-enablement observations describe different
 ![**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing.](images/F9-cascade-control.svg){#fig-cascade-control fig-alt="**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing."}
 
 Feeding delayed, noisy observations—like field telemetry—directly into a high-frequency AI optimizer will cause the optimizer to overcorrect and thrash. Field telemetry arrives far too late to guide rapid, automated tuning. Instead, view the system as having nested feedback loops (@fig-cascade-control). Fast inner loops handle local software tuning and immediate stabilization using close tests and proxies. Slow outer loops review the delayed field telemetry, updating the architectural assumptions and test targets. The fast tuning loop must only tune against immediate proxies; it should never act directly on delayed telemetry.
+
+### The Hardware Flywheel Effect
+
+When telemetry is properly captured and isolated into calibration datasets, it creates a powerful macro-architectural advantage known as the **Hardware Flywheel Effect**.
+
+![**The Hardware Flywheel Effect.** Post-silicon telemetry from Generation N calibrates the AI surrogates used to design Generation N+1, creating compounding architectural advantages.](images/F9-hw-flywheel.svg){#fig-hw-flywheel width="100%" fig-alt="The Hardware Flywheel Effect."}
+
+In traditional design, telemetry is often used merely for debugging or triggering warranty returns. In Architecture 2.0, post-silicon telemetry from Generation $N$ is systematically piped back into the surrogate models as ground-truth calibration data. Because the AI surrogate for Generation $N+1$ now understands the exact thermal, routing, and workload bottlenecks that limited Generation $N$, it can search the design space with unprecedented accuracy. Organizations that close this macro loop build compounding advantages that competitors cannot overcome simply by renting more GPU compute, because the bottleneck is proprietary fleet data, not FLOPS.
 
 Delayed evidence does not update knowledge by itself. Attribution is a review step, and every possible update surface requires a separate decision and its own admission test. Automatic LLM fine-tuning is never the default.
 
