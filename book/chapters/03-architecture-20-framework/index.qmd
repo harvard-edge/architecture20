@@ -94,7 +94,7 @@ next, introducing a "transparency gradient" across the computing stack. At the t
 name may stand in for a specific software build, and a familiar configuration may
 be absent because it failed timing in an earlier study. Architects fill in these
 gaps from design reviews, past experiments, and deep product knowledge. An AI
-system cannot safely infer this project-specific context from the artifacts alone. The solution is compositional analytical-ML fusion, bridging this gradient by forcing tacit constraints into explicit models.
+system cannot safely infer this project-specific context from the artifacts alone. The gap closes only when architects force the tacit constraints into explicit models that a tool can check.
 
 Architecture work also lacks several convenient conditions found in many
 benchmarked AI tasks. Measurements may be proprietary or expensive. Workloads,
@@ -105,7 +105,7 @@ the ranking survives simulation, synthesis, or implementation. Failed runs and
 rejected alternatives often describe the boundary of the useful design space
 rather than disposable errors.
 
-These conditions differ by project, as a compiler-schedule study may have many measurements but many invalid schedules, whereas a chiplet study may offer few examples alongside coupled interfaces and expensive physical feedback. Tacit context also constrains structural change. When optimizing the RISC-V XR subsystem from the Lighthouse prompt, a seemingly valid AI-generated accelerator offload may be unavailable because an unstated real-time latency contract for head-tracking fixes where the operation must execute. The architect must state which information is available, which choices are legal, which measurements can be afforded, and which decision the evidence is meant to inform. Otherwise, an AI system can complete a coherent study that answers the wrong question, such as optimizing average throughput when the mobile XR workload strictly requires worst-case tail-latency guarantees under the 3 W TDP target.
+These conditions differ by project, as a compiler-schedule study may have many measurements but many invalid schedules, whereas a chiplet study may offer few examples alongside coupled interfaces and expensive physical feedback. Tacit context also constrains structural change. When optimizing the RISC-V XR subsystem from the Lighthouse prompt, a seemingly valid AI-generated accelerator offload may be unavailable because an unstated real-time latency contract for head-tracking dictates where that operation must run. The architect must state which information is available, which choices are legal, which measurements can be afforded, and which decision the evidence is meant to inform. Otherwise, an AI system can complete a coherent study that answers the wrong question, such as optimizing average throughput when the mobile XR workload requires worst-case tail-latency guarantees under the 3 W TDP target.
 
 Above RTL, the information needed to make those judgments often remains
 scattered across whiteboards, spreadsheets, scripts, slides, meeting notes,
@@ -171,7 +171,7 @@ Terminal-Bench 2.0 uses the same general pattern for terminal tasks by pairing
 each task with an environment, a human-written solution, and verification tests
 [@MerrillEtAl2026TerminalBench].
 
-While architecture needs the same explicit connections seen in software-agent evaluations, the domains remain distinct. Hardware benchmarking is fundamentally harder than software benchmarking (like SWE-bench). In software, a pull request can be evaluated with immediate, deterministic unit tests. In architecture, a design change suffers from specification ambiguity (what are the real constraints?) and delayed feedback loops (where power and thermal consequences only appear after days of physical synthesis). A software issue can often end with tests of the final state, whereas no single architecture test usually settles performance, power, physical feasibility, software support, and product risk. Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study also requires a bounded architectural claim, evidence at the right fidelity, and a named decision owner. @fig-structured-layer-above-rtl connects that recorded task and working state to the tool path, evidence, and the next decision.
+While architecture needs the same explicit connections seen in software-agent evaluations, the domains remain distinct. Hardware benchmarking is harder than software benchmarking (like SWE-bench). In software, a pull request can be evaluated with immediate, deterministic unit tests. In architecture, a design change suffers from specification ambiguity (what are the real constraints?) and delayed feedback loops (where power and thermal consequences only appear after days of physical synthesis). A software issue can often end with tests of the final state, whereas no single architecture test usually settles performance, power, physical feasibility, software support, and product risk. Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study also requires a bounded architectural claim, evidence at the right fidelity, and a named decision owner. @fig-structured-layer-above-rtl connects that recorded task and working state to the tool path, evidence, and the next decision.
 
 The terms inside the middle layer refer to different things. The bounded
 architecture study is the unit of work, and it may produce understanding,
@@ -281,7 +281,7 @@ answer.
 ### The Architectural Claim Defines What Gets Reviewed
 
 In @fig-structured-layer-above-rtl and @fig-ontology-chain, the bounded scope
-leads to an architectural claim. The bounded study acts as the container, while the claim is the specific statement under review. Simply asking whether an AI system
+leads to an architectural claim. The bounded study acts as the container, while the claim is the specific statement under review. Asking only whether an AI system
 can design hardware is too broad to guide an architecture review, so a more useful
 claim connects a mechanism to an expected outcome within stated limits. Because architects rarely
 accept an artifact in isolation, they evaluate the architectural claim.
@@ -293,7 +293,7 @@ accept an artifact in isolation, they evaluate the architectural claim.
 > After evaluation, the architect updates it if needed to match what
 > the evidence supports and states what remains unestablished.
 
-In the lighthouse cache comparison, a claim might say that one cache
+In the Lighthouse cache comparison, a claim might say that one cache
 organization reduces simulated memory stalls by lowering conflict misses for
 the named XRBench traces relative to the stated baseline while remaining inside
 the modeled 3\ W envelope. The claim would be limited to those traces,
@@ -404,7 +404,7 @@ such as estimating how greater associativity affects misses, cycles, and power
 before running a costly full simulation. The estimate may come from a simulator,
 learned surrogate, calibrated equation, or design rule, and it remains useful only
 within the workloads, design ranges, and tool conditions for which architects
-have checked it. This presents a critical vulnerability. Surrogate models can suffer from Out-of-Distribution (OOD) failures, confidently returning wildly inaccurate predictions and failing silently when an optimizer pushes them into novel design spaces they were not calibrated to handle. AI methods often use such models to predict how represented
+have checked it. Outside those conditions it can fail silently. AI methods often use such models to predict how represented
 state may change after an action [@HaSchmidhuber2018WorldModels;
 @SuttonBarto2018ReinforcementLearning]. @sec-data-representations-world-models
 examines how architects build these representations and prediction models,
@@ -419,15 +419,9 @@ policy, then return cycles, misses, estimated power, run time, provenance, and
 failure messages. Unsupported values should fail explicitly rather than enter
 the comparison as if they were valid candidates.
 
-ArchGym illustrates the architectural value of making the connection between
-search procedures and simulators explicit [@KrishnanEtAl2023ArchGym]. The
-interface must expose legal actions, feedback cost and fidelity, comparable
-baselines, provenance, and failure behavior. A revision to the wrapper can
-change the effective experiment even when the underlying simulator remains the
-same. @sec-architecture-environments-tool-interfaces develops the tool-side
-requirements and implementation patterns.
+Reinforcement learning was bottlenecked until the OpenAI Gym Environment API [@BrockmanEtAl2016OpenAIGym] formalized how agents interact with simulated environments into a standard `step(action) -> state, reward, done` loop. Unlike a software game that resets in milliseconds, an architectural "step" such as RTL synthesis or cycle-accurate simulation can take days, consume large compute budgets, and fail on obscure EDA licensing or TCL scripting errors. A standard interface is a prerequisite for progress, but the architecture version must handle extreme latency, asynchronous feedback, and high-cost toolchain friction.
 
-Reinforcement learning was bottlenecked until the OpenAI Gym Environment API [@BrockmanEtAl2016OpenAIGym] explicitly formalized how agents interact with simulated environments into a standard `step(action) -> state, reward, done` loop. However, unlike a software game that resets in milliseconds, an architectural "step", such as RTL synthesis or cycle-accurate simulation, can take days, consume massive compute budgets, and fail due to obscure EDA licensing or TCL scripting errors. Formalizing the interface is a prerequisite for AI progress, but the interface must handle extreme latency, asynchronous feedback, and high-cost toolchain friction.
+ArchGym brings that idea to architecture, making the connection between search procedures and simulators explicit [@KrishnanEtAl2023ArchGym]. The interface must expose legal actions, feedback cost and fidelity, comparable baselines, provenance, and failure behavior. A revision to the wrapper can change the effective experiment even when the underlying simulator remains the same. @sec-architecture-environments-tool-interfaces develops the tool-side requirements and implementation patterns.
 
 ### Recording Each Iteration
 
@@ -531,7 +525,7 @@ The design-space report must say what decision the current evidence supports and
 which later decisions still require stronger evidence.
 :::
 
-This distinction between raw feedback and actionable evidence is critical. The recorded provenance and tool parameters transform a raw number into a claim that another architect can verify.
+Recording the provenance and tool parameters is what lets another architect verify a reported number. Results that count against a candidate deserve the same care.
 
 Negative results can also serve as evidence. Rejected candidates, failed
 simulator runs, invalid configurations, proxy wins that disappear at higher
@@ -579,7 +573,7 @@ The named architect or engineering organization remains responsible for framing
 the work and authorizing major next steps. The assignments identify who must
 answer for the comparison, the evidence, and its consequences. They do not
 prove that the reviewer is sufficiently independent or that the evidence is
-strong enough. Because hardware decisions are largely irrevocable, a failure to assign strict authority can lead to catastrophic late-stage defects (as seen historically with Pentium FDIV, Meltdown, Spectre, and Bulldozer). More consequential or difficult-to-reverse actions require
+strong enough. Because hardware decisions are largely irreversible, more consequential or difficult-to-reverse actions require
 stronger evidence and more independent challenge, a relationship developed in
 @sec-what-architect-owns.
 
@@ -611,7 +605,7 @@ example.
 | **Execution** | What information can the AI methods use, what may they change, which roles do they play, and which tools and evaluation budget are available? | Workload traces, legal cache parameters, compiler assumptions, a simulator and power model, candidate generation or search, and a declared simulation budget. |
 | **Judgment** | Which results support or challenge the finding, why did the result occur, and what may the decision owner authorize next? | Performance and power results, rejected configurations, sensitivity analysis, an explanation based on misses and memory traffic, and a decision about further RTL work. |
 
-: **Three passes through an architecture study.** Scope, execution, and judgment each pair the reader's question with the running lighthouse cache comparison. {#tbl-compact-framework-checklist tbl-colwidths="[20,36,34]"}
+: **Three passes through an architecture study.** Scope, execution, and judgment each pair the reader's question with the running Lighthouse cache comparison. {#tbl-compact-framework-checklist tbl-colwidths="[20,36,34]"}
 
 This order prevents the name or capability of an AI method from becoming a
 substitute for a defined comparison and adequate evidence.
@@ -621,6 +615,12 @@ a decision. A failed simulation may reveal missing design information, while an
 invalid candidate may expose a missing tool check. The architect must decide
 whether to reject only that candidate or revise the scope. Either way, the
 change and its effect on the claim should remain visible.
+
+::: {.callout-design-principle title="Keep the comparison connected"}
+Record the intent, bounded question, permitted changes, tool results, claim,
+and next decision as parts of one architecture study. If one of those parts
+changes, revisit the comparison before carrying earlier results forward.
+:::
 
 Once authority is assigned and evidence is reviewed, we need a standardized way to summarize the entire bounded study for other architects. This brings us to the design-loop card.
 
@@ -642,13 +642,28 @@ missing information while the full evidence remains in linked artifacts. The
 card is a static index of pointers into records, not the study record itself and not a score for architectural
 quality.
 
-The ML community adopted a similar practice with model cards to make reporting more transparent and accountable [@MitchellEtAl2019ModelCards]. Just as model cards disclose intended use cases, evaluation data, and known limitations to prevent misuse of a trained model, the design-loop card discloses the bounds, claims, and limits of an architectural comparison. The Design-Loop Card is needed because a generated architecture, like a trained model, is opaque without a record of the data it was evaluated against and the constraints it was built to satisfy.
+The ML community adopted a similar practice with model cards to make reporting more transparent and accountable [@MitchellEtAl2019ModelCards]. Just as model cards disclose intended use cases, evaluation data, and known limitations to prevent misuse of a trained model, the design-loop card discloses the bounds, claims, and limits of an architectural comparison. The design-loop card is needed because a generated architecture, like a trained model, is opaque without a record of the data it was evaluated against and the constraints it was built to satisfy.
 
-In an illustrative public disagreement over a published evaluation, the card would show which comparison and
-evidence records a reviewer can locate and which are still missing. It would not
-settle the technical claim. It would give each side the same index of the
-baseline, scope, tool path, and evidence records that were shared, proprietary,
-or missing. (See @sec-proxy-mismatch-metric-gaming-and-calibration for an examination of one such dispute).
+A public dispute over a published macro-placement evaluation shows why the card's disclosures matter.
+
+::: {.callout-war-story title="The missing record became part of the disagreement"}
+**The claim.** The AlphaChip paper reported a learned macro-placement method
+that produced results comparable to or better than expert placement
+[@MirhoseiniEtAl2021GraphPlacement].
+
+**The gap.** Later researchers could not reconstruct every proprietary design,
+training detail, and evaluation condition behind the strongest reported
+results. The original authors argued that the reassessment had not run the
+method as described
+[@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023AssessmentRL;
+@GoldieEtAl2024ThatChipHasSailed].
+
+**The lesson.** A design-loop card would not settle that disagreement, but it
+would show which baseline, scope, tool path, and evidence records were shared
+and which were missing.
+:::
+
+The card cannot settle who was right. It does something narrower and still useful. A later reviewer can check whether the baseline, tool path, and evidence behind a contested result were actually shared. @sec-proxy-mismatch-metric-gaming-and-calibration returns to this dispute.
 
 For a separate, broader bounded study under the Lighthouse prompt, one card
 points to the claim, scope, tools, AI roles, and records that support the next
@@ -736,7 +751,7 @@ The framework is built on three practical parts:
 - The **architectural claim** is the testable statement, anchored by workloads and required evidence.
 - The **design loop** is the execution engine.
 
-There is no automated shortcut for architectural judgment. A successful tool run merely generates feedback. Establishing the right comparison, demanding real evidence, and owning the final tape-out decision remains the architect's responsibility.
+There is no automated shortcut for architectural judgment. A successful tool run merely generates feedback. Establishing the right comparison, demanding real evidence, and owning the final tape-out decision remain the architect's responsibility.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Keep the three concepts distinct. The bounded study defines the work, the architectural claim states what another architect must evaluate, and the design loop is the execution and analysis process for iterative work.
