@@ -106,13 +106,7 @@ Architecture exploration often evaluates candidate parameters that are cheap to 
 
 Model-mediated exploration requires an explicit representation of architecture state, legal actions, and tool observations. Methods may generate candidates, predict behavior, allocate evaluations, or critique assumptions. ArchGym, an open-source environment for architecture, provides an interface for exploration [@KrishnanEtAl2023ArchGym], predictive DSE uses data-driven models to proxy evaluations [@IpekEtAl2006PredictiveDSE], and Apollo allocates expensive evaluations using transfer learning [@yazdanbakhsh2021apollo]. Chiplet exploration adds package-interface contracts like the Universal Chiplet Interconnect Express (UCIe) [@UCIeConsortium2026Spec].
 
-::: {.callout-war-story title="AlphaChip as Model-Mediated Architecture"}
-**The claim.** AlphaChip's success heavily depended on proxy models (specifically, wirelength and congestion estimators) to guide its RL agent without waiting days for a full placement-and-routing run [@MirhoseiniEtAl2021GraphPlacement].
-
-**The gap.** Full RTL-to-GDS simulation is too slow to provide the millions of feedback cycles an RL agent needs to learn a policy.
-
-**The lesson.** This is the essence of model-mediated architecture. The AI explores the space rapidly using a fast proxy. However, the limitation of model-mediated design is also evident here. The proxy must tightly correlate with the final routed physical design. When the proxy diverges from reality, the RL agent will optimize for a "ghost" target, highlighting why the architect must own the proxy calibration.
-:::
+AlphaChip is a concrete instance of model-mediated exploration. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy needs [@MirhoseiniEtAl2021GraphPlacement]. The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
 
 In @sec-running-the-loop's array study, SCALE-Sim was used to compare array geometries under a frozen workload and software path. A simulator can support a no-change decision for the represented metrics. Moving a candidate toward implementation requires compiler mapping semantics, a memory-system model, end-to-end offload granularity, RTL legality, and later physical checks.
 
@@ -244,9 +238,9 @@ This mismatch in timescales also dictates the choice of AI tool. Fast, reversibl
 
 ### Deployment Feedback and Migration
 
-Deployment-facing work evaluates real systems but produces noisy, confounded feedback. A canary deployment provides guarded cross-interface exposure, not proof of clean causal effects.
+Deployment-facing work evaluates real systems but produces noisy, confounded feedback. The pattern that makes it survivable is guarded progressive exposure with an automatic halt. Release the change to a small cohort, watch a few bounded metrics against a service-level objective, and let a breach trip an automatic rollback before the change reaches the rest of the fleet. A canary bounds the blast radius; it does not prove that the change caused what the metrics show.
 
-Google's warehouse-scale migration from x86 to Arm illustrates cross-interface conditions [@ChristopherEtAl2025ISAMigration]. The migration involved more than 38,000 commits. A fine-tuned language model classified the commits, revealing that repository activity concentrated in build, deployment, infrastructure, monitoring, and rollback rather than low-level code translation (@fig-isa-migration-effort).
+Google's warehouse-scale migration from x86 to Arm illustrates cross-interface conditions [@ChristopherEtAl2025ISAMigration]. The migration involved more than 38,000 commits. A fine-tuned language model classified the commits, revealing that repository activity concentrated in build, deployment, infrastructure, monitoring, and rollback rather than low-level code translation (@fig-isa-migration-effort). Those categories are owned by different teams, so the dominant cost was coordination across team and interface boundaries, not the code translation itself.
 
 ```{python}
 #| label: fig-isa-migration-effort
@@ -335,7 +329,17 @@ The study also evaluated an AI-assisted repair tool on a selected historical ben
 
 : **Records for an ISA migration.** {#tbl-isa-migration-loop-card tbl-colwidths="[24,66]"}
 
-Deployment feedback includes operational state, SLOs, resource contention, and rollback triggers. Rollback can reduce risk but does not erase harm already incurred during a canary or deployment.
+Deployment is where a change finally meets the live system. When an AI method can push cross-interface changes at machine speed, guarded exposure, rollback triggers, a kill switch, and named owners are the only things standing between a routine change and a catastrophic one.
+
+::: {.callout-war-story title="A deployment that could not be reversed in time"}
+**The claim.** On August 1, 2012, deploying new order-router (SMARS) code to Knight Capital's production servers looked like a routine change. Seven of the firm's eight servers took the update without incident [@SEC2013KnightCapital].
+
+**The gap.** The eighth server never received the new code, and a repurposed configuration flag reactivated dormant "Power Peg" logic there. With no staged exposure to catch the divergence and no cumulative risk limit to stop it, that one server sent millions of unintended orders into the market, and no fast kill switch existed to halt them.
+
+**The lesson.** The firm lost about \$440 million net in roughly 45 minutes. Guarded progressive exposure would have surfaced the divergent server before it reached full volume, and a kill switch would have stopped the accrual once it began. At machine speed, the halt has to be built in before a change ships, not improvised after it fails.
+:::
+
+Deployment feedback includes operational state, SLOs, resource contention, and rollback triggers, and those triggers are what arm the automatic halt. Rollback can reduce risk but does not erase harm already incurred during a canary or deployment.
 
 ## RTL, Physical Design, and Difficult-to-Reverse Decisions
 
@@ -386,6 +390,8 @@ When telemetry is captured and isolated into calibration datasets, post-silicon 
 ![**Telemetry compounds across silicon generations.** Post-silicon telemetry from Generation N recalibrates the AI surrogates used to design Generation N+1, so each surrogate reflects the bottlenecks the previous generation actually encountered.](images/F9-hw-flywheel.svg){#fig-hw-flywheel width="100%" fig-alt="Six-stage cycle showing post-silicon telemetry from one hardware generation recalibrating the AI surrogate models used to design the next generation."}
 
 In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon telemetry from Generation $N$ is fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself. An organization with more GPU compute but no comparable deployment telemetry cannot recalibrate its surrogates the same way.
+
+Run naively, the flywheel can also lock in the past. Because telemetry records only the workloads Generation $N$ actually served, a surrogate recalibrated on it sharpens on yesterday's traffic and goes blind to workloads that have not yet appeared, reinforcing the design distribution it was trained on and steering Generation $N+1$ toward the previous generation's bottlenecks [@SculleyEtAl2015Hidden]. This is the algorithm evolution treadmill seen from the design side, and that advantage lasts only while the fleet keeps sampling the workloads the next generation will run.
 
 A common failure mode in AI-assisted architecture is treating surrogate models such as power or timing predictors as static artifacts that are trained once and deployed forever. Models decay. As the underlying software compiler is updated, or as the process node shrinks from 5nm to 3nm, the training distribution drifts. Borrowing the practice from MLOps, the architecture loop must recalibrate its surrogates on a schedule rather than treat them as fixed. Every time a candidate reaches true RTL or silicon, that ground-truth data returns to retrain the faster surrogate models used earlier in the funnel, and drift detection becomes a tracked metric in the environment.
 

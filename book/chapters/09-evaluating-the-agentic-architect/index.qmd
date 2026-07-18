@@ -65,8 +65,8 @@ First, fix the unit of evaluation, because the metrics below assume it. A *task*
 
 | **Metric** | **AI Role** | **What it Measures** | **Why we Measure it** |
 | --- | --- | --- | --- |
-| **Pass-Rate ($Pass@k$)** | Generation | The fraction of proposals that clear validation without errors. | Defeats Goodhart's Law; prevents reward hacking with illegal topologies. |
-| **Proxy Calibration** | Prediction | The correlation between the fast analytical proxy and the slow ground-truth simulator. | Exposes the Proxy Mirage; ensures the agent's internal compass points true north. |
+| **Pass-Rate ($Pass@k$)** | Generation | The fraction of proposals that clear validation without errors. | Detects the crudest reward hacking, catching illegal topologies before they can score. |
+| **Proxy Calibration** | Prediction | The rank fidelity between the fast proxy and the slow simulator over the region the search visits. | Exposes the Proxy Mirage, where a globally accurate proxy still misranks the frontier. |
 | **Trajectory Efficiency (AUC)** | Optimization | Reward quality as a function of environment interactions spent. | Exposes the Simulator Tax; shows whether the search is methodical or stochastic. |
 | **Self-Correction (SCR)** | Generation & Optimization | The probability the agent resolves a failing error log on its next attempt. | Measures how well the agent resolves epistemic uncertainty. |
 | **Context Retention** | Generation | How many turns the agent sustains before dropping an earlier constraint. | Exposes the Credit Assignment problem; tests whether the agent remembers *why*. |
@@ -87,9 +87,9 @@ The most basic evaluation of an agent is whether it produces a valid proposal at
 
 Before an agent queries the slow simulator, it usually queries a fast surrogate model, a proxy, to predict the outcome. Evaluating the prediction role means measuring how much that proxy can be trusted.
 
-**What to measure.** The proxy calibration margin, meaning the statistical correlation, for example Pearson or Spearman rank correlation, between the surrogate's predicted reward and the ground-truth simulator's actual reward across a wide distribution of design points.
+**What to measure.** Rank fidelity where the search actually concentrates, not a global correlation. A proxy can track the simulator well on average, posting a high Pearson or Spearman coefficient across the whole space, and still reorder the handful of top candidates the optimizer will choose among. So measure top-$k$ rank agreement between the proxy and the simulator on the frontier the agent explores, or the regret from acting on the proxy's best point instead of the simulator's. Correlation is not calibration. A well-correlated proxy can be systematically wrong in exactly the region where the decision is made.
 
-**Why we measure it (the Proxy Mirage).** A poorly calibrated proxy sends the optimizer confidently toward a Proxy Mirage, a region where the proxy predicts large gains but the simulator returns poor results. Measuring calibration keeps the agent's internal compass pointed at true north and stops the search from chasing ghosts.
+**Why we measure it (the Proxy Mirage).** A poorly calibrated proxy sends the optimizer confidently toward a Proxy Mirage, a region where the proxy predicts large gains but the simulator returns poor results. A global correlation hides exactly this failure, because it averages over the vast interior of the space where proxy and simulator agree and the optimizer never goes. Scoring rank fidelity where the search concentrates is what catches the mirage before the agent commits to it.
 
 ### Trajectory Efficiency and the Simulator Tax
 
@@ -131,7 +131,7 @@ Hardware design is not a single-turn chat; it is a multi-week, stateful project.
 
 ## Whether to Trust the Measurement
 
-A metric is only as trustworthy as the benchmark that produces it. Three failures make a good-looking score a lie: the tasks were contaminated, the number was noise, or there was nothing to compare it against.
+A metric is only as trustworthy as the benchmark that produces it. Four failures make a good-looking score a lie: the tasks were contaminated, the number was noise, there was nothing to compare it against, or the metric was never shown to predict the capability it stands in for.
 
 ### Held-Out Tasks and Contamination
 
@@ -139,25 +139,29 @@ Software solved this quietly with hidden tests. Architecture cannot, because the
 
 **What to measure.** Whether the score survives contact with tasks the model could not have seen. The defenses are a hidden, human-validated task set; freshly authored or systematically perturbed tasks that could not have leaked; canary strings that reveal training-set inclusion after the fact; and a blunt diagnostic that any team can run, namely whether the score collapses when a task is reworded or swapped for a new one of equal difficulty. If it does, the benchmark was measuring memory.
 
-::: {.callout-war-story title="SWE-bench had to be repaired"}
+::: {.callout-war-story title="Repairing a benchmark is not decontaminating it"}
 **The claim.** SWE-bench quickly became the standard test of autonomous software engineering, and rising pass-rates on it were read as agents getting meaningfully better at real repository work [@JimenezEtAl2024SWEBench].
 
 **The gap.** A close audit found that a substantial fraction of the tasks were flawed as graded. Some issues were underspecified, some hidden tests were broken or far stricter than the issue implied, and the solution was sometimes recoverable from the issue text or the repository's own history rather than reasoned out. The public repositories also overlapped heavily with model pretraining data. The headline number therefore mixed genuine engineering with grading artifacts and memorization.
 
-**The lesson.** The response was not to trust the score but to rebuild the benchmark. OpenAI and the SWE-bench authors released SWE-bench Verified, a human-validated subset that removes the broken and underspecified tasks [@OpenAI2024SWEBenchVerified]. The measurement had to be repaired before it could be believed. Computer architecture, with a far smaller public corpus, starts with a worse contamination problem, so held-out and human-validated tasks are not a refinement to add later; they are the price of a credible first number.
+**The lesson.** The first response was to rebuild the grading rather than trust the score. OpenAI and the SWE-bench authors released SWE-bench Verified, a human-validated subset that removed the broken and underspecified tasks [@OpenAI2024SWEBenchVerified]. That fixed the tests but not the contamination. The tasks stayed public, frontier models had trained on the same repositories, and before long a high score again measured exposure rather than reasoning. Models reproduced the reference fixes from memory, roughly three in five of the still-failing tasks turned out to have broken tests, and in early 2026 OpenAI stopped evaluating against SWE-bench Verified and recommended a harder successor, SWE-bench Pro [@OpenAI2026SWEBenchLimits]. Within months it audited that successor too, found roughly a third of its tasks broken, and withdrew the recommendation [@OpenAI2026SWEBenchProAudit]. Human validation removes broken tasks, but it is not hold-out, and no one-time cleanup outruns contamination once a benchmark is public and models train on it. The durable defense is a continuously refreshed supply of held-out tasks, and even that stays provisional as each new set is exposed. Computer architecture, with a far smaller public corpus, starts this race behind, so genuinely novel tasks are not a refinement to add later; they are the price of a credible first number.
 :::
 
 ### Variance, Seeds, and Replay
 
 Agents are stochastic, and the hosted models behind them change without notice, so a single run is an anecdote, not a measurement. Two agents can swap places from one run to the next, and the same model identifier can behave differently a month later.
 
-**What to measure.** Report the number of seeds, the sample size per task, the spread of results, and whether a gap between two agents survives that spread. Reinforcement-learning evaluation learned this the hard way, where reported gains routinely vanished once results were re-run across new seeds and implementations [@HendersonEtAl2018DeepRL]. The remedy is the preregistration and replay discipline of @sec-running-the-loop applied to the agent itself: pin the model version and a response digest, fix the seeds and the budget before the run, and archive each trajectory so another team can replay it instead of trusting the reported number.
+**What to measure.** Report the number of seeds, the sample size per task, and the spread of results, and put a confidence interval on any claimed gap rather than a bare difference of means. A bootstrap over the task set is the standard way to get that interval without assuming the scores are normally distributed [@Miller2024ErrorBars]. When several agents are compared at once, the same spread that makes one gap look real will make some comparison look significant by chance, so the bar for calling a difference meaningful must rise with the number of agents on the leaderboard. Reinforcement-learning evaluation learned this the hard way, where reported gains routinely vanished once results were re-run across new seeds and implementations [@HendersonEtAl2018DeepRL]. The remedy is the preregistration and replay discipline of @sec-running-the-loop applied to the agent itself: pin the model version and a response digest, fix the seeds and the budget before the run, and archive each trajectory so another team can replay it instead of trusting the reported number.
 
 ### Baselines and Equal-Budget Comparison
 
 A score means little without a floor and a ceiling. The floor is a human-expert baseline, what a competent architect achieves on the same task. The ceiling, where the space is small enough to enumerate, is the best design an exhaustive search would find. Between them, a pass-rate or an AUC becomes interpretable.
 
 Just as important, agents of different cost must be compared at an equal simulator-call budget. This is exactly the equal-call design of the bounded study in @sec-executed-scale-study, where each arm received the same four-call budget and the question was which arm found more within it. Without a fixed budget, "Agent A beats Agent B" usually just means Agent A was allowed to spend more.
+
+### Whether the Metrics Predict Capability
+
+The first three failures assume each metric measures what its name claims. The deepest failure is that it may not. Pass-rate, trajectory AUC, and self-correction are stand-ins for a quantity no benchmark observes directly, whether the agent will produce a good design on a problem it has not seen. None of them is self-justifying. Goodhart's Law returned earlier for a single reward, and it returns here for the suite as a whole. Six process metrics are still a scoreboard, and an agent tuned to post efficient trajectories and clean self-corrections can climb it without getting better at architecture. The missing check is whether a high suite score actually predicts a good outcome. Hold out a set of design problems, run the suite, and test that link directly before trusting it. Until a process metric is shown to track downstream design quality, it reports how the agent searched, not how well it will do the job.
 
 ## From Score to Decision
 
@@ -190,8 +194,9 @@ The reliability figure and the cost frontier together answer the deployment ques
 | **Search quality** | Pass@k, proxy calibration, trajectory AUC, self-correction rate, tool precision, and context retention, each mapped to a role. |
 | **Cost** | Total evaluation compute as inference plus simulation, not one in isolation. |
 | **Contamination** | A held-out, human-validated task set, and a score that survives reworded or freshly authored tasks. |
-| **Variance** | Seeds, sample size, spread, and whether a gap between agents survives it, with the model version pinned. |
+| **Variance** | Seeds, sample size, spread, a confidence interval on any claimed gap, and whether it survives comparison across agents, with the model version pinned. |
 | **Baseline and budget** | A human-expert floor and comparison at an equal simulator-call budget. |
+| **Validity** | Evidence that a high suite score predicts good outcomes on held-out design problems, not just efficient search. |
 | **Reliability** | A worst-case or reliability@k figure beside the best-of-$k$ number. |
 | **Faithfulness** | The agent's stated rationale checked against its recorded trajectory. |
 
@@ -207,7 +212,7 @@ The metrics above are a starting point, and each leaves an open problem where AI
 
 - **Contamination-resistant hardware benchmarks.** Software can refresh its tasks from a large, growing corpus of public code. Architecture cannot, because the public corpus of RTL and design reports is small. What generation or perturbation method can produce architecture tasks that are provably novel to a given model, so that a score measures reasoning rather than recall?
 - **A standard total-cost metric.** Trajectory efficiency and the Simulator Tax both depend on a shared unit that combines inference and simulation cost. What normalization lets an agent that reasons more but simulates less be compared fairly against one that does the reverse, across different hardware and model sizes?
-- **Measuring rationale faithfulness at scale.** Checking a single explanation against a single trajectory is tractable by hand. What automated check can decide, across thousands of trajectories, whether an agent's stated causal story matches the evidence it actually gathered?
+- **Measuring rationale faithfulness at scale.** Checking a single explanation against a single trajectory is tractable by hand. What automated check can decide, across thousands of trajectories, whether an agent's stated causal story matches the evidence it actually gathered? Any such check is likely a model in its own right, so what keeps the grader from sharing the blind spots of the agent it audits?
 - **Attributing credit across a team of agents.** The metrics here evaluate a single agent, yet real loops compose a generator, a critic, and a verifier. When such a team succeeds or fails, which agent's contribution can an evaluation isolate, and what signal must the environment record to make that attribution possible?
 - **Certifying reliability for autonomy.** Granting autonomy is a risk decision, but there is no accepted standard for how much reliability evidence justifies how much unsupervised authority. What worst-case guarantee, over what task distribution, should an organization require before an agent may run a step without human sign-off?
 

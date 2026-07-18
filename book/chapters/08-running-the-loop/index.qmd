@@ -6,7 +6,7 @@
 > — widely circulated aphorism
 :::
 
-**Author's Note:** The aphorism fits this study, which compares a model proposal against a fixed aspect-ratio heuristic in a physical simulator. The model's explanation ultimately fails a declared distinguishing contrast. This study proves useful precisely because the recorded results are less exciting than the initial hypothesis.
+**Author's Note:** The aphorism fits this study, which compares a model proposal against a fixed aspect-ratio heuristic in a physical simulator. The model's explanation fails a declared distinguishing contrast. This study proves useful precisely because the recorded results are less exciting than the initial hypothesis.
 
 ```{=latex}
 \abstract*{This chapter presents one bounded integration study using a recorded model response and SCALE-Sim, a cycle-accurate systolic array simulator. The model and a fixed aspect-ratio heuristic each select three candidates under identical simulator-call budgets. Across five unique evaluated shapes, no nonbaseline candidate clears the declared decision margin. The two proposal arms reach an equal-call tie, while the model's directional mechanism prediction contradicts its declared contrast. This study demonstrates how to preserve a no-change architecture outcome, an equal-call tie, a contradicted directional prediction, an unsupported mechanism explanation, and a stopping decision without claiming that one small experiment validates the complete Architecture 2.0 discipline.}
@@ -97,7 +97,8 @@ $$
 with lower values preferred. This is a predeclared selection rule for this
 study, not a universal measure of accelerator quality or a physical
 measurement. Reporting cycles and utilization separately keeps the composite
-score from hiding its ingredients.
+score from hiding the two ingredients it combines, though it cannot reveal an
+axis the score leaves out, such as memory traffic.
 
 A fair comparison requires the evaluation budget, workload, simulator settings,
 rejection criteria, and decision boundary to be frozen before either arm
@@ -125,8 +126,8 @@ decision rules fix how invalid model output and small score differences will be
 treated. The mechanism contrast challenges the generated explanation, while
 the final row leaves approval outside both the model and simulator.
 
-Predeclaring these choices prevents the study from replacing a candidate,
-metric, or stopping rule after seeing the results. When using AI, it is tempting to move the goalposts to justify the tool, tweaking a workload or changing a score just enough to make the AI's candidate look like a winner. Preregistration stops the metric from becoming a corruptible target.
+Predeclaring these choices prevents the study from silently replacing a
+candidate, metric, or stopping rule after seeing the results. When using AI, it is tempting to move the goalposts to justify the tool, tweaking a workload or changing a score just enough to make the AI's candidate look like a winner. Preregistration does not make that impossible, but it forces any such change into the open, where it can be checked against the rule fixed before results appeared.
 
 Preregistration does not intrinsically justify the
 three-layer workload, local score, 32 by 32 baseline, 1 percent decision margin,
@@ -188,6 +189,10 @@ The first attempt to invoke the runtime never reached inference because the resp
 
 Toolchain failures must be isolated from architectural evaluations. While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, flexlm license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol.
 
+::: {.callout-design-principle title="Preregister the rule and make every deviation auditable"}
+A preregistration does not make a metric incorruptible. It makes any later change to the workload, score, schema, or budget visible and checkable against the rule recorded before results were known. A mid-study deviation is legitimate only when it is declared before results, scoped to a named defect, recorded by hash, and marked non-substantive. The schema repair here met all four conditions, so it fixed an environment failure without loosening the comparison.
+:::
+
 The subsequent call returned a schema-valid response. Since semantic validation found three unique legal candidates, no repair call was made. The complete response is retained, not only the candidate coordinates or a prose summary. The runtime exposed only part of the provenance needed to identify the call, so @tbl-model-provenance records the supplied values and marks the rest as unavailable instead of inferring them.
 
 | **Provenance field** | **Recorded value** |
@@ -212,7 +217,12 @@ It proposed 16 by 64, 8 by 128, and 64 by 16. The two arms therefore selected
 two of the same nonbaseline shapes. Including the shared 32 by 32 baseline, the
 union contains five unique evaluated shapes from the fifteen legal shapes. This
 overlap matters because the shared choices cannot be attributed uniquely to the
-model.
+model. The arms agree on two of their three proposals and differ in only one,
+where the model's 32 by 16 and the heuristic's 64 by 16 are each dominated. With
+only fifteen legal shapes and two competent proposers converging this closely,
+the AI-contribution comparison is underpowered by construction. A tie was the
+likely outcome before either arm ran, so it reports low resolving power between
+the two proposers rather than measured parity, whatever the model's quality.
 
 ## Run the Same Comparison and Report Every Selected Candidate
 
@@ -235,7 +245,7 @@ evaluations.
 
 : **The model and fixed heuristic arms tie under equal simulator-call budgets.** Neither finds a nonbaseline candidate that clears the predeclared 1 percent decision margin over 32 by 32. Values are computed by SCALE-Sim, not measured on silicon. {#tbl-ai-study-results tbl-colwidths="[12,23,11,18,14,22]"}
 
-The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
+The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers. At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses. Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does. The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
 @fig-ai-study-result places the two conclusions side by side. In the left panel,
 the comparison is whether either arm moves below the baseline. In the right
 panel, the test is whether the mirrored shapes exchange positions after the
@@ -423,7 +433,7 @@ claims requiring new evidence.
 This small experiment leaves five problems unresolved once model behavior,
 comparison budgets, or evidence become harder to control.
 
-1. **Comparing an AI proposal arm with a fixed heuristic.** Equal simulator calls may control one scarce resource while leaving model inference, human setup, repair, prior knowledge, and total labor unmatched. Future work must determine which costs matter for the architecture decision and which comparisons require them to be matched.
+1. **Comparing an AI proposal arm with a fixed heuristic.** Equal simulator calls may control one scarce resource while leaving model inference, human setup, repair, prior knowledge, and total labor unmatched. The comparison can also be underpowered when the two proposal sets nearly coincide, as they did here. Future work must determine which costs matter for the architecture decision, which comparisons require them to be matched, and how to give a proposer contrast enough resolution to separate a model from a strong heuristic.
 
 2. **Testing an AI-generated explanation without rewarding a plausible story.** The directional prediction here preceded the workload transformation, but the record omitted the mapping semantics needed for a causal interpretation. It remains an open problem what representation a tool must expose and what contrast would distinguish the proposed mechanism from competing effects.
 
@@ -431,13 +441,13 @@ comparison budgets, or evidence become harder to control.
 
 4. **Stopping an AI-assisted search after a no-change result.** Stopping was appropriate under the declared rule even though ten legal shapes remained unevaluated. Future guidance must address how an architect should value another AI proposal or simulation when the workload, local score, simulator abstraction, or missing mapping semantics may matter more than another point in the same search.
 
-5. **Standardizing Agentic Benchmarks.** While this chapter demonstrates a single bounded study, the integration of generative models introduces a parallel necessity: evaluating the agents themselves. Future work must establish standardized benchmarks—commonly called "evals"—to measure model capabilities against realistic, long-horizon architecture workflows. To remain robust across generations of AI models, these evaluations must track timeless algorithmic properties: pass-rate and bounds adherence, trajectory efficiency (simulator calls to convergence), contextual awareness across error streams, and operational cost. By standardizing these agentic evaluations, hardware organizations can objectively rank competing models and safely determine which algorithmic agent is best suited to drive their specific Architecture Environment.
+5. **Standardizing agentic benchmarks.** This chapter runs one bounded study, but the wider use of generative models raises a second problem, how to evaluate the agents themselves on realistic, long-horizon architecture workflows. It remains open what a standardized agent benchmark, commonly called an eval, should measure so that it stays meaningful across model generations rather than rewarding one model's quirks. Candidate properties include pass rate and bounds adherence, trajectory efficiency measured as simulator calls to convergence, robustness across error streams, and operational cost. Without such benchmarks, a hardware organization has no principled way to compare competing models or to decide which agent is fit to drive its own architecture environment.
 
 ## Conclusion
 
 This bounded integration study ends with a tie against the baseline, where the model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the 32 by 32 baseline. This no-change outcome carries weight because the decision rule was fixed before execution, not because any candidate was exposed as flawed; the nonbaseline shapes tied or were dominated, and none was ruled out as defective.
 
-More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, post-hoc rationalization and baseline shopping had no room to operate. Architecture must treat AI as a candidate generator and leave the simulator as the final judge. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
+More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, any post-hoc rationalization or baseline shopping would be visible against the recorded rule rather than silent. Architecture must treat AI as a candidate generator and leave the simulator as the final judge. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Keep the architecture outcome, AI contribution, mechanism explanation, and stopping decision separate, and preserve every evaluated candidate even when the result is no change, an equal-call tie, a contradicted directional prediction, or an unsupported mechanism explanation.
