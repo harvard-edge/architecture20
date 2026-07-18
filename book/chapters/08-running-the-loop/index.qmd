@@ -13,7 +13,7 @@
 ```
 
 ::: {.callout-crux}
-An architect must carefully fix, execute, and preserve study elements to ensure a bounded AI-assisted search reaches no conclusion stronger than its recorded results.
+What must an architect fix, execute, and preserve so that one bounded AI-assisted study reaches no conclusion stronger than its recorded results?
 :::
 
 This crux addresses metric shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, where a single iteration takes days of RTL simulation and fighting for limited flexlm license checkouts, this trial-and-error hides massive physical and calendar costs. The design loop must be strictly bounded to prevent these hidden expenses.
@@ -59,13 +59,12 @@ The architecture question is deliberately narrow to test a precise hypothesis wi
 > baseline, and does the model's directional prediction survive its declared
 > contrast?
 
-The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. This slice nevertheless hints at a broader industry shift. As generative AI workloads move from fixed-size computation (like ResNet-50) to dynamic, iterative generation (like LLMs with growing KV-caches), the underlying hardware must become highly adaptive. We focus purely on the static dimensions for this experiment, acknowledging that a complete adaptive system study would need to model dynamic generation behavior.
-Only the datapath's array dimensions vary, while dataflow, SRAM capacity (our cache subsystem), interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
+The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, SRAM capacity (our cache subsystem), interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
 
 ## Separate Outcomes from AI Claims
 
 The preregistration keeps the architecture-outcome and AI-contribution claims
-separate. This deliberate decoupling enforces a simple rule: the AI proposes candidates, and the deterministic simulator evaluates them. The model must never be allowed to grade its own homework. This ensures that a "successful" model invocation—one that generates valid JSON or a plausible explanation—is not automatically conflated with a successful architectural design. This structured cycle of preregistration, evaluation, and judgment is illustrated in @fig-bounded-study-workflow.
+separate. This deliberate decoupling enforces one rule. The AI proposes candidates, and the deterministic simulator evaluates them. The model must never be allowed to grade its own homework. This ensures that a "successful" model invocation (one that generates valid JSON or a plausible explanation) is not automatically conflated with a successful architectural design. @fig-bounded-study-workflow lays out the full study in four stages, from preregistering the decision, through bounded candidate generation and deterministic simulation, to the four separate judgments that follow.
 
 ![**The Bounded Study Workflow:** A unified flowchart representing the Preregistration, Bounded Generation, Deterministic Evaluation, and Judgment cycle of Architecture 2.0.](images/ch8_design_loop_workflow.svg){#fig-bounded-study-workflow width="100%" fig-alt="Bounded Study Workflow diagram"}
 
@@ -127,9 +126,7 @@ treated. The mechanism contrast challenges the generated explanation, while
 the final row leaves approval outside both the model and simulator.
 
 Predeclaring these choices prevents the study from replacing a candidate,
-metric, or stopping rule after seeing the results. When using AI, it is highly tempting to move the goalposts to justify the tool—tweaking a workload or changing a score just enough to make the AI's candidate look like a winner. Preregistration stops the metric from becoming a corruptible target.
-
-**Lesson:** AI-assisted architecture requires fixing your evaluation criteria upfront. Locking your simulation configurations, metrics, prompt boundaries, and decision margins *before* the AI runs forces you to gather real evidence rather than post-hoc rationalizations.
+metric, or stopping rule after seeing the results. When using AI, it is tempting to move the goalposts to justify the tool, tweaking a workload or changing a score just enough to make the AI's candidate look like a winner. Preregistration stops the metric from becoming a corruptible target.
 
 Preregistration does not intrinsically justify the
 three-layer workload, local score, 32 by 32 baseline, 1 percent decision margin,
@@ -368,7 +365,7 @@ follows from different evidence.
 
 The frozen protocol permits no post-result replacement, and no candidate clears the decision margin, so this bounded search stops here. The evidence warrants retaining 32 by 32 as the status quo for the five evaluated shapes because a nonbaseline tie does not justify change when the preregistration names no compensating benefit. Further evaluation is warranted only if a broader architecture decision needs more evidence, perhaps from a broader workload, another dataflow, pinned mapping semantics, a calibrated memory model, or implementation-adjacent constraints. The present evidence does not authorize RTL, tapeout, or a system intent decision.
 
-This chapter walks through a complete execution from a question to an authorized decision. The
+This chapter walks through a complete execution from a question to a decision recommendation. The
 machine-readable result records the proposed action as
 `awaiting_author_confirmation`. That status separates the completed bounded
 search from the architecture action that the named decision owner may approve.
@@ -377,7 +374,7 @@ search from the architecture action that the named decision owner may approve.
 
 The public replay package contains the frozen context, complete model
 response, public-safe provenance, exact simulator inputs, raw summary reports,
-parsed results, hashes, tests, and replay code. Stripping out proprietary PDK parameters and local pathnames from these records is critical for data provenance and IP security. A unified schema ensures we can track artifact provenance across competing tools without leaking confidential RTL into a public API. The stable entry point is the
+parsed results, hashes, tests, and replay code. This study carries no proprietary PDK data or RTL, so making the package public-safe required only removing local pathnames. In a production setting, the same step would also strip confidential inputs before release, so a reviewer can check provenance without exposing protected material. The stable entry point is the
 [`ai_systolic_array_study` companion at the recorded commit](https://github.com/harvard-edge/arch2/tree/5af3e3036fabca0cf1e677dbe8e8e276cc6f0beb/labs/examples/ai_systolic_array_study).
 @tbl-study-archive maps each retained artifact to the review question it can
 answer.
@@ -438,9 +435,9 @@ comparison budgets, or evidence become harder to control.
 
 ## Conclusion
 
-This bounded integration study ends with a tie against the baseline, where the model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the baseline and demonstrates the preregistration methodology actively rejecting a flawed candidate.
+This bounded integration study ends with a tie against the baseline, where the model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the 32 by 32 baseline. This no-change outcome carries weight because the decision rule was fixed before execution, not because any candidate was exposed as flawed; the nonbaseline shapes tied or were dominated, and none was ruled out as defective.
 
-More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, post-hoc rationalizations and baseline shopping were completely blocked. Architecture must treat AI as a candidate generator, leaving the simulator as the final judge. A well-executed null result proves that this discipline works, ensuring that every adopted proposal is grounded in real performance rather than persuasive model outputs.
+More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, post-hoc rationalization and baseline shopping had no room to operate. Architecture must treat AI as a candidate generator and leave the simulator as the final judge. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Keep the architecture outcome, AI contribution, mechanism explanation, and stopping decision separate, and preserve every evaluated candidate even when the result is no change, an equal-call tie, a contradicted directional prediction, or an unsupported mechanism explanation.

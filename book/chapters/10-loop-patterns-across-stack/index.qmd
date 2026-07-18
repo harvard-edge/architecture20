@@ -122,7 +122,7 @@ AI optimizers often find "cheats." They post massive local throughput gains by d
 
 ### Specialization and Executable Software Paths
 
-Historically, computer architecture progressed through the TAO framework: Technology scaling, Architecture innovations, and Optimization. Today, the plateauing of technology scaling forces us into TAOS, where the 'S' stands for Specialization. However, a specialization claim needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
+Historically, architecture gains came from technology scaling, architecture innovation, and optimization. As technology scaling has slowed, specialization has become the main remaining source of large efficiency gains. A specialization claim still needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
 
 Amdahl's law [@Amdahl1967ValiditySingleProcessor] and the LogCA model [@AltafWood2017LogCA] require an end-to-end perspective. A compact form that includes interface and software cost is
 $$
@@ -215,6 +215,8 @@ A local kernel result cannot bypass this software path. The hardware/lowering pa
 ::: {.callout-architect-checkpoint title="The Hardware-Interface Authorization Boundary"}
 Record which kernel and schedule actions automation may execute or recommend, which hardware interface changes require stronger evidence, and who is authorized to approve them.
 :::
+
+The hardware-interface boundary matters because a candidate can look strong in isolation and still collapse once the compiler, data movement, and end-to-end path are accounted for.
 
 ::: {.callout-failure-mode title="The accelerator that won in isolation"}
 An AI-generated block posts a large kernel speedup, but the compiler cannot keep it busy, data movement dominates, and only hand-written code reaches the headline result. Include the interface and software path, then require a compiler-generated end-to-end measurement before promoting the candidate.
@@ -349,11 +351,13 @@ Public reports indicate learning methods can contribute to physical-implementati
 
 Post-silicon bring-up and validation represent a controlled implementation return after fabrication and before deployment. Those controlled lab measurements inform the architect before fleet deployment introduces new confounding variables.
 
-## Three Feedback Clocks (@fig-feedback-clocks)
+## Three Feedback Clocks
+
+Design-time evaluation, in-field evidence, and continuing enablement each answer a different question about the system (@fig-feedback-clocks).
 
 ![**The Three Feedback Clocks:** Design-time, In-field, and Continuing Enablement timescales must be analyzed separately rather than averaged into a single metric.](images/ch9_feedback_clocks.png){#fig-feedback-clocks width="100%" fig-alt="Timeline chart showing three feedback clocks"}
 
-Design-time, in-field, and continuing-enablement observations describe different system states and bear on different decisions. They must never be averaged into one performance number or narrated as one clean causal chain. @tbl-feedback-clocks outlines their characteristics.
+These observations describe different system states and bear on different decisions. They must never be averaged into one performance number or narrated as one clean causal chain. @tbl-feedback-clocks outlines their characteristics.
 
 | **Feedback path** | **Question it can answer** | **State that must be paired** | **Limit on the claim** |
 | --- | --- | --- | --- |
@@ -375,19 +379,19 @@ Design-time, in-field, and continuing-enablement observations describe different
 
 Feeding delayed, noisy observations (like field telemetry) directly into a high-frequency AI optimizer causes the optimizer to overcorrect and thrash. Field telemetry arrives far too late to guide rapid, automated tuning. Instead, view the system as having nested feedback loops (@fig-cascade-control). Fast inner loops handle local software tuning and immediate stabilization using close tests and proxies. Slow outer loops review the delayed field telemetry, updating the architectural assumptions and test targets. The fast tuning loop must only tune against immediate proxies. It should never act directly on delayed telemetry.
 
-### The Hardware Flywheel Effect
+### Telemetry Compounds Across Silicon Generations
 
-When telemetry is properly captured and isolated into calibration datasets, it creates a powerful macro-architectural advantage known as the **Hardware Flywheel Effect** (@fig-hw-flywheel).
+When telemetry is captured and isolated into calibration datasets, post-silicon results from one generation can recalibrate the surrogate models used to design the next (@fig-hw-flywheel).
 
-![**The Hardware Flywheel Effect.** Post-silicon telemetry from Generation N calibrates the AI surrogates used to design Generation N+1, creating compounding architectural advantages.](images/F9-hw-flywheel.svg){#fig-hw-flywheel width="100%" fig-alt="The Hardware Flywheel Effect."}
+![**Telemetry compounds across silicon generations.** Post-silicon telemetry from Generation N recalibrates the AI surrogates used to design Generation N+1, so each surrogate reflects the bottlenecks the previous generation actually encountered.](images/F9-hw-flywheel.svg){#fig-hw-flywheel width="100%" fig-alt="Six-stage cycle showing post-silicon telemetry from one hardware generation recalibrating the AI surrogate models used to design the next generation."}
 
-In traditional design, telemetry is often used merely for debugging or triggering warranty returns. In Architecture 2.0, post-silicon telemetry from Generation $N$ is systematically piped back into the surrogate models as ground-truth calibration data. Because the AI surrogate for Generation $N+1$ now understands the exact thermal, routing, and workload bottlenecks that limited Generation $N$, it can search the design space with unprecedented accuracy. Organizations that close this macro loop build compounding advantages that competitors cannot overcome simply by renting more GPU compute, because the bottleneck is proprietary fleet data, not FLOPS.
+In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon telemetry from Generation $N$ is fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself. An organization with more GPU compute but no comparable deployment telemetry cannot recalibrate its surrogates the same way.
 
-A common failure mode in AI-assisted architecture is treating surrogate models (such as power or timing predictors) as static artifacts that are trained once and deployed forever. In reality, models decay. As the underlying software compiler is updated, or as the process node shrinks from 5nm to 3nm, the training distribution drifts. Drawing inspiration from MLOps, architecture loops must implement **Continuous Calibration** for their AI tools. Every time a candidate reaches the bottom of the funnel (true RTL or silicon), that ground-truth data must automatically loop back to retrain the fast top-of-funnel surrogate models. The loop never stops learning, and drift detection becomes a first-class metric in the environment.
+A common failure mode in AI-assisted architecture is treating surrogate models such as power or timing predictors as static artifacts that are trained once and deployed forever. Models decay. As the underlying software compiler is updated, or as the process node shrinks from 5nm to 3nm, the training distribution drifts. Borrowing the practice from MLOps, the architecture loop must recalibrate its surrogates on a schedule rather than treat them as fixed. Every time a candidate reaches true RTL or silicon, that ground-truth data returns to retrain the faster surrogate models used earlier in the funnel, and drift detection becomes a tracked metric in the environment.
 
-Before a new, continuously calibrated surrogate is trusted to steer a multi-million-dollar chip design, it can be deployed in **Shadow Mode**, running silently alongside the traditional human-led EDA flow. Predicting outcomes without actively controlling the project allows architects to measure its calibration against ground-truth tools over thousands of commits until it earns the authority to actively optimize.
+Before a recalibrated surrogate is trusted to steer a multi-million-dollar chip design, it can run silently alongside the human-led EDA flow, predicting outcomes without controlling the project. Architects measure its calibration against the ground-truth tools over thousands of commits until it has earned the authority to steer the search.
 
-Delayed evidence does not update knowledge by itself. Attribution is a review step, and every possible update surface requires a separate decision and its own admission test. Automatic LLM fine-tuning is never the default.
+None of this recalibration is automatic. Delayed evidence does not update knowledge by itself. Attribution is a review step, and every possible update surface requires a separate decision and its own admission test. Automatic LLM fine-tuning is never the default.
 
 Before any update, retain an attribution record including:
 
@@ -435,31 +439,9 @@ When several operating conditions apply, retain the evidence, checks, rollback, 
 
 A passing test cannot be treated as authorization when the change alters a hardware interface, enters RTL, or supports a signoff decision.
 
-![Amdahl's Law for Human Review contrasts the high proposal arrival rate of an AI generator with the constrained settlement rate of human verification.](images/F9-review-bottleneck.svg){#fig-review-bottleneck fig-alt="Amdahl's Law for Human Review contrasts the high proposal arrival rate of an AI generator with the constrained settlement rate of human verification."}
+![**The review bottleneck.** An AI generator can propose candidates faster than human verification can settle them, so the settlement rate, not the proposal rate, sets the pace of useful progress.](images/F9-review-bottleneck.svg){#fig-review-bottleneck fig-alt="Diagram contrasting a high proposal arrival rate from an AI generator with the lower settlement rate of human verification."}
 
-If proposals arrive faster than reliable evaluation can settle them, more generation grows a queue rather than useful progress. A measurable bottleneck occurs when proposal arrival rate $\lambda_{\mathrm{propose}}$ exceeds trusted settlement rate $\mu_{\mathrm{review}}$ (@fig-review-bottleneck). We can state this explicitly as **Amdahl's Law for Human Review**: just as Amdahl's Law strictly bounds parallel scaling based on the serial fraction, the un-automatable human verification step strictly bounds the end-to-end speedup of AI-assisted design. Trust is the ultimate bottleneck. In this case, proposal supply is not limiting progress; trusted evaluation and human review dictate the pace. Improving throughput requires validating cheaper checks, reducing review cost, and cutting avoidable routing and escalation overhead. For quantitative limits on service-cost speedups, see the service-cost model in @sec-additional-framework-context (@fig-rejection-bound-ceiling).
-
-## Open Research Questions
-
-Five problems remain open:
-
-1. **How should design-time, in-field, and continuing-enablement evidence be combined without false attribution?** Research needs comparison designs that connect them while preserving which changes came from hardware, software, models, workloads, or deployment policy.
-2. **When can evidence transfer to another decision boundary?** Useful criteria should identify which changes require revalidation without forcing every result to be recreated.
-3. **How can architects separate AI search quality from evaluation and review capacity?** Quality per evaluation, service cost per case, queueing, and preliminary-check errors must be measured separately before faster progress can be attributed.
-4. **How independent must a check be from the AI method it reviews?** A useful measure would expose shared dependencies and test whether a nominally separate check catches failure classes missed by the producer.
-5. **Can time to realized performance be forecast before release?** It remains unclear which early signals predict useful maturation rather than optimistic extrapolation.
-
-## Conclusion
-
-The next architecture decision determines how an AI-assisted study should operate. Close feedback and local reversal support automated execution under bounded tests. Model-mediated work needs matched baselines, proxy calibration, and new evidence before implementation. Cross-interface work adds versioned interfaces, system objectives, and guarded rollout. Difficult-to-reverse decisions shift AI work toward search narrowing, critique, and evidence organization under independent checks. Transfer to a new boundary requires renewed evidence, check, permission, and settlement-capacity tests.
-
-Evidence arrives on three distinct clocks. Design-time evaluation estimates behavior within a represented study. In-field evidence tests the deployment context. Continuing software enablement changes realized performance on fixed hardware. None substitutes for the other, and delayed evidence does not update knowledge by itself.
-
-::: {.callout-carry-forward}
-- **Carry forward:** When the next decision changes, reclassify its operating conditions and revalidate the required evidence, rejection checks, rollback plan, and permissions.
-- **Reader test:** For the next transition, can you explain what AI may do, what can reject the result, how rollback works, and which decisions must be assigned before work proceeds?
-- **Up next:** Having established what must be revalidated when a decision crosses a boundary, @sec-what-architect-owns examines the responsibility and governance that the architect must retain when delegating work to AI.
-:::
+If proposals arrive faster than reliable evaluation can settle them, more generation grows a queue rather than useful progress. A measurable bottleneck occurs when proposal arrival rate $\lambda_{\mathrm{propose}}$ exceeds trusted settlement rate $\mu_{\mathrm{review}}$ (@fig-review-bottleneck). Just as Amdahl's law bounds parallel scaling by the serial fraction, the human verification step that cannot be automated bounds the end-to-end speedup of AI-assisted design. Proposal supply is not the limit here; trusted evaluation and human review set the pace. Improving throughput requires validating cheaper checks, reducing review cost, and cutting avoidable routing and escalation overhead. For quantitative limits on service-cost speedups, see the service-cost model in @sec-additional-framework-context (@fig-rejection-bound-ceiling).
 
 ## Additional Framework Context {#sec-additional-framework-context}
 
@@ -561,3 +543,25 @@ add_note_box(
 plt.show()
 plt.close(fig)
 ```
+
+## Open Research Questions
+
+Five problems remain open:
+
+1. **How should design-time, in-field, and continuing-enablement evidence be combined without false attribution?** Research needs comparison designs that connect them while preserving which changes came from hardware, software, models, workloads, or deployment policy.
+2. **When can evidence transfer to another decision boundary?** Useful criteria should identify which changes require revalidation without forcing every result to be recreated.
+3. **How can architects separate AI search quality from evaluation and review capacity?** Quality per evaluation, service cost per case, queueing, and preliminary-check errors must be measured separately before faster progress can be attributed.
+4. **How independent must a check be from the AI method it reviews?** A useful measure would expose shared dependencies and test whether a nominally separate check catches failure classes missed by the producer.
+5. **Can time to realized performance be forecast before release?** It remains unclear which early signals predict useful maturation rather than optimistic extrapolation.
+
+## Conclusion
+
+The next architecture decision determines how an AI-assisted study should operate. Close feedback and local reversal support automated execution under bounded tests. Model-mediated work needs matched baselines, proxy calibration, and new evidence before implementation. Cross-interface work adds versioned interfaces, system objectives, and guarded rollout. Difficult-to-reverse decisions shift AI work toward search narrowing, critique, and evidence organization under independent checks. Transfer to a new boundary requires renewed evidence, check, permission, and settlement-capacity tests.
+
+Evidence arrives on three distinct clocks. Design-time evaluation estimates behavior within a represented study. In-field evidence tests the deployment context. Continuing software enablement changes realized performance on fixed hardware. None substitutes for the other, and delayed evidence does not update knowledge by itself.
+
+::: {.callout-carry-forward}
+- **Carry forward:** When the next decision changes, reclassify its operating conditions and revalidate the required evidence, rejection checks, rollback plan, and permissions.
+- **Reader test:** For the next transition, can you explain what AI may do, what can reject the result, how rollback works, and which decisions must be assigned before work proceeds?
+- **Up next:** Having established what must be revalidated when a decision crosses a boundary, @sec-what-architect-owns examines the responsibility and governance that the architect must retain when delegating work to AI.
+:::

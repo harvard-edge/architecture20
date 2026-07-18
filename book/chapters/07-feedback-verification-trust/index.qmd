@@ -37,7 +37,7 @@ These objectives guide the architect in transitioning from merely running tools 
 
 ## From Feedback to Observation, Evidence, and Decision {#sec-from-feedback-to-decision}
 
-Architecture needs a formal verification path. Raw feedback just means a tool finished running. An observation records the specific outputs. Evidence links that observation to a specific design claim. A review judges whether the claim holds. These deliberate steps prevent raw tool outputs from directly changing the design or automatically updating an AI's training data without human oversight. Treating the AI as an untrusted generator means every proposed architecture change needs physical proof—like a timing report or a formal equivalence check—that the human architect can independently verify.
+Architecture needs a formal verification path. Raw feedback just means a tool finished running. An observation records the specific outputs. Evidence links that observation to a specific design claim. A review judges whether the claim holds. These deliberate steps prevent raw tool outputs from directly changing the design or automatically updating an AI's training data without human oversight. Treating the AI as an untrusted generator means every proposed architecture change needs physical proof, such as a timing report or a formal equivalence check, that the human architect can independently verify.
 
 First, a tool return does not automatically become a valid architecture observation, as a broken environment, malformed request, timeout, flexlm license server hang, OOM crash during elaboration, or unsupported action may report only the state of the tool path.
 Second, a valid observation does not automatically become evidence for the claim unless it is strictly relevant to the property, comparison, state, and scope.
@@ -61,6 +61,10 @@ Third, evidence and a review result do not automatically become either training 
 The design-loop card introduced in @sec-architecture-20-ontology acts as the binding artifact across these stages. It points to the observation, evidence, review, update, and decision records rather than trying to contain every detail itself.
 
 Returning to the 3W RISC-V XR subsystem, the synthesis report is the observation. The evidence relation connects that report to the claim about clock speed. The review result states the claim is unsupported. The knowledge-update branch decides to store the failure in the project trajectory, while the architecture decision stops the transition to RTL.
+
+::: {.callout-design-principle title="Keep support separate from permission"}
+Record what each result supports, what can overturn it, and which assigned role may approve the next transition. A strong result does not widen the claim or authorize action on its own.
+:::
 
 ## Evidence Is Specific to the Claim and Scope {#sec-evidence-specific-to-claim-and-scope}
 
@@ -113,7 +117,7 @@ These are not synonyms. A deterministic proxy can be invalid. A calibrated proxy
 
 AI systems actively exploit the gap between fast proxies and physical ground truth oracles. When an AI optimizes a surrogate metric without physical checks, it heavily biases toward reward hacking. The agent finds pathological shortcuts to maximize a score without solving the actual architectural task. This transparency gradient creates danger because a black box surrogate offers no tacit knowledge or explainable physical mechanism, providing only a number. Because architects cannot fully trust or inspect the internals of these proxy models, they must treat every architectural proxy as an adversarial attack surface.
 
-If you ask an AI to optimize estimated instructions per cycle (IPC) without checking physical constraints, it will find architectural shortcuts that maximize the score while breaking timing or area. This behavior exemplifies specification gaming, where the AI games the proxy metric instead of solving the real design problem. Fast proxies that worked well for human architects break down when an AI optimizes against them. As illustrated in @fig-trust-calibration, simulator inaccuracies are no longer just random noise. They become loopholes the AI actively exploits. You must eventually anchor AI proposals with physical ground-truth oracles.
+If an architect asks an AI to optimize estimated instructions per cycle (IPC) without checking physical constraints, it will find architectural shortcuts that maximize the score while breaking timing or area. This behavior exemplifies specification gaming, where the AI games the proxy metric instead of solving the real design problem. Fast proxies that worked well for human architects break down when an AI optimizes against them. As illustrated in @fig-trust-calibration, simulator inaccuracies are no longer just random noise. They become loopholes the AI exploits. The architect must eventually anchor AI proposals with physical ground-truth oracles.
 
 ![Quantitative trust-calibration plot. As an AI optimizes a surrogate proxy, the metric initially correlates with physical ground truth. However, beyond the calibration boundary, the AI exploits the proxy's blind spots (reward hacking), causing the ground truth value to collapse while the proxy score continues to rise.](images/F9-trust-calibration.svg){#fig-trust-calibration fig-alt="A line graph showing surrogate proxy score increasing monotonically while the physical ground truth curve collapses sharply after crossing the calibration boundary." fig-alt="Quantitative trust-calibration plot. As an AI optimizes a surrogate proxy, the metric initially correlates with physical ground truth. However, beyond the calibration boundary, the AI exploits the proxy's blind spots (reward hacking), causing the ground truth value to collapse while the proxy score continues to rise."}
 
@@ -128,7 +132,7 @@ If you ask an AI to optimize estimated instructions per cycle (IPC) without chec
 
 : **Diagnostics for weak evidence.** Each check is tied to a specific failure it can expose. {#tbl-proxy-diagnostics tbl-colwidths="[18,41,41]"}
 
-For the illustrative 3W RISC-V XR subsystem, an early fast Python ISA simulator acts as a surrogate biomarker, estimating performance improvements for a new instruction extension. However, the Phase III trial—physical placement and routing closure—might reverse the apparent preference due to severe timing degradation. Or, if the performance check omits thermal considerations, the new instruction implementation might create a thermal hotspot that violates the 3W limit.
+For the illustrative 3W RISC-V XR subsystem, an early fast Python ISA simulator acts as a surrogate biomarker, estimating performance improvements for a new instruction extension. However, the Phase III trial (physical placement and routing closure) might reverse the apparent preference due to severe timing degradation. Or, if the performance check omits thermal considerations, the new instruction implementation might create a thermal hotspot that violates the 3W limit.
 
 Calibration checks whether a proxy tracks a decision-relevant measurement in the region where it is used. Architecture predictors must be validated against held-out data or stronger evaluations [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
 
@@ -140,21 +144,17 @@ This checkpoint ensures that predictive models or fast proxies are not trusted b
 
 Just as passing a fast software simulation doesn't guarantee RTL timing closure, an AI maximizing a high-level proxy metric doesn't mean the hardware is viable. This distinction separates hardware benchmarking from software benchmarking. A software LLM agent on SWE-bench, a software engineering benchmark, can be validated purely by passing unit tests. Hardware agents face a multi-dimensional gauntlet of synthesis, timing closure, power limits, and physical design rule checks (DRC). An AI winning a simulator proxy metric never constitutes true architectural evidence without an independent physical audit. Architects must maintain a strict boundary between fast proxies used for exploration and the ground-truth oracles, such as physical synthesis or formal verification, required for sign-off to avoid out-of-distribution failures.
 
-Nondeterministic observations require careful interpretation relative to the decision margin. Recording a seed is not enough. The review question is whether the observed variation, whether a stochastic tool measurement, an unstable ranking across workloads, or a flaky execution path, is small enough, and sampled appropriately enough, to support the declared margin and ordering.
-
-### Probabilistic Sign-off for Noisy Tools
-
-Traditional architecture expects deterministic answers from its tools. However, AI agents rely on heuristic search, and modern ML-driven EDA tools inherently possess variance, where changing the random seed can yield a drastically different floorplan. Architecture 2.0 must embrace **Probabilistic Sign-off**. If an agent proposes a physical layout, evaluating it with a single deterministic run is fragile. Instead, the loop should evaluate the candidate across a distribution of seeds or noise profiles. If it passes thermal limits 95% of the time, it is robust. Architects must design for *yield* in the simulation phase, seeking resilient designs that survive tool noise rather than fragile candidates that perfectly thread a single deterministic needle.
+Nondeterministic observations require careful interpretation relative to the decision margin. Recording a seed is not enough. The review question is whether the observed variation, whether a stochastic tool measurement, an unstable ranking across workloads, or a flaky execution path, is small enough, and sampled appropriately enough, to support the declared margin and ordering. When a generator relies on heuristic search, or an ML-driven place-and-route tool returns a different floorplan under a new random seed, a single deterministic run is fragile evidence. Evaluating the candidate across a distribution of seeds, and preferring a shape that stays within its limits across that distribution, guards against a design that only survives one lucky run.
 
 ## Independent Checks and Correlated Errors {#sec-independent-checks-and-correlated-errors}
 
-![**Correlated Errors vs. Independent Checks:** A correlated check shares the generator's blind spots. A physical simulator provides an independent, orthogonal modality shift.](images/ch7_independent_checks.svg){#fig-independent-checks width="100%" fig-alt="Correlated Error vs Independent Modality Shift diagram"}
+Diagnostics are useful only when a purportedly stronger check observes the missing property and is not merely another expression of the same assumptions. Independence is relative to a claim and a failure class, not a binary property of components (@fig-independent-checks).
 
-Diagnostics are useful only when a purportedly stronger check observes the missing property and is not merely another expression of the same assumptions (@fig-independent-checks). Independence is relative to a claim and a failure class, not a binary property of components.
+![**Correlated Errors vs. Independent Checks:** A correlated check shares the generator's blind spots. A physical simulator provides an independent, orthogonal modality shift.](images/ch7_independent_checks.svg){#fig-independent-checks width="100%" fig-alt="Correlated Error vs Independent Modality Shift diagram"}
 
 A useful check must first observe the relevant property. It then adds stronger challenge when it does not share the producer's critical model, training data, objective, workload, implementation, tool path, or architectural assumption. Separate prompts, agent names, or reports do not create independence. Correlated checks can still find defects, but agreement among them should be described as corroboration, not independent validation.
 
-The importance of observing the relevant property is starkly illustrated by irrevocability and verification failures like Meltdown, Spectre, and the Bulldozer cache-aliasing bug. These exposed that functional correctness does not establish security or system-level physical viability. In 2018, side channels were shown to leak across privilege boundaries through speculation and shared microarchitectural state [@KocherEtAl2019Spectre]. Ordinary functional checks did not catch these vulnerabilities because the performance objective measured instructions per cycle (IPC) and omitted information flow or timing channels. Ultimately, a check cannot reject a property it does not observe, demonstrating why public claims require independent physical and security checks. Passing a suite of performance tests provides zero evidence for security properties, leaving architectural flaws invisible if the evidence is structurally blind to them. Once a chip is taped out, these failures are physically irrevocable because you cannot push a software patch to fix a broken silicon pipeline.
+The importance of observing the relevant property is illustrated by verification failures like Meltdown, Spectre, and the Bulldozer cache-aliasing bug. These exposed that functional correctness does not establish security or system-level physical viability. In 2018, side channels were shown to leak across privilege boundaries through speculation and shared microarchitectural state [@KocherEtAl2019Spectre]. Ordinary functional checks did not catch these vulnerabilities because the performance objective measured instructions per cycle (IPC) and omitted information flow or timing channels. A check cannot reject a property it does not observe, demonstrating why public claims require independent physical and security checks. Passing a suite of performance tests provides zero evidence for security properties, leaving architectural flaws invisible if the evidence is structurally blind to them. Speculative side channels were later reduced through software and microcode mitigations at a performance cost. A functional defect already committed to silicon, such as the Bulldozer cache-aliasing bug, is harder to undo, since it can force a respin rather than a patch.
 
 A single diagnostic test is insufficient for critical decisions. In safety engineering, Knight and Leveson's multiversion-programming experiment demonstrated that independently developed program versions failed on correlated inputs far more often than an independence assumption predicted [@KnightLeveson1986Multiversion].
 
@@ -174,11 +174,7 @@ Using an AI to check an AI is fundamentally flawed if it lacks physical groundin
 
 : **Evaluating check independence and rejection paths.** {#tbl-independence-check tbl-colwidths="[26,74]"}
 
-### Zero-Trust Pipelines and "Prove It First"
-
-Because AI can convincingly hallucinate constraints and syntax, environments must adopt a **Zero-Trust Evaluation Pipeline**. Just as cybersecurity protocols do not trust user input, the architecture loop cannot trust an AI-generated RTL file or script. Before an expensive EDA tool or simulator even boots up, the artifact must pass a fast, deterministic sanitization layer of linters, static bounds checks, and syntax verifiers.
-
-Furthermore, as AI generation accelerates, it creates a human review bottleneck where agents propose changes faster than humans can verify them. To prevent this fatigue (similar to the AI-generated PR review fatigue seen in software engineering), the system must enforce a **Shift-Left Verification ("Prove It First")** threshold. An AI agent is not permitted to propose a microarchitectural change to a human architect unless it bundles the proposal with a passing smoke-test result, a synthesized formal proof, or a verified execution trace. The agent must autonomously prove the candidate survives the first two layers of the simulation funnel before escalating to a human, shifting the verification burden back to the machine.
+Not every check needs to be an expensive independent oracle. Because an AI generator can emit syntactically plausible but invalid RTL or scripts, and can propose faster than a human can review, fast deterministic checks belong ahead of expensive ones. A linter, a static bounds check, and a syntax verifier reject a malformed candidate before a simulator or synthesis run is spent on it. Requiring an agent to clear those checks and attach the passing result before it escalates a proposal keeps the volume of generated candidates from overwhelming the reviewer.
 
 ## Protected Evidence and Public Claims {#sec-protected-evidence-and-public-claims}
 
@@ -186,7 +182,17 @@ A technically appropriate independent check may rely on workloads, flows, or res
 
 Internal protected evidence may support an internal decision when an authorized reviewer can inspect it. A public claim must remain within what the public record or a credible protected audit can establish. Missing public information is not proof that internal evidence did not exist, while a production report is not an independently replayable comparison.
 
-This tension between protected industrial data and public scientific claims is well illustrated by the AlphaChip case. The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on reported metrics, later noting its contribution to TPU generations [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip]. When independent assessments questioned proxy correlation, baselines, and reproducibility, the authors replied that these external evaluations did not reproduce the proprietary pretraining and production setup [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment; @GoldieEtAl2024ThatChipHasSailed]. This dispute highlights that public claims require independent physical and security checks because unmatched evaluations cannot be forced into a single, retroactive shared experiment. While bounded claims are supportable within a specific setup, external observers cannot formally validate internal evidence without access to the same physical ground truth.
+The AlphaChip dispute shows how this boundary holds when an internal result meets outside scrutiny.
+
+::: {.callout-war-story title="A proxy under dispute"}
+**The claim.** The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on reported metrics. Later reports noted its contribution to TPU generations [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip].
+
+**The gap.** Independent assessments questioned proxy correlation, baselines, and reproducibility. The authors replied that the assessments did not reproduce the proprietary pretraining and production setup and used different cases and budgets [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment; @GoldieEtAl2024ThatChipHasSailed].
+
+**The lesson.** The public records test related placement claims under different cases and conditions. Bounded claims are supportable within each specific setup, but unmatched evaluations cannot be forced into a single, retroactive shared experiment.
+:::
+
+Neither side could collapse the disagreement into one shared experiment because the strongest results depended on a proprietary setup that the public cases did not match. A public claim about AI-assisted placement stays within what an outside reviewer can inspect or reproduce, even when a stronger internal result exists.
 
 @tbl-alphachip-evidence-comparison separates what each public record contributes from what it cannot establish.
 
@@ -205,13 +211,13 @@ A protected evidence frame must document the restricted data class, allowed tool
 State which evidence is restricted, which AI tools may access it, and who can inspect the complete record. Architects must also specify what a redacted result cannot establish and who holds the authority to approve disclosure.
 :::
 
-This checkpoint forces teams to establish clear boundaries for confidentiality before a review begins. By defining what can and cannot be shared, it prevents the leak of proprietary data while still allowing the architecture's claims to be evaluated by authorized reviewers.
+This checkpoint forces teams to establish clear boundaries for confidentiality before a review begins. Defining what can and cannot be shared prevents the leak of proprietary data while still allowing authorized reviewers to evaluate the architecture's claims.
 
 ## Evidence Cost and Consequence {#sec-evidence-cost-and-consequence}
 
 Cost limits which observations an architect can obtain; it does not assign confidence or evidentiary strength. A cheap legality check may decisively reject an invalid candidate. An expensive post-route result may still be irrelevant to a security claim. The useful next check is one whose plausible outcomes could change the claim disposition, candidate ordering, scope, or proposed action enough to justify its computational and human cost.
 
-Verification schedule and review bandwidth are constrained resources (@sec-design-loop-no-longer-scales details the high schedule share of verification in ASIC projects). Available capacity limits both compute and expert attention—this is not just API rate limits, but the reality of 3-day VCS RTL simulation times and fighting for slots on Palladium emulation boxes. A feedback budget must record latency, execution cost, fidelity, uncertainty, failure budget, interpretation time, and review cost.
+Verification schedule and review bandwidth are constrained resources (@sec-design-loop-no-longer-scales details the high schedule share of verification in ASIC projects). Available capacity limits both compute and expert attention. This is not just API rate limits, but the reality of 3-day VCS RTL simulation times and fighting for slots on Palladium emulation boxes. A feedback budget must record latency, execution cost, fidelity, uncertainty, failure budget, interpretation time, and review cost.
 
 The burden of proof depends heavily on the action being considered. The proposed action and its reversibility determine how much evidence is adequate (see @tbl-evidence-by-consequence).
 
@@ -261,6 +267,6 @@ The design-loop card acts as the compact ledger for the disputed claim, review r
 
 ## Conclusion and Carry Forward {#sec-conclusion-and-carry-forward}
 
-Automated AI generators increase the volume of design candidates, but they don't lower the bar for verification. Architects must actively guard against AI gaming fast proxies, and they must uncover correlated errors where multiple AI tools share the same blind spots. By explicitly bounding claims, requiring independent physical oracles, and treating waivers as recorded risks rather than test passes, architects retain control. Verification anchors AI-driven architecture in physical reality.
+Automated AI generators increase the volume of design candidates, but they don't lower the bar for verification. Architects must guard against AI gaming fast proxies, and they must uncover correlated errors where multiple AI tools share the same blind spots. Architects retain control by bounding claims, requiring independent physical oracles, and treating waivers as recorded risks rather than test passes.
 
 **Carry forward:** @sec-running-the-loop uses the branching result map explicitly in an illustrative SCALE-Sim study. The model and simulator return different feedback; SCALE-Sim returns typed observations under one frozen path; those observations bear on separate claims. The review records a no-change architecture outcome, an AI tie, a failed mechanism explanation, and a stopping result. The failed path and candidates can be preserved without automatic model updating, and the architect, not the model or evidence packet, decides to stop.
