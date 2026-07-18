@@ -14,15 +14,9 @@ def main():
     fig, ax = plt.subplots(figsize=(10, 4))
 
     # Apple Data
-    apple_months = [0, 19, 35, 42, 59]
-    apple_labels = [
-        "M1\nNov 2020",
-        "M2\nJun 2022",
-        "M3\nOct 2023",
-        "M4\nMay 2024",
-        "M5\nOct 2025",
-    ]
-    apple_gaps = [19, 16, 7, 17]
+    apple_months = [0, 19, 35, 42]
+    apple_labels = ["M1\nNov 2020", "M2\nJun 2022", "M3\nOct 2023", "M4\nMay 2024"]
+    apple_gaps = [19, 16, 7]
 
     # GPU Data
     gpu_months = [-6, 16, 40, 62]
@@ -108,7 +102,7 @@ def main():
         gpu_months,
         [-0.5] * len(gpu_months),
         facecolor=COLORS["note_fill"],
-        edgecolor=COLORS["orange"],
+        edgecolor=COLORS["blue"],
         s=150,
         linewidth=2.5,
         zorder=3,
@@ -164,7 +158,7 @@ def main():
     ax.set_xlim(-15, 68)
     ax.axis("off")
     ax.set_title(
-        "Accelerating Hardware Cadence vs Traditional 24-Month Cycles",
+        "Silicon Release Cadence: Apple vs. NVIDIA",
         fontweight="bold",
         color=COLORS["ink"],
         pad=20,

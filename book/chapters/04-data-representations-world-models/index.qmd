@@ -20,21 +20,9 @@ What must an AI system know and represent so that it can propose a new architect
 
 @sec-architecture-20-ontology introduced the Architecture Design Loop. To systematically explore design spaces, an AI system requires a formal, explicit representation of architectural knowledge and project state. A representation is not just text or an embedding; it must capture structural constraints, Register Transfer Level (RTL) boundaries, configuration parameters, and fixed physical limits.
 
-Why can a model speak fluently about computer architecture, yet fail to act on a current design?
+An AI system might speak fluently about computer architecture yet fail to act on a current design. Consider an AI system given our lighthouse prompt to design a low-power, 64-bit RISC-V compute subsystem for an XR platform. The model may possess deep, generalized knowledge of RISC-V instruction sets, branch prediction algorithms, and out-of-order execution pipelines. Without an explicit representation of the project state, however, it remains completely oblivious to the active constraints. It does not know that the architect recently updated the target eye-tracking workload trace, restricted the L2 cache capacity to meet the XR headset's strict thermal budget, or fixed the memory bandwidth to satisfy a rigid area envelope. Demonstrating fluency in generating RISC-V concepts does not grant an AI the context to satisfy physical constraints.
 
-Consider an AI system given our lighthouse prompt: "Design a low-power, 64-bit RISC-V-based compute subsystem for an XR platform." The model may possess deep, generalized knowledge of RISC-V instruction sets, branch prediction algorithms, and out-of-order execution pipelines. Yet, without an explicit representation of the project state, it remains completely oblivious to the active constraints: it does not know that the architect recently updated the target eye-tracking workload trace, restricted the L2 cache capacity to meet the XR headset's strict thermal budget, or fixed the memory bandwidth to satisfy a rigid area envelope. Demonstrating fluency in generating RISC-V concepts does not grant an AI the context to waive physical constraints.
-
-General architectural knowledge is meaningless without the explicit bounds of the current design. To propose a viable change, an AI system must fuse its learned statistical priors with the concrete, versioned constraints of the specific project. The system must represent the design problem, express a legal architectural action, and predict precise consequences. We must build verifiable frameworks where the representation explicitly tracks what the AI consumes and returns, ensuring the AI accelerates the legwork while the architect commands the direction (@fig-alphachip-placement).
-
-![**AlphaChip sequentially places macros.** The agent places one macro at a time on the grid, learning from the density and congestion feedback to optimize the final wirelength. Image from the Google Research Blog.](images/google_rl.png){#fig-alphachip-placement width="100%" fig-alt="Animation of an RL agent placing macros one by one on a grid."}
-
-::: {.callout-war-story title="AlphaChip's Explicit Graph Representation"}
-**The claim.** When Google developed AlphaChip for TPU macro placement [@MirhoseiniEtAl2021GraphPlacement], the reinforcement learning agent could not just output text or $(x,y)$ coordinates in a vacuum. It needed a rigorous, machine-readable view of the physical reality.
-
-**The gap.** Generating numbers without structural context ignores the strict physical adjacency rules required by hardware design.
-
-**The lesson.** The project explicitly represented the chip as a graph—where macros and standard cells were nodes, and the connecting wires were edges. This graph representation, combined with a grid-based canvas, forced the AI to operate within strict physical rules. Without this explicit translation from RTL to a structural graph, the agent would have had no safe action space to explore.
-:::
+General architectural knowledge is meaningless without the explicit bounds of the current design. To propose a viable change, an AI system must fuse its learned statistical priors with the concrete, versioned constraints of the specific project. The system must represent the design problem, express a legal architectural action, and predict precise consequences. We must build verifiable frameworks where the representation explicitly tracks what the AI consumes and returns, ensuring the AI accelerates the legwork while the architect commands the direction.
 
 
 
@@ -52,9 +40,9 @@ After this chapter you can identify how architectural knowledge enters an AI sys
 
 ## Architectural Knowledge for Design
 
-Before exploring where architectural knowledge comes from, we must define what it is. In the context of Architecture 2.0, true architectural knowledge is synonymous with the ability to conduct rigorous architectural research. It means understanding how to construct robust baselines, how to orchestrate the right tools (simulators, compilers, synthesizers), and crucially, how to interpret the fidelity and limits of those tools. As we navigate the "transparency gradient"—moving from highly explicit software code down to the tacit, intuition-driven depths of physical design—this knowledge becomes harder to formally codify. To design something new, an AI method must bridge this gradient through compositional analytical-ML fusion, drawing on two different classes of information: this learned architectural knowledge (statistical priors) and the current project state (explicit facts).
+Before exploring where architectural knowledge comes from, we must define what it is. In the context of Architecture 2.0, true architectural knowledge is synonymous with the ability to conduct rigorous architectural research. It means understanding how to construct robust baselines, orchestrate the right tools, and interpret the fidelity and limits of those tools. As we navigate the "transparency gradient," moving from highly explicit software code down to the tacit, intuition-driven depths of physical design, this knowledge becomes harder to formally codify. To design something new, an AI method must bridge this gradient through compositional analytical-ML fusion. It draws on two different classes of information: learned architectural knowledge and the current project state.
 
-Recent literature highlights that AI models do not inherently "know" how to build a chip [@LiuEtAl2023ChipNeMo; @ThakurEtAl2023AutoChip; @PrakashEtAl2025QuArch]. Instead, their parameters encode recurring, general relationships among workloads, hardware mechanisms, tools, and design choices. These statistical priors explain *why* spatial dataflow dependencies, SRAM capacities, and MAC array dimensions interact the way they do. They enable the system to recognize that widening the Tensor Core array requires proportionally larger SRAM capacities to sustain utilization, or that a larger MAC grid increases the penalty of underutilized edge workloads.
+Recent literature highlights that AI models do not inherently "know" how to build a chip [@LiuEtAl2023ChipNeMo; @ThakurEtAl2023AutoChip; @PrakashEtAl2025QuArch]. Instead, their parameters encode recurring, general relationships among workloads, hardware mechanisms, tools, and design choices. These statistical priors explain why spatial dataflow dependencies, SRAM capacities, and MAC array dimensions interact the way they do. They enable the system to recognize that widening the Tensor Core array requires proportionally larger SRAM capacities to sustain utilization, or that a larger MAC grid increases the penalty of underutilized edge workloads.
 
 Current project state serves a completely different purpose. It identifies the specific design version under active evaluation. It names the exact workload, software versions, mutable fields, fixed constraints, assumptions, prior observations, and unresolved conditions for a single study.
 
@@ -62,42 +50,43 @@ An AI method needs both. General knowledge cannot reveal that the project lead j
 
 ## Sources and Datasets for Architectural Knowledge
 
-Where does architectural knowledge come from? Papers, manuals, specifications, code, RTL, traces, workloads, tool outputs, failed candidates, review decisions, and field observations are not interchangeable examples. What an AI model can learn---or what an evaluation can establish---depends directly on the structure of the dataset.
+Architectural knowledge comes from many sources. Papers, manuals, specifications, code, RTL, traces, workloads, tool outputs, failed candidates, review decisions, and field observations are not interchangeable examples. What an AI model can learn, or what an evaluation can establish, depends directly on the structure of the dataset.
 
-Crucially, architectural data differs fundamentally from traditional ML text data. This is why hardware benchmarking is fundamentally harder than SWE-bench. First, hardware design demands **strict structural correctness**: a single misplaced wire or incorrect parameter can break an entire chip, whereas software can often be unit-tested function by function. Second, **execution is ground truth**: an architecture representation is just a hypothesis until verified by a simulator or physical synthesis, involving massive delayed feedback loops compared to instant software compilation. Finally, architectural parameters are **tightly coupled**: changing a single buffer size cascades unpredictably into power, timing, and area outcomes. The design space is not a smooth gradient; it is punctuated by hard cliffs, such as suddenly unroutable netlists. Simple textual generation fails here. An AI system must be tethered to strict physical constraints---such as SRAM limits and routing dependencies---so it does not propose impossible chips.
+Architectural data differs fundamentally from traditional ML text data, making hardware benchmarking significantly harder than software evaluation. First, hardware design demands strict structural correctness. A single misplaced wire or incorrect parameter can break an entire chip, whereas software can often be unit-tested function by function. Second, execution is ground truth. An architecture representation remains a hypothesis until verified by a simulator or physical synthesis, involving massive delayed feedback loops compared to instant software compilation. Finally, architectural parameters are tightly coupled. Changing a single buffer size cascades unpredictably into power, timing, and area outcomes. The design space is not a smooth gradient; it is punctuated by hard cliffs, such as suddenly unroutable netlists. Simple textual generation fails here. An AI system must be tethered to strict physical constraints, such as SRAM limits and routing dependencies, to ensure it does not propose impossible chips.
 
 - A **document corpus** (such as technical specifications or conference papers) can support reading, retrieval, and general concept acquisition.
 - A **question and answer pair** can teach or test recall, localization, and technical reasoning.
 - A **tool-use trace** can teach action selection and API syntax.
 - A **state-action-consequence simulation log** can support sequence prediction, performance modeling, or offline reinforcement learning.
 
-Changing the structure of the example changes the capability being trained or tested. In computer architecture, the QuArch benchmark provides a bridge from general reading comprehension to expert-validated architectural reasoning [@PrakashEtAl2025QuArch]. QuArch evaluates whether an AI system understands core concepts across processor design, memory systems, and performance optimization. For example, a QuArch question might ask a model to calculate the effective memory access time given a specific cache hit rate and miss penalty.
+Changing the structure of the example changes the capability being trained or tested. In computer architecture, the QuArch benchmark, a comprehensive dataset for evaluating architectural understanding, provides a bridge from general reading comprehension to expert-validated architectural reasoning [@PrakashEtAl2025QuArch]. QuArch evaluates whether an AI system understands core concepts across processor design, memory systems, and performance optimization. For example, a QuArch question might ask a model to calculate the effective memory access time given a specific cache hit rate and miss penalty.
 
-But QA has a strict boundary. It tests the *knowledge layer* but cannot reconstruct a project execution history or executable tool state. Crucially, to capture an architect's true knowledge, ML models cannot just look at positive examples---the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space. Without negative data, a model might memorize what worked in one context, but it won't understand why designs fail or how to correct them.
+A question-and-answer format has a strict boundary. It tests the knowledge layer but cannot reconstruct a project execution history or executable tool state. To capture an architect's true knowledge, ML models cannot just look at positive examples, such as the final winning design. They must see the failed synthesis runs, the unroutable netlists, and the rejected thermal profiles. Negative examples are critical for ML to learn the boundaries of the design space. Without negative data, a model might memorize what worked in one context without understanding why designs fail or how to correct them.
 
-The architecture community has historically recognized the value of failure---for example, in venues dedicated to negative outcomes and post-mortems---to prevent repeated costly mistakes. As AI-assisted architecture methods move beyond simple question-and-answer tasks, they will need datasets shaped around active design capabilities. The field currently lacks public, standardized collections of source-linked tool-use examples, versioned state-action-consequence execution histories, and importantly, negative and rejected candidates.
+The architecture community has historically recognized the value of failure, for example in venues dedicated to negative outcomes and post-mortems, to prevent repeated costly mistakes. As AI-assisted architecture methods move beyond simple question-and-answer tasks, they will need datasets shaped around active design capabilities. The field currently lacks public, standardized collections of source-linked tool-use examples, versioned state-action-consequence execution histories, and importantly, negative and rejected candidates.
 
 ## The Cost of a Data Sample
 
 In traditional machine learning, systems rely on massive web scraping, crowd-sourced labeling, or passive observation to generate datasets. A single data sample---such as an image or a sentence---is effectively free to acquire. In computer architecture, however, data acquisition is fundamentally constrained by the cost of simulation. Generating a single, valid data sample requires executing a formal model of a machine.
 
-Understanding the "cost of a data sample" is critical because it dictates what an AI system can feasibly learn. There is a deep asymmetry here: the compute cost of running an AI model (inference overhead) is often measured in milliseconds and fractions of a cent per token, whereas evaluating that AI's proposal through an EDA tool or RTL simulation can cost thousands of compute hours and massive licensing fees. If an AI agent needs millions of trials to learn a reinforcement learning policy, it cannot use Register-Transfer Level (RTL) simulation. RTL provides exact cycle-by-cycle behavioral and power numbers, but it is notoriously slow and computationally expensive. These high-fidelity simulations are essential for validating ground truth, but they are too costly to serve as the sole source of training data for data-hungry ML algorithms.
+Understanding the cost of a data sample is critical because it dictates what an AI system can feasibly learn. A deep asymmetry exists between the inference overhead of running an AI model, often measured in milliseconds and fractions of a cent per token, and the cost of evaluating that AI's proposal through an electronic design automation (EDA) tool or RTL simulation, which can consume thousands of compute hours and massive licensing fees. If an AI agent needs millions of trials to learn a reinforcement learning policy, it cannot use RTL simulation. RTL provides exact cycle-by-cycle behavioral and power numbers, but it is notoriously slow and computationally expensive. High-fidelity simulations validate ground truth, but they are too costly to serve as the sole source of training data for data-hungry ML algorithms.
 
-Conversely, low-fidelity generation---such as analytical models or high-level trace-driven simulations---can rapidly generate millions of synthetic data points at a fraction of the cost. However, this cheap data often lacks the nuance of complex microarchitectural interactions, such as deep pipeline stalls, coherence races, or thermal throttling effects. The challenge lies in balancing these extremes: utilizing cheap, low-fidelity synthetic data to broadly map the design space, while reserving expensive, high-fidelity RTL or silicon data for fine-tuning models near optimal or boundary conditions.
+Conversely, low-fidelity generation, such as analytical models or high-level trace-driven simulations, can rapidly generate millions of synthetic data points at a fraction of the cost. However, this cheap data often lacks the nuance of complex microarchitectural interactions, such as deep pipeline stalls, coherence races, or thermal throttling effects. The challenge lies in balancing these extremes, utilizing cheap, low-fidelity synthetic data to broadly map the design space, while reserving expensive, high-fidelity RTL or silicon data for fine-tuning models near optimal or boundary conditions.
 
-This dynamic means the spectrum of simulation fidelity directly dictates the volume and variance of the available dataset, much like a cache memory hierarchy limits fast, expensive memory while expanding slow, cheap memory (@fig-data-fidelity-pyramid). @tbl-synthetic-data-costs illustrates the specific cost, speed, and fidelity trade-offs across different architectural simulators.
+This dynamic means the spectrum of simulation fidelity directly dictates the volume and variance of the available dataset. Much like a memory hierarchy limits fast, expensive SRAM while expanding slow, cheap disk storage, the architectural data fidelity pyramid restricts access to ground-truth silicon data while offering abundant analytical approximations (@fig-data-fidelity-pyramid). @tbl-synthetic-data-costs illustrates the specific cost, speed, and fidelity trade-offs across different architectural simulators.
 
-![The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant.](images/F4-data-pyramid.svg){#fig-data-fidelity-pyramid fig-alt="The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant."}
-| **Simulator / Model Type** | **Fidelity Level** | **Speed / Throughput** | **Cost of a Data Sample** | **ML Principle Equivalent** |
+![The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant.](images/F4-data-pyramid.svg){#fig-data-fidelity-pyramid fig-alt="The Architectural Data Fidelity Pyramid. Analogous to a memory hierarchy, high-fidelity data is expensive and scarce, while low-fidelity data is cheap and abundant." width="100%"}
+
+| **Simulator or Model Type** | **Fidelity Level** | **Speed or Throughput** | **Cost of a Data Sample** | **ML Principle Equivalent** |
 | --- | --- | --- | --- | --- |
-| **Analytical / Mathematical** | Low (Equations, steady-state) | Millions of samples/sec | ~$0 (Compute-bound, trivial) | Simple synthetic priors, rule-based generation |
-| **Trace-Driven** | Medium (Instruction streams) | Thousands of samples/sec | Low | Heuristic-based procedural generation |
-| **Cycle-Accurate Simulation** | High (Microarchitecture state) | 10s - 100s of samples/sec | Medium (High CPU hours) | High-fidelity synthetic rendering |
-| **RTL Simulation** | Very High (Logic gates, precise) | Fractions of a sample/sec | Very High (Days of compute) | Human-annotated expert data |
-| **Emulation (FPGA)** | Ground Truth (Logical, Cycle-Accurate) | Real-time (Millions/sec)* | High (Hardware boards, compile time) | Real-world behavioral data |
-| **Physical Silicon (ASIC)** | Ground Truth (Physical, Timing, Power) | Real-time (Millions/sec)* | Astronomical ($10M+ NRE, Setup) | Real-world deployment data |
+| Analytical or Mathematical | Low (Equations, steady-state) | Millions of samples/sec | ~$0 (Compute-bound, trivial) | Simple synthetic priors, rule-based generation |
+| Trace-Driven | Medium (Instruction streams) | Thousands of samples/sec | Low | Heuristic-based procedural generation |
+| Cycle-Accurate Simulation | High (Microarchitecture state) | 10s - 100s of samples/sec | Medium (High CPU hours) | High-fidelity synthetic rendering |
+| RTL Simulation | Very High (Logic gates, precise) | Fractions of a sample/sec | Very High (Days of compute) | Human-annotated expert data |
+| Emulation (FPGA) | Ground Truth (Logical, Cycle-Accurate) | Real-time (Millions/sec)* | High (Hardware boards, compile time) | Real-world behavioral data |
+| Physical Silicon (ASIC) | Ground Truth (Physical, Timing, Power) | Real-time (Millions/sec)* | Astronomical ($10M+ NRE, Setup) | Real-world deployment data |
 
-: **Data generation costs across architectural fidelity levels.** While silicon/emulation runs at high speeds, the initial setup cost, bitstream compilation time, and non-recurring engineering (NRE) costs make acquiring the first sample extremely expensive. {#tbl-synthetic-data-costs tbl-colwidths="[20,20,20,20,20]"}
+: **Table 4.1:** Data generation costs across architectural fidelity levels. While silicon and emulation runs at high speeds, the initial setup cost, bitstream compilation time, and non-recurring engineering (NRE) costs make acquiring the first sample extremely expensive. {#tbl-synthetic-data-costs tbl-colwidths="[20,20,20,20,20]"}
 
 ## Updating the Architect's World Model
 
@@ -116,7 +105,7 @@ The flow of data from simulators to the AI system is not a monolith. Domain adap
 
 Information appears in various forms, and it is imprecise to collapse them all into the single term *representation*. An AI system uses different objects to store different kinds of knowledge. @tbl-knowledge-objects compares what these objects preserve, what they lose, and what authority they have in an architecture study.
 
-| **Object** | **How produced / updated** | **What it preserves** | **What it loses** | **Authority in design** |
+| **Object** | **How Produced or Updated** | **What It Preserves** | **What It Loses** | **Authority in Design** |
 | --- | --- | --- | --- | --- |
 | **Model parameters** | Pretraining, fine-tuning. | Learned statistical regularities, general architectural concepts. | Source links, exact provenance, dynamic project state. | General capability and reasoning; not an authoritative project record. |
 | **Embeddings** | Derived from source items via an embedding model. | Semantic similarity for clustering and retrieval. | Exact text or structured relationships if unmapped. | Supports search; not an authoritative record. |
@@ -158,7 +147,7 @@ Consider compiler regression tests. When a compiler bug is discovered, it is cod
 
 @tbl-negative-traces gives examples of negative knowledge.
 
-| **Failed run or rejected alternative** | **What it records** | **How it changes later work** |
+| **Failed Run or Rejected Alternative** | **What It Records** | **How It Changes Later Work** |
 | --- | --- | --- |
 | Synthesis or timing violation | Constraints, process, parameters, failing setup/hold paths. | Exclude this macro or parameter combination. |
 | Unroutable or PDN failing netlist | Placement, density, pin layout, congestion map, IR drop. | Add congestion-aware spacing or reshape the action space. |
@@ -189,7 +178,7 @@ An architecture world model performs a transition job. Given the current constra
 
 An illustrative RISC-V core simulator provides a concrete example of an architecture world model. As a cycle-accurate simulator, it maps a represented workload trace and a proposed pipeline configuration to a predicted performance metric. @tbl-executed-study-world-model shows exactly what such a simulator consumes and what its predictions leave out.
 
-| **World-model field** | **Illustrative simulator comparison** |
+| **World-Model Field** | **Illustrative Simulator Comparison** |
 | --- | --- |
 | **Represented state** | Frozen eye-tracking workload trace, defined L2 cache capacity bounds, base integer instruction set, and fixed memory bandwidth. |
 | **Action under evaluation** | Propose issue width and reorder buffer size within a declared area budget. |
@@ -202,7 +191,7 @@ An illustrative RISC-V core simulator provides a concrete example of an architec
 
 @tbl-sample-cost-regimes shows how the required context changes with the source of feedback. Read each row from the time and resources needed to obtain an observation, through what that observation can reveal, to the information a later method or reviewer would need in order to reuse it.
 
-| **Feedback source** | **Latency / cost intuition** | **What it reveals** | **Record for reuse** |
+| **Feedback Source** | **Latency or Cost Intuition** | **What It Reveals** | **Record for Reuse** |
 | --- | --- | --- | --- |
 | Analytical model or mapper | Milliseconds to seconds; low direct cost; results depend heavily on model assumptions. | Supports pruning and sensitivity checks within the model's scope. | Model assumptions, workload slice, constraints, and proxy-validity notes. |
 | Trace, profile, or replay | Seconds to hours depending on capture and replay setup. | Reveals workload behavior under a stated capture or replay policy. | Trace version, sampling policy, software stack, and filtering choices. |
@@ -220,7 +209,7 @@ A tool result has several possible destinations. It may append an execution hist
 
 Because these updates happen on different schedules, architecture knowledge inevitably ages out of alignment. A current retrieval index may point to an old corpus. A current design may use a new workload, while its execution history contains results from an earlier compiler version. When an AI uses stale manuals to modify a current design, it proposes changes that violate the constraints of the new version (@fig-split-brain-causality).
 
-![State Inconsistency: When the AI retrieves stale manuals or training data while the project state advances, it hallucinates fixes that violate current constraints.](images/F4b-split-brain-causality.svg){#fig-split-brain-causality fig-alt="State Inconsistency: When the AI retrieves stale manuals or training data while the project state advances, it hallucinates fixes that violate current constraints."}
+![State Inconsistency: When the AI retrieves stale manuals or training data while the project state advances, it hallucinates fixes that violate current constraints.](images/F4b-split-brain-causality.svg){#fig-split-brain-causality width="100%" fig-alt="State Inconsistency: When the AI retrieves stale manuals or training data while the project state advances, it hallucinates fixes that violate current constraints."}
 
 To prevent this, the environment must strictly track tool versions, workload revisions, and document timestamps to ensure that the AI's retrieved context and the current project state align before committing to a costly synthesis run. Versions and provenance expose these relationships, even if they do not automatically resolve them.
 
@@ -228,7 +217,7 @@ Furthermore, architecture projects suffer from massive missing state. Papers, op
 
 @tbl-representation-debt identifies what standard artifacts contribute and what they routinely omit.
 
-| **Artifact** | **What it enables** | **What it often hides** | **Failure mode** |
+| **Artifact** | **What It Enables** | **What It Often Hides** | **Failure Mode** |
 | --- | --- | --- | --- |
 | Paper or plot | Claim, result, and comparison. | Tool flags, failed candidates, tuning history. | Reproduce only the reported result, not the design process. |
 | Workload trace | Concrete input behavior and measurements. | Coverage, versioning, sampling policy, privacy filters. | Optimize for an unrepresentative slice. |
@@ -237,9 +226,19 @@ Furthermore, architecture projects suffer from massive missing state. Papers, op
 | Review notes | Architect and reviewer judgment and rationale. | Unstated assumptions and discarded alternatives. | Lose why a decision was made. |
 | Rejected candidate | Search boundary and negative evidence. | Why it failed and at what fidelity. | Rediscover known dead ends. |
 
-: **Architecture artifacts become reusable when their context is recorded.** Each artifact should include enough provenance, assumptions, constraints, and validity information for a method to use it and for a reviewer to trace the result. {#tbl-representation-debt tbl-colwidths="[22,27,25,18]"}
+: **Table 4.6:** Architecture artifacts become reusable when their context is recorded. Each artifact should include enough provenance, assumptions, constraints, and validity information for a method to use it and for a reviewer to trace the result. {#tbl-representation-debt tbl-colwidths="[22,27,25,18]"}
 
-Private context creates a strict access boundary. Production macros can be placed at expert quality using reinforcement learning, but the strongest results depend on proprietary production designs and pretraining context that are not available to outside researchers [@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023MacroPlacement; @ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed]. This creates a massive tension around data provenance and IP security: hardware companies cannot afford to leak their proprietary RTL or design constraints to public LLM APIs. Consequently, there is a strong push toward localized, on-premise Small Language Models (SLMs) that can securely interact with internal EDA tools without exposing the "crown jewels" of the company.
+Private context creates a strict access boundary. Production macros can be placed at expert quality using reinforcement learning, but the strongest results depend on proprietary production designs and pretraining context that are not available to outside researchers [@MirhoseiniEtAl2021GraphPlacement; @ChengEtAl2023MacroPlacement; @ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed] (@fig-alphachip-placement). This creates a massive tension around data provenance and IP security. Hardware companies cannot afford to leak their proprietary RTL or design constraints to public LLM APIs. Consequently, there is a strong push toward localized, on-premise Small Language Models (SLMs) that can securely interact with internal EDA tools without exposing the crown jewels of the company.
+
+![**AlphaChip sequentially places macros.** The agent places one macro at a time on the grid, learning from the density and congestion feedback to optimize the final wirelength. Image from the Google Research Blog.](images/google_rl.png){#fig-alphachip-placement width="100%" fig-alt="Animation of an RL agent placing macros one by one on a grid."}
+
+::: {.callout-war-story title="AlphaChip's Explicit Graph Representation"}
+**The claim:** When Google developed AlphaChip for TPU macro placement [@MirhoseiniEtAl2021GraphPlacement], the reinforcement learning agent could not output text or $(x,y)$ coordinates in a vacuum. It needed a rigorous, machine-readable view of physical reality.
+
+**The gap:** Generating numbers without structural context ignores the strict physical adjacency rules required by hardware design.
+
+**The lesson:** The project explicitly represented the chip as a graph, where macros and standard cells were nodes, and the connecting wires were edges. This graph representation, combined with a grid-based canvas, forced the AI to operate within strict physical rules. Without this explicit translation from RTL to a structural graph, the agent would have had no safe action space to explore.
+:::
 
 Internal and public claims rest on different inspectable knowledge boundaries. Private evidence can support an internal decision, but a public claim must stop where outside inspection stops. The organization making the decision should retain the complete record under appropriate access controls and state precisely what outside readers can verify.
 
