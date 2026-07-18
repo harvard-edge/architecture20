@@ -109,7 +109,7 @@ Model-mediated exploration requires an explicit representation of architecture s
 In @sec-running-the-loop's array study, SCALE-Sim was used to compare array geometries under a frozen workload and software path. A simulator can support a no-change decision for the represented metrics. Moving a candidate toward implementation requires compiler mapping semantics, a memory-system model, end-to-end offload granularity, RTL legality, and later physical checks.
 
 ::: {.callout-architect-checkpoint title="The Cross-Layer Rejection Check"}
-AI optimizers often exploit a basic principal-agent problem: they can post massive local throughput gains by dumping technical debt onto the compiler interface, taking advantage of information asymmetry. Independent rejection checks are formally required here as "costly state verification." When an optimizer tunes against a local proxy such as core area, check whether the harness includes checks for candidates that win only by pushing complexity into memory traffic, compiler support, verification, or SoC integration.
+AI optimizers often find "cheats": they post massive local throughput gains by dumping complexity onto the compiler or memory system, exploiting the fact that the local proxy doesn't measure those costs. Independent cross-layer checks are required to catch these cases. When an optimizer tunes against a local proxy such as core area, ensure the test harness rejects candidates that win only by pushing the burden into memory traffic, compiler support, verification, or SoC integration.
 :::
 
 ### Specialization and Executable Software Paths
@@ -200,7 +200,7 @@ plt.close(fig)
 
 The software path connects domain intent to hardware. Programming models, compiler IRs, libraries, runtimes, and generated code form the executable path that makes specialized hardware usable (@fig-codegen-narrow-waist).
 
-![**The software path to specialized hardware.** Domain-specific architectural claims require executable software paths and evidence about correctness, performance, portability, and maintenance.](images/F10b-codegen-narrow-waist){#fig-codegen-narrow-waist width="92%" fig-alt="Narrow-waist diagram showing programming models, compiler representations, libraries, runtimes, and generated code connecting specialized hardware to evidence checks."}
+![**The software path to specialized hardware.** Domain-specific architectural claims require executable software paths and evidence about correctness, performance, portability, and maintenance.](images/F10b-codegen-narrow-waist){#fig-codegen-narrow-waist width="92%" fig-alt="Narrow-waist diagram showing programming models, compiler representations, libraries, runtimes, and generated code connecting specialized hardware to evidence checks." fig-alt="**The software path to specialized hardware.** Domain-specific architectural claims require executable software paths and evidence about correctness, performance, portability, and maintenance."}
 
 A local kernel result cannot bypass this software path. The hardware/lowering path must be retained so a failure on either side invalidates the paired claim.
 
@@ -224,13 +224,13 @@ A single-layer optimization can be locally correct and still make the complete s
 Before an optimizer acts, record which layer it may change, which other layer supplies independent feedback, what automation may execute or recommend, and who may approve the cross-layer tradeoff.
 :::
 
-Software feedback supports an architectural claim only when the run record ties each code path to the hardware snapshot it targeted. We can view this through an Evolutionary Biology analogy: software tuning (the fast loop) is like behavioral adaptation or phenotypic plasticity—it is rapid and reversible. In contrast, a silicon tapeout (the slow loop) is like morphological lock-in or genetic fixation. If a fast software loop is accidentally granted the authority to make a catastrophic morphological decision without independent checks, it leads to system extinction.
+Software feedback supports an architectural claim only when the run record ties each code path to the hardware snapshot it targeted. Because software tuning is rapid and reversible while silicon tapeouts are slow and fixed, the two optimization loops run on completely different timescales. If a fast software-tuning AI is accidentally granted the authority to alter a hardware interface without independent checks, it can silently introduce fatal hardware flaws.
 
-This directly maps to the AI Spectrum and the Cost/Efficiency of AI. Fast, reversible loops (plasticity) should be driven by cheap, highly efficient models—Support Vector Machines (SVMs) or specialized Small Language Models (SLMs)—that can handle high-frequency, low-latency search space exploration at low inference cost. Conversely, slow, irreversible morphological decisions warrant the high inference cost of frontier Large Language Models (LLMs). The compute cost of a frontier LLM is infinitesimally small compared to the CapEx of pouring silicon concrete. A rigorous methodology matches the cognitive cost of the AI to the physical cost of the decision.
+This mismatch in timescales also dictates the choice of AI tool. Fast, reversible software loops need low-latency, low-cost search methods (like heuristics, specialized models, or rapid surrogate models) to evaluate thousands of candidates quickly. In contrast, slow, high-consequence hardware decisions justify the latency and cost of more capable reasoning models or thorough formal checks. The architect's methodology must match the cost and capability of the AI to the physical cost of the decision.
 
-@fig-hardware-software-coevolution illustrates this hardware-software coevolution, showing how these two radically different adaptive timescales must remain structurally joined by one claim without bypassing the slower layer's checks.
+@fig-hardware-software-coevolution illustrates how these two different timescales must remain joined by one shared study record without bypassing the hardware layer's slower, more rigorous checks.
 
-![**Recording hardware-software coevolution.** Hardware target state and software path state evolve together through a shared study record, balancing behavioral plasticity and morphological lock-in.](images/F10c-hardware-software-coevolution.svg){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware and software evolving together."}
+![**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks.](images/F10c-hardware-software-coevolution.svg){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware and software evolving together." fig-alt="**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks."}
 
 ### Deployment Feedback and Migration
 
@@ -329,7 +329,9 @@ Deployment feedback includes operational state, SLOs, resource contention, and r
 
 ## RTL, Physical Design, and Difficult-to-Reverse Decisions
 
-High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. In a Macro-Economics analogy, software patches are like adjusting overnight interest rates (high liquidity, easily reverted market signals). Conversely, committing silicon is like pouring concrete for a deep-water port: a massive CapEx endeavor defined by sunk costs and multi-year horizons where timescales strictly dictate reversibility. AI heuristics frequently break down when hitting the physical realities of multi-day placement and routing runs, severe Design Rule Check (DRC) violations, and highly non-linear timing closure loops where physical design feedback is notoriously non-differentiable. Because you cannot `git revert` a tapeout, architecture must borrow the concept of *sagas* (compensating transactions) from distributed systems. Hardware must be designed with escape hatches—like microcode patches, degraded fallback modes, or fuses—to compensate for irreversible AI flaws once they reach silicon. Consequently, a passing early check cannot authorize a difficult-to-reverse transition.
+High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a massive capital expense defined by multi-year horizons. AI heuristics that work well in software frequently break down when hitting the physical realities of multi-day placement and routing runs, severe Design Rule Check (DRC) violations, and highly non-linear timing closure loops where physical design feedback is notoriously noisy and non-differentiable.
+
+Because you cannot `git revert` a tapeout, AI-assisted hardware changes require built-in escape hatches—like microcode patches, degraded fallback modes, or fuses—to compensate for unexpected failures once they reach silicon. Consequently, a passing early check in a proxy or simulator can never authorize a difficult-to-reverse physical transition.
 
 AI assistance can narrow search, critique, organize evidence, repair bounded artifacts, or generate tests. A passing early check, however, cannot waive later verification or authorize commitment. Independent checks and named roles retain rejection, waiver, recommendation, and authorization rights.
 
@@ -359,9 +361,9 @@ Design-time, in-field, and continuing-enablement observations describe different
 
 ## Updating Knowledge From Delayed Feedback
 
-![Cascade Control and the Smith Predictor illustrates nested feedback loops where an inner SLM handles fast tuning while an outer LLM processes delayed telemetry through a predictive review gate.](images/F9-cascade-control.svg){#fig-cascade-control}
+![**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing.](images/F9-cascade-control.svg){#fig-cascade-control fig-alt="**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing."}
 
-Feeding delayed observations, like field telemetry, directly into a high-frequency AI optimizer causes the same violent oscillations seen in naive control systems. Instead of static placement, use Control Theory (specifically, *Cascade Control*) to view the system as nested feedback loops (@fig-cascade-control). Fast inner loops handle immediate stabilization and local tuning, while slow outer loops handle semantic planning and architectural policy. This requires the equivalent of a Smith Predictor: a mechanism that simulates the system's delayed physical response to prevent the AI controller from wildly overcorrecting while waiting for real telemetry.
+Feeding delayed, noisy observations—like field telemetry—directly into a high-frequency AI optimizer will cause the optimizer to overcorrect and thrash. Field telemetry arrives far too late to guide rapid, automated tuning. Instead, view the system as having nested feedback loops (@fig-cascade-control). Fast inner loops handle local software tuning and immediate stabilization using close tests and proxies. Slow outer loops review the delayed field telemetry, updating the architectural assumptions and test targets. The fast tuning loop must only tune against immediate proxies; it should never act directly on delayed telemetry.
 
 Delayed evidence does not update knowledge by itself. Attribution is a review step, and every possible update surface requires a separate decision and its own admission test. Automatic LLM fine-tuning is never the default.
 
@@ -411,7 +413,7 @@ When several operating conditions apply, retain the evidence, checks, rollback, 
 
 A passing test cannot be treated as authorization when the change alters a hardware interface, enters RTL, or supports a signoff decision.
 
-![Amdahl's Law for Human Review contrasts the high proposal arrival rate of an AI generator with the constrained settlement rate of human verification.](images/F9-review-bottleneck.svg){#fig-review-bottleneck}
+![Amdahl's Law for Human Review contrasts the high proposal arrival rate of an AI generator with the constrained settlement rate of human verification.](images/F9-review-bottleneck.svg){#fig-review-bottleneck fig-alt="Amdahl's Law for Human Review contrasts the high proposal arrival rate of an AI generator with the constrained settlement rate of human verification."}
 
 If proposals arrive faster than reliable evaluation can settle them, more generation grows a queue rather than useful progress. A measurable bottleneck occurs when proposal arrival rate $\lambda_{\mathrm{propose}}$ exceeds trusted settlement rate $\mu_{\mathrm{review}}$ (@fig-review-bottleneck). We can state this explicitly as **Amdahl's Law for Human Review**: just as Amdahl's Law strictly bounds parallel scaling based on the serial fraction, the un-automatable human verification step strictly bounds the end-to-end speedup of AI-assisted design. Trust is the ultimate bottleneck. In this case, proposal supply is not limiting progress; trusted evaluation and human review dictate the pace. Improving throughput requires validating cheaper checks, reducing review cost, and cutting avoidable routing and escalation overhead. For quantitative limits on service-cost speedups, see the service-cost model in @sec-additional-framework-context (@fig-rejection-bound-ceiling).
 
@@ -443,7 +445,7 @@ Evidence arrives on three distinct clocks. Design-time evaluation estimates beha
 
 @fig-domain-specificity-shapes outlines the required properties for a specialization claim.
 
-![**Properties that define a specialization domain.**](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing properties that define a specialization domain."}
+![**Properties that define a specialization domain.**](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing properties that define a specialization domain." fig-alt="**Properties that define a specialization domain.**"}
 
 ### Analytic Review-Capacity Bound
 
