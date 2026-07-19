@@ -26,13 +26,12 @@ What has changed is how much information and work the architect must coordinate.
 A modern project may span more design information, more software and physical
 constraints, more possible designs, and more expensive forms of evaluation.
 
-That growth is not a flat list of independent problems. The pressures build on one another as a system gains layers. Microarchitecture and multicore execution add policies and coherence, specialization tailors a block to a workload, composing specialized blocks into a system-on-chip or a set of chiplets adds integration boundaries, and the executable software contract adds compilers, runtimes, and tests. Each layer carries the constraints of the one beneath it and adds its own, so a fair comparison must hold more of the system at once. This chapter works through those layers in order, then turns to a pressure of a different kind, the rising cost and irreversibility of the evidence needed to settle the resulting comparison.
+That growth is not a flat list of independent problems. The pressures build on one another as a system gains layers. Microarchitecture and multicore execution add policies and coherence, specialization tailors a block to a workload, composing specialized blocks into a system-on-chip or a set of chiplets adds integration boundaries, and the executable software contract adds compilers, runtimes, and tests that keep moving even after the hardware is fixed. Each layer carries the constraints of the one beneath it and adds its own, so a fair comparison must hold more of the system at once. This chapter works through those layers in order, then turns to a pressure of a different kind, the rising cost and irreversibility of the evidence needed to settle the resulting comparison.
 
-The difficulty is not simply that modern projects can generate more candidates.
+As those layers accumulate, the difficulty is not simply that modern projects can generate more candidates.
 Work becomes hard to complete when the project cannot keep its information
 current, define useful and valid choices, afford decisive evaluation, review
-the resulting evidence, or connect that evidence to a decision. These pressures
-require different remedies and can reinforce one another.
+the resulting evidence, or connect that evidence to a decision. These five failure modes, which the chapter returns to as a diagnostic once the layers are in view, require different remedies and can reinforce one another.
 
 The Lighthouse prompt introduced in @sec-moonshot, a low-power 64-bit RISC-V mobile-XR compute-subsystem request that this chapter treats as the mobile XR subsystem example, makes that difficulty concrete by asking an architect to compare compute organizations for a real-time mobile XR workload within a 3\ W, 3\ nm-class mobile envelope. A useful answer must connect the workload and
 software path to microarchitecture, memory movement, physical limits, and
@@ -210,7 +209,7 @@ Specialization is the next layer, and it changes what a comparison must weigh. W
 
 An architect must decide what to specialize, where the specialized function belongs, and how it communicates with the rest of the system. Choosing between a CPU and an accelerator is only the start of designing a low-power XR subsystem, since the decision also raises questions about vector length, memory hierarchy, local buffers, compression, dataflow, quantization, runtime scheduling, compiler support, sensor streams, display deadlines, thermal behavior, and fallback modes.
 
-Each of those questions widens the space of specialized options an AI system might explore, but the width is not the hard part. Specialization ties a candidate's worth to one workload's efficiency measure, so a method that improves performance per watt for the wrong workload, or that saves area while missing the display deadline, can rank candidates confidently in a way that means nothing for the target. AI can enumerate and score specialized options quickly; it helps only when the measure it optimizes is the one the deployment rewards and the architect has fixed which constraint a candidate may not violate. A larger search aimed at the wrong measure produces more candidates tuned for a workload no one will deploy.
+Each of those questions widens the space of specialized options an AI system might explore, but the width is not the hard part. For the XR subsystem the trap is concrete. A vector unit sized for the throughput of one SLAM matrix-multiplication kernel can post the best performance per watt in the search and still be the wrong block, because the perception model beside it has a different tensor shape and reuse pattern, and because the display holds a fixed per-frame deadline that a throughput-optimal design can miss while a slower design meets it. Specialization ties a candidate's worth to one workload's efficiency measure, so a method that optimizes performance per watt for the wrong workload, or that saves area while missing the display deadline, can rank candidates confidently in a way that means nothing for the target. AI can enumerate and score specialized options quickly; it helps only when the measure it optimizes is the one the deployment rewards and the architect has fixed which constraint a candidate may not violate. A larger search aimed at the wrong measure produces more candidates tuned for a workload no one will deploy.
 
 ## Composition: Systems-on-Chip and Chiplets
 
@@ -579,7 +578,7 @@ architect should distinguish improvements made for the hardware from unrelated
 changes in the workload. The former can strengthen the case for an existing
 design, while the latter can make its original evidence stale.
 
-AI workloads provide an unusually visible example of changing scale and shifting computation. Traditional convolutional networks performed fixed, deterministic computation, but modern generative models perform dynamic, iterative computation where memory access patterns change constantly due to growing key-value caches and variable sequence lengths. This shift from static to dynamic workloads demands adaptive hardware and software systems that can reconfigure on the fly. An analysis of Epoch AI's model database estimated roughly four- to fivefold annual growth in training compute for recent notable and frontier models through May 2024 (@fig-training-compute-growth), with results that depend on model class, outliers, and the form of the fit [@SevillaRoldan2024ComputeGrowth]. Compute growth is not itself
+AI workloads provide an unusually visible example of changing scale and shifting computation. Traditional convolutional networks performed fixed, deterministic computation, but modern generative models perform dynamic, iterative computation where memory access patterns change constantly due to growing key-value caches, variable sequence lengths, sparse mixture-of-experts routing, and the split between prefill and decode phases that serving systems now place on separate hardware. This shift from static to dynamic workloads demands adaptive hardware and software systems that can reconfigure on the fly. An analysis of Epoch AI's model database estimated roughly four- to fivefold annual growth in training compute for recent notable and frontier models through May 2024 (@fig-training-compute-growth), with results that depend on model class, outliers, and the form of the fit [@SevillaRoldan2024ComputeGrowth]. Compute growth is not itself
 workload drift. It does show why evidence tied to one model scale, software
 stack, or training regime cannot be transferred to another without checking
 the assumptions. For the mobile XR subsystem comparison, that means stating which model,
@@ -816,7 +815,7 @@ an architectural choice, so architects must consider the relevant EDA and
 physical-design constraints early. Power and thermal density can flag a dense
 accelerator mapping as risky before implementation. Later IR-drop and thermal
 signoff can confirm or clear that risk once a placed netlist and current profile
-exist. Because physical-design tools rely on heuristic optimization, one failed
+exist. Signoff runs each of these checks across multiple process, voltage, and temperature corners and operating modes, which is why a candidate can clear one corner and fail another. Because physical-design tools rely on heuristic optimization, one failed
 closure attempt cannot reveal whether the candidate or the tool setup caused
 the failure. Comparing constraints, seeds, and repeated outcomes helps separate
 the two.
