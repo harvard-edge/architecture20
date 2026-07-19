@@ -116,7 +116,95 @@ AI optimizers often find "cheats." They post massive local throughput gains by d
 
 ### Specialization and Executable Software Paths
 
-Historically, architecture gains came from technology scaling, architecture innovation, and optimization. As technology scaling has slowed, specialization has become the main remaining source of large efficiency gains. A specialization claim still needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
+Historically, architecture gains came from technology scaling, architecture innovation, and optimization. As technology scaling has slowed, specialization has become the main remaining source of large efficiency gains (@fig-hardware-efficiency). A specialization claim still needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
+
+```{python}
+#| label: fig-hardware-efficiency
+#| fig-cap: |
+#|   **Precision-normalized hardware efficiency rises about 1.5-fold per year, steadier than headline FLOP/s.** Peak energy efficiency of AI accelerators over time, in bit-operations per second per watt [@EpochAI2025AIModels]; the teal frontier traces the best part to date and the dashed line is a fitted trend. Because this metric normalizes for numerical precision, it grows more slowly than raw peak throughput, much of whose recent gain came from lower-precision arithmetic rather than efficiency alone.
+#| out-width: "92%"
+#| fig-alt: "Log-scale scatter of AI accelerator energy efficiency in bit-operations per second per watt versus release date from 2015 to 2026. A frontier line climbs in steps through the A100, TPU v4, and B200, with a fitted trend of about 1.5-fold per year. The full cloud of accelerators sits below the frontier."
+
+import csv
+import datetime
+import math
+from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
+import _python.arch2_plots as _ap
+from _python.arch2_plots import COLORS, apply_style
+from _python.labels import place_labels
+
+apply_style()
+
+# Data: Epoch AI ML hardware database [@EpochAI2025AIModels], accelerators with a
+# stated release date and precision-normalized energy efficiency (bit-OP/s per
+# watt). Values dataset-transcribed; the growth factor is a least-squares fit to
+# the efficiency frontier. Accessed 2026-07-19.
+# Receipt: data/source-receipts/chapter10-hardware-efficiency.csv
+_root = Path(_ap.__file__).resolve().parents[2]
+
+def _yfrac(text):
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+        try:
+            d = datetime.datetime.strptime(text.strip(), fmt)
+            return d.year + (d.timetuple().tm_yday - 1) / 365.25
+        except ValueError:
+            continue
+    return None
+
+pts = []
+with open(_root / "data" / "source-receipts" / "chapter10-hardware-efficiency.csv", encoding="utf-8") as fh:
+    for row in csv.DictReader(fh):
+        y = _yfrac(row["release_date"])
+        try:
+            eff = float(row["energy_efficiency_bitops_per_w"])
+        except ValueError:
+            continue
+        if y and eff > 0 and 2015 <= y <= 2026.7:
+            pts.append({"y": y, "eff": eff, "name": row["hardware_name"]})
+pts.sort(key=lambda p: p["y"])
+best = -1.0
+frontier = []
+for p in pts:
+    if p["eff"] > best:
+        best = p["eff"]
+        frontier.append(p)
+yy = np.array([p["y"] for p in frontier])
+ll = np.array([math.log10(p["eff"]) for p in frontier])
+slope, intercept = np.polyfit(yy, ll, 1)
+growth = 10 ** slope
+
+fig, ax = plt.subplots(figsize=(5.4, 3.3))
+ax.scatter([p["y"] for p in pts], [p["eff"] for p in pts], s=10, marker="o",
+           facecolors="white", edgecolors=COLORS["grid"], linewidth=0.6, zorder=2, label="AI accelerators")
+ax.plot([p["y"] for p in frontier], [p["eff"] for p in frontier], color=COLORS["workload"], lw=1.5, zorder=3)
+ax.scatter([p["y"] for p in frontier], [p["eff"] for p in frontier], s=20, marker="o",
+           facecolor=COLORS["workload"], edgecolor=COLORS["workload_ink"], linewidth=0.4, zorder=4, label="Efficiency frontier")
+xline = np.array([2015.5, 2026.5])
+ax.plot(xline, 10 ** (intercept + slope * xline), color=COLORS["constraints"], lw=1.2, ls=(0, (5, 3)), zorder=2)
+ax.text(2017.6, 10 ** (intercept + slope * 2019.4) * 1.5, f"~{growth:.1f}× / year", fontsize=6.6,
+        fontweight="bold", color=COLORS["constraints_ink"], rotation=17, rotation_mode="anchor")
+ax.set_yscale("log")
+ax.set_xlim(2015.4, 2026.6)
+ax.set_ylim(2e10, 3e13)
+ax.set_xlabel("Release date", fontsize=7.2)
+ax.set_ylabel("Energy efficiency (bit-OP/s per watt, log)", fontsize=7.2)
+ax.set_xticks([2016, 2018, 2020, 2022, 2024, 2026])
+ax.tick_params(labelsize=6.4, length=2.5, width=0.6)
+for _sp in ("top", "right"):
+    ax.spines[_sp].set_visible(False)
+ax.grid(True, which="major", axis="y", color=COLORS["row"], linewidth=0.4, zorder=0)
+ax.legend(loc="lower right", frameon=False, fontsize=6.0, handletextpad=0.3, labelspacing=0.3)
+short = {"NVIDIA A100 SXM4 40 GB": "A100", "NVIDIA H100 SXM5": "H100", "NVIDIA B200": "B200", "Google TPU v4": "TPU v4"}
+by_name = {p["name"]: p for p in pts}
+items = [(by_name[k]["y"], by_name[k]["eff"], v) for k, v in short.items() if k in by_name]
+place_labels(ax, fig, items, fontsize=5.0, color=COLORS["ink"])
+fig.subplots_adjust(left=0.12, right=0.97, top=0.98, bottom=0.115)
+```
+
+The frontier tells a sober version of that story. Measured in a precision-normalized way, the best parts gain only about 1.5-fold a year, well below the headline throughput numbers whose growth leans heavily on dropping to lower-precision arithmetic. A specialization win therefore has to survive an end-to-end accounting rather than a proxy peak.
 
 Amdahl's law [@Amdahl1967ValiditySingleProcessor] and the LogCA model [@AltafWood2017LogCA] require an end-to-end perspective. A compact Amdahl-style form that folds interface and software cost into the fraction-based bound is
 $$
