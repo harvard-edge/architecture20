@@ -63,7 +63,7 @@ complete and judge where AI may help. That means you can:
 
 ## Architecture State and Evaluation Results
 
-Computer architecture has always advanced through feedback and revision, with a typical project beginning with an aim such as improving latency, reducing energy, raising throughput, supporting a workload, or fitting a system within a power and cost envelope. The architect chooses an abstraction, builds or selects a model, runs an analysis or simulation, studies the result, and revises the design so that work surviving this cycle eventually reaches implementation,
+The design loop sketched in the opening is worth making precise, because the rest of this chapter traces where each of its parts strains. Computer architecture has always advanced through feedback and revision, with a typical project beginning with an aim such as improving latency, reducing energy, raising throughput, supporting a workload, or fitting a system within a power and cost envelope. The architect chooses an abstraction, builds or selects a model, runs an analysis or simulation, studies the result, and revises the design so that work surviving this cycle eventually reaches implementation,
 validation, verification, and signoff. Textbooks and industrial practice both
 follow this basic pattern
 [@HennessyPatterson2017QuantitativeApproach].
@@ -122,7 +122,7 @@ across machines, and RISC shows why a hardware claim must include the workload,
 compiler, and implementation cost. In each case, progress depended on making
 more of the design work visible to other people and tools.
 
-Release strategy offers an illustrative example of managing this risk. An organization might move a known microarchitecture to a new process in one release and introduce a new microarchitecture on a more mature process in the next. Separating the two limits the number of major changes attempted at once. When node transitions lengthen, the schedule can shift to keep a node in use longer. The schedule changes because the earlier division of technical risk no longer fits the work.
+Release strategy offers an illustrative example of managing the risk of attempting too many major changes at once. An organization might move a known microarchitecture to a new process in one release and introduce a new microarchitecture on a more mature process in the next. Separating the two limits the number of major changes attempted at once. When node transitions lengthen, the schedule can shift to keep a node in use longer. The schedule changes because the earlier division of technical risk no longer fits the work.
 
 These changes did not eliminate iteration. They made the design's information,
 choices, measurements, and decisions explicit enough for other people and tools
@@ -392,11 +392,11 @@ still needs the constraints, permitted changes, and evaluation budget to judge
 whether the survivors are valid and worth deeper analysis. A hardware ranking
 also remains provisional until the software can use the design.
 
-The binding limit becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI has to act as triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
+The binding limit often becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI's most defensible role here is triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
 
 ## Hardware Proposals Include an Executable Software Path
 
-The available choices extend beyond hardware. An accelerator, vector unit,
+Triage decides which hardware candidates deserve expensive evaluation, but not whether software can use them at all. The available choices extend beyond hardware. An accelerator, vector unit,
 memory hierarchy, or chiplet partition may look efficient in isolation but
 still be difficult to use. Programmers, compilers, runtimes, libraries, and
 deployment systems must be able to use the mechanism without losing its benefit
@@ -425,7 +425,7 @@ code-morphing software would let a simple core match x86
 determined whether the proposed hardware could be used as intended. Hardware proposals remain incomplete when architects cannot inspect and test the software
 path needed to use it.
 
-Because hardware and software must be explored together, AI can help with the work between them. Earlier hardware-software co-design relied on negotiation between separate teams and often settled on compromised interfaces. A joint search can vary compiler schedules alongside hardware parameters, generating the intermediate representation and the hardware RTL together, so a strong combination is not missed because the two were tuned in isolation. Separate AI methods might propose the hardware organization, compiler schedule, runtime configuration, and test plan, provided their assumptions are reconciled.
+Because hardware and software must be explored together, AI can help with the work between them. Earlier hardware-software co-design relied on negotiation between separate teams and often settled on compromised interfaces. In principle, a joint search could vary compiler schedules alongside hardware parameters and co-generate the intermediate representation and the hardware RTL, so a strong combination is not missed because the two were tuned in isolation, though co-generation at that fidelity remains a research direction rather than demonstrated practice. Separate AI methods might propose the hardware organization, compiler schedule, runtime configuration, and test plan, provided their assumptions are reconciled.
 
 Those contributions are useful only when the pieces agree. They must use the
 same ISA, memory model, data layout, and workload. A hardware optimizer can
@@ -675,12 +675,13 @@ fig.subplots_adjust(left=0.13, right=0.97, top=0.98, bottom=0.12)
 
 The fit reads the mismatch directly. Training compute has climbed more than fourfold a year for over a decade, far outpacing the one- to two-year cadence at which the silicon underneath it turns over, so a design tuned to one model scale meets a different workload by the time it reaches silicon.
 
-Compiler 2.0 offers a related warning about changing abstractions. Amarasinghe
+Compiler 2.0 raises the same question one layer down. Amarasinghe
 argues that compilers once hid much of the hardware from programmers, whereas
 multicore processors, vector instructions, accelerators, and heterogeneous
-systems have returned more of the performance burden to software developers
-[@Amarasinghe2026Compiler20CSAIL]. Architects face
-a similar shift. Abstractions remain essential, but architects must now represent
+systems have returned more of the performance burden to software developers, and
+he proposes rebuilding compiler internals with machine learning rather than
+hand-tuned heuristics [@Amarasinghe2026Compiler20CSAIL]. Architects face
+the same shift. Abstractions remain essential, but architects must now represent
 more of the workload, software, hardware, and physical information that earlier
 abstractions could safely hide.
 
@@ -698,8 +699,6 @@ A benchmark remains useful only while the
 community maintains the tasks and run rules that make results comparable.[^fn-inst-nist]
 When those rules change, an earlier comparison may no longer answer the same
 question.
-
-Benchmarks must evolve to keep changing workloads comparable because AI methods require community-maintained datasets that reflect actual design constraints. Without them, AI systems will confidently optimize for obsolete targets.
 
 [^fn-inst-nist]: Metrology offers a useful analogy. The U.S. National Institute of Standards and Technology (NIST) maintains reference standards and calibration chains so that a stated unit has the same meaning across laboratories. Architecture benchmarks require similar maintenance if their results are to remain comparable over time.
 
@@ -807,7 +806,7 @@ The baseline and candidate in the figure differ in more than arithmetic. The
 candidate lowers the compute term, but its added memory traffic and
 communication raise the system total above the baseline. The numbers are
 illustrative, but the reversal is the point. An early proxy can favor a design
-that loses once the comparison includes the costs of moving data through the system.
+that loses once the comparison includes the costs of moving data through the system. This is the proxy-mismatch failure that @sec-feedback-verification-trust treats directly.
 
 Interconnect costs deserve the same attention as memory movement. On-chip
 networks, package links, memory interfaces, collectives, and host-device
@@ -978,7 +977,7 @@ the cause of any single project's difficulty, but it does show that checking a
 design has consumed a growing share of engineering capacity. A generated
 candidate that reaches this stage is no longer cheap.
 
-Hardware is fundamentally irrevocable because bugs become permanent once silicon tapes out. The 1994 Pentium FDIV flaw shows why early checks matter, as a defect arising from five omitted lookup table entries [@Edelman1997PentiumDivision] led Intel to report a \$475M pretax charge for replacement and associated costs [@Intel1995PentiumCharge]. More recently, the Meltdown and Spectre vulnerabilities [@LippEtAl2018Meltdown; @KocherEtAl2019Spectre] exposed microarchitectural side channels in speculative execution that could not be fully patched in software without severe performance penalties. These episodes show how these hardware flaws become permanent, expensive liabilities after a design has shipped, leaving only replacement, support, and public remediation rather than a local software revision.
+Hardware is unforgiving because a defect in shipped silicon is costly to address and never cleanly undone. The 1994 Pentium FDIV flaw shows why early checks matter, as a defect arising from five omitted lookup table entries [@Edelman1997PentiumDivision] led Intel to report a \$475M pretax charge for replacement and associated costs [@Intel1995PentiumCharge]. More recently, the Meltdown and Spectre vulnerabilities [@LippEtAl2018Meltdown; @KocherEtAl2019Spectre] exposed microarchitectural side channels in speculative execution that could not be fully patched in software without severe performance penalties. These episodes show how a hardware flaw becomes an expensive, long-lived liability after a design has shipped, one that replacement, support, or a costly software workaround can mitigate but not cleanly remove.
 
 The Pentium charge reflects one escaped defect, but leading-edge development
 raises the cost of commitment even when no public recall occurs. A 2023 report
@@ -1150,7 +1149,7 @@ its own workload, tool, review, and decision information to find the problem.
 
 ## AI Assistance at Architecture Bottlenecks {#sec-feedback-and-verification-become-the-bottleneck}
 
-Faster candidate generation and a stronger architecture comparison are
+With the five problems named, the remaining question is where AI belongs among them. Faster candidate generation and a stronger architecture comparison are
 different results. Faster generation helps only when architects can compare the
 candidates under conditions that support the claim. To show that review is
 actually the bottleneck, a project would need to measure how quickly candidates
