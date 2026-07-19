@@ -166,8 +166,8 @@ def simulator_tax():  # ch5 (synthesized from primary sources; no raw file)
         [
             "Cycle-approximate",
             "ZSim / Sniper",
-            10000,
-            "ZSim ~0.3 MIPS/sim-core detailed OOO; Sniper ~0.13 MIPS/core (Carlson 2011; Sanchez 2013)",
+            1000,
+            "ZSim/Sniper detailed OOO ~1-4 MIPS/core; ZSim reports ~1000x faster than detailed cycle-accurate simulators, so this rung sits well above cycle-accurate (Sanchez & Kozyrakis 2013; Carlson et al. 2011)",
         ],
         [
             "Cycle-accurate",
