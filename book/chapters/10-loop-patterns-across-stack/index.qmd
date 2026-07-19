@@ -118,14 +118,14 @@ AI optimizers often find "cheats." They post massive local throughput gains by d
 
 Historically, architecture gains came from technology scaling, architecture innovation, and optimization. As technology scaling has slowed, specialization has become the main remaining source of large efficiency gains. A specialization claim still needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
 
-Amdahl's law [@Amdahl1967ValiditySingleProcessor] and the LogCA model [@AltafWood2017LogCA] require an end-to-end perspective. A compact form that includes interface and software cost is
+Amdahl's law [@Amdahl1967ValiditySingleProcessor] and the LogCA model [@AltafWood2017LogCA] require an end-to-end perspective. A compact Amdahl-style form that folds interface and software cost into the fraction-based bound is
 $$
 S_{\mathrm{system}} \le
 \frac{1}{(1-f) + f/s + \epsilon_{\mathrm{interface}} + \epsilon_{\mathrm{software}}}.
 $$
 Here, $f$ is the improvable fraction of baseline time, $s$ is local speedup, and the $\epsilon$ terms are interface and software overheads normalized to the same baseline. The specialization helps only when each invocation amortizes those overheads.
 
-A simplified LogCA-style calculation in @fig-logca-breakeven quantifies the interface tax.
+That equation summarizes the tax as a single fraction. A simplified LogCA-style calculation in @fig-logca-breakeven resolves the same tax by offload granularity, a complementary view of the same interface cost rather than the same formula.
 
 ```{python}
 #| label: fig-logca-breakeven
@@ -199,6 +199,8 @@ add_note_box(
 plt.show()
 plt.close(fig)
 ```
+
+The three curves place the same accelerator at increasing distance from the host. A tightly coupled accelerator breaks even after only a little work per offload, a shared-memory SoC block needs more, and an off-chip discrete module needs far more before its curve crosses the break-even line and climbs toward the peak-acceleration asymptote. The break-even granularity scales with the interface overhead, so a proxy win measured at a coarse granularity can vanish once the real per-invocation offload cost is charged. That per-invocation tax is what the software path must carry before a specialization claim can cross toward implementation.
 
 The software path connects domain intent to hardware. Programming models, compiler IRs, libraries, runtimes, and generated code form the executable path that makes specialized hardware usable (@fig-codegen-narrow-waist).
 
@@ -351,11 +353,15 @@ AI assistance can narrow search, critique, organize evidence, repair bounded art
 
 For example, transforming the @sec-running-the-loop candidate into an RTL generator parameter requires mapping, memory, and interface assumptions. RTL checks can reject functional errors; synthesis can reject timing or area; physical design can reject congestion, power integrity, or thermal feasibility.
 
+Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. AI can generate stimulus, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
+
 Public reports indicate learning methods can contribute to physical-implementation search, such as in peer-reviewed synthesis for parallel-prefix circuits [@RoyEtAl2021PrefixRL] and learning-assisted placement [@MirhoseiniEtAl2021GraphPlacement] (whose evidence review was discussed in @sec-feedback-verification-trust). A vendor-reported DSO.ai system has also searched the physical-implementation flow for commercial tapeouts [@Synopsys2023DSOai]. These are bounded learned subflows, not automated tapeout authority. The record must include tool versions, failed candidates, signoff checks, waivers, escalation points, and the named decision owner.
 
 Post-silicon bring-up and validation represent a controlled implementation return after fabrication and before deployment. Those controlled lab measurements inform the architect before fleet deployment introduces new confounding variables.
 
 ## Three Feedback Clocks
+
+The operating conditions classified the next decision before it was made, setting what an AI method may do to it. The feedback clocks classify something different, what a result can be claimed after evidence arrives. The two connect through timing. The clock that can confirm a decision often runs far slower than the clock on which the decision was committed, so the stricter operating conditions, high consequence and model-mediated, are exactly the ones whose confirming evidence arrives latest.
 
 Design-time evaluation, in-field evidence, and continuing enablement each answer a different question about the system (@fig-feedback-clocks).
 
@@ -389,7 +395,7 @@ When telemetry is captured and isolated into calibration datasets, post-silicon 
 
 ![**Telemetry compounds across silicon generations.** Post-silicon telemetry from Generation N recalibrates the AI surrogates used to design Generation N+1, so each surrogate reflects the bottlenecks the previous generation actually encountered.](images/F9-hw-flywheel.svg){#fig-hw-flywheel width="100%" fig-alt="Six-stage cycle showing post-silicon telemetry from one hardware generation recalibrating the AI surrogate models used to design the next generation."}
 
-In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon telemetry from Generation $N$ is fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself. An organization with more GPU compute but no comparable deployment telemetry cannot recalibrate its surrogates the same way.
+In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon telemetry from Generation $N$ is fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself. An organization with more GPU compute but no comparable deployment telemetry cannot recalibrate its surrogates the same way. A first tapeout or a new team starts without any prior-generation telemetry at all, so the flywheel is an advantage that accrues over generations rather than a precondition for the first design. Before the fleet exists, surrogates are calibrated from foundry process design kit data and published baselines, and conservative escape hatches such as fuses and microcode patches absorb the residual uncertainty.
 
 Run naively, the flywheel can also lock in the past. Because telemetry records only the workloads Generation $N$ actually served, a surrogate recalibrated on it sharpens on yesterday's traffic and goes blind to workloads that have not yet appeared, reinforcing the design distribution it was trained on and steering Generation $N+1$ toward the previous generation's bottlenecks [@SculleyEtAl2015Hidden]. This is the algorithm evolution treadmill seen from the design side, and that advantage lasts only while the fleet keeps sampling the workloads the next generation will run.
 
@@ -453,7 +459,7 @@ If proposals arrive faster than reliable evaluation can settle them, more genera
 
 ### Properties That Define a Specialization Domain
 
-@fig-domain-specificity-shapes outlines the required properties for a specialization claim.
+@fig-domain-specificity-shapes outlines the required properties for a specialization claim. A claim is credible only when a domain shows these properties together, because a domain that satisfies only some of them cannot amortize the design and interface cost that dedicated hardware imposes.
 
 ![**Properties that define a specialization domain.**](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing properties that define a specialization domain." fig-alt="**Properties that define a specialization domain.**"}
 

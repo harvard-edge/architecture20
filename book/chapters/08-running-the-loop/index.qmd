@@ -16,7 +16,7 @@
 What must an architect fix, execute, and preserve so that one bounded AI-assisted study reaches no conclusion stronger than its recorded results?
 :::
 
-This crux addresses metric shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, where a single iteration takes days of RTL simulation and fighting for limited flexlm license checkouts, this trial-and-error hides massive physical and calendar costs. The design loop must be strictly bounded to prevent these hidden expenses.
+This crux addresses baseline shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, where a single iteration takes days of RTL simulation and fighting for limited flexlm license checkouts, this trial-and-error hides massive physical and calendar costs. The design loop must be strictly bounded to prevent these hidden expenses.
 
 Before any model or simulator output is known, the architect fixes the workload, legal array shapes, simulator configuration, comparison budget, rejection criteria, and decision owner. Fixing these choices prevents post-result goalpost moving and enforces discipline without claiming the choices were intrinsically optimal.
 
@@ -59,7 +59,7 @@ The architecture question is deliberately narrow to test a precise hypothesis wi
 > baseline, and does the model's directional prediction survive its declared
 > contrast?
 
-The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, SRAM capacity (our cache subsystem), interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
+The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, SRAM capacity (the on-chip SRAM scratchpad), interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
 
 ## Separate Outcomes from AI Claims
 
@@ -141,12 +141,16 @@ The representation for this study is small, serving as a specific record rather 
 
 That representation is useful only if a candidate change can be connected to a predicted consequence. The model proposed three shape deltas and predicted that a wider 16 by 64 array would better match the workload's N dimensions than its mirrored 64 by 16 alternative, further asserting that exchanging M and N in the workload would reverse the winner. The proposal therefore emitted both a design-state change and a testable consequence hypothesis that the simulator could challenge.
 
-![Systolic Array Mapping and Orientation visualizes how GEMM dimensions (M, N) map to the physical array dimensions (Height, Width) and how transposing the workload affects the mapping.](images/F8-array-mapping.svg){#fig-array-mapping fig-alt="Systolic Array Mapping and Orientation visualizes how GEMM dimensions (M, N) map to the physical array dimensions (Height, Width) and how transposing the workload affects the mapping."}
+![GEMM M and N dimensions map to array height and width under weight-stationary mapping; transposing M and N does not simply swap the two.](images/F8-array-mapping.svg){#fig-array-mapping fig-alt="A systolic array with GEMM M and N labels on its height and width, and a second panel showing the workload after M and N are exchanged, illustrating that the mapping to array height and width does not simply invert."}
 
 The record omits one important part of that connection. It names GEMM M, N, and
 K dimensions and fixes SCALE-Sim's weight-stationary mode, but it does not state
 how those dimensions map onto `ArrayHeight` and `ArrayWidth` under the selected
-mapping (see @fig-array-mapping). The explanation assumes that array width corresponds to the relevant
+mapping (see @fig-array-mapping). @fig-array-mapping shows why that gap matters,
+since under weight-stationary mapping the GEMM axes bind to array height and
+width through the loaded weight tile, so exchanging M and N does not simply swap
+the two array dimensions and width does not cleanly correspond to the N-side
+effect. The explanation assumes that array width corresponds to the relevant
 N-side effect. That premise was not grounded in the retained study context.
 The transposition still distinguishes the model's exact directional prediction,
 but it is not a causally isolated test of orientation. This mismatch is an open
@@ -227,7 +231,12 @@ the two proposers rather than measured parity, whatever the model's quality.
 ## Run the Same Comparison and Report Every Selected Candidate
 
 Every proposed candidate passed the processing-element and cycle-limit checks,
-so this run does not exercise the invalid-candidate repair path. Several legal
+so this run does not exercise the invalid-candidate repair path, the
+illegal-shape rejection, or the 90,000-cycle cutoff. Those three declared
+control gates are asserted as protections but never fire on this single worked
+example, which therefore demonstrates them only in the passing direction.
+Showing them reject an illegal or over-cycle candidate would require a trace
+this bounded run does not contain. Several legal
 alternatives were dominated under the declared score, and no nonbaseline shape
 cleared the decision margin. @tbl-ai-study-results reports all eight arm
 evaluations.
