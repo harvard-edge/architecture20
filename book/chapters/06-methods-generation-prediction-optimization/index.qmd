@@ -499,7 +499,76 @@ observations from the region being pruned.
 
 ## Optimization Chooses What to Evaluate Next
 
-![**Bayesian Optimization:** The surrogate mean predicts the objective, the uncertainty bands capture epistemic unknowns, and the acquisition function guides the tradeoff between exploration and exploitation.](images/ch6_bayesian_optimization.png){#fig-bayesian-optimization width="100%" fig-alt="1D BO plot showing surrogate mean, uncertainty bands, and acquisition function"}
+```{python}
+#| label: fig-bayesian-optimization
+#| fig-cap: |
+#|   **Bayesian optimization allocates the next evaluation.** The surrogate mean predicts the objective, the shaded band is its epistemic uncertainty (widening away from observed points), and the acquisition function combines both to choose where to sample next, trading exploitation of high-mean regions against exploration of high-uncertainty ones. Illustrative one-parameter example.
+#| out-width: "88%"
+#| fig-alt: "Two stacked panels over a shared design-space axis. Top: a surrogate mean curve with a shaded uncertainty band that pinches to near zero at three observation points and widens between and beyond them. Bottom: an acquisition curve that peaks where mean or uncertainty is high, marking the next point to evaluate, annotated with exploitation near a high-mean region and exploration in a high-uncertainty region."
+
+import numpy as np
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+# Illustrative 1-D surrogate. Deterministic construction (no RNG): a smooth
+# surrogate mean through three observations, with smooth posterior-style
+# uncertainty that pinches near each observation and widens away; acquisition is
+# an upper-confidence bound (mean + 1.6 sigma). Conceptual figure. As-of: 2026-07-19.
+apply_style()
+
+def g(xx, mu, s):
+    return np.exp(-((xx - mu) / s) ** 2)
+
+def mean_at(xx):
+    return 1.0 * g(xx, 3.8, 1.5) - 0.55 * g(xx, 7.2, 1.2) + 0.30 * g(xx, 1.0, 0.9)
+
+x = np.linspace(0, 10, 400)
+mean = mean_at(x)
+x_obs = np.array([1.2, 3.8, 7.2])
+y_obs = mean_at(x_obs)
+
+# Smooth confidence: a Gaussian "certainty bump" at each observation pulls sigma
+# down there and lets it rise smoothly between and beyond points (no linear kinks).
+certainty = 0.96 * sum(g(x, xo, 1.35) for xo in x_obs)
+sigma = 0.05 + 0.80 * (1.0 - certainty)
+kappa = 1.6
+acq = mean + kappa * sigma
+
+fig, (ax1, ax2) = plt.subplots(
+    2, 1, figsize=(5.2, 3.5), sharex=True, gridspec_kw={"height_ratios": [2.1, 1]}
+)
+
+ax1.fill_between(x, mean - sigma, mean + sigma, color=COLORS["workload"],
+                 alpha=0.15, linewidth=0, label="Uncertainty")
+ax1.plot(x, mean, color=COLORS["workload"], linewidth=1.8, label="Surrogate mean")
+ax1.scatter(x_obs, y_obs, s=34, marker="o", facecolor=COLORS["evidence"],
+            edgecolor=COLORS["evidence_ink"], linewidth=1.0, zorder=4,
+            label="Observations")
+ax1.set_ylabel("Objective", fontsize=6.8)
+ax1.tick_params(labelsize=6.0)
+ax1.legend(loc="upper right", frameon=False, fontsize=5.8, handlelength=1.4,
+           borderaxespad=0.2, labelspacing=0.35)
+ax1.margins(y=0.18)
+
+ax2.fill_between(x, acq.min() - 0.05, acq, color=COLORS["methods"],
+                 alpha=0.18, linewidth=0)
+ax2.plot(x, acq, color=COLORS["methods"], linewidth=1.7)
+x_next = float(x[int(np.argmax(acq))])
+ax2.scatter([x_next], [acq.max()], s=30, marker="s", facecolor=COLORS["methods"],
+            edgecolor=COLORS["methods_ink"], linewidth=1.0, zorder=4)
+ax2.text(3.8, acq.max() * 0.60, "Exploit\n(high mean)", ha="center",
+         fontsize=5.6, color=COLORS["methods_ink"], fontweight="bold")
+ax2.annotate("Explore\n(high uncertainty)", xy=(x_next, acq.max()),
+             xytext=(8.4, acq.max() * 0.52), ha="center", fontsize=5.6,
+             color=COLORS["methods_ink"], fontweight="bold",
+             arrowprops=dict(arrowstyle="->", color=COLORS["methods_ink"], lw=0.8))
+ax2.set_ylabel("Acquisition", fontsize=6.8)
+ax2.set_xlabel("Design space (one parameter)", fontsize=6.8)
+ax2.tick_params(labelsize=6.0)
+ax2.set_yticks([])
+
+fig.subplots_adjust(left=0.10, right=0.98, top=0.98, bottom=0.11, hspace=0.12)
+```
 
 Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. @fig-bayesian-optimization shows that allocation for Bayesian optimization: a surrogate predicts the objective, uncertainty bands mark where the model is unsure, and an acquisition function turns both into the next point to evaluate. That single method fills two of the eight roles at once, since its surrogate is a predictor and its acquisition rule is an optimizer, and the two cannot be pulled apart. Read the roles as an audit decomposition for asking what a method reads, returns, and hands off, not as a claim that each method occupies exactly one box. The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics.
 

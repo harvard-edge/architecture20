@@ -359,7 +359,52 @@ Post-silicon bring-up and validation represent a controlled implementation retur
 
 Design-time evaluation, in-field evidence, and continuing enablement each answer a different question about the system (@fig-feedback-clocks).
 
-![**The Three Feedback Clocks:** Design-time, In-field, and Continuing Enablement timescales must be analyzed separately rather than averaged into a single metric.](images/ch9_feedback_clocks.png){#fig-feedback-clocks width="100%" fig-alt="Timeline chart showing three feedback clocks"}
+```{python}
+#| label: fig-feedback-clocks
+#| fig-cap: |
+#|   **Three feedback clocks run at different speeds.** In-field evidence, continuing software enablement, and design-time evaluation each observe the system on a different timescale, so their signals must be read separately rather than averaged into a single number.
+#| out-width: "92%"
+#| fig-alt: "Horizontal range chart on a logarithmic time axis from one millisecond to ten years. In-field evidence spans milliseconds to days, continuing enablement spans months to years, and design-time spans years, drawn as three separate labeled rows with square endpoints."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style, top_log_axis, row_axis, draw_range_rows
+
+# Representative timescales for the three feedback paths, in seconds (log axis).
+# Conceptual figure. As-of: 2026-07-19.
+apply_style()
+
+DAY = 8.64e4
+MONTH = 2.63e6
+YEAR = 3.156e7
+
+rows = [
+    {"lo": 1e-3, "hi": DAY, "color": COLORS["evidence"],
+     "display_label": "In-field evidence", "display_note": "Fleet telemetry, dynamic adaptation",
+     "right_label": "ms to days"},
+    {"lo": MONTH, "hi": 2 * YEAR, "color": COLORS["methods"],
+     "display_label": "Continuing enablement", "display_note": "Firmware and software tuning",
+     "right_label": "months to years"},
+    {"lo": YEAR, "hi": 10 * YEAR, "color": COLORS["workload"],
+     "display_label": "Design-time", "display_note": "Next-gen architecture program",
+     "right_label": "years"},
+]
+
+fig, ax = plt.subplots(figsize=(5.25, 2.2))
+top_log_axis(
+    ax,
+    xlim=(3e-4, 6e8),
+    xticks=[1e-3, 1, 60, 3600, DAY, MONTH, YEAR, 10 * YEAR],
+    xticklabels=["1 ms", "1 s", "1 min", "1 hr", "1 day", "1 mo", "1 yr", "10 yr"],
+    xlabel="Timescale (seconds, log)",
+)
+row_axis(ax, len(rows))
+draw_range_rows(
+    ax, rows, low_key="lo", high_key="hi",
+    label_x=-0.52, right_x=1.02,
+    label_fontsize=6.6, note_fontsize=5.4, right_fontsize=6.0,
+)
+fig.subplots_adjust(left=0.34, right=0.80, top=0.78, bottom=0.06)
+```
 
 These observations describe different system states and bear on different decisions. They must never be averaged into one performance number or narrated as one clean causal chain. @tbl-feedback-clocks outlines their characteristics.
 

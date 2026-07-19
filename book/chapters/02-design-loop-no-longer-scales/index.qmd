@@ -449,7 +449,64 @@ being designed.
 
 Software moves faster than the hardware built to run it. New models, precision formats, and software stacks appear within the span of a single silicon program, while a chip design cycle still runs for years. Apple's and NVIDIA's compressing release intervals (@fig-apple-silicon-cadence) show hardware teams shortening that gap where they can.
 
-![**Silicon release intervals are compressing.** Apple and NVIDIA increasingly ship year-over-year architecture and platform updates, shortening the hardware cycle relative to software change.](images/ch2_apple_silicon_cadence.png){#fig-apple-silicon-cadence width="100%" fig-alt="Accelerating Pace of Apple Silicon and NVIDIA Releases timeline"}
+```{python}
+#| label: fig-apple-silicon-cadence
+#| fig-cap: |
+#|   **Silicon release intervals are compressing.** Apple's M-series and NVIDIA's datacenter GPUs increasingly ship close together, shortening the hardware cycle relative to the software running on it. Labels give the month gap between consecutive announced parts.
+#| out-width: "100%"
+#| fig-alt: "Two-row timeline. Apple's M1 (Nov 2020), M2 (Jun 2022), M3 (Oct 2023), and M4 (May 2024) fall 19, then 16, then 7 months apart, a shrinking interval; NVIDIA's A100 (May 2020), H100 (Mar 2022), B100 (Mar 2024), and R100 (Jan 2026) fall 22, 24, and 22 months apart."
+
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+# Release dates transcribed from public product announcements (as fractional
+# year); month gaps computed between consecutive parts. Same data as the prior
+# static figure, restyled to the house chart family. As-of: 2026-07-19.
+apply_style()
+
+apple = {
+    "y": 1.0, "color": COLORS["workload"], "ink": COLORS["workload_ink"],
+    "label": "Apple Silicon",
+    "pts": [("M1", "Nov 2020", 2020.83), ("M2", "Jun 2022", 2022.42),
+            ("M3", "Oct 2023", 2023.75), ("M4", "May 2024", 2024.33)],
+    "gaps": ["19 mo", "16 mo", "7 mo"],
+}
+nvidia = {
+    "y": 0.0, "color": COLORS["designspace"], "ink": COLORS["designspace_ink"],
+    "label": "NVIDIA datacenter",
+    "pts": [("A100", "May 2020", 2020.33), ("H100", "Mar 2022", 2022.17),
+            ("B100", "Mar 2024", 2024.17), ("R100", "Jan 2026", 2026.0)],
+    "gaps": ["22 mo", "24 mo", "22 mo"],
+}
+
+fig, ax = plt.subplots(figsize=(5.3, 2.35))
+for s in (apple, nvidia):
+    xs = [p[2] for p in s["pts"]]
+    y = s["y"]
+    ax.plot([xs[0], xs[-1]], [y, y], color=s["color"], linewidth=1.8, zorder=1,
+            solid_capstyle="round")
+    ax.scatter(xs, [y] * len(xs), s=42, marker="o", facecolor=s["color"],
+               edgecolor=s["color"], linewidth=1.2, zorder=3)
+    for name, date, x in s["pts"]:
+        ax.text(x, y + 0.30, name, ha="center", va="bottom", fontsize=6.6,
+                fontweight="bold", color=COLORS["ink"])
+        ax.text(x, y + 0.155, date, ha="center", va="bottom", fontsize=5.6,
+                color=COLORS["muted"])
+    for i, gap in enumerate(s["gaps"]):
+        xm = (xs[i] + xs[i + 1]) / 2
+        ax.text(xm, y - 0.135, gap, ha="center", va="top", fontsize=5.8,
+                fontweight="bold", color=s["ink"])
+    ax.text(2018.7, y, s["label"], ha="left", va="center", fontsize=6.8,
+            fontweight="bold", color=COLORS["ink"])
+
+ax.set_xlim(2018.6, 2026.9)
+ax.set_ylim(-0.7, 1.85)
+for sp in ax.spines.values():
+    sp.set_visible(False)
+ax.set_yticks([])
+ax.set_xticks([])
+fig.subplots_adjust(left=0.01, right=0.99, top=0.98, bottom=0.04)
+```
 
 A hardware comparison can become outdated while the chip is still being designed.
 During a multiyear silicon program, AI models, precision formats, sparsity
