@@ -208,8 +208,8 @@ def test_appendix_b_distinguishes_fixture_lab_and_context_drafting() -> None:
         ROOT / "book" / "appendices" / "appendix-b-design-loop-card" / "index.qmd"
     ).read_text(encoding="utf-8")
     assert "Synthetic card example" in appendix
-    assert "Deterministic course lab using SCALE-Sim" in appendix
-    assert "https://github.com/harvard-edge/arch2/blob/main/labs/README.md" in appendix
+    # Companion-labs assertions removed 2026-07-19: appendix-B dropped the labs
+    # references in 33abd01f ("labs not ready"); restore with the content if labs return.
     assert "30-minute context workflow" in appendix
     assert "Draft and validate the study boundary" in appendix
 
@@ -232,8 +232,8 @@ def test_appendix_b_keeps_card_evidence_and_receipt_contained() -> None:
     ).read_text(encoding="utf-8")
     normalized = re.sub(r"\s+", " ", appendix)
     assert "compact summary and index" in normalized.lower()
-    assert "Detailed observations belong in a supporting evidence record" in normalized
-    assert "belong in a replay package" in normalized
+    assert "detailed observations belong" in normalized.lower()
+    assert "executable details in the replay package" in normalized
     assert "review rubric separates support from polish" in normalized.lower()
     assert "card acts as a shareable evidence ledger" not in normalized
     assert 'do not need separate "claim cards" or "evidence ledgers"' not in normalized
@@ -260,7 +260,7 @@ def test_appendix_b_bounds_profile_and_replay_claims() -> None:
         in normalized.lower()
     )
     assert "one profile never implies another" not in normalized.lower()
-    assert "blob/main/labs/README.md" in normalized
+    # labs README link assertion removed 2026-07-19 with the "labs not ready" edit (33abd01f).
 
 
 def test_legacy_v1_card_still_uses_v1_contract() -> None:
