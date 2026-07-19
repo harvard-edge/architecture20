@@ -8,7 +8,77 @@
 An architecture organization can delegate more work, but it cannot delegate away answerability for the resulting decisions.
 :::
 
-Models, tools, and specialists may perform bounded work, but Architecture 2.0 separates task execution from responsibility. AI can absorb the execution burden while human architects own the final outcome. Named people or organizational roles remain answerable for defining the work, setting the evidence burden, authorizing exceptions, and deciding whether to advance.
+Models, tools, and specialists may perform bounded work, but Architecture 2.0 separates task execution from responsibility. AI can absorb the execution burden while human architects own the final outcome (@fig-task-horizon). Named people or organizational roles remain answerable for defining the work, setting the evidence burden, authorizing exceptions, and deciding whether to advance.
+
+```{python}
+#| label: fig-task-horizon
+#| fig-cap: |
+#|   **The task length an AI agent can complete keeps doubling, from seconds in 2019 to a full workday by 2026.** Measured 50%-completion time horizon per model [@KwaEtAl2025MeasuringLongTasks]; the fitted trend doubles about every six months. As agents absorb longer stretches of execution, the boundary the architect must still own, defining the work and answering for the result, becomes the load-bearing one.
+#| out-width: "92%"
+#| fig-alt: "Log-scale scatter of the task length an AI agent completes at 50 percent success versus model release date from 2019 to 2026. Horizontal reference lines mark one second, one minute, one hour, and one workday. Points rise from a few seconds for GPT-2 in 2019 to several hours by 2026 along a fitted line that doubles about every six months, passing through GPT-4 and Claude 3.7 Sonnet at about one hour."
+
+import csv
+import datetime
+from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
+import _python.arch2_plots as _ap
+from _python.arch2_plots import COLORS, apply_style
+from _python.labels import place_labels
+
+apply_style()
+
+# Data: METR time-horizon benchmark [@KwaEtAl2025MeasuringLongTasks]; 50%
+# task-completion horizon per model. Doubling time ~188 days (all-time stitched
+# estimate, from the source). Values dataset-transcribed. Accessed 2026-07-19.
+# Receipt: data/source-receipts/chapter11-task-horizon.csv
+_root = Path(_ap.__file__).resolve().parents[2]
+double_days = 187.778
+
+def _yfrac(text):
+    d = datetime.datetime.strptime(text.strip(), "%Y-%m-%d")
+    return d.year + (d.timetuple().tm_yday - 1) / 365.25
+
+pts = []
+with open(_root / "data" / "source-receipts" / "chapter11-task-horizon.csv", encoding="utf-8") as fh:
+    for row in csv.DictReader(fh):
+        try:
+            pts.append({"x": _yfrac(row["release_date"]), "h": float(row["p50_horizon_minutes"]), "k": row["model"]})
+        except (ValueError, KeyError):
+            continue
+pts.sort(key=lambda p: p["x"])
+
+fig, ax = plt.subplots(figsize=(5.4, 3.3))
+for mins, lab in [(1 / 60, "1 sec"), (1, "1 min"), (60, "1 hour"), (480, "1 workday")]:
+    ax.axhline(mins, color=COLORS["row"], lw=0.7, zorder=0)
+    ax.text(2018.7, mins * 1.15, lab, fontsize=5.2, color=COLORS["muted"], va="bottom", ha="left", zorder=1)
+xs_pts = np.array([p["x"] for p in pts])
+hs_pts = np.array([p["h"] for p in pts])
+ax.scatter(xs_pts, hs_pts, s=17, marker="o", facecolor=COLORS["designspace"], edgecolor=COLORS["designspace_ink"],
+           linewidth=0.4, zorder=3)
+slope = 365.25 / double_days
+intercept = np.mean(np.log2(hs_pts)) - slope * np.mean(xs_pts)
+xline = np.array([2018.9, 2026.5])
+ax.plot(xline, 2 ** (intercept + slope * xline), color=COLORS["constraints"], lw=1.6, zorder=2)
+ax.text(2020.5, 2 ** (intercept + slope * 2022.0) * 2.3, f"doubling every ~{double_days / 30.4:.0f} months",
+        fontsize=6.8, fontweight="bold", color=COLORS["constraints_ink"], rotation=27, rotation_mode="anchor")
+ax.set_yscale("log")
+ax.set_xlim(2018.6, 2026.6)
+ax.set_ylim(0.008, 2500)
+ax.set_xlabel("Model release date", fontsize=7.2)
+ax.set_ylabel("Task length an agent completes at 50% (min)", fontsize=7.2)
+ax.set_xticks([2019, 2021, 2023, 2025])
+ax.tick_params(labelsize=6.4, length=2.5, width=0.6)
+for _sp in ("top", "right"):
+    ax.spines[_sp].set_visible(False)
+disp = {"gpt2": "GPT-2", "gpt_4": "GPT-4", "claude_3_7_sonnet_inspect": "Claude 3.7 Sonnet",
+        "gpt_5_2025_08_07_inspect": "GPT-5", "claude_opus_4_6_inspect": "Claude Opus 4.6"}
+by_key = {p["k"]: p for p in pts}
+items = [(by_key[k]["x"], by_key[k]["h"], v) for k, v in disp.items() if k in by_key]
+place_labels(ax, fig, items, fontsize=5.0, color=COLORS["ink"])
+fig.subplots_adjust(left=0.115, right=0.97, top=0.98, bottom=0.115)
+```
 
 This separation distinguishes delegated work from assigned responsibility. Work is delegated when another person, tool, or AI system is permitted to perform it. Responsibility is assigned when a named person or role must set the governing conditions, judge the evidence, authorize the action, and answer for what follows. The term *the architect* denotes an authorized architecture role rather than one heroic individual. Some rights may belong to a lead architect, an implementation owner, a safety or security reviewer, a product authority, or a review body. The key requirement is that those rights and interfaces remain explicit.
 

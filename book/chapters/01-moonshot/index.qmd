@@ -172,7 +172,85 @@ plt.close(fig)
 ```
 
 
-This specialization brought major advances but also multiplied the architectures, software interfaces, and physical constraints designers must manage. The rise of machine learning accelerated this change, creating what the authors of Project Brainwave called a "Cambrian explosion" of GPUs, FPGAs, neural processors, and other specialized hardware [@ChungEtAl2018Brainwave]. New dataflows, memory systems, and programming interfaces appeared in quick succession [@HennessyPatterson2019GoldenAge], yet much of the coordination among workloads, compilers, simulators, RTL, and physical design still falls to architects.
+This specialization brought major advances but also multiplied the architectures, software interfaces, and physical constraints designers must manage. The rise of machine learning accelerated this change, creating what the authors of Project Brainwave called a "Cambrian explosion" of GPUs, FPGAs, neural processors, and other specialized hardware (@fig-accelerator-landscape) [@ChungEtAl2018Brainwave]. New dataflows, memory systems, and programming interfaces appeared in quick succession [@HennessyPatterson2019GoldenAge], yet much of the coordination among workloads, compilers, simulators, RTL, and physical design still falls to architects.
+
+```{python}
+#| label: fig-accelerator-landscape
+#| fig-cap: |
+#|   **The AI-accelerator landscape spans seven orders of magnitude in power.** Each point is a publicly announced accelerator from the MIT Lincoln Laboratory survey [@ReutherEtAl2025LAICS]: color marks form factor (chip, card, or system), filled versus hollow marks training versus inference, and the dashed diagonals are constant energy-efficiency contours. The "Cambrian explosion" is a dense, heterogeneous cloud rather than a single design point.
+#| out-width: "100%"
+#| fig-alt: "Log-log scatter of about 180 AI accelerators, peak performance in giga-operations per second versus peak power in watts. Points span from sub-watt embedded chips at the lower left to multi-kilowatt data-center systems at the upper right, roughly seven orders of magnitude in power and six in performance. Dashed diagonal lines mark constant energy efficiency from 100 giga-ops per watt to 100 tera-ops per watt. Chips, cards, and systems are colored distinctly; training parts are filled and inference parts hollow."
+
+import csv
+from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+import _python.arch2_plots as _ap
+from _python.arch2_plots import COLORS, apply_style
+from _python.labels import place_labels
+
+apply_style()
+
+# Data: MIT Lincoln Laboratory AI accelerator survey, 2025 edition
+# [@ReutherEtAl2025LAICS], one row per publicly announced accelerator with a
+# stated peak performance and power. Values are dataset-transcribed.
+# Accessed 2026-07-19. Receipt: data/source-receipts/chapter1-accelerator-landscape.csv
+_root = Path(_ap.__file__).resolve().parents[2]
+rows = []
+with open(_root / "data" / "source-receipts" / "chapter1-accelerator-landscape.csv", encoding="utf-8") as fh:
+    for d in csv.DictReader(fh):
+        try:
+            perf = float(d["peak_performance_ops_per_s"]) / 1e9
+            power = float(d["power_w"])
+        except ValueError:
+            continue
+        rows.append({"label": d["label"], "perf": perf, "power": power,
+                     "form": d["form_factor"], "iort": d["inference_or_training"]})
+
+forms = {"Chip": COLORS["workload"], "Card": COLORS["methods"], "System": COLORS["evidence"]}
+fig, ax = plt.subplots(figsize=(6.0, 4.0))
+xline = np.array([1e-3, 1e5])
+for eff, lab in [(1e2, "100 GOPS/W"), (1e3, "1 TOPS/W"), (1e4, "10 TOPS/W"), (1e5, "100 TOPS/W")]:
+    ax.plot(xline, eff * xline, ls=(0, (5, 4)), color=COLORS["grid"], lw=0.8, zorder=1)
+    ax.text(2.4e-3, eff * 2.4e-3 * 1.3, lab, fontsize=4.6, color=COLORS["muted"],
+            rotation=34, rotation_mode="anchor", va="bottom", ha="left", zorder=1)
+for form, color in forms.items():
+    for iort, filled in [("training", True), ("inference", False)]:
+        pts = [d for d in rows if d["form"] == form and d["iort"] == iort]
+        if not pts:
+            continue
+        xs = [d["power"] for d in pts]
+        ys = [d["perf"] for d in pts]
+        if filled:
+            ax.scatter(xs, ys, s=14, marker="o", facecolor=color, edgecolor=color, linewidth=0.5, alpha=0.9, zorder=3)
+        else:
+            ax.scatter(xs, ys, s=14, marker="o", facecolors="white", edgecolors=color, linewidth=0.8, alpha=0.95, zorder=3)
+for txt, x, y in [("Very low power", 0.02, 3.0e3), ("Embedded / autonomous", 1.5, 1.6e2),
+                  ("Data-center cards", 4e2, 3.0e6), ("Data-center systems", 6e3, 3.0e7)]:
+    ax.text(x, y, txt, fontsize=5.2, fontstyle="italic", color=COLORS["muted"], ha="center", va="center", zorder=2)
+ax.set_xscale("log")
+ax.set_yscale("log")
+ax.set_xlim(8e-4, 7e4)
+ax.set_ylim(3, 1e8)
+ax.set_xlabel("Peak power (W)", fontsize=7.2)
+ax.set_ylabel("Peak performance (GOps/sec)", fontsize=7.2)
+ax.tick_params(labelsize=6.2, length=2.5, width=0.6)
+for _sp in ("top", "right"):
+    ax.spines[_sp].set_visible(False)
+ax.grid(True, which="major", color=COLORS["row"], linewidth=0.4, zorder=0)
+handles = [Line2D([0], [0], marker="o", ls="", markerfacecolor=c, markeredgecolor=c, markersize=5, label=f) for f, c in forms.items()]
+handles += [Line2D([0], [0], marker="o", ls="", markerfacecolor=COLORS["ink"], markeredgecolor=COLORS["ink"], markersize=5, label="Training"),
+            Line2D([0], [0], marker="o", ls="", markerfacecolor="white", markeredgecolor=COLORS["ink"], markersize=5, label="Inference")]
+ax.legend(handles=handles, loc="upper left", frameon=False, fontsize=5.8, handletextpad=0.3, labelspacing=0.3, borderaxespad=0.4)
+curated = ["Maxim", "GAP9", "Jetson1", "Perceive", "A100", "TPU4", "H100",
+           "AMD-MI300X", "B200", "Gaudi3", "CS-2", "DGX-H100", "GroqNode", "Tachyum"]
+by_label = {d["label"]: d for d in rows}
+items = [(by_label[n]["power"], by_label[n]["perf"], n) for n in curated if n in by_label]
+place_labels(ax, fig, items, fontsize=5.0, color=COLORS["ink"])
+fig.subplots_adjust(left=0.095, right=0.98, top=0.98, bottom=0.11)
+```
 
 Specialization also made architecture decisions more tightly coupled, where a new dataflow can simultaneously change memory traffic, compiler mapping, verification effort, and physical feasibility. As cross-layer dependencies multiply, architects must coordinate far more models, tools, and evidence to defend a choice. This pressure does not make AI necessary, but it explains why architects are now exploring AI assistance. The golden age established that specialization is now where the major gains live; Architecture 2.0 asks whether AI can help architects design those specialized systems under the resulting cross-layer constraints, shifting the unit of work from the finished artifact to the reviewable study that produced it.
 
@@ -350,7 +428,87 @@ Start with the prompt itself. High-level intent first becomes questions and coup
 
 While the prompt asks for a design-space report, the study may also produce software, models, RTL, layouts, prototypes, or a physical chip depending on the ambition of the claim. The report connects those artifacts and measurements to the proposed design and explains precisely why alternatives were rejected. To test the architect's judgment, the prompt deliberately leaves the accelerator microarchitecture, memory system, software integration, and evaluation tools open.
 
-Progress toward the moonshot will require far more than isolated demonstrations. In software engineering, benchmarks like SWE-bench, a benchmark of real GitHub-issue fixes, provide immediate, exact correctness checks via unit tests [@JimenezEtAl2024SWEBench]. Hardware benchmarking is fundamentally harder because evaluation is delayed, physical limits are non-linear, and correctness requires passing through a gauntlet of siloed EDA tools.
+Progress toward the moonshot will require far more than isolated demonstrations. In software engineering, benchmarks like SWE-bench, a benchmark of real GitHub-issue fixes, provide immediate, exact correctness checks via unit tests, and agents have advanced quickly on it (@fig-swebench-progress) [@JimenezEtAl2024SWEBench]. Hardware benchmarking is fundamentally harder because evaluation is delayed, physical limits are non-linear, and correctness requires passing through a gauntlet of siloed EDA tools.
+
+```{python}
+#| label: fig-swebench-progress
+#| fig-cap: |
+#|   **Software agents now resolve most real GitHub issues.** Best reported SWE-bench Verified score [@JimenezEtAl2024SWEBench], one point per released model, tracked through Epoch AI's benchmarking hub [@EpochAI2025AIModels]; the line traces the best result to date. Coding agents went from roughly a third of issues to over four-fifths in about seventeen months. Hardware has no comparably fast, exact feedback loop, which is why architecture cannot simply copy this trajectory.
+#| out-width: "88%"
+#| fig-alt: "Scatter of SWE-bench Verified resolved percentage versus model release date from late 2024 to 2026. Points climb from about 31 percent to about 84 percent, with a line tracing the best-to-date frontier through GPT-4o, Claude 3.7 Sonnet, Claude Opus 4, GPT-5, and Claude Opus 4.7."
+
+import csv
+import datetime
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import _python.arch2_plots as _ap
+from _python.arch2_plots import COLORS, apply_style
+from _python.labels import place_labels
+
+apply_style()
+
+# Data: SWE-bench Verified results [@JimenezEtAl2024SWEBench] tracked in Epoch
+# AI's benchmarking hub [@EpochAI2025AIModels]; best score per released model.
+# Values dataset-transcribed. Accessed 2026-07-19.
+# Receipt: data/source-receipts/chapter1-swebench-verified.csv
+_root = Path(_ap.__file__).resolve().parents[2]
+
+def _yfrac(text):
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+        try:
+            d = datetime.datetime.strptime(text.strip(), fmt)
+            return d.year + (d.timetuple().tm_yday - 1) / 365.25
+        except ValueError:
+            continue
+    return None
+
+pts = []
+with open(_root / "data" / "source-receipts" / "chapter1-swebench-verified.csv", encoding="utf-8") as fh:
+    for row in csv.DictReader(fh):
+        x = _yfrac(row["release_date"])
+        try:
+            score = float(row["resolved_fraction"])
+        except ValueError:
+            continue
+        if x is None:
+            continue
+        pts.append({"model": row["model"], "score": score * 100 if score <= 1 else score, "x": x})
+pts.sort(key=lambda p: p["x"])
+best = -1.0
+frontier = []
+for p in pts:
+    if p["score"] > best:
+        best = p["score"]
+        frontier.append(p)
+
+fig, ax = plt.subplots(figsize=(5.4, 3.2))
+ax.scatter([p["x"] for p in pts], [p["score"] for p in pts], s=16, marker="o",
+           facecolors="white", edgecolors=COLORS["grid"], linewidth=0.7, zorder=2, label="Model releases")
+ax.plot([p["x"] for p in frontier], [p["score"] for p in frontier], color=COLORS["evidence"], lw=1.6, zorder=3)
+ax.scatter([p["x"] for p in frontier], [p["score"] for p in frontier], s=22, marker="o",
+           facecolor=COLORS["evidence"], edgecolor=COLORS["evidence_ink"], linewidth=0.5, zorder=4, label="Best to date")
+ax.set_xlim(2024.8, 2026.55)
+ax.set_ylim(20, 92)
+ax.set_xlabel("Model release date", fontsize=7.2)
+ax.set_ylabel("SWE-bench Verified resolved (%)", fontsize=7.2)
+ax.set_xticks([2025.0, 2025.5, 2026.0, 2026.5])
+ax.set_xticklabels(["2025", "mid-25", "2026", "mid-26"], fontsize=6.4)
+ax.tick_params(labelsize=6.4, length=2.5, width=0.6)
+for _sp in ("top", "right"):
+    ax.spines[_sp].set_visible(False)
+ax.grid(True, which="major", axis="y", color=COLORS["row"], linewidth=0.4, zorder=0)
+ax.legend(loc="lower right", frameon=False, fontsize=6.0, handletextpad=0.3, labelspacing=0.3)
+want = ["GPT-4o", "Claude 3.7 Sonnet", "Claude Opus 4", "GPT-5", "Claude Opus 4.7"]
+by_name = {}
+for p in frontier:
+    key = (p["model"] or "").strip()
+    if key in want and key not in by_name:
+        by_name[key] = p
+items = [(by_name[w]["x"], by_name[w]["score"], w) for w in want if w in by_name]
+place_labels(ax, fig, items, fontsize=5.0, color=COLORS["ink"])
+fig.subplots_adjust(left=0.10, right=0.97, top=0.98, bottom=0.12)
+```
 
 SPEC-style benchmarks made performance claims more comparable by specifying workloads, run rules, and reporting standards. Shared simulators such as gem5 made architecture experiments easier to inspect across labs. FPGA-accelerated simulation platforms such as FireSim, community benchmark suites such as MLPerf, artifact-evaluation practices, and open tool flows succeeded because they let researchers understand, rerun, challenge, and safely build on reported results [@SPEC2017CPU; @BinkertEtAl2011Gem5; @KarandikarEtAl2018FireSim; @MattsonEtAl2020MLPerf]. AI-assisted results will need the same shared tasks, tool interfaces, and evidence standards to matter beyond a single study.
 

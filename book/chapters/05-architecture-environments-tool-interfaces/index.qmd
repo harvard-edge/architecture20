@@ -58,7 +58,64 @@ Tool meaning depends entirely on fixed context, legal actions, software and hard
 
 Hardware design is bound by severe time and compute constraints. Unlike software environments that can execute thousands of iterations per second, architecture tools are locked behind expensive licenses and days-long job queues. The compute required for a single physical design run is orders of magnitude slower and more expensive than an AI model's inference pass. As fidelity increases toward silicon, the sample budget shrinks exponentially from millions of cheap functional checks to handfuls of expensive layout runs.
 
-To navigate this economic reality, we can look to the robotics community's approach of **Sim-to-Real Transfer**. Rather than training a robotic arm directly in the physical world, which is slow and risks damaging hardware, researchers train the agent in a fast physics simulator and transfer the learned policy to the real robot [@OpenAI2019Rubik]. Architecture benefits from a similar pipeline by creating a **Multi-Fidelity Spectrum**. The simulator is not a single tool, but a ladder. At the top are fast analytical models (ISA-level or spreadsheet models) that act as the "Sim", screening millions of candidates in seconds. In the middle are Cycle-Accurate C++ simulators, like gem5, that model timing but abstract physics. At the bottom are RTL synthesis and VLSI physical design tools, the "Real", that enforce true physical laws like power, thermals, and routing congestion. An architecture environment must allow an agent to intelligently climb up and down this ladder, trading fidelity for speed as needed.
+To navigate this economic reality, we can look to the robotics community's approach of **Sim-to-Real Transfer**. Rather than training a robotic arm directly in the physical world, which is slow and risks damaging hardware, researchers train the agent in a fast physics simulator and transfer the learned policy to the real robot [@OpenAI2019Rubik]. Architecture benefits from a similar pipeline by creating a **Multi-Fidelity Spectrum**. The simulator is not a single tool, but a ladder. At the top are fast analytical models (ISA-level or spreadsheet models) that act as the "Sim", screening millions of candidates in seconds. In the middle are Cycle-Accurate C++ simulators, like gem5, that model timing but abstract physics. At the bottom are RTL synthesis and VLSI physical design tools, the "Real", that enforce true physical laws like power, thermals, and routing congestion. An architecture environment must allow an agent to intelligently climb up and down this ladder, trading fidelity for speed as needed (@fig-simulator-tax).
+
+```{python}
+#| label: fig-simulator-tax
+#| fig-cap: |
+#|   **The simulator tax: fidelity costs orders of magnitude, unless you burn an FPGA.** Representative slowdown of each architecture-evaluation approach relative to a roughly 3 GHz core. Software simulation slows by four to five orders of magnitude as fidelity rises toward cycle-accurate and RTL detail; FPGA-accelerated emulation stays within about twenty times real time, at the cost of dedicated hardware. Figures are order-of-magnitude and workload- and configuration-dependent [@BinkertEtAl2011Gem5; @KarandikarEtAl2018FireSim].
+#| out-width: "92%"
+#| fig-alt: "Horizontal log chart of simulation slowdown versus real hardware across six approaches. Native silicon is one times. FPGA emulation (FireSim) is about twenty times slower. Functional or ISA simulation is about thirty times. Cycle-approximate simulation (ZSim, Sniper) is about ten thousand times. Cycle-accurate simulation (gem5) is about fifteen thousand times. RTL simulation (Verilator) is about thirty thousand times slower."
+
+import csv
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import _python.arch2_plots as _ap
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Data: representative simulation throughput per fidelity rung, synthesized from
+# primary sources and expressed as slowdown versus a ~3 GHz core. CPU-sim rungs
+# count instructions, RTL/FPGA rungs count cycles (~comparable at IPC ~1). Anchors:
+# ZSim (Sanchez & Kozyrakis 2013), gem5-class ~200 KIPS [@BinkertEtAl2011Gem5],
+# Verilator (Chipyard), FireSim [@KarandikarEtAl2018FireSim]. Order-of-magnitude,
+# workload/config/host dependent. Accessed 2026-07-19.
+# Receipt: data/source-receipts/chapter5-simulator-tax.csv
+_root = Path(_ap.__file__).resolve().parents[2]
+rungs = []
+with open(_root / "data" / "source-receipts" / "chapter5-simulator-tax.csv", encoding="utf-8") as fh:
+    for d in csv.DictReader(fh):
+        rungs.append({"rung": d["rung"], "example": d["example"], "slow": float(d["slowdown_vs_silicon"])})
+
+kind = {"Native silicon": COLORS["workload"], "FPGA emulation": COLORS["evidence"]}
+fig, ax = plt.subplots(figsize=(6.0, 3.3))
+n = len(rungs)
+for i, r in enumerate(rungs):
+    y = n - 1 - i
+    color = kind.get(r["rung"], COLORS["methods"])
+    slow = r["slow"]
+    ax.hlines(y, 1, max(slow, 1.02), color=color, lw=2.4, zorder=2)
+    ax.scatter([max(slow, 1.02)], [y], s=46, color=color, edgecolor=color, zorder=3)
+    tag = "1× (real time)" if slow < 1.5 else f"~{slow:,.0f}× slower"
+    ax.text(max(slow, 1.02) * 1.35, y + 0.02, tag, va="center", ha="left", fontsize=6.0, fontweight="bold", color=color)
+    ax.text(1.05, y + 0.34, r["rung"], va="center", ha="left", fontsize=7.0, fontweight="bold", color=COLORS["ink"])
+    ax.text(1.05, y - 0.30, r["example"], va="center", ha="left", fontsize=5.4, color=COLORS["muted"])
+ax.set_xscale("log")
+ax.set_xlim(1, 6e5)
+ax.set_ylim(-0.7, n - 0.2)
+ax.set_yticks([])
+ax.set_xlabel("Slowdown versus real hardware (log)", fontsize=7.2)
+ax.set_xticks([1, 1e1, 1e2, 1e3, 1e4, 1e5])
+ax.set_xticklabels(["1×", "10×", "100×", "1,000×", "10,000×", "100,000×"], fontsize=6.2)
+ax.tick_params(labelsize=6.2, length=2.5, width=0.6)
+for _sp in ("top", "right", "left"):
+    ax.spines[_sp].set_visible(False)
+ax.grid(axis="x", color=COLORS["row"], linewidth=0.4, zorder=0)
+fig.subplots_adjust(left=0.02, right=0.985, top=0.97, bottom=0.14)
+```
+
 Hardware specialization tightly couples the stack. Optimizing one parameter (like dataflow) cascades into breaking constraints across siloed simulation tools (thermal, synthesis, compilation). This coupled constraint problem is not unique to architecture. In aerospace engineering, designing an aircraft requires balancing aerodynamics, structures, and acoustics [@Sobieski1998BLISS]. Instead of building a single monolithic simulator, aerospace multidisciplinary design optimization (MDO) orchestrates fast *surrogate models* for broad exploration, reserving expensive physics simulators for final verification. AI in computer architecture should similarly orchestrate existing tools rather than replace them.
 
 AI should act as an architectural control plane. Rather than just generating scripts, it must take declarative intent, measure actual state from simulators and EDA tools, and issue compensating actions, such as shrinking a cache to fix a thermal violation.
