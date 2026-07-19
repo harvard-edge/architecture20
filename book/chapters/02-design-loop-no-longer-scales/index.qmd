@@ -26,7 +26,7 @@ What has changed is how much information and work the architect must coordinate.
 A modern project may span more design information, more software and physical
 constraints, more possible designs, and more expensive forms of evaluation.
 
-That growth is not a flat list of independent problems. The pressures build on one another as a system gains layers. Microarchitecture and multicore execution add policies and coherence, specialization tailors a block to a workload, composing specialized blocks into a system-on-chip or a set of chiplets adds integration boundaries, and the executable software contract adds compilers, runtimes, and tests. Each layer carries the constraints of the one beneath it and adds its own, so a fair comparison must hold more of the system at once. This chapter climbs those layers in order, then turns to a pressure of a different kind, the rising cost and irreversibility of the evidence needed to settle the resulting comparison.
+That growth is not a flat list of independent problems. The pressures build on one another as a system gains layers. Microarchitecture and multicore execution add policies and coherence, specialization tailors a block to a workload, composing specialized blocks into a system-on-chip or a set of chiplets adds integration boundaries, and the executable software contract adds compilers, runtimes, and tests. Each layer carries the constraints of the one beneath it and adds its own, so a fair comparison must hold more of the system at once. This chapter works through those layers in order, then turns to a pressure of a different kind, the rising cost and irreversibility of the evidence needed to settle the resulting comparison.
 
 The difficulty is not simply that modern projects can generate more candidates.
 Work becomes hard to complete when the project cannot keep its information
@@ -157,7 +157,7 @@ but each lever also increased the information an architect needs to compare two
 designs fairly.
 
 Each lever adds its own information to the comparison, and the rest of this
-chapter climbs them in turn. Microarchitecture and multicore execution add
+chapter takes them in turn. Microarchitecture and multicore execution add
 policies, corner cases, and coherence; specialization adds interfaces and
 verification work; composition into systems-on-chip and chiplets adds package
 and integration boundaries; and the software contract and physical evidence
@@ -198,15 +198,19 @@ exploration to begin.
 
 ## Microarchitecture and Multicore Complexity
 
-The climb starts with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance, and each adds corner cases a fair comparison must cover. A prefetcher that helps one access pattern can pollute a cache under another, and a speculation policy that raises throughput can raise energy and expose a side channel.
+Start with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance, and each adds corner cases a fair comparison must cover [@HennessyPatterson2017QuantitativeApproach]. A prefetcher that helps one access pattern can pollute a cache under another. A speculation policy that raises throughput can raise energy, and the same speculative machinery later proved able to leak data across protection boundaries, as Spectre and Meltdown showed [@KocherEtAl2019Spectre; @LippEtAl2018Meltdown]. A gain measured on one workload can carry a cost that surfaces only under another.
 
-Multicore execution adds another layer on top of that. Coherence protocols, memory-ordering rules, synchronization costs, and workload partitioning all shape how a candidate behaves under a real workload, and none of them shows up in a single-thread proxy. Even at this familiar rung, before any specialized block is added, the information a comparison must carry has already outgrown a single number. The newer levers only widen that gap.
+Multicore execution adds a further layer. Coherence protocols, memory-ordering rules, synchronization costs, and workload partitioning all shape how a candidate behaves under a real workload, and none of them shows up in a single-thread proxy. Even here, before any specialized block is added, the information a comparison must carry has already outgrown a single number.
+
+This layer is also where AI assistance meets its first test. The cheap proxies a system would use to screen thousands of microarchitectural variants, such as a single-core instructions-per-cycle estimate, are the ones that hide coherence traffic, misprediction penalties, and speculative-energy cost. An AI screen is useful here only when it represents enough of the multicore and speculative state to rank candidates for reasons that still hold in silicon, and when the architect can check that the cheap estimate has not discarded a corner case a stronger tool would have caught. The specialized levers that follow only widen that gap.
 
 ## Specialization Multiplies the Choices
 
-Specialization is the next lever, and it changes the climb. Where microarchitecture and multicore mechanisms tune a general-purpose machine, specialization tailors the hardware to a particular workload, which changes both the metrics that matter and the number of choices the architect must evaluate. A battery- and thermally limited mobile part and a warehouse-scale system bounded by power delivery and total cost of ownership (TCO) demand different measures of efficiency [@BarrosoHolzleRanganathan2019DatacenterAsComputer], and a specialized block is only worth judging against one such target.
+Specialization is the next layer, and it changes what a comparison must weigh. Where microarchitecture and multicore mechanisms tune a general-purpose machine, specialization tailors the hardware to a particular workload, which changes both the metrics that matter and the number of choices the architect must evaluate. A battery- and thermally limited mobile part and a warehouse-scale system bounded by power delivery and total cost of ownership (TCO) demand different measures of efficiency [@BarrosoHolzleRanganathan2019DatacenterAsComputer], and a specialized block is only worth judging against one such target.
 
 An architect must decide what to specialize, where the specialized function belongs, and how it communicates with the rest of the system. Choosing between a CPU and an accelerator is only the start of designing a low-power XR subsystem, since the decision also raises questions about vector length, memory hierarchy, local buffers, compression, dataflow, quantization, runtime scheduling, compiler support, sensor streams, display deadlines, thermal behavior, and fallback modes.
+
+Each of those questions widens the space of specialized options an AI system might explore, but the width is not the hard part. Specialization ties a candidate's worth to one workload's efficiency measure, so a method that improves performance per watt for the wrong workload, or that saves area while missing the display deadline, can rank candidates confidently in a way that means nothing for the target. AI can enumerate and score specialized options quickly; it helps only when the measure it optimizes is the one the deployment rewards and the architect has fixed which constraint a candidate may not violate. A larger search aimed at the wrong measure produces more candidates tuned for a workload no one will deploy.
 
 ## Composition: Systems-on-Chip and Chiplets
 
