@@ -131,7 +131,9 @@ def registry_entries() -> list[dict[str, Any]]:
         entry: dict[str, Any] = {
             "url": item["url"],
             "purpose": f"living registry entry for {item['title']}",
-            "chapters": ["appC"],
+            # sourced from the tool registry (tools/registry/), not a manuscript unit;
+            # the former appendix-c-architecture-20-resources that surfaced these was refactored out.
+            "chapters": ["tool-registry"],
             "owner": item["institution"],
             "nature": str(item["artifact_type"]).lower(),
             "description": item["description"],
