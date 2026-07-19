@@ -190,6 +190,58 @@ def simulator_tax():  # ch5 (synthesized from primary sources; no raw file)
     )
 
 
+def mitigation_overhead():  # ch7 (compiled from Canella et al. 2019 Table 11; no raw file)
+    rows = [
+        [
+            "KPTI page-table isolation",
+            "Meltdown",
+            0,
+            5,
+            "~0% compute-bound to ~5% at 75k syscalls/s (Gregg 2018); KAISER 0-2.6% (Canella 2019 Tbl.11)",
+        ],
+        [
+            "SSBD microcode",
+            "Spectre-v4",
+            2,
+            8,
+            "SYSmark 2018 / SPEC integer (Intel, in Canella 2019 Tbl.11)",
+        ],
+        [
+            "Retpoline software",
+            "Spectre-v2",
+            5,
+            10,
+            "real-world servers (Carruth/Google, in Canella 2019 Tbl.11)",
+        ],
+        [
+            "All default mitigations (Intel)",
+            "combined",
+            7,
+            16,
+            "mixed suite Linux 4.19-5.0 (Phoronix 2018-2019); AMD ~3-4%",
+        ],
+        [
+            "IBRS microcode",
+            "Spectre-v2",
+            20,
+            30,
+            "syscall-heavy Sysbench (Turner/Google, in Canella 2019 Tbl.11)",
+        ],
+        [
+            "STIBP cross-thread",
+            "Spectre-v2",
+            30,
+            50,
+            "Rodinia OpenMP / DaCapo (Larabel, in Canella 2019 Tbl.11)",
+        ],
+    ]
+    _write(
+        "chapter7-mitigation-overhead.csv",
+        ["mitigation", "threat", "low_pct", "high_pct", "source_note"],
+        rows,
+    )
+
+
 if __name__ == "__main__":
     print("Regenerating figure receipts from sources/ ...")
     training_compute()
@@ -198,4 +250,5 @@ if __name__ == "__main__":
     hardware_efficiency()
     task_horizon()
     simulator_tax()
+    mitigation_overhead()
     print("Done. Rebuild with: python3 cli/arch2.py build --html")

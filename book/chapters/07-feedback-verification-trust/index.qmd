@@ -169,6 +169,67 @@ The most dangerous gap is not a check that agrees wrongly but a property that no
 **The lesson.** A check cannot reject a property it does not observe. Coverage decides which failures are visible at all, while independence only strengthens a challenge to a property already under test. The side channels were later reduced through software and microcode mitigations at a performance cost.
 :::
 
+The mitigations that later closed these channels were not free, and their cost fell unevenly across workloads (@fig-mitigation-overhead).
+
+```{python}
+#| label: fig-mitigation-overhead
+#| fig-cap: |
+#|   **Closing the channel had a real, uneven cost.** Reported performance overhead of the shipped Spectre/Meltdown mitigations; each bar spans compute-bound work (low system-call rate) to syscall- and I/O-heavy work. Cheap software mitigations such as retpoline cost 5--10%, while the microcode mitigations IBRS and STIBP reach 20--50% on syscall-heavy code, because the cost is paid on each user/kernel crossing. Compiled from Canella et al. Table 11 [@CanellaEtAl2019Transient], with figures from Gregg (2018) and Phoronix (2018--2019); overhead varies with CPU generation, kernel version, and which mitigations are enabled.
+#| out-width: "92%"
+#| fig-alt: "Horizontal range chart of Spectre and Meltdown mitigation overhead in percent. KPTI spans about 0 to 5 percent, SSBD 2 to 8, retpoline 5 to 10, all default mitigations 7 to 16, IBRS 20 to 30, and STIBP 30 to 50 percent. Each bar's left end is compute-bound work and its right end is syscall or I/O-heavy work; the microcode mitigations are the most expensive."
+
+import csv
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import _python.arch2_plots as _ap
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Data: reported overhead of shipped transient-execution mitigations, compiled
+# from Canella et al. 2019 Table 11 [@CanellaEtAl2019Transient] with production
+# figures from Gregg (2018) and benchmark roundups from Phoronix (2018-2019).
+# Ranges span compute-bound to syscall/IO-heavy work on 2016-2019-era parts;
+# academic-only proposals and the pathological >800% microbenchmark are excluded.
+# Accessed 2026-07-19. Receipt: data/source-receipts/chapter7-mitigation-overhead.csv
+_root = Path(_ap.__file__).resolve().parents[2]
+rows = []
+with open(_root / "data" / "source-receipts" / "chapter7-mitigation-overhead.csv", encoding="utf-8") as fh:
+    for d in csv.DictReader(fh):
+        rows.append({"m": d["mitigation"], "t": d["threat"], "lo": float(d["low_pct"]), "hi": float(d["high_pct"])})
+rows.sort(key=lambda r: r["hi"])
+
+def _short(mitigation, threat):
+    base = "All mitigations" if mitigation.startswith("All") else mitigation.split(" ")[0]
+    return f"{base} ({threat})"
+
+fig, ax = plt.subplots(figsize=(5.6, 3.0))
+ys = list(range(len(rows)))
+for y, r in zip(ys, rows):
+    ax.hlines(y, r["lo"], r["hi"], color=COLORS["constraints"], lw=3.0, zorder=2)
+    for xv in (r["lo"], r["hi"]):
+        ax.scatter([xv], [y], marker="s", s=15, facecolor=COLORS["note_fill"],
+                   edgecolor=COLORS["constraints"], linewidth=0.9, zorder=3)
+    ax.text(r["hi"] + 1.2, y, f"{r['lo']:.0f}–{r['hi']:.0f}%", ha="left", va="center",
+            fontsize=5.9, fontweight="bold", color=COLORS["constraints_ink"])
+ax.set_yticks(ys)
+ax.set_yticklabels([_short(r["m"], r["t"]) for r in rows], fontsize=6.4)
+ax.set_ylim(-0.6, len(rows) - 0.35)
+ax.set_xlim(-1, 60)
+ax.set_xlabel("Reported slowdown vs. unmitigated (%)", fontsize=7.2)
+ax.set_xticks([0, 10, 20, 30, 40, 50])
+ax.tick_params(labelsize=6.4, length=2.5, width=0.6)
+for _sp in ("top", "right"):
+    ax.spines[_sp].set_visible(False)
+ax.grid(axis="x", color=COLORS["row"], linewidth=0.4, zorder=0)
+ax.text(59, len(rows) - 0.75, "each bar: compute-bound → syscall / I/O-heavy",
+        fontsize=5.0, fontstyle="italic", color=COLORS["muted"], ha="right", va="center")
+fig.subplots_adjust(left=0.22, right=0.97, top=0.94, bottom=0.15)
+```
+
+Compute-bound code that rarely crosses the kernel boundary pays almost nothing, while system-call- and I/O-heavy work can slow by tens of percent, because the mitigations tax exactly the privilege transitions the leak abused. A property left unobserved at verification did not disappear; it reappeared as a permanent tax on every workload that touches that boundary.
+
 Passing a suite of performance tests provides no evidence for security properties, so a public claim for a shipped design needs checks that observe information flow and physical behavior directly, not more of the checks that were already blind to them. A coverage gap is also not the only defect that survives verification. A functional bug already committed to silicon is harder to undo than a patchable side channel, since it can force a respin rather than a microcode update.
 
 Coverage is prior, but independence is also weaker than it looks. In safety engineering, Knight and Leveson had teams write program versions independently, yet the versions failed together on the same hard inputs far more often than an independence assumption predicted [@KnightLeveson1986Multiversion]. Independent development of a mechanism does not produce independent failure. Two checks built by separate teams can still miss the same case, because the difficulty often lives in the problem rather than in any one implementation.
