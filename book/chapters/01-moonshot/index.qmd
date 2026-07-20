@@ -368,6 +368,43 @@ The phrase "64-bit RISC-V-based compute subsystem" establishes the ISA, ABI, and
 
 While the prompt asks for a design-space report, the study may also produce software, models, RTL, layouts, prototypes, or a physical chip depending on the ambition of the claim. The report connects those artifacts and measurements to the proposed design and explains precisely why alternatives were rejected. To test the architect's judgment, the prompt deliberately leaves the accelerator microarchitecture, memory system, software integration, and evaluation tools open.
 
+@tbl-moonshot-decomposition collects the architectural decisions implied by
+the Lighthouse prompt and the checks that could disqualify an answer. AI may
+suggest a hardware and software decomposition. The architect accepts, revises,
+or rejects that proposed scope and its coupled interfaces.
+
+| **Prompt fragment** | **Architectural decisions** | **What must be checked** |
+| --- | --- | --- |
+| **XRBench mobile XR** | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace source, benchmark version, documented workload-phase selection, and rejection when results over-optimize a single hot loop or miss real-time behavior. |
+| **64-bit RISC-V with vector or accelerator option** | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
+| **Compute subsystem** | CPU, fixed-function accelerator, reconfigurable spatial array (e.g., CGRA or Reconfigurable Dataflow Architecture/RDA), or Processing-in-Memory (PIM) data-centric block; memory hierarchy, SoC integration, interface compatibility, and relevant reliability or isolation assumptions. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, complexity, or risk elsewhere. |
+| **3 W, 3 nm-class low-power envelope** | Power, voltage/frequency, thermal, area, EDA constraints, and dynamic power management interfaces (e.g., Dynamic Voltage and Frequency Scaling or DVFS, power domains, thermal sensors) for the OS/firmware. | Source, version, and calibration of the power model; physical-design limits (IR drop, electromigration, timing closure); sensitivity analysis; and rejection criteria for runtime throttling or reliability failures within the scoped workload. |
+| **Design-space report with evidence and rejected alternatives** | Alternatives, the Pareto frontier (the objective outcomes of feasible designs for which no alternative is at least as good on every objective and strictly better on at least one) [@Deb2001MultiObjective], assumptions, uncertainty, verification plan, rejected or failed candidates, and points at which the responsible architect decides whether to continue. | Measurements linked to assumptions and checks, rejected candidates, coverage, reproducible artifacts, and a named person responsible for the recommendation. |
+
+: **What each prompt fragment requires:** The Lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
+
+The table is a first-pass checklist rather than the final review form. An
+answer is incomplete if it cannot identify its workload slice, software
+contract, physical assumptions, supporting observations, or decision owner.
+The rest of the book develops these requirements and turns them into a compact
+review form.
+
+
+
+Each row points to engineering depth that the short prompt leaves unstated. To verify whether a candidate actually fits the "3 W, 3 nm-class" constraint, architects need results from RTL, synthesis, floorplanning, timing, IR drop, leakage, thermal analysis, and final signoff. Comparing the RISC-V vector and accelerator alternatives requires checking the compiler, runtime, libraries, generated code, and software portability. The Lighthouse prompt is therefore a computer architecture problem rather than a prompt engineering exercise, demanding an answer that connects decisions and evidence across the entire stack.
+
+The workload and process phrases require more detail than the compact prompt provides. XRBench, a benchmark suite for mobile XR workloads, supplies a concrete workload anchor rather than a vague application label [@KwonEtAl2023XRBench]. End-to-end XR research shows how tightly perception and display stages are coupled, making mobile XR a system-level architecture target rather than a single kernel to optimize [@HuzaifaEtAl2021ILLIXR]. AI acts merely as an explorer, analyzing dataset distributions to find coverage gaps, complementing profiling, trace analysis, and expert workload judgment.
+
+The architect remains the final judge responsible for deciding whether the selected benchmark represents the system claim. Similarly, the process node is stated as a broad class rather than a named foundry process design kit (PDK). Even though current mobile SoCs are publicly described in 3 nm-class technology, the architect must still explicitly name the process, libraries, voltage assumptions, and signoff path [@Apple2024A18Pro; @Apple2024M4]. It is up to the architect to evaluate the AI's suggestions within a physical Evaluation Harness incorporating PPA and STA limits.
+
+An architect might begin with an XRBench trace slice and software pipeline, propose vector-width or CPU and accelerator alternatives, and screen them with a cheap proxy. They can then reserve scarce compiler, simulator, RTL, or physical-design feedback for the candidates whose results could actually alter the final decision. That selection rule, along with what the resulting evidence may support, should be stated before the run.
+
+Within that workflow, generation might produce legal vector configurations, prediction might estimate their data-movement risks, and optimization might choose which configurations merit expensive evaluation. A proxy may rank candidates one way, a simulator may overturn that ranking, and an EDA run may return timing paths and congestion rather than a single score. Search can also overfit[^fn-ml-overfitting] a convenient proxy.
+
+While these methods narrow the work, their output alone does not prove whether a compiler assumption holds, whether the measured behavior follows from the proposed mechanism, or whether the remaining tradeoff justifies a multimillion-dollar commitment. The final evidence should document the candidates, assumptions, measurements, and rejections that affect the claim without needing every internal model trace. The architect must resolve the remaining questions using this complete, curated body of evidence.
+
+[^fn-ml-overfitting]: Overfitting, in machine learning, is fitting the noise and idiosyncrasies of a training sample so that performance fails to generalize to new data. An optimizer can overfit a proxy the same way, raising the proxy's measured score by exploiting its quirks rather than improving the true objective. Architects should therefore test a promising candidate with stronger evidence before committing to it.
+
 Progress toward the moonshot will require far more than isolated demonstrations. In software engineering, benchmarks like SWE-bench, a benchmark of real GitHub-issue fixes, provide immediate, exact correctness checks via unit tests, and agents have advanced quickly on it (@fig-swebench-progress) [@JimenezEtAl2024SWEBench]. Hardware benchmarking is fundamentally different because evaluation is delayed and physical limits are non-linear. An AI agent might output structurally valid RTL, but that code must eventually satisfy highly-coupled physical silicon constraints—Power, Performance, and Area (PPA) targets, Static Timing Analysis (STA), Design Rule Checking (DRC), and thermal budgets. Correctness requires passing through many siloed EDA tools, forcing the human architect to orchestrate this physical Evaluation Harness to ground AI proposals in reality.
 
 ```{python}
@@ -465,43 +502,6 @@ This structural data scarcity explains the strategic importance of open-source h
 Because AI models lack the data to generate zero-shot perfect hardware, they will inevitably hallucinate plausible but subtly flawed structures, placing immense pressure on verification. Modern hardware verification and validation already consume the majority of project engineering resources, often exceeding fifty percent of the total schedule. Generative AI risks exacerbating this crisis by rapidly producing candidates at a scale that human reviewers cannot manually verify. Consequently, an AI's ability to interface with formal verification tools and constrained-random testing environments is a critical necessity rather than an afterthought. An AI that generates a novel cache controller is useless to the architect if it introduces coherence deadlocks that take humans months to diagnose.
 
 Furthermore, in a post-Spectre era, verification must extend beyond functional correctness to encompass hardware security. Verifying that AI-generated structures do not inadvertently introduce microarchitectural side-channel vulnerabilities, isolation boundary violations, or hardware Trojans is a massive challenge. The loop must be capable of generating the SystemVerilog assertions, security properties, and testbenches required to check its own proposed structures.
-
-@tbl-moonshot-decomposition collects the architectural decisions implied by
-the Lighthouse prompt and the checks that could disqualify an answer. AI may
-suggest a hardware and software decomposition. The architect accepts, revises,
-or rejects that proposed scope and its coupled interfaces.
-
-| **Prompt fragment** | **Architectural decisions** | **What must be checked** |
-| --- | --- | --- |
-| **XRBench mobile XR** | Workload slice, input distribution, quality-of-service target, latency deadline, memory traffic, software pipeline, and drift assumptions. | Trace source, benchmark version, documented workload-phase selection, and rejection when results over-optimize a single hot loop or miss real-time behavior. |
-| **64-bit RISC-V with vector or accelerator option** | ISA boundary, custom extension policy, programming model, compiler/runtime path, library support, and software compatibility. | Correctness, toolchain support, generated-code evidence, portability checks, and rejection of unsupported software semantics. |
-| **Compute subsystem** | CPU, fixed-function accelerator, reconfigurable spatial array (e.g., CGRA or Reconfigurable Dataflow Architecture/RDA), or Processing-in-Memory (PIM) data-centric block; memory hierarchy, SoC integration, interface compatibility, and relevant reliability or isolation assumptions. | Design-space comparison and rejection of candidates that only win by moving cost, bandwidth, energy, complexity, or risk elsewhere. |
-| **3 W, 3 nm-class low-power envelope** | Power, voltage/frequency, thermal, area, EDA constraints, and dynamic power management interfaces (e.g., Dynamic Voltage and Frequency Scaling or DVFS, power domains, thermal sensors) for the OS/firmware. | Source, version, and calibration of the power model; physical-design limits (IR drop, electromigration, timing closure); sensitivity analysis; and rejection criteria for runtime throttling or reliability failures within the scoped workload. |
-| **Design-space report with evidence and rejected alternatives** | Alternatives, the Pareto frontier (the objective outcomes of feasible designs for which no alternative is at least as good on every objective and strictly better on at least one) [@Deb2001MultiObjective], assumptions, uncertainty, verification plan, rejected or failed candidates, and points at which the responsible architect decides whether to continue. | Measurements linked to assumptions and checks, rejected candidates, coverage, reproducible artifacts, and a named person responsible for the recommendation. |
-
-: **What each prompt fragment requires:** The Lighthouse prompt maps to decisions about workload definition, software and ISA contracts, hardware organization, physical feasibility, and evidence. {#tbl-moonshot-decomposition tbl-colwidths="[18,34,35]"}
-
-The table is a first-pass checklist rather than the final review form. An
-answer is incomplete if it cannot identify its workload slice, software
-contract, physical assumptions, supporting observations, or decision owner.
-The rest of the book develops these requirements and turns them into a compact
-review form.
-
-
-
-Each row points to engineering depth that the short prompt leaves unstated. To verify whether a candidate actually fits the "3 W, 3 nm-class" constraint, architects need results from RTL, synthesis, floorplanning, timing, IR drop, leakage, thermal analysis, and final signoff. Comparing the RISC-V vector and accelerator alternatives requires checking the compiler, runtime, libraries, generated code, and software portability. The Lighthouse prompt is therefore a computer architecture problem rather than a prompt engineering exercise, demanding an answer that connects decisions and evidence across the entire stack.
-
-The workload and process phrases require more detail than the compact prompt provides. XRBench, a benchmark suite for mobile XR workloads, supplies a concrete workload anchor rather than a vague application label [@KwonEtAl2023XRBench]. End-to-end XR research shows how tightly perception and display stages are coupled, making mobile XR a system-level architecture target rather than a single kernel to optimize [@HuzaifaEtAl2021ILLIXR]. AI acts merely as an explorer, analyzing dataset distributions to find coverage gaps, complementing profiling, trace analysis, and expert workload judgment.
-
-The architect remains the final judge responsible for deciding whether the selected benchmark represents the system claim. Similarly, the process node is stated as a broad class rather than a named foundry process design kit (PDK). Even though current mobile SoCs are publicly described in 3 nm-class technology, the architect must still explicitly name the process, libraries, voltage assumptions, and signoff path [@Apple2024A18Pro; @Apple2024M4]. It is up to the architect to evaluate the AI's suggestions within a physical Evaluation Harness incorporating PPA and STA limits.
-
-An architect might begin with an XRBench trace slice and software pipeline, propose vector-width or CPU and accelerator alternatives, and screen them with a cheap proxy. They can then reserve scarce compiler, simulator, RTL, or physical-design feedback for the candidates whose results could actually alter the final decision. That selection rule, along with what the resulting evidence may support, should be stated before the run.
-
-Within that workflow, generation might produce legal vector configurations, prediction might estimate their data-movement risks, and optimization might choose which configurations merit expensive evaluation. A proxy may rank candidates one way, a simulator may overturn that ranking, and an EDA run may return timing paths and congestion rather than a single score. Search can also overfit[^fn-ml-overfitting] a convenient proxy.
-
-While these methods narrow the work, their output alone does not prove whether a compiler assumption holds, whether the measured behavior follows from the proposed mechanism, or whether the remaining tradeoff justifies a multimillion-dollar commitment. The final evidence should document the candidates, assumptions, measurements, and rejections that affect the claim without needing every internal model trace. The architect must resolve the remaining questions using this complete, curated body of evidence.
-
-[^fn-ml-overfitting]: Overfitting, in machine learning, is fitting the noise and idiosyncrasies of a training sample so that performance fails to generalize to new data. An optimizer can overfit a proxy the same way, raising the proxy's measured score by exploiting its quirks rather than improving the true objective. Architects should therefore test a promising candidate with stronger evidence before committing to it.
 
 ## Formulate Efficiency Claims Across the Design Loop {#sec-efficiency-claims-need-rejectable-loops}
 
