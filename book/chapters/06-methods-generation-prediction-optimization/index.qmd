@@ -735,63 +735,33 @@ The core strength of a human-in-the-loop workflow is the architect's ability to 
 
 ## Critique, Repair, and Verification
 
-An architect who already has hundreds of candidates and inconsistent run logs
-does not need another proposed design. The more useful AI job may be to identify
-a specific weakness, revise a malformed artifact, or run a check that can
-reject a stated property. These are three different jobs.
+An architect who already has hundreds of candidates and inconsistent run logs does not need another proposed design. The more useful AI job may be to identify a specific weakness, revise a malformed artifact, or run a check that can reject a stated property. These are three different jobs.
 
 ### Critique
 
-A critic can inspect a design-space report, simulator log, configuration file,
-benchmark description, or paper draft. It can ask whether the workload matches
-the claim, whether the metric represents the intended objective, whether
-rejected candidates are missing, or whether a table proves less than the prose
-claims. The useful output is not a general score. It is a finding tied to an
-artifact, assumption, tool result, or missing comparison that another check or
-qualified reviewer can examine.
+A critic can inspect a design-space report, simulator log, configuration file, benchmark description, or paper draft. It can ask whether the workload matches the claim, whether the metric represents the intended objective, whether rejected candidates are missing, or whether a table proves less than the prose claims. The useful output is not a general score. It is a finding tied to an artifact, assumption, tool result, or missing comparison that another check or qualified reviewer can examine.
 
-Question-answering resources such as QuArch, a benchmark for evaluating LLMs on computer architecture, make published architecture knowledge accessible to automated methods [@PrakashEtAl2025QuArch]. Critique
-also needs the project records that papers often omit, including tool settings,
-failed runs, rejected alternatives, and review decisions. Adjacent code-review
-research found that model-written critiques could help people find inserted
-bugs, while models acting alone also invented problems
-[@McAleeseEtAl2024CriticGPT]. That result motivates a testable architecture
-critique role. It does not establish that code-review performance transfers to
-architecture studies.
+In the context of the XR Lighthouse prompt, a critique agent might review a proposed 3W RISC-V compute subsystem and notice that while the Bayesian optimizer achieved the target thermal envelope, it did so by aggressively shrinking the L2 cache, which in turn degrades performance on the critical spatial tracking workloads. The critique does not generate a new design; it raises a falsifiable claim ("The L2 shrink degrades spatial tracking performance by 15%") that the cycle-level simulator can then test.
+
+Question-answering resources such as QuArch, a benchmark for evaluating LLMs on computer architecture, make published architecture knowledge accessible to automated methods [@PrakashEtAl2025QuArch]. Critique also needs the project records that papers often omit, including tool settings, failed runs, rejected alternatives, and review decisions. Adjacent code-review research found that model-written critiques could help people find inserted bugs, while models acting alone also invented problems [@McAleeseEtAl2024CriticGPT]. That result motivates a testable architecture critique role. It does not establish that code-review performance transfers to architecture studies.
 
 ### Repair
 
-Repair begins from a known failure. It may correct a malformed configuration,
-fix tool syntax, patch a test bench, or revise an RTL fragment after simulation.
-The output should identify what changed, preserve the diff, rerun the check that
-found the failure, and report what remains unresolved. In the Chip-Chat flow
-described earlier, simulator and synthesis failures can prompt another Verilog
-revision, but the model does not get to declare its own revision correct
-[@BlockloveEtAl2023ChipChat].
+Repair begins from a known failure. It may correct a malformed configuration, fix tool syntax, patch a test bench, or revise an RTL fragment after simulation. The output should identify what changed, preserve the diff, rerun the check that found the failure, and report what remains unresolved. In the Chip-Chat flow described earlier, simulator and synthesis failures can prompt another Verilog revision, but the model does not get to declare its own revision correct [@BlockloveEtAl2023ChipChat].
+
+For example, if the generated RTL for the RISC-V decoder fails to synthesize due to an asynchronous reset violation, the synthesis tool's error log becomes the prompt for the repair agent. The repair agent is constrained to edit only the reset logic of the failing module, rather than rewriting the entire core.
 
 ::: {.callout-architect-checkpoint title="Constraint waivers"}
-An automated method may repair malformed artifacts, but the repair role does
-not include authority to relax a design constraint. The architect must record
-the violation and obtain a waiver from the person authorized to accept that
-risk before proceeding.
+An automated method may repair malformed artifacts, but the repair role does not include authority to relax a design constraint. The architect must record the violation and obtain a waiver from the person authorized to accept that risk before proceeding.
 :::
 
 ### Verification
 
-Verification checks a stated property against an oracle that can be inspected
-independently of the model output. The oracle may be a reference
-implementation, formal property, test suite, simulator behavior, synthesis
-constraint, or hardware measurement. The model may help construct tests or
-route failures, but it cannot generate an artifact, judge the adequacy of its
-own tests, approve its output, and call that independently. In physical design, verification might mean passing an LVS (Layout vs. Schematic) or DRC (Design Rule Check) before signing off on tapeout. For functional generation, a property checker such as SymbiYosys proves stated assertions on the generated RTL by model checking, while an equivalence checker proves that the RTL and its golden reference compute the same function. Similarly, KernelBench provides a narrow software example. If a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
+Verification checks a stated property against an oracle that can be inspected independently of the model output. The oracle may be a reference implementation, formal property, test suite, simulator behavior, synthesis constraint, or hardware measurement. The model may help construct tests or route failures, but it cannot generate an artifact, judge the adequacy of its own tests, approve its output, and call that independently.
 
-A verification result is no broader than the property and scope checked. A
-passing numerical test does not establish portability, timing closure, or
-system performance. A failed check returns a concrete result that may stop the
-candidate, trigger a bounded repair, or reach a reviewer. The policy governing
-that response and the amount of evidence required are separate from the
-verification role itself.
+In physical design, verification might mean passing an LVS (Layout vs. Schematic) or DRC (Design Rule Check) before signing off on tapeout. For functional generation, a property checker such as SymbiYosys proves stated assertions on the generated RTL by model checking, while an equivalence checker proves that the RTL and its golden reference compute the same function. If the generative agent proposed a new instruction extension for XR vertex transformations, the verification agent must prove that this custom RTL is logically equivalent to the software C++ model. Similarly, KernelBench provides a narrow software example. If a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
 
+A verification result is no broader than the property and scope checked. A passing numerical test does not establish portability, timing closure, or system performance. A failed check returns a concrete result that may stop the candidate, trigger a bounded repair, or reach a reviewer. The policy governing that response and the amount of evidence required are separate from the verification role itself.
 ## Explanation and Coordination
 
 Explanation uses recorded state, tool results, and rejected alternatives to connect a result to a proposed architectural mechanism. In an accelerator study, it should connect array geometry to utilization and cycle count and name a declared contrast that could challenge that account. A fluent explanation is a mechanism hypothesis and interpretation. It cannot repair a failed probe or make a weak observation support a stronger claim.

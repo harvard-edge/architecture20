@@ -78,13 +78,7 @@ sufficient.
 
 Once that comparison is defined, AI could reduce some of the repeated work by suggesting cache configurations, preparing simulator runs, grouping failures, or comparing a new result with earlier experiments. While these tasks can make a large experiment set easier to run and review, they do not change what the comparison must establish.
 
-Experienced architects also carry important context implicitly. They know which
-workloads were excluded, which tool settings are trusted, why a previous
-candidate failed, and what decision is actually under review. An AI system that
-cannot inspect those details may produce a coherent analysis of a different
-comparison from the one the architect intended. The system and reviewer
-therefore need access to the workload and interface assumptions, tool settings,
-failed alternatives, and decision under review.
+Experienced architects also carry important context implicitly. They know which workloads were excluded, which tool settings are trusted, why a previous candidate failed, and what decision is actually under review. Machine learning models, however, are highly vulnerable to "catastrophic forgetting" [@McCloskeyCohen1989Catastrophic]—the tendency to abruptly forget previously learned information upon learning new constraints. In an agentic loop, an AI system that lacks explicit memory management may "forget" a critical thermal constraint while obsessively optimizing a newly introduced timing violation. It may produce a coherent analysis of a different comparison from the one the architect intended. The system and reviewer therefore need access to the explicit workload and interface assumptions, tool settings, failed alternatives, and decision under review.
 
 ### How Architecture Practice Made Inputs and Checks Explicit
 
@@ -327,6 +321,10 @@ interfaces, package constraints, software path, and tools needed to evaluate
 it. A compiler or runtime choice can likewise make a hardware configuration
 feasible or unusable. Representing that coupled state, so another method or reviewer can see which choices depend on which, is the problem @sec-data-representations-world-models takes up.
 
+### The Integration Bottleneck
+
+The difficulty of composing systems-on-chip extends far beyond partitioning and package constraints. Modern SoCs integrate dozens to hundreds of heterogeneous IP blocks—CPU clusters, GPUs, NPUs, memory controllers, and Network-on-Chip (NoC) interconnects—often sourced from different vendors with varying interface standards and incomplete documentation. This creates a severe integration bottleneck where architectural validation breaks down. Subtle mismatches in coherence protocols, unspoken timing constraints, and system-level deadlocks frequently emerge only when the full SoC is assembled. An AI method that optimizes a single accelerator block but cannot synthesize correct-by-construction glue logic or verify cross-domain coherence protocols fails to solve the actual labor bottleneck scaling modern system design.
+
 The search can fail in two opposite ways. If its choices are broad but poorly
 constrained, it spends evaluations on combinations that cannot be implemented.
 If its choices are too narrow, it may search efficiently while excluding the
@@ -470,6 +468,10 @@ whether the survivors are valid and worth deeper analysis. A hardware ranking
 also remains provisional until the software can use the design.
 
 The binding limit often becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI's most defensible role here is triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
+
+### The Emulation and Prototyping Bottleneck
+
+Even when a candidate survives simulation, software bring-up requires running trillions of cycles—a scale that software-based simulation cannot reach. Currently, hardware emulation and FPGA prototyping are the only viable platforms for this scale of evaluation. However, these platforms introduce their own severe bottlenecks. They are notoriously difficult to compile to, often requiring days for a single build, and offer incredibly low visibility for debugging compared to software simulators. The architect is trapped between slow, high-visibility simulation and fast, low-visibility emulation. An AI-assisted loop must help bridge this gap, perhaps by predicting which traces to capture or by steering emulation runs, rather than blindly generating hardware that crashes opaquely on an FPGA.
 
 ### Advanced Packaging and "Known Good Die" Testing
 

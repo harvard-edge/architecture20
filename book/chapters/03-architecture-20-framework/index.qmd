@@ -243,6 +243,8 @@ comparisons the architect needs or what decision should follow.
 
 Broad intent is decomposed into linked and revisable architecture questions. For example, the architect might first ask whether data movement is the limiting mechanism and, if so, whether a cache intervention merits more detailed evaluation. The first question often must be answered before the cache comparison becomes decision-relevant. If characterization instead traces the bottleneck to execution units, a different diagnosis could select a compute-partitioning or compiler-optimization study. This dependency is a reasoned decomposition for this decision, not a universal phase order.
 
+Moreover, modern system intent often demands HW/SW co-design, where hardware features and software stacks evolve together. An agent optimizing hardware in isolation might produce a theoretically efficient accelerator that no compiler can target. To prevent this, the architect must extend the bounded study to include the software path—compilers, runtimes, and mapping strategies—ensuring the agent evaluates the hardware alongside an executable software baseline.
+
 Once the architect chooses the next task, that choice determines which information,
 tools, and evidence are needed, what can be measured, how costly an error would
 be, and how much freedom an AI method should have.
@@ -383,6 +385,8 @@ run. If none of the allowed choices can meet the stated requirements, the AI
 system should report that result rather than quietly change the workload or
 power limit.
 
+When an agent encounters conflicting requirements, it must engage in explicit constraint resolution rather than silently relaxing limits. If a candidate improves performance but violates the 3 W power envelope, the agent cannot unilaterally waive the power constraint. Instead, it must document the failure, resolve the tradeoff within the permitted bounds, or escalate the conflict to the architect for review. Clear rules for constraint resolution keep the agent's search focused on valid regions of the design space.
+
 Architects usually have to weigh several objectives at once. For the 64-bit RISC-V XR subsystem from our Lighthouse prompt, these include strict real-time latency for XRBench frames, the 3 W power envelope, silicon area in a 3 nm-class process, and software programmability. A design-space exploration (DSE) run over this space must do more than just output the single "best" compute element. As specifically requested by the Lighthouse prompt, the final design-space report must document the alternatives explored (such as varying vector lengths versus adding dedicated matrix engines), the tradeoffs observed, the candidates rejected due to exceeding thermal limits, and the decisions that remain for the RTL implementation phase.
 
 ## The Explicit Design Loop
@@ -494,6 +498,33 @@ procedure might choose which candidate to simulate next. The tools and declared
 checks determine whether a candidate remains under consideration. The roles do
 not grant decision authority. @sec-methods-generation-prediction-optimization
 examines how to assign these jobs and compose the methods that perform them.
+
+## Managing Multi-Fidelity Transitions
+
+An architect rarely relies on a single level of simulation fidelity. Bounded architecture studies naturally span multiple levels of abstraction, from fast analytical proxies to cycle-accurate simulators and slow RTL synthesis. An AI or agent must navigate these multi-fidelity transitions without losing the thread of the original architectural claim. Fast, low-fidelity proxies provide the rapid feedback needed to search large design spaces, while high-fidelity models provide the evidence required for final commitment.
+
+The challenge arises when an agent optimizing against a fast proxy encounters a boundary condition where the proxy's assumptions break down. If the agent quietly trusts the low-fidelity result without validating it against a higher-fidelity tool, it risks generating configurations that fail physical or timing constraints. The architect must therefore explicitly define when an agent should escalate from a low-fidelity proxy to a high-fidelity simulator, creating a structured transition policy rather than a fixed pipeline.
+
+This transition policy guides how an agent allocates a limited computational budget. Because RTL simulations and physical design runs are expensive, the agent cannot afford to evaluate every candidate at maximum fidelity. Instead, it must map the design space broadly using cheap approximations and reserve expensive runs for the most promising candidates or the most uncertain boundary regions.
+
+> **Multi-fidelity escalation.** A defined policy that states the conditions under which an agent must transition from a fast proxy to a high-fidelity tool. It specifies the budget for high-fidelity runs and the checks required before escalation.
+
+By recording these transitions in the design loop, the architect ensures that the AI's proxy-driven search remains anchored to physical reality. When a proxy win disappears at higher fidelity, the agent updates its cost model, and the architect reviews the discrepancy. This continuous recalibration across fidelity levels is what allows an agent to explore efficiently without drifting into physically impossible design states.
+
+## Navigating Toolchain Friction
+
+Toolchain friction is a defining reality of hardware design. Unlike software environments where code compiles in milliseconds and tests run deterministically, architecture tools are often fragile, slow, and prone to silent failures. An AI or agent interacting with these tools will encounter undocumented configuration flags, licensing timeouts, parsing errors, and out-of-memory crashes. If unconstrained, agents often fall victim to the "Clever Hans" effect—a spurious correlation where the model learns superficial syntactic tricks to pass the parser rather than mastering semantic hardware rules [@LapuschkinEtAl2019CleverHans]. The framework must account for this friction to prevent an agent from stalling on trivial tool errors or hallucinating successful tool completions based on spurious log patterns.
+
+To operate effectively, an agent needs clear tool interfaces that expose not just the success path, but also the failure modes and recovery actions. The architect must provide the agent with explicit boundaries on how many times to retry a failed simulation, what fallback mechanisms to employ, and when to abandon a broken toolchain path. Without these guardrails, an agent might burn its entire compute budget attempting to parse a corrupted RTL synthesis log.
+
+| **Toolchain friction type** | **Agent recovery strategy** |
+| --- | --- |
+| Licensing or resource timeouts | Implement exponential backoff or query a secondary, lower-fidelity tool. |
+| Undocumented tool crashes | Log the failure, mark the configuration as invalid, and pivot to a nearby state. |
+| Silent output corruptions | Use secondary validation checks (e.g., area estimates) to flag anomalous results. |
+| Parsing and format errors | Fall back to robust parsers and escalate unreadable logs to the architect. |
+
+A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash, it logs the failure as negative evidence. The architect can then review the execution record to determine whether the toolchain requires repair or if the agent simply explored an unsupported corner of the design space. By planning for tool failures in advance, the architect ensures the AI can continue searching the viable portions of the design space.
 
 ## Evidence Review and Decision Authority
 

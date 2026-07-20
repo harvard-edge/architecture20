@@ -48,11 +48,21 @@ After this chapter you can construct a trustworthy evaluation of an AI architect
 
 To establish how to benchmark agents, the immediate temptation is to look to software engineering. Benchmarks such as SWE-bench evaluate whether an agent can clone a repository and submit a patch that passes a hidden test suite, and tool-use benchmarks such as ToolBench measure API usage. While these highlight the importance of execution-based evaluation, software analogies fail in architecture because they are almost indifferent to *execution cost* and *competing physical constraints*. In software, running five hundred unit tests takes seconds; in architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources.
 
-Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. VerilogEval and RTLLM evaluate the basic structural correctness of RTL generation, assessing whether models can produce compilable, functional hardware modules. However, they often fall short of capturing system-level design space exploration. ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system.
+Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. VerilogEval and RTLLM evaluate the basic structural correctness of RTL generation, assessing whether models can produce compilable, functional hardware modules. However, they often fall short of capturing system-level design space exploration. ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. For instance, an ArchEval task might fix the memory hierarchy constraints (e.g., L1 size, associativity) as inviolable, while providing the agent with a set of parameterizable Verilog templates and a cycle-accurate simulator. The agent must discover the optimal pipeline depth without modifying the fixed memory configuration. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.
 
 ## Measuring the Search, Not the Chip
 
 If we cannot rely on software benchmarks, what exactly should we measure? Evaluating the process of design means tracking metrics across three roles: **generation** (creating the design), **prediction** (estimating its value), and **optimization** (searching the space).
+
+```mermaid
+%%| label: fig-ch9-pipeline
+%%| fig-cap: "**The Evaluation Pipeline.** The structural interaction between the agent, the trajectory logger, and the simulator sandbox. The logger intercepts every proposal to accurately measure the Simulator Tax before forwarding it to the sandbox."
+graph TD
+    A["Agent Architect"] -->|Proposes Action| B["Trajectory Logger"]
+    B -->|Forwards to Environment| C["Simulator Sandbox"]
+    C -->|Returns State/Metric| B
+    B -->|Records & Relays Observation| A
+```
 
 First, fix the unit of evaluation. A *task* is one bounded design problem posed to the agent. A *trajectory* is the sequence of proposals, tool calls, and observations the agent produces while answering that task. A *suite* is a set of tasks chosen to span difficulty and design domain. ArchEval is one concrete instance of such a suite; the metrics in @tbl-agent-metrics are the quantities it records, and the failure mode each is designed to expose.
 
@@ -74,7 +84,7 @@ The most basic evaluation of an agent is whether it produces a valid proposal at
 
 **What to measure.** The zero-shot pass rate, meaning success on the first try, against the $k$-shot pass rate. In architecture, a "pass" means the output clears the first layer of validation, for example a schema check on the JSON proposal or a `verilator --lint-only` compile.
 
-**Why we measure it (Goodhart's Law and reward hacking).** If we reward an agent only for maximizing IPC, it learns to reward hack. For instance, an agent might propose a cache larger than the die, or exploit a known bug in a McPAT power model to artificially deflate estimated energy usage. Measuring bounds adherence proves the agent is engineering within physical reality rather than exploiting the abstractions of the simulator.
+**Why we measure it (Goodhart's Law and reward hacking).** If we reward an agent only for maximizing IPC, it learns to reward hack. For instance, an agent might propose a cache larger than the die, or exploit a known bug in a McPAT power model to artificially deflate estimated energy usage by gating clocks that are structurally required. Measuring bounds adherence proves the agent is engineering within physical reality rather than exploiting the abstractions of the simulator.
 
 ### Proxy Calibration
 
@@ -99,7 +109,7 @@ When an architecture environment returns an error, such as a setup-time violatio
 **What to measure.** The Self-Correction Rate (SCR):
 $$ SCR = \frac{\text{Resolved Errors}}{\text{Total Environment Failures}} $$
 
-**Why we measure it (epistemic and aleatoric uncertainty).** A failing STA trace carries deep causal information, which is epistemic. A strong agent parses the critical path, reduces its uncertainty, and fixes the logic depth or the congested route. A weak agent treats the log as aleatoric noise and guesses again. The Self-Correction Rate measures the agent's capacity for causal reasoning in hardware.
+**Why we measure it (epistemic and aleatoric uncertainty).** A failing STA trace carries deep causal information, which is epistemic. A strong agent parses the critical path, reduces its uncertainty, and fixes the logic depth or the congested route. For example, if an agent routes a 128-bit bus across the die, failing STA with a massive setup violation, a strong agent inserts pipeline registers to break the logic depth. A weak agent treats the log as aleatoric noise and guesses again. The Self-Correction Rate measures the agent's capacity for causal reasoning in hardware.
 
 ### Tool Use and Rationale Faithfulness
 
@@ -189,24 +199,31 @@ How much of this loop can run unsupervised is a risk decision keyed to the relia
 ## Open Research Questions
 
 1. **How do we procedurally generate novel microarchitectural tasks that bypass training data contamination?**
+
    Architecture starts behind software because its public supply of RTL is small enough that a memorized answer and a reasoned one look identical. The open problem is whether an AI system can synthesize tasks fast enough to keep a benchmark ahead of the models it grades.
 
 2. **Can an agent learn to predict formal verification failures before invoking the prover?**
+
    Before paying for a slow tool call, an agent leans on a surrogate. The open problem is whether an agent can recognize, on the frontier it explores, that its proxy has stopped being trustworthy regarding physical and formal constraints.
 
 3. **How can an AI agent that trades simulation for reasoning be compared fairly against one that does the opposite?**
+
    Total evaluation compute is a U-shaped sum of EDA simulation cost and Transformer inference cost. The open problem is a single cost unit that combines both terms and holds its ordering across hardware scales.
 
 4. **Can AI check, across thousands of trajectories, whether an agent's stated reasons match what it actually did?**
+
    An agent can query the critical path, change the ALU, and explain the win with a story about the cache that the trace never supports. The open problem is a faithfulness check that scales to a whole suite.
 
 5. **Can an AI agent's search metrics be shown to predict the physical quality of the designs it produces?**
+
    Pass-rate and trajectory efficiency are stand-ins. The open problem is to establish that a high suite score tracks downstream physical design quality (timing closure, PDN constraints), not just efficient search.
 
 6. **Can a benchmark catch an AI agent that behaves well only while it senses it is being measured?**
+
    An agent could read eval conditions from workload names or tool versions and switch modes. The open problem is whether a benchmark can detect this mode-switching.
 
 7. **How much reliability must an AI agent show before RTL freeze without human sign-off?**
+
    Deployment needs an agent that does not fail catastrophically. The open problem is how much reliability evidence should buy how much unsupervised authority over major milestones like tape-out.
 
 ## Conclusion and Carry Forward {#sec-conclusion-and-carry-forward}

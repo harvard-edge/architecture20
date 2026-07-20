@@ -118,6 +118,18 @@ Information appears in various forms, and it is imprecise to collapse them all i
 
 Consider evaluating a new execution pipeline for our RISC-V XR subsystem across these objects. Domain relationships explaining instruction-level parallelism and power efficiency live in the **model parameters**. The RISC-V Instruction Set Manual detailing pipeline behaviors can be converted to **embeddings** and supplied as **retrieved context**. The current fetch width, eye-tracking workload trace, and queue sizes live in the **explicit design state**. Earlier candidate runs and their simulator scores live in the **execution history**. A **cost model** uses the current state and a proposed pipeline change to predict instructions per cycle (IPC) and thermal impact. Finally, the **in-context working set** assembles the instructions, the explicit state, the execution history, and the retrieved manual to generate the next action.
 
+## Hardware Encoding Mechanics: Tokenization and Graphs
+
+Beneath these high-level knowledge objects lies the physical reality of how an AI system encodes hardware. General-purpose large language models (LLMs) rely on 1D sequence tokenizers (like Byte-Pair Encoding) optimized for natural language. When applied naively to hardware description languages like Verilog or Chisel, these tokenizers chop signal names and structural code into meaningless fragments, destroying the implicit connectivity of the design.
+
+To reason about hardware natively, an AI system must move beyond text sequences to structural embeddings. Instead of reading Verilog as a string, a specialized encoder parses the RTL into an Abstract Syntax Tree (AST) or a Data Flow Graph (DFG). For placed netlists and floorplans, Graph Neural Networks (GNNs) are far superior to sequence models. A GNN represents macros and standard cells as nodes and wires as edges, inherently capturing physical locality, fan-out, and combinational depth—properties that a 1D sequence model must struggle to infer through attention mechanisms. This shift from sequence tokenization to graph embeddings is the core data representation problem in AI-assisted architecture.
+
+## Tool API Representations: Exposing EDA to Agents
+
+Just as the hardware itself must be encoded, the tools that manipulate it require formal representations. An AI agent cannot reliably interact with legacy EDA tools through fragile, unstructured shell scripts or screen-scraping text logs. Instead, the design loop demands structured tool API representations—schemas that expose tool capabilities as typed endpoints.
+
+Representing a tool like Yosys or OpenROAD for an agent involves defining its input schema (e.g., accepted flags, valid file formats, constraint objects), its execution bounds, and its structured outputs (e.g., JSON-formatted area and timing reports rather than raw text stdout). By formalizing tools as typed APIs with explicit failure modes, the agent can programmatically construct valid toolchain requests, parse the resulting metrics directly into its internal state, and execute deterministic recovery actions when a simulation or synthesis run fails.
+
 ## Working on a Design, Not Just Generating Text
 
 For an AI to *work* on a design, it does not just generate text. It mutates a highly constrained state machine.
@@ -214,7 +226,7 @@ A learned cost model gives a concrete example. Fit to earlier cycle-accurate res
 
 A tool result has several possible destinations. It may append an execution history, support a new design state, enter a retrieval index, refit a surrogate, or motivate foundation-model fine-tuning. These updates are different engineering decisions. A result does not automatically become evidence, training data, or an architecture decision.
 
-Because these updates happen on different schedules, architecture knowledge ages out of alignment. A current retrieval index may point to an old corpus. A current design may use a new workload, while its execution history contains results from an earlier compiler version. When an AI uses stale manuals to modify a current design, it proposes changes that violate the constraints of the new version (@fig-split-brain-causality).
+Because these updates happen on different schedules, architecture knowledge ages out of alignment. A current retrieval index may point to an old corpus. A current design may use a new workload, while its execution history contains results from an earlier compiler version. The machine learning field has recognized that purely correlative models fail to understand causality; they learn the co-occurrence of words without building a causal physical model of the world [@Pearl2018BookOfWhy]. When an AI uses stale manuals to modify a current design, it relies on outdated correlations and proposes changes that violate the physical constraints of the new version (@fig-split-brain-causality).
 
 ![**State inconsistency.** When the AI retrieves stale manuals or training data while the project state advances, it hallucinates fixes that violate current constraints.](images/F4b-split-brain-causality.svg){#fig-split-brain-causality width="100%" fig-alt="State Inconsistency: When the AI retrieves stale manuals or training data while the project state advances, it hallucinates fixes that violate current constraints."}
 
