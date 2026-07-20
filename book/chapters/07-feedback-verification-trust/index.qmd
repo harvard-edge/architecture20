@@ -247,12 +247,6 @@ Compute-bound code that rarely crosses the kernel boundary pays almost nothing, 
 
 Passing a suite of performance tests provides no evidence for security properties, so a public claim for a shipped design needs checks that observe information flow and physical behavior directly, not more of the checks that were already blind to them. A coverage gap is also not the only defect that survives verification. A functional bug already committed to silicon is harder to undo than a patchable side channel, since it can force a respin rather than a microcode update.
 
-### Detect Hardware Trojans and Poisoned Models
-
-The reliance on generative AI introduces a distinctly new class of security risk: the hallucinated vulnerability and the maliciously injected hardware trojan. In traditional architecture, a backdoor required a rogue engineer or compromised EDA tool to intentionally alter the netlist. In AI-driven architecture, a generator trained on unvetted, scraped open-source RTL can inadvertently memorize and reproduce deeply buried trojans. Worse, an adversary could poison the foundation model's training data, teaching the agent to subtly weaken cryptographic isolation boundaries or insert data-leaking side-channels under specific, rare workload triggers.
-
-Because these malicious structures—such as a finite state machine that bypasses a privilege check after a highly specific sequence of branch mispredicts—are structurally valid and functionally silent during standard regressions, they evade traditional code coverage metrics completely. To defend against these poisoned models, the architect must orchestrate verification beyond checking that the generated RTL meets the design specification, employing strict formal path-sensitization and information flow tracking (IFT) to mathematically prove the absence of undocumented state transitions and data exfiltration routes.
-
 While comprehensive coverage is a prerequisite, independence between checks is also weaker than it looks. In safety engineering, Knight and Leveson had teams write program versions independently, yet the versions failed together on the same hard inputs far more often than an independence assumption predicted [@KnightLeveson1986Multiversion]. Independent development of a mechanism does not produce independent failure. Two checks built by separate teams can still miss the same case, because the difficulty often lives in the problem rather than in any one implementation.
 
 AI proposals require independent, out-of-distribution checks. When a generator, critic, verifier, and summarizer share a foundation model or training objective, their agreeing outputs may merely share one correlated error. A correlated error occurs when multiple components fail in the same way because they share the same underlying blind spot.
@@ -278,6 +272,12 @@ Independence assumes the checks come from outside the thing they judge. In an AI
 : **Evaluating check independence and rejection paths.** {#tbl-independence-check tbl-colwidths="[26,74]"}
 
 Not every check needs to be an expensive independent oracle. Because an AI generator can emit syntactically plausible but invalid RTL or scripts, and can propose faster than a human can review, fast deterministic checks belong ahead of expensive ones. A linter, a static bounds check, and a syntax verifier reject a malformed candidate before a simulator or synthesis run is spent on it. Requiring an agent to clear those checks and attach the passing result before it escalates a proposal keeps the volume of generated candidates from overwhelming the reviewer.
+
+## Detect Hardware Trojans and Poisoned Models {#sec-hardware-trojans}
+
+The reliance on generative AI introduces a distinctly new class of security risk: the hallucinated vulnerability and the maliciously injected hardware trojan. In traditional architecture, a backdoor required a rogue engineer or compromised EDA tool to intentionally alter the netlist. In AI-driven architecture, a generator trained on unvetted, scraped open-source RTL can inadvertently memorize and reproduce deeply buried trojans. Worse, an adversary could poison the foundation model's training data, teaching the agent to subtly weaken cryptographic isolation boundaries or insert data-leaking side-channels under specific, rare workload triggers.
+
+Because these malicious structures—such as a finite state machine that bypasses a privilege check after a highly specific sequence of branch mispredicts—are structurally valid and functionally silent during standard regressions, they evade traditional code coverage metrics completely. To defend against these poisoned models, the architect must orchestrate verification beyond checking that the generated RTL meets the design specification, employing strict formal path-sensitization and information flow tracking (IFT) to mathematically prove the absence of undocumented state transitions and data exfiltration routes.
 
 ## Frame Protected Evidence and Public Claims {#sec-protected-evidence-and-public-claims}
 
@@ -351,7 +351,7 @@ The design-loop card acts as the compact index for the disputed claim, review re
 
 : **Checklist for reviewing a design claim.** {#tbl-trust-checklist tbl-colwidths="[30,70]"}
 
-## Open Research Questions {#sec-open-research-questions}
+## Identify Open Research Questions {#sec-open-research-questions}
 
 Each question below grows out of a verification difficulty this chapter examined. Some ask what an AI system must observe, detect, or leave to a human before a returned result counts as evidence. Others address correlated error, protected evidence, and the separate decision to fold a result into project knowledge. In every case, the comparison is with current verification practice, and success is judged by the effect on architecture decisions rather than the model's output alone.
 
@@ -379,6 +379,6 @@ Each question below grows out of a verification difficulty this chapter examined
 
 ## Summarize the Trust Boundary {#sec-conclusion-and-carry-forward}
 
-Automated AI generators increase the volume of design candidates and introduce new security risks like hardware trojans, meaning they don't lower the bar for verification. Architects must enforce an epistemic trust boundary by separating probabilistic intent from deterministic implementation. They must guard against AI gaming fast proxies, use formal proofs (BPC/EC) to verify semantic reality, and uncover correlated errors where multiple AI tools share the same blind spots. Architects retain control by bounding claims, requiring independent physical oracles, and treating waivers as recorded risks rather than test passes.
+Automated AI generators increase the volume of design candidates and introduce new security risks like hardware trojans, meaning they don't lower the bar for verification. Architects must enforce an epistemic trust boundary by separating probabilistic intent from deterministic implementation. They must guard against AI gaming fast proxies, use formal proofs (BPC/EC) to verify semantic reality, and uncover correlated errors where multiple AI tools share the same blind spots. Architects retain control by bounding claims, requiring independent physical oracles, and treating waivers as recorded risks rather than test passes. Finally, architects must balance the capacity to evaluate candidates by weighing evidence cost against decision consequences, and ensure public claims never exceed what can be verified outside protected confidentiality boundaries.
 
 **Carry forward:** @sec-running-the-loop uses the branching result map explicitly in an illustrative SCALE-Sim study. The model and simulator return different feedback; SCALE-Sim returns typed observations under one frozen path; those observations bear on separate claims. The review records a no-change architecture outcome, an AI tie, a failed mechanism explanation, and a stopping result. The failed path and candidates can be preserved without automatic model updating, and the architect, not the model or evidence packet, decides to stop.
