@@ -18,7 +18,9 @@ AI reduce the burden without weakening the evidence behind a decision?
 
 :::
 
-Architecture work is getting harder to finish, not because good ideas are scarcer but because each new design must hold more of the system at once. This imposes severe cognitive limits on the architect. The explosion of parameters across microarchitecture, power delivery, and software optimization outpaces the human capacity to hold the system state in a single mind, explaining why traditional heuristics fail. A modern project spans more design information, more software and physical constraints, more possible designs, and more expensive forms of evaluation than an earlier one, and it must keep all of that consistent long enough to defend a single decision. Much of the complexity an architect once inherited from the next process node now has to be built and managed by hand.
+Architecture work is getting harder to finish, not because good ideas are scarcer but because each new design must hold more of the system at once. This imposes severe cognitive limits on the architect. The explosion of parameters across microarchitecture, power delivery, and software optimization outpaces the human capacity to hold the system state in a single mind, explaining why traditional heuristics fail.
+
+A modern project spans more design information, more software and physical constraints, more possible designs, and more expensive forms of evaluation than an earlier one, and it must keep all of that consistent long enough to defend a single decision. Much of the complexity an architect once inherited from the next process node now has to be built and managed by hand.
 
 That growth is not a flat list of independent problems. The pressures build on one another as a system gains layers. Microarchitecture and multicore execution add policies and coherence, specialization tailors a block to a workload, composing specialized blocks into a system-on-chip or a set of chiplets adds integration boundaries, and the executable software contract adds compilers, runtimes, and tests that keep moving even after the hardware is fixed. Each layer carries the constraints of the one beneath it and adds its own, so a fair comparison must hold more of the system at once. This chapter works through those layers in order, then turns to a pressure of a different kind, the rising cost and irreversibility of the evidence needed to settle the resulting comparison.
 
@@ -32,13 +34,9 @@ software path to microarchitecture, memory movement, physical limits, and
 verification. The short prompt therefore expands into many choices,
 measurements, and reviews before it can support a decision.
 
-AI can help with parts of that work. A system might collect design information,
-propose alternatives, predict their cost, or organize tool results for review.
-It can also move work rather than remove it. A system working from incomplete
-context may strengthen the wrong comparison, while faster generation or
-screening may send weak candidates into expensive evaluation and review.
-The first task is to identify what is actually slowing the work. That tells the
-architect where AI might help and what evidence would show that it did.
+AI can accelerate parts of that work, but strictly as an explorer and searcher. An agent might collect design information, propose alternatives, or predict PPA (Power, Performance, Area) costs, yet it cannot make final architectural commitments. A system working from incomplete context may strengthen the wrong comparison, while faster generation may flood the pipeline with weak candidates.
+
+The human architect remains the final judge, orchestrating the Evaluation Harness to validate these proposals against physical silicon constraints like STA and DRC. The first task is to identify what is actually slowing the work, delegating rapid search to the AI while reserving rigorous evaluation for the architect.
 
 ::: {.callout-learning-objectives}
 After this chapter you can explain why familiar architecture work is harder to
@@ -54,7 +52,7 @@ complete and judge where AI may help. That means you can:
 :::
 
 
-## Architecture State and Evaluation Results
+## Frame Architecture State and Evaluation Results
 
 Every architecture project runs a design loop. The architect frames a question, proposes a candidate, evaluates it with workloads and tools, and revises or rejects it in light of the results. Designing a new cache replacement policy, for instance, means simulating it against standardized benchmarks, analyzing the miss rate and latency, and revising the policy until it meets its performance targets. That loop is worth making precise, because the rest of this chapter traces where each of its parts strains. Computer architecture has always advanced through feedback and revision, with a typical project beginning with an aim such as improving latency, reducing energy, raising throughput, supporting a workload, or fitting a system within a power and cost envelope. The architect chooses an abstraction, builds or selects a model, runs an analysis or simulation, studies the result, and revises the design so that work surviving this cycle eventually reaches implementation,
 validation, verification, and signoff. Textbooks and industrial practice both
@@ -78,9 +76,11 @@ sufficient.
 
 Once that comparison is defined, AI could reduce some of the repeated work by suggesting cache configurations, preparing simulator runs, grouping failures, or comparing a new result with earlier experiments. While these tasks can make a large experiment set easier to run and review, they do not change what the comparison must establish.
 
-Experienced architects also carry important context implicitly. They know which workloads were excluded, which tool settings are trusted, why a previous candidate failed, and what decision is actually under review. Machine learning models, however, are highly vulnerable to "catastrophic forgetting" [@McCloskeyCohen1989Catastrophic]—the tendency to abruptly forget previously learned information upon learning new constraints. In an agentic loop, an AI system that lacks explicit memory management may "forget" a critical thermal constraint while obsessively optimizing a newly introduced timing violation. It may produce a coherent analysis of a different comparison from the one the architect intended. The system and reviewer therefore need access to the explicit workload and interface assumptions, tool settings, failed alternatives, and decision under review.
+Experienced architects also carry important context implicitly. They know which workloads were excluded, which tool settings are trusted, why a previous candidate failed, and what decision is actually under review.
 
-### How Architecture Practice Made Inputs and Checks Explicit
+Machine learning models, however, are highly vulnerable to "catastrophic forgetting" [@McCloskeyCohen1989Catastrophic]—the tendency to abruptly forget previously learned information upon learning new constraints. In an agentic loop, an AI searcher may forget a critical thermal budget or DRC rule while obsessively optimizing a newly introduced STA timing violation. It may produce a coherent analysis of a different comparison from the one the architect intended. The human architect must orchestrate an Evaluation Harness that explicitly tracks workload assumptions, interface constraints, tool settings, and physical limitations to maintain the epistemic trust boundary.
+
+### Make Inputs and Checks Explicit
 
 Architects have repeatedly changed their working methods when informal
 coordination stopped being sufficient. Some changes stabilized an interface.
@@ -128,7 +128,7 @@ tool checks helped architecture scale because they stabilized a particular
 boundary. Modern specialization requires several of those boundaries to remain
 consistent at once.
 
-### Modern Comparisons Need More Design State
+### Connect More Design State for Modern Comparisons
 
 For decades, computing advanced through a layered stack of technology, architecture, and optimization, which this book abbreviates TAO. Device scaling supplied faster transistors, microarchitecture organized them, and compilers mapped software onto the result. The end of Dennard scaling [@DennardEtAl1974Scaling], the property that kept power density constant as transistors shrank, added a fourth layer, specialization, extending TAO to TAOS, because physical limits at the device level now shape every layer above rather than receding beneath them (@fig-tao-vs-taos). Because a chip's transistors could no longer all switch within its power budget, a growing fraction had to stay dark at any moment, the dark-silicon or utilization-wall problem [@EsmaeilzadehEtAl2011DarkSilicon], which made specialized, selectively powered blocks the primary route to further efficiency.
 
@@ -183,7 +183,7 @@ must decide which workloads, interfaces, and implementation constraints could
 change the claim and whether the available information is complete enough for
 exploration to begin.
 
-## Microarchitecture and Multicore Complexity
+## Manage Microarchitecture and Multicore Complexity
 
 Start with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance, and each adds corner cases a fair comparison must cover [@HennessyPatterson2017QuantitativeApproach]. A prefetcher that helps one access pattern can pollute a cache under another. A speculation policy that raises throughput can raise energy, and the same speculative machinery later proved able to leak data across protection boundaries, as Spectre and Meltdown showed [@KocherEtAl2019Spectre; @LippEtAl2018Meltdown]. A gain measured on one workload can carry a cost that surfaces only under another.
 
@@ -193,7 +193,7 @@ That turn to multiple cores added a further layer. Coherence protocols, memory-o
 
 This layer is also where AI assistance meets its first test. The cheap proxies a system would use to screen thousands of microarchitectural variants, such as a single-core instructions-per-cycle estimate, are the ones that hide coherence traffic, misprediction penalties, and speculative-energy cost. An AI screen is useful here only when it represents enough of the multicore and speculative state to rank candidates for reasons that still hold in silicon, and when the architect can check that the cheap estimate has not discarded a corner case a stronger tool would have caught. The specialized levers that follow only widen that gap.
 
-## Specialization Multiplies the Choices
+## Control the Specialization Explosion
 
 Specialization is the next layer, and it changes what a comparison must weigh. Where microarchitecture and multicore mechanisms tune a general-purpose machine, specialization tailors the hardware to a particular workload, which changes both the metrics that matter and the number of choices the architect must evaluate. A battery- and thermally limited mobile part and a warehouse-scale system bounded by power delivery and total cost of ownership (TCO) demand different measures of efficiency [@BarrosoHolzleRanganathan2019DatacenterAsComputer], and a specialized block is only worth judging against one such target.
 
@@ -283,7 +283,7 @@ An architect must decide what to specialize, where the specialized function belo
 
 Each of those questions widens the space of specialized options an AI system might explore, but the width is not the hard part. For the XR subsystem the trap is concrete. A vector unit sized for the throughput of one SLAM matrix-multiplication kernel can post the best performance per watt in the search and still be the wrong block, because the perception model beside it has a different tensor shape and reuse pattern, and because the display holds a fixed per-frame deadline that a throughput-optimal design can miss while a slower design meets it. Specialization ties a candidate's worth to one workload's efficiency measure, so a method that optimizes performance per watt for the wrong workload, or that saves area while missing the display deadline, can rank candidates confidently in a way that means nothing for the target. AI can enumerate and score specialized options quickly; it helps only when the measure it optimizes is the one the deployment rewards and the architect has fixed which constraint a candidate may not violate. A larger search aimed at the wrong measure produces more candidates tuned for a workload no one will deploy.
 
-## Composing Systems-on-Chip and Chiplets
+## Compose Systems-on-Chip and Chiplets
 
 Specialized blocks rarely ship alone. Architects compose them into a system-on-chip and, increasingly, across multiple chiplets, and each step of composition adds a further layer of coupled choices. Chiplets compound the effect. They make it possible to compose systems from
 multiple dies and to mix process technologies, IP blocks, and memory
@@ -321,9 +321,11 @@ interfaces, package constraints, software path, and tools needed to evaluate
 it. A compiler or runtime choice can likewise make a hardware configuration
 feasible or unusable. Representing that coupled state, so another method or reviewer can see which choices depend on which, is the problem @sec-data-representations-world-models takes up.
 
-### The Integration Bottleneck
+### Resolve the Integration Bottleneck
 
-The difficulty of composing systems-on-chip extends far beyond partitioning and package constraints. Modern SoCs integrate dozens to hundreds of heterogeneous IP blocks—CPU clusters, GPUs, NPUs, memory controllers, and Network-on-Chip (NoC) interconnects—often sourced from different vendors with varying interface standards and incomplete documentation. This creates a severe integration bottleneck where architectural validation breaks down. Subtle mismatches in coherence protocols, unspoken timing constraints, and system-level deadlocks frequently emerge only when the full SoC is assembled. An AI method that optimizes a single accelerator block but cannot synthesize correct-by-construction glue logic or verify cross-domain coherence protocols fails to solve the actual labor bottleneck scaling modern system design.
+The difficulty of composing systems-on-chip extends far beyond partitioning and package constraints. Modern SoCs integrate dozens to hundreds of heterogeneous IP blocks—CPU clusters, GPUs, NPUs, memory controllers, and Network-on-Chip (NoC) interconnects. These are often sourced from different vendors with varying interface standards and incomplete documentation.
+
+This creates a severe integration bottleneck where architectural validation breaks down. Subtle mismatches in coherence protocols, unspoken timing constraints, and system-level deadlocks frequently emerge only when the full SoC is assembled. An AI method that optimizes a single accelerator block but cannot synthesize correct-by-construction glue logic or verify cross-domain coherence protocols fails to solve the actual labor bottleneck scaling modern system design.
 
 The search can fail in two opposite ways. If its choices are broad but poorly
 constrained, it spends evaluations on combinations that cannot be implemented.
@@ -469,27 +471,29 @@ also remains provisional until the software can use the design.
 
 The binding limit often becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI's most defensible role here is triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
 
-### The Emulation and Prototyping Bottleneck
+### Bridge the Emulation and Prototyping Bottleneck
 
 Even when a candidate survives simulation, software bring-up requires running trillions of cycles—a scale that software-based simulation cannot reach. Currently, hardware emulation and FPGA prototyping are the only viable platforms for this scale of evaluation. However, these platforms introduce their own severe bottlenecks. They are notoriously difficult to compile to, often requiring days for a single build, and offer incredibly low visibility for debugging compared to software simulators. The architect is trapped between slow, high-visibility simulation and fast, low-visibility emulation. An AI-assisted loop must help bridge this gap, perhaps by predicting which traces to capture or by steering emulation runs, rather than blindly generating hardware that crashes opaquely on an FPGA.
 
-### Advanced Packaging and "Known Good Die" Testing
+### Enforce "Known Good Die" Testing Constraints
 
 The composition of systems into chiplets introduces physical and economic penalties that narrow the viable design space. In 2.5D and 3D integration, such as TSMC CoWoS or Intel Foveros, discovering a defective chiplet only after packaging ruins the entire expensive assembly, including the silicon interposer and pristine High Bandwidth Memory (HBM) stacks. This economic penalty shifts the burden of testability leftward, demanding high-coverage, pre-bond test patterns at the bare-die stage. An AI agent proposing a novel chiplet partition cannot merely optimize for interconnect bandwidth or power; it must also ensure that the topology does not obscure test access, treating Known Good Die (KGD) constraints as a strict filter on valid architectures.
 
-### Reliability, Fault Tolerance, and Safety
+### Evaluate Reliability, Fault Tolerance, and Safety
 
-As physical constraints multiply, a candidate's viability extends beyond performance and power to encompass soft errors, silicon aging phenomena such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and manufacturing variations. In specialized domains, such as automotive systems governed by ISO 26262 or aerospace applications, reliability is a primary evaluation bottleneck. Evaluating these metrics requires statistical fault injection and aging simulations, rather than deterministic cycle counts. A generative AI that hill-climbs solely for peak instructions per cycle will produce brittle designs. It must instead reason over statistical proofs of reliability, acknowledging that peak performance is irrelevant if the system fails in the field.
+As physical constraints multiply, a candidate's viability extends beyond performance and power to encompass soft errors, silicon aging phenomena such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and manufacturing variations. In specialized domains, such as automotive systems governed by ISO 26262 or aerospace applications, reliability is a primary evaluation bottleneck. Evaluating these metrics requires statistical fault injection and aging simulations, rather than deterministic cycle counts.
 
-### Hardware Security and Isolation Verification
+A generative AI acting as a searcher that hill-climbs solely for peak instructions per cycle will produce brittle designs. Instead of expecting the AI to independently reason over reliability, the human architect must orchestrate an Evaluation Harness. This harness enforces the epistemic trust boundary, rejecting brittle candidates based on rigorous physical constraints, thermal budgets, and statistical proofs before any silicon commitment is made.
+
+### Verify Hardware Security and Isolation
 
 Security evaluation adds a further dimension that cheap performance proxies cannot capture. Systemic security involves verifying information flow and isolation across complex privilege levels and untrusted third-party intellectual property (IP). While a functional bug causes a crash, a security bug causes a breach, fundamentally altering the stakes of the design loop. When an AI optimizer aggressively shares speculative state buffers or execution units between secure and non-secure domains to save power, it risks inadvertently opening side-channel vulnerabilities. Because proxies cannot measure security guarantees, the evaluation loop must incorporate expensive formal methods or extensive penetration testing to verify that a structurally optimal candidate does not violate information flow.
 
-### Power Delivery Networks and Thermomechanical Stress
+### Model Power Delivery Networks and Thermomechanical Stress
 
 Beneath the architectural organization lies the stark physical reality of dark silicon. Pushing hundreds of amps into a tightly packed chiplet package creates localized thermal hotspots and severe Power Delivery Network (PDN) stress. Moving data does not just consume average energy; it can fail signoff due to thermomechanical warping or localized voltage droop even if the aggregate energy budget appears acceptable. An AI cost model must represent spatial power distribution and layout-aware congestion. If an agent relies purely on aggregate power proxies, it will confidently hallucinate feasible-looking designs that would physically warp the substrate, wasting expensive downstream synthesis cycles.
 
-## Hardware Proposals Include an Executable Software Path
+## Bind Hardware Proposals to an Executable Software Path
 
 Triage decides which hardware candidates deserve expensive evaluation, but not whether software can use them at all. The available choices extend beyond hardware. An accelerator, vector unit,
 memory hierarchy, or chiplet partition may look efficient in isolation but
@@ -560,7 +564,7 @@ version. Establishing one executable path does not freeze it for the life of
 the hardware. The software path can also change while the hardware is still
 being designed.
 
-## Software Moves the Target Before and After Release {#sec-software-changes-faster-than-silicon}
+## Track Software Changes Before and After Release {#sec-software-changes-faster-than-silicon}
 
 Software moves faster than the hardware built to run it. New models, precision formats, and software stacks appear within the span of a single silicon program, while a chip design cycle still runs for years. Apple's release intervals have compressed from about 19 to 7 months, while NVIDIA's datacenter GPUs hold a steady two-year cycle (@fig-apple-silicon-cadence). Even the faster pace still trails the software the hardware must run.
 
@@ -812,7 +816,7 @@ and runtime assumptions, and tool results allow reviewers to see whether the
 hardware claim still applies. The project also needs a trigger for repeating the
 comparison when one of those inputs changes.
 
-## Stronger Evidence Can Reverse an Early Result {#sec-physical-constraints-move-into-architecture}
+## Anchor Early Results to Stronger Evidence {#sec-physical-constraints-move-into-architecture}
 
 The layers so far, microarchitecture, specialization, composition, and the software contract, each add to what a comparison must represent. The last pressure is different. It is not another layer to represent but the cost and finality of the evidence that settles the comparison, and physical effects are where that cost bites hardest. Physical effects create two distinct problems for an architecture comparison. An
 early model may omit an effect that later overturns the ranking. The measurement
@@ -957,7 +961,7 @@ work a real program does.
 **The lesson.** Rank a candidate on the metric its workload rewards, not the number that is easiest to count. In silicon that gap is expensive to discover, because it appears only after the design has shipped. Restoring competitive per-thread performance took a clean-sheet microarchitecture, Zen, several years later.
 :::
 
-### Stronger Evaluation Is Expensive {#sec-stronger-evaluation-expensive}
+### Budget for Expensive Stronger Evaluation {#sec-stronger-evaluation-expensive}
 
 Architects cannot run every candidate through every available tool.
 Simulation, synthesis, physical design, emulation, verification, and expert
@@ -992,7 +996,7 @@ IP qualification, and related development costs are included
 than masks or wafers. They reflect architecture, design, validation,
 verification, IP, tools, and engineering labor.
 
-### The Verification Bottleneck (State Space Explosion)
+### Mitigate the Verification Bottleneck (State Space Explosion)
 
 The fundamental driver of verification cost is state space explosion. When a designer adds a single state-holding element (like a flip-flop) to an integrated circuit, the size of the design increases linearly, but the number of possible states the system can inhabit doubles ($2^n$). As designs scale, the state space that must be verified grows exponentially, vastly outpacing the linear growth of the design effort itself.
 
@@ -1088,7 +1092,7 @@ number of candidates produced. Scarce tool and verification capacity does more
 than slow individual runs. When results arrive faster than experts can reconcile
 them, review queues grow and the project cannot close the decision. Turning scattered tool results into evidence a decision can rest on is the work of @sec-feedback-verification-trust, and @sec-running-the-loop carries one such comparison end to end under a fixed budget.
 
-## Combined Pressure on the Design Loop
+## Diagnose Combined Pressure on the Design Loop
 
 Each problem described above can stall architecture work on its own. In
 practice, they reinforce one another. Specialization expands the choice set,
@@ -1178,7 +1182,7 @@ cannot say whether the cause was design, verification, integration, physical
 implementation, manufacturing, scheduling, or organization. Each project needs
 its own workload, tool, review, and decision information to find the problem.
 
-## AI Assistance at Architecture Bottlenecks {#sec-feedback-and-verification-become-the-bottleneck}
+## Apply AI Assistance at Architecture Bottlenecks {#sec-feedback-and-verification-become-the-bottleneck}
 
 With the five problems named, the remaining question is where AI belongs among them. Faster candidate generation and a stronger architecture comparison are
 different results. Faster generation helps only when architects can compare the
@@ -1207,7 +1211,7 @@ evaluation, review, and rejection. Matching the task, proposal count, and tool
 budget can make the comparison more informative, although model inference,
 human setup, prior knowledge, and total engineering work may still differ.
 
-### Use AI at the Architecture Bottleneck
+### Target AI at the Architecture Bottleneck
 
 Viewed together, the five problems in
 @tbl-loop-bottleneck-diagnostic show why there is no generic place to insert AI.
@@ -1261,7 +1265,7 @@ The practical test is to identify the work limiting progress before choosing a
 method. AI is useful only when it reduces that specific burden without creating
 more verification, review, or decision work elsewhere.
 
-### Open Source Hardware and IP Integration
+### Integrate Open Source Hardware and IP
 
 A final layer of complexity in composition is the reliance on third-party IP. Modern SoCs are not built entirely from scratch; they integrate proprietary blocks such as ARM cores, PCIe PHYs, and DDR controllers. The design loop stalls when architects, and by extension AI agents, must treat these IPs as black boxes, relying on static vendor datasheets and opaque models rather than fully executable, open-source RTL. An AI agent cannot co-optimize the internals of proprietary IP; it must instead navigate interface boundaries and synthesize glue logic based on incomplete, non-executable data. This opaque boundary forces the loop to rely on integration-level testing rather than cycle-accurate internal metrics, significantly complicating the verification of timing and power constraints across the SoC.
 
