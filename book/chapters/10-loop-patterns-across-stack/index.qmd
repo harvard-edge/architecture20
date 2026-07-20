@@ -19,7 +19,7 @@ How should an AI-assisted architecture study change its internal representation 
 
 If that same proposed array geometry were instead used to alter an RTL interface, the evidence burden and decision rights would change entirely. The simulator returns quickly and candidates are reversible before implementation, but the next RTL transition sharply increases consequence and required check independence.
 
-## Operating Conditions
+## Classify Operating Conditions
 
 > **Operating condition.** An operating condition describes one property of the next decision, such as feedback latency, reversibility, interface span, consequence, or check independence. The architect uses the conditions that apply together to decide what an AI method may do, which evidence and checks are needed, how the AI's internal representation must be updated, and whether the result can advance. An operating condition is not a stack layer, a maturity score, or a property of an AI model.
 
@@ -30,12 +30,13 @@ Four recurring combinations of operating conditions organize the cases considere
 - **Cross-interface and deployment:** co-design, migration, and live-system work whose effects cross owners or whose telemetry is noisy and confounded.
 - **High consequence:** RTL, physical design, verification, signoff, and other work where rollback is slow, expensive, or impossible after authorization.
 
-These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate.
+These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate. Furthermore, as a design moves down the stack—from microarchitecture to logic generation and physical design—the AI's action space must adapt, shifting from discrete logical tasks to continuous, highly-coupled spatial tasks.
 
 ::: {.callout-learning-objectives}
 After this chapter you can classify the next decision before deciding what work to automate. That means you can:
 
 - **Compare** what transfers from a bounded architecture study and what must be revalidated when the next decision changes;
+- **Adapt** the AI's action space across stack layers, recognizing the difference between discrete logical tasks and highly-coupled spatial constraints;
 - **Separate** design-time estimates, field observations, and improvements caused by continuing software enablement onto three distinct clocks;
 - **Decide** whether delayed evidence qualifies for an update surface;
 - **Revalidate** evidence, checks, permissions, and capacity limits when work crosses a new decision boundary.
@@ -73,13 +74,13 @@ A check can reject only the failures it can observe. Therefore, the checks for a
 
 Classifying the decision determines what an AI method may execute, what it may only recommend, and which checks can independently reject the result under each condition. The method's role may transfer, but its permission to execute or advance may not.
 
-## Fast Feedback and Local Reversal
+## Leverage Fast Feedback and Local Reversal
 
 This condition covers work whose state can be inspected quickly and whose failed local changes can usually be discarded.
 
 Fast feedback allows aggressive bounded iteration, but speed does not prove workload coverage, correctness, representativeness, or causality. Permission to automate is conditional on workload coverage, correctness oracles, versioned environments, regression scope, and the point at which the artifact enters a wider contract.
 
-### Workloads and Benchmark Coverage
+### Establish Workload and Benchmark Coverage
 
 Fast feedback is useful only when executable checks cover the behavior in the claim. The workload specification defines what behavior matters, which software stack is assumed, and which design choices can be justified. The MICA framework established the importance of measured workload characterization to compare benchmark suites and separate inherent workload properties from specific machine artifacts [@HosteEeckhout2007MICA].
 
@@ -87,7 +88,7 @@ An XR accelerator claim needs a strictly constrained formulation to be credible.
 
 Likewise, shared benchmarks need maintained versions and submission practices because workloads drift. The benchmark version, source, coverage claims, known gaps, leakage risks, and conditions where results do not generalize must be recorded.
 
-### Software Tuning and Rollback
+### Execute Software Tuning and Rollback
 
 Close feedback lets an optimizer search more aggressively. Systems like the AutoTVM and Ansor tensor compilers combine search spaces, cost models, measurements, and scheduling to improve software performance across targets [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor]. This search is useful when generation is limited to artifacts with executable checks and cheap rollback. Because feedback cycles complete in seconds, the telemetry can directly update the AI's short-term cost model and in-context working set without the overhead of maintaining complex multi-fidelity state.
 
@@ -97,7 +98,7 @@ For an AI-generated or tuned GPU kernel, a versioned compiler and test harness c
 
 An AI-generated kernel that wins on one input size may regress another. An AI-proposed runtime policy that improves average latency may worsen tail latency. Even with fast feedback, architects must record workload coverage, who may reject a candidate, and who owns the decision before the change enters a larger system.
 
-## Design-Space Exploration With Proxies and Simulators
+## Explore Design Spaces With Proxies and Simulators
 
 When a simulator returns a delayed thermal trace or IPC penalty, the agent does not just see a float. Following the mechanics described in @sec-data-representations-world-models, this telemetry is translated into a 1D tokenized sequence or a structured JSON response. If the trace is truncated to fit the context window, the agent loses the critical temporal data needed to optimize thermal throttling. The fidelity of the proxy metric is therefore strictly bottlenecked by the agent's encoding capacity; if the proxy's failure mode isn't represented in the textual serialization, the agent remains blind to it.
 
@@ -113,7 +114,7 @@ In @sec-running-the-loop's array study, SCALE-Sim was used to compare array geom
 A surrogate model is only as valid as its last correlation with an RTL observation. Update the surrogate's uncertainty bounds whenever delayed telemetry overturns a proxy win. When an optimizer tunes against a fast local proxy, such as a wirelength estimator, ensure the test harness rejects candidates that violate physical constraints downstream (like routing congestion) and use those failures to recalibrate the surrogate.
 :::
 
-### Specialization and Executable Software Paths
+### Require Specialization and Executable Software Paths
 
 Historically, architecture gains came from technology scaling, architecture innovation, and optimization. As technology scaling has slowed, specialization has become the main remaining source of large efficiency gains (@fig-hardware-efficiency). A specialization claim still needs an executable software path and an end-to-end interface-cost argument before a proxy win can cross toward implementation.
 
@@ -303,11 +304,11 @@ The hardware-interface boundary matters because a candidate can look strong in i
 
 An AI-generated block posts a large kernel speedup, but the compiler cannot keep it busy, data movement dominates, and only hand-written code reaches the headline result. Include the interface and software path, then require a compiler-generated end-to-end measurement before promoting the candidate.
 
-## Cross-Interface and Deployment Decisions
+## Manage Cross-Interface and Deployment Decisions
 
 When a decision spans hardware, software, runtime, operations, or organizational boundaries, it widens the causal chain. Hardware and software snapshots must be versioned together, local objectives must be checked against system objectives, and deployment requires guarded exposure, rollback triggers, telemetry limits, and named owners.
 
-### Cross-Layer Co-Design
+### Enforce Cross-Layer Co-Design
 
 A single-layer optimization can be locally correct and still make the complete system worse. For example, the first-generation TPU's 8-bit datapath was a cross-layer decision co-designed with quantization software, and its serving objective included a 99th-percentile latency bound [@JouppiEtAl2017TPU]. A throughput improvement that violated the latency target was unacceptable.
 
@@ -315,17 +316,19 @@ A single-layer optimization can be locally correct and still make the complete s
 Before an optimizer acts, record which layer it may change, which other layer supplies independent feedback, what automation may execute or recommend, and who may approve the cross-layer tradeoff.
 :::
 
-Software feedback supports an architectural claim only when the run record ties each code path to the hardware snapshot it targeted. Because software tuning is rapid and reversible while silicon tapeouts are slow and fixed, the two optimization loops run on completely different timescales. If a fast software-tuning AI is accidentally granted the authority to alter a hardware interface without independent checks, it can silently introduce fatal hardware flaws.
+Software feedback supports an architectural claim only when the run record ties each code path to the hardware snapshot it targeted. Because software tuning is rapid and reversible while silicon tapeouts are slow and fixed, the two optimization loops run on completely different timescales. If a fast software-tuning loop is accidentally granted the authority to alter a hardware interface without independent checks, it can silently introduce fatal hardware flaws.
 
-This mismatch in timescales also dictates the choice of AI tool. Fast, reversible software loops need low-latency, low-cost search methods (like heuristics, specialized models, or rapid surrogate models) to evaluate thousands of candidates quickly. In contrast, slow, high-consequence hardware decisions justify the latency and cost of more capable reasoning models or thorough formal checks. The architect's methodology must match the cost and capability of the AI to the physical cost of the decision.
+This mismatch in timescales also dictates the choice of AI method. Fast, reversible software loops use low-latency search methods, like heuristics or rapid surrogate models, to evaluate thousands of candidates quickly. In contrast, slow, high-consequence hardware decisions justify the latency and cost of thorough formal checks and capable reasoning models. The architect's methodology must strictly align the AI's allowed authority with the physical cost of the decision.
 
 @fig-hardware-software-coevolution illustrates how these two different timescales must remain joined by one shared study record without bypassing the hardware layer's slower, more rigorous checks.
 
 ![**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks.](images/F10c-hardware-software-coevolution.svg){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware and software evolving together." fig-alt="**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks."}
 
-### Deployment Feedback and Migration
+### Monitor Deployment Feedback and Migration
 
-Deployment-facing work evaluates real systems but produces noisy, confounded feedback. The pattern that makes it survivable is guarded progressive exposure with an automatic halt. Release the change to a small cohort, watch a few bounded metrics against a service-level objective, and let a breach trip an automatic rollback before the change reaches the rest of the fleet. A canary bounds the blast radius; it does not prove that the change caused what the metrics show. This delayed deployment telemetry (like silent data corruptions or thermal throttling in the fleet) cannot be fed directly into a fast-tuning AI loop. Instead, it must be appended to the execution history and updated in the retrieval corpus to inform the next silicon generation.
+Deployment-facing work evaluates real systems but produces noisy, confounded feedback. The pattern that makes it survivable is guarded progressive exposure with an automatic halt. Release the change to a small cohort, watch a few bounded metrics against a service-level objective, and let a breach trip an automatic rollback before the change reaches the rest of the fleet. A canary bounds the blast radius; it does not prove that the change caused what the metrics show.
+
+Because this delayed deployment telemetry (like silent data corruptions or thermal throttling in the fleet) is highly confounded, it cannot be fed directly into a fast-tuning AI loop. Instead, it must be appended to the execution history and updated in the retrieval corpus to inform the next silicon generation.
 
 Google's warehouse-scale migration from x86 to Arm illustrates cross-interface conditions [@ChristopherEtAl2025ISAMigration]. The migration involved more than 38,000 commits. A fine-tuned language model classified the commits, revealing that repository activity concentrated in build, deployment, infrastructure, monitoring, and rollback rather than low-level code translation (@fig-isa-migration-effort). Those categories are owned by different teams, so the dominant cost was coordination across team and interface boundaries, not the code translation itself.
 
@@ -428,7 +431,7 @@ Deployment is where a change finally meets the live system. When an AI method ca
 
 Deployment feedback includes operational state, SLOs, resource contention, and rollback triggers, and those triggers are what arm the automatic halt. Rollback can reduce risk but does not erase harm already incurred during a canary or deployment.
 
-## RTL, Physical Design, and Difficult-to-Reverse Decisions
+## Navigate RTL, Physical Design, and Difficult-to-Reverse Decisions
 
 High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a massive capital expense defined by multi-year horizons. AI heuristics that work well in software frequently break down when hitting the physical realities of multi-day placement and routing runs, severe Design Rule Check (DRC) violations, and highly non-linear timing closure loops where physical design feedback is notoriously noisy and non-differentiable.
 
@@ -438,15 +441,17 @@ The cost of getting this wrong is not hypothetical. In 2011 Intel shipped its 6-
 
 AI assistance can narrow search, critique, organize evidence, repair bounded artifacts, or generate tests. A passing early check, however, cannot waive later verification or authorize commitment. Independent checks and named roles retain rejection, waiver, recommendation, and authorization rights.
 
-For example, transforming the @sec-running-the-loop candidate into an RTL generator parameter requires mapping, memory, and interface assumptions. RTL checks can reject functional errors; synthesis can reject timing or area; physical design can reject congestion, power integrity, or thermal feasibility. When these delayed checks return a failure, that delayed telemetry must translate into negative constraints within the AI's internal representation. A Design Rule Check (DRC) failure or a post-route timing violation must be encoded as a forbidden region in the explicit design state, preventing the AI from proposing similar unroutable topologies in the future.
+This progression down the stack requires **action space adaptation**. For example, moving the @sec-running-the-loop candidate toward implementation shifts the required checks from logical simulation to physical constraints. During microarchitecture exploration, search evaluates parameter spaces like buffer sizes or array geometries while holding logic fixed. During logic generation, synthesis targets a discrete domain of Boolean functions and state transitions guided by functional simulation. Physical design, however, imposes the harsher spatial realities of continuous, highly coupled constraints. The required evidence pivots entirely from simple RTL syntax to STA reports and routing congestion that drive floorplanning, cell placement, and wire routing.
 
-Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. AI can generate stimulus, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
+Consequently, each layer's checks must enforce its physical reality. RTL checks reject functional errors, synthesis rejects timing or area violations, and physical design rejects congestion, power integrity, or thermal failures. When delayed checks return a failure, that telemetry must translate into negative constraints within the explicit design state. A Design Rule Check (DRC) failure or a post-route STA timing violation must become a forbidden region, preventing automated proposals from repeating similar unroutable topologies.
+
+Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. By generating constrained random tests and reading formal counter-examples, AI can generate stimulus, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
 
 Public reports indicate learning methods can contribute to physical-implementation search, such as in peer-reviewed synthesis for parallel-prefix circuits [@RoyEtAl2021PrefixRL] and learning-assisted placement [@MirhoseiniEtAl2021GraphPlacement] (whose evidence review was discussed in @sec-feedback-verification-trust). A vendor-reported DSO.ai system has also searched the physical-implementation flow for commercial tapeouts [@Synopsys2023DSOai]. These are bounded learned subflows, not automated tapeout authority. The record must include tool versions, failed candidates, signoff checks, waivers, escalation points, and the named decision owner.
 
 Post-silicon bring-up and validation represent a controlled implementation return after fabrication and before deployment. Those controlled lab measurements inform the architect before fleet deployment introduces new confounding variables.
 
-## Three Feedback Clocks
+## Separate the Three Feedback Clocks
 
 The operating conditions classified the next decision before it was made, setting what an AI method may do to it. The feedback clocks classify something different, what a result can be claimed after evidence arrives. The two connect through timing. The clock that can confirm a decision often runs far slower than the clock on which the decision was committed, so the stricter operating conditions, high consequence and model-mediated, are exactly the ones whose confirming evidence arrives latest.
 
@@ -515,7 +520,7 @@ These observations describe different system states and bear on different decisi
 
 **Continuing enablement** observes later software workloads using a fixed hardware contract. For example, NVIDIA reported single-node training performance improvements of up to 17 percent on the same H100 hardware between MLPerf Training v2.1 preview and v3.0 by identifying software optimizations. BERT improved 17 percent, ResNet-50 by 8.4 percent, 3D U-Net by 8.2 percent, and Mask R-CNN by 6.1 percent [@EassaEryilmaz2023H100MLPerfSoftware]. This is a vendor-reported, workload-specific public continuing-enablement comparison, not a dependable first-year improvement rate.
 
-## Updating Knowledge From Delayed Feedback
+## Update Knowledge From Delayed Feedback
 
 Feeding delayed, noisy field telemetry directly into a high-frequency AI optimizer makes it overcorrect and thrash, because the telemetry arrives far too late to guide rapid tuning. The fix is to run the two at different speeds, nesting a fast tuning loop inside a slow review loop (@fig-cascade-control).
 
@@ -523,7 +528,7 @@ Feeding delayed, noisy field telemetry directly into a high-frequency AI optimiz
 
 Fast inner loops handle local software tuning and immediate stabilization using close tests and proxies. Slow outer loops review the delayed field telemetry, updating the architectural assumptions and test targets. The fast tuning loop must only tune against immediate proxies. It should never act directly on delayed telemetry.
 
-### Telemetry Compounds Across Silicon Generations
+### Compound Telemetry Across Silicon Generations
 
 When telemetry is captured and isolated into calibration datasets, post-silicon results from one generation can recalibrate the surrogate models used to design the next (@fig-hw-flywheel).
 
@@ -567,11 +572,11 @@ Only after competing explanations are recorded can a separate decision admit the
 
 A silent-core event can update the project's fault taxonomy and future test plan, but it does not automatically become a performance-surrogate label. A paired same-hardware H100 benchmark result can update an enablement trajectory and motivate a new software hypothesis, but it does not rewrite the hardware's design-time performance model or trigger automatic fine-tuning.
 
-## Revalidating Evidence at a New Decision Boundary
+## Revalidate Evidence at a New Decision Boundary
 
 Study structure can transfer; evidence validity, check coverage, rollback, and permissions do not. The architect must retest the claim's support, the cheaper check's settlement behavior, the AI role and authorization, and the capacity of the trusted review path.
 
-### Transfer Tests at a New Decision Boundary
+### Apply Transfer Tests at a New Decision Boundary
 
 Before reusing a method or artifact at another decision boundary, ask three questions:
 
@@ -591,17 +596,17 @@ A passing test cannot be treated as authorization when the change alters a hardw
 
 If proposals arrive faster than reliable evaluation can settle them, more generation grows a queue rather than useful progress. A measurable bottleneck occurs when proposal arrival rate $\lambda_{\mathrm{propose}}$ exceeds trusted settlement rate $\mu_{\mathrm{review}}$ (@fig-review-bottleneck). Just as Amdahl's law bounds parallel scaling by the serial fraction, the human verification step that cannot be automated bounds the end-to-end speedup of AI-assisted design. Proposal supply is not the limit here; trusted evaluation and human review set the pace. Improving throughput requires validating cheaper checks, reducing review cost, and cutting avoidable routing and escalation overhead. For quantitative limits on service-cost speedups, see the service-cost model in @sec-additional-framework-context (@fig-rejection-bound-ceiling).
 
-## Additional Framework Context {#sec-additional-framework-context}
+## Review Additional Framework Context {#sec-additional-framework-context}
 
 This section collects two supporting results the chapter draws on. The first states the properties a workload domain must have before specialized hardware can pay off; the second gives an analytic bound on how much a cheaper screening check can raise an architect's effective review capacity.
 
-### Properties That Define a Specialization Domain
+### Verify Properties That Define a Specialization Domain
 
 @fig-domain-specificity-shapes outlines the required properties for a specialization claim. A claim is credible only when a domain shows these properties together, because a domain that satisfies only some of them cannot amortize the design and interface cost that dedicated hardware imposes.
 
 ![**Properties that define a specialization domain.**](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing properties that define a specialization domain." fig-alt="**Properties that define a specialization domain.**"}
 
-### Analytic Review-Capacity Bound
+### Calculate the Analytic Review-Capacity Bound
 
 An Amdahl-like service-cost model describes a fixed stream of comparable candidates [@Amdahl1967ValiditySingleProcessor; @AltafWood2017LogCA]. Let $c_{\mathrm{hi}}$ be the mean service cost when every item goes to high-fidelity reference, and $c_{\mathrm{cheap}} < c_{\mathrm{hi}}$ be the mean cost of a cheaper check. Let $f$ be the fraction correctly settled without high-fidelity escalation, and $a$ be the fraction incurring the cheap check. The service-cost speedup is:
 
@@ -696,7 +701,7 @@ plt.close(fig)
 
 @fig-rejection-bound-ceiling reads the bound directly. The x-axis is validated coverage, the fraction of candidates a cheaper check settles correctly without escalating to the high-fidelity reference, and the y-axis is the resulting service-cost speedup. The dashed black line is the ceiling, $1/(1-f)$, and no scheme can beat it, because every case the cheap check cannot settle still pays the full high-fidelity cost. The colored curves show that a cheaper per-check cost buys little once coverage is low. At $f = 0.6$, even a near-free check caps the speedup at about 2.5x, because the remaining 40 percent of cases still route to the expensive reference. What raises the ceiling is not a cheaper check but a check that settles more cases correctly, so validated coverage, not unit cost, is what a review-speedup claim must report.
 
-## Open Research Questions
+## Investigate Open Research Questions
 
 Each question below grows out of a difficulty examined in this chapter. Some ask what an AI method must detect as the next decision becomes slower to evaluate, spans more interfaces, or grows harder to reverse. Others concern how evidence from the three feedback clocks is attributed, transferred across a decision boundary, and settled by a trusted check. In every case the comparison is with current architecture and deployment practice, and success is judged by the effect on the architecture decision rather than the model's output alone.
 
@@ -721,12 +726,12 @@ Each question below grows out of a difficulty examined in this chapter. Some ask
 
 ## Conclusion
 
-The next architecture decision determines how an AI-assisted study should operate. Close feedback and local reversal support automated execution under bounded tests. Model-mediated work needs matched baselines, proxy calibration, and new evidence before implementation. Cross-interface work adds versioned interfaces, system objectives, and guarded rollout. Difficult-to-reverse decisions shift AI work toward search narrowing, critique, and evidence organization under independent checks. Transfer to a new boundary requires renewed evidence, check, permission, and settlement-capacity tests.
+The next architecture decision determines how an AI-assisted study should operate. Close feedback and local reversal support automated execution under bounded tests. Model-mediated work needs matched baselines, proxy calibration, and new evidence before implementation. Cross-interface work adds versioned interfaces, system objectives, and guarded rollout. Difficult-to-reverse decisions shift AI work toward search narrowing, critique, and evidence organization under independent checks. As a design moves down the stack—from microarchitecture to logic generation and physical design—the AI's action space must adapt, transitioning from discrete logical tasks to continuous, highly-coupled spatial constraints. Transfer to a new boundary requires renewed evidence, check, permission, and settlement-capacity tests.
 
 Evidence arrives on three distinct clocks. Design-time evaluation estimates behavior within a represented study. In-field evidence tests the deployment context. Continuing software enablement changes realized performance on fixed hardware. None substitutes for the other, and delayed evidence does not update knowledge by itself.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** When the next decision changes, reclassify its operating conditions and revalidate the required evidence, rejection checks, rollback plan, and permissions.
+- **Carry forward:** When the next decision changes, reclassify its operating conditions, adapt the AI's action space, and revalidate the required evidence, rejection checks, rollback plan, and permissions.
 - **Reader test:** For the next transition, can you explain what AI may do, what can reject the result, how rollback works, and which decisions must be assigned before work proceeds?
 - **Up next:** Having established what must be revalidated when a decision crosses a boundary, @sec-what-architect-owns examines the responsibility and governance that the architect must retain when delegating work to AI.
 :::
