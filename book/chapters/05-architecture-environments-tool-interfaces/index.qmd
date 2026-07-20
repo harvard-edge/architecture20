@@ -31,13 +31,13 @@ After this chapter you can turn an ad-hoc tool path into a documented environmen
 - **Evaluate** the economic reality of EDA tools, balancing fidelity against simulation cost.
 :::
 
-## The Balancing Act of Architecture Environments
+## Balance Architecture Environments
 
 An architecture environment constantly weighs fidelity against execution cost, and determinism against the flakiness of real tools. This trade-off forms a "fidelity ladder" that agents must navigate. A fast analytical cache model at the top of the ladder returns an estimate in seconds but only approximates timing, making it cheap but physically unconstrained. Conversely, a physical simulator or cycle-accurate RTL run at the bottom of the ladder guarantees true physical constraints, but costs hours of compute and can still vary from one attempt to the next because of tool heuristics and host state.
 
 An AI expects fast, deterministic APIs, but hardware design relies on slow, stateful, and expensive legacy software. The environment sits between them. It gives the AI enough autonomy to explore the design space at scale while enforcing strict rules through permissions, budgets, and interface schemas. These rules ensure the agent does not propose physically impossible designs or waste compute time on broken Electronic Design Automation (EDA) runs.
 
-## The Origin Mismatch Between Human Intuition and AI APIs
+## Resolve the Origin Mismatch Between Human Intuition and AI APIs
 
 
 **In modern machine learning**, an agent typically interacts with an environment (such as an OpenAI Gym simulation) via a clean, synchronous loop: the agent takes an action, and the environment instantly returns a new state and a dense scalar reward.
@@ -53,13 +53,17 @@ Foundation models interact most reliably with external software through strict, 
 
 Furthermore, we must confront the **"Brownfield" Reality**. Most AI research focuses on "Greenfield" design, generating a brand new core or accelerator from a blank slate. In industry, however, most of an architect's job is "Brownfield" work. This involves integrating legacy IP blocks, wrangling proprietary vendor protocols, and navigating undocumented system buses. If an AI agent cannot read a legacy vendor datasheet and successfully wire up a black-box memory controller to a modern coherency fabric, it cannot design a real System-on-Chip. The environment must expose interfaces for both generating new IP and integrating messy, opaque legacy components.
 
-Recall the **Lighthouse prompt** introduced in @sec-moonshot. The prompt asks to design a low-power, 64-bit RISC-V-based compute subsystem for an XR platform. An AI agent attacking this prompt might formulate a high-level system intent to maximize spatial tracking throughput within the strict 3 W TDP thermal envelope required for an untethered XR headset. The candidate change, inserting a custom vector-capable accelerator block into the RISC-V subsystem, is not executable as one simple function call. A compiler must successfully emit the right memory mapping for the tensor instructions. The hardware configuration must instantiate the block. The RTL generator must pass simulation. Finally, the EDA flow must synthesize the design to check for routing congestion in the 3 nm layout. Each tool call can "succeed" with exit code 0 while the Lighthouse architecture proposal itself remains unevaluated or logically broken.
+Recall the **Lighthouse prompt** introduced in @sec-moonshot. The prompt asks to design a low-power, 64-bit RISC-V-based compute subsystem for an XR platform. An AI agent attacking this prompt might formulate a high-level system intent to maximize spatial tracking throughput within the strict 3 W TDP thermal envelope required for an untethered XR headset. The candidate change, inserting a custom vector-capable accelerator block into the RISC-V subsystem, is not executable as one simple function call.
+
+A compiler must successfully emit the right memory mapping for the tensor instructions. The hardware configuration must instantiate the block. The RTL generator must pass simulation. Finally, the EDA flow must synthesize the design to check for routing congestion in the 3 nm layout. Each tool call can "succeed" with exit code 0 while the Lighthouse architecture proposal itself remains unevaluated or logically broken.
 
 Tool meaning depends entirely on fixed context, legal actions, software and hardware specifications, tool versions, permissions, execution conditions, and explicitly defined failure behaviors. Two studies can call the exact same Ramulator instance while operating in totally different environments because their actions, workloads, constraints, and observation meanings differ. A computational method cannot infer these context dependencies via intuition. It requires the environment to explicitly expose what actions are permitted, what the tool returns, which states are invalid, and which runs can be repeated. This insufficiency of basic tool permissions is severely compounded by the tools themselves.
 
 Hardware design is bound by severe time and compute constraints. Unlike software environments that can execute thousands of iterations per second, architecture tools are locked behind expensive licenses and days-long job queues. The compute required for a single physical design run is orders of magnitude slower and more expensive than an AI model's inference pass. As fidelity increases toward silicon, the sample budget shrinks exponentially from millions of cheap functional checks to handfuls of expensive layout runs.
 
-To navigate this economic reality, we can look to the robotics community's approach of **Sim-to-Real Transfer**. Rather than training a robotic arm directly in the physical world, which is slow and risks damaging hardware, researchers train the agent in a fast physics simulator and transfer the learned policy to the real robot [@OpenAI2019Rubik]. Architecture benefits from a similar pipeline by creating a **Multi-Fidelity Spectrum** (@tbl-multi-fidelity-spectrum). The simulator is not a single tool, but a ladder. At the top are fast analytical models (ISA-level or spreadsheet models) that act as the "Sim", screening millions of candidates in seconds. In the middle are Cycle-Accurate C++ simulators, like gem5, that model timing but abstract physics. At the bottom are RTL synthesis and VLSI physical design tools, the "Real", that enforce true physical laws like power, thermals, and routing congestion. An architecture environment must allow an agent to intelligently climb up and down this ladder, trading fidelity for speed as needed (@fig-simulator-tax).
+To navigate this economic reality, we can look to the robotics community's approach of **Sim-to-Real Transfer**. Rather than training a robotic arm directly in the physical world, which is slow and risks damaging hardware, researchers train the agent in a fast physics simulator and transfer the learned policy to the real robot [@OpenAI2019Rubik]. Architecture benefits from a similar pipeline by creating a **Multi-Fidelity Spectrum** (@tbl-multi-fidelity-spectrum). The simulator is not a single tool, but a ladder.
+
+At the top are fast analytical models (ISA-level or spreadsheet models) that act as the "Sim", screening millions of candidates in seconds. In the middle are Cycle-Accurate C++ simulators, like gem5, that model timing but abstract physics. At the bottom are RTL synthesis and VLSI physical design tools, the "Real", that enforce true physical laws like power, thermals, and routing congestion. An architecture environment must allow an agent to systematically climb up and down this ladder, trading fidelity for speed as needed (@fig-simulator-tax).
 
 | **Fidelity Level** | **Example Tools** | **Speed** | **Physical Laws Enforced** |
 | --- | --- | --- | --- |
@@ -72,13 +76,14 @@ To navigate this economic reality, we can look to the robotics community's appro
 
 : **The Multi-Fidelity Spectrum.** An agent must trade fidelity for speed, climbing this ladder as design candidates mature. {#tbl-multi-fidelity-spectrum tbl-colwidths="[20,25,20,35]"}
 
-
 ```{python}
 #| label: fig-simulator-tax
 #| fig-cap: |
 #|   **The simulator tax: fidelity costs orders of magnitude, unless you burn an FPGA.** Representative slowdown of each architecture-evaluation approach relative to a roughly 3 GHz core. Software simulation slows by four to five orders of magnitude as fidelity rises toward cycle-accurate and RTL detail; FPGA-accelerated emulation stays within about twenty times real time, at the cost of dedicated hardware. Figures are order-of-magnitude and workload- and configuration-dependent [@BinkertEtAl2011Gem5; @KarandikarEtAl2018FireSim].
 #| out-width: "92%"
-#| fig-alt: "Horizontal log chart of simulation slowdown versus real hardware across six approaches. Native silicon is one times. FPGA emulation (FireSim) is about twenty times slower. Functional or ISA simulation is about thirty times. Cycle-approximate simulation (ZSim, Sniper) is about one thousand times. Cycle-accurate simulation (gem5) is about fifteen thousand times. RTL simulation (Verilator) is about thirty thousand times slower."
+#| fig-alt: "Horizontal log chart of simulation slowdown versus real hardware across six approaches. Native silicon is one times.
+
+FPGA emulation (FireSim) is about twenty times slower. Functional or ISA simulation is about thirty times. Cycle-approximate simulation (ZSim, Sniper) is about one thousand times. Cycle-accurate simulation (gem5) is about fifteen thousand times. RTL simulation (Verilator) is about thirty thousand times slower."
 
 import csv
 from pathlib import Path
@@ -172,7 +177,7 @@ To balance determinism versus reproducibility, we must consider costs, operation
 
 However, ensuring data provenance and reproducibility is impossible if the agent expects instant feedback. The sheer cost and latency of EDA tools requires a shift to asynchronous execution mechanics.
 
-## Killing the Synchronous `env.step()`
+## Kill the Synchronous `env.step()`
 
 In pedagogical AI tutorials, agents often interact with simulated games using a synchronous `env.step()` function. The agent takes a discrete action, the simulation instantly steps forward in time, and the function returns the new state and a reward. However, because of the physical and economic constraints of real hardware design, this standard synchronous wrapper is the wrong abstraction. This highlights the "Simulator Tax" in practice: an agent waiting for a synchronous `env.step()` could wait 8 hours for a physical routing failure in an EDA tool, compared to the 10 milliseconds it takes to receive a Python syntax error in a software environment. You cannot just `env.step()` a physical synthesis flow. A blocking synchronous call will inevitably time out or hang when a placement job takes 40 hours, or waits three days for an EDA license checkout.
 
@@ -200,7 +205,7 @@ Some tool crashes, however, carry real architectural signal. A pathological cand
 
 
 
-## The Three-Path Environment Interface
+## Adopt the Three-Path Environment Interface
 
 A tool returns raw, unstructured text, but an architecture study needs structured observations it can compare, check, and store. Turning one into the other is the job of the environment interface.
 
@@ -222,7 +227,7 @@ To make this data usable, the environment establishes three distinct paths:
 
 The Return Path is where a raw tool log becomes the observation the agent acts on. But capturing the return safely is only the first step; we must also ensure the AI can comprehend it.
 
-## The Attention Bottleneck and Data Distillation
+## Bypass the Attention Bottleneck and Distill Data
 
 When interfacing AI models with traditional architecture tools, a mismatch occurs at the observation layer. A commercial EDA tool or a detailed simulator like gem5 generates exhaustive text output, often containing tens of thousands of lines. If an environment wrapper naively pipes raw stdout directly back to an AI, the agent will struggle to isolate relevant signals from the noise, making it harder to debug the actual hardware issue.
 
@@ -340,7 +345,7 @@ Distinct read, action, and return paths let an architecture environment carry ar
 
 If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound. Generative models and optimization algorithms can then operate on the environment independently.
 
-## Standardization of Hardware APIs
+## Standardize Hardware APIs
 
 While a robust three-path interface manages execution, the payloads traversing those paths must be mathematically and structurally unambiguous. Historically, hardware descriptions relied on fragmented, vendor-specific languages (like SystemVerilog) built for human designers and proprietary logic synthesizers, not programmatic mutation.
 
@@ -357,7 +362,7 @@ For the human architect, these standardized representations form an indispensabl
 
 
 
-## Orchestrating Complex Toolchains
+## Orchestrate Complex Toolchains
 
 When a candidate design successfully navigates the Three-Path Interface and its intent is safely encoded in a standardized IR like MLIR, it must be translated into actionable physical tool commands. However, a single high-level intent rarely maps to a single tool. A hardware configuration might need to fan out to multiple distinct evaluation backends. These include an RTL simulator for functional correctness, a VLSI flow for power and area estimates, and an FPGA emulation path for full-stack software booting.
 
@@ -450,7 +455,7 @@ Each question below grows out of a difficulty this chapter examined while bridgi
 
    Today's brittle script wrappers and one-off environment bindings, together with vendor-hosted APIs that can change under a program, are the baseline. The comparison should count evaluations that stay valid across a model swap, interface changes that force earlier runs to be repeated, and protected parameters that ever leave the boundary, judged over the length of a chip program rather than a single study.
 
-## Conclusion
+## Summarize Environment Design
 
 An architecture environment transforms opaque tool executions into an explicit interface that AI methods and human architects can trust. It records precisely which tensor-enabled software artifact ran against which hardware artifact, exactly which tools completed, which actions failed or lacked support, and the typed meaning of every return.
 

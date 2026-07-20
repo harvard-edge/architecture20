@@ -27,7 +27,9 @@ To make sense of these options, we must draw a strict line. **A role is the *job
 ## Define Roles and Feedback Budgets
 
 Eight roles cover the work developed in this chapter. Generation proposes
-candidates. Prediction estimates consequences. Optimization chooses what to
+candidates. Prediction estimates consequences.
+
+Optimization chooses what to
 evaluate next. Critique identifies a weakness, repair proposes a bounded
 revision, and verification checks a stated property. Explanation develops a
 mechanism account, while coordination routes state and work. Combining roles
@@ -267,7 +269,9 @@ and improving performance are separate achievements.
 ```{python}
 #| label: fig-ch06-kernel-funnel
 #| fig-cap: |
-#|   **Attempted is not correct, and correct is not fast:** One-shot KernelBench results for four language models across the benchmark's three difficulty levels, measured on an NVIDIA L40S GPU [@OuyangEtAl2025KernelBench]. The dashed 100 percent line marks tasks attempted, not measured fluency or plausibility. The harness's correctness oracle passes far fewer candidates, and only a small fraction are both correct and faster than the PyTorch Eager baseline. The paper prints no per-model compile rates, and these panels chart none of them; in the paper's separate 100-kernel error-analysis sample, 83 of 100 generated kernels compile and 73 execute before the correctness oracle prunes the set to 50. Values transcribed from the paper's published single-attempt tables.
+#|   **Attempted is not correct, and correct is not fast:** One-shot KernelBench results for four language models across the benchmark's three difficulty levels, measured on an NVIDIA L40S GPU [@OuyangEtAl2025KernelBench]. The dashed 100 percent line marks tasks attempted, not measured fluency or plausibility. The harness's correctness oracle passes far fewer candidates, and only a small fraction are both correct and faster than the PyTorch Eager baseline.
+
+The paper prints no per-model compile rates, and these panels chart none of them; in the paper's separate 100-kernel error-analysis sample, 83 of 100 generated kernels compile and 73 execute before the correctness oracle prunes the set to 50. Values transcribed from the paper's published single-attempt tables.
 #| out-width: "92%"
 #| fig-alt: "Three-panel grouped bar chart of one-shot KernelBench outcomes for Llama-3.1-70B, DeepSeek V3, OpenAI o1, and DeepSeek R1 at difficulty levels one, two, and three. In each panel a dashed line at one hundred percent marks tasks attempted; blue bars show the share passing the correctness oracle, from zero to sixty-seven percent, and green bars show the share both correct and faster than the PyTorch Eager baseline, from zero to thirty-six percent. Both bars sit far below the dashed line everywhere, and the fast share is always well below the correct share."
 
@@ -782,7 +786,9 @@ An automated method may repair malformed artifacts, but the repair role does not
 
 Verification checks a stated property against an oracle that can be inspected independently of the model output. The oracle may be a reference implementation, formal property, test suite, simulator behavior, synthesis constraint, or hardware measurement. The model may help construct tests or route failures, but it cannot generate an artifact, judge the adequacy of its own tests, approve its output, and call that independently.
 
-In physical design, verification might mean passing an LVS (Layout vs. Schematic) or DRC (Design Rule Check) before signing off on tapeout. For functional generation, a property checker such as SymbiYosys proves stated assertions on the generated RTL by model checking, while an equivalence checker proves that the RTL and its golden reference compute the same function. If the generative agent proposed a new instruction extension for XR vertex transformations, the verification agent must prove that this custom RTL is logically equivalent to the software C++ model. Similarly, KernelBench provides a narrow software example. If a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
+In physical design, verification might mean passing an LVS (Layout vs. Schematic) or DRC (Design Rule Check) before signing off on tapeout. For functional generation, a property checker such as SymbiYosys proves stated assertions on the generated RTL by model checking, while an equivalence checker proves that the RTL and its golden reference compute the same function.
+
+If the generative agent proposed a new instruction extension for XR vertex transformations, the verification agent must prove that this custom RTL is logically equivalent to the software C++ model. Similarly, KernelBench provides a narrow software example. If a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
 
 A verification result is no broader than the property and scope checked. A passing numerical test does not establish portability, timing closure, or system performance. A failed check returns a concrete result that may stop the candidate, trigger a bounded repair, or reach a reviewer. The policy governing that response and the amount of evidence required are separate from the verification role itself.
 ## Explain and Coordinate the Design Loop
@@ -795,7 +801,9 @@ When acting as an API gateway or load balancer, the coordinator routes tasks bas
 
 A handoff contract manages this routing. It should specify the artifact identifier, source role, requested work, permitted action, current assumptions, unresolved failures, return destination, timeout, and recovery path.
 
-Every handoff incurs operational costs. Context can drop, an artifact can become stale, an assumption can be duplicated, or a failure can be misrouted. Version skew is common. For instance, if a timing repair inserts a pipeline stage into a generated RTL candidate, the candidate's identifier and interface change. The compiler schedule, latency constraint, test expectations, and performance surrogate trained on the prior pipeline are now stale. A deterministic coordinator blocks ranking, propagates the new revision to synthesis and equivalence checks, and requests a support test before the surrogate can be reused. If the repair changes the architectural contract rather than only the implementation, the coordinator cannot silently widen its permissions; the architect must decide whether to reopen the hypothesis and workload comparison.
+Every handoff incurs operational costs. Context can drop, an artifact can become stale, an assumption can be duplicated, or a failure can be misrouted. Version skew is common.
+
+For instance, if a timing repair inserts a pipeline stage into a generated RTL candidate, the candidate's identifier and interface change. The compiler schedule, latency constraint, test expectations, and performance surrogate trained on the prior pipeline are now stale. A deterministic coordinator blocks ranking, propagates the new revision to synthesis and equivalence checks, and requests a support test before the surrogate can be reused. If the repair changes the architectural contract rather than only the implementation, the coordinator cannot silently widen its permissions; the architect must decide whether to reopen the hypothesis and workload comparison.
 
 AgentDSE's persistent workspace, an automated design space exploration framework, provides one example of inspectable coordination state, while Chip-Chat demonstrates human-model-tool coordination where the person retains the decision boundary [@WangEtAl2026AgentDSE; @BlockloveEtAl2023ChipChat]. Explanation and coordination can consume substantial expert attention even when they do not use a simulator license. Their value should be measured by the analysis or handoff work they save and by whether architects can still inspect the mechanism account, underlying artifacts, and unresolved failures.
 
@@ -830,7 +838,9 @@ Do not celebrate a multi-agent arrangement for having more named participants. I
 
 Account for total cost when comparing organizations. Include inference, context construction, model calls, simulator or EDA time, tool licenses, expert review, synchronization, retries, and recovery. Account for latency on the critical path, not only parallel throughput. Record shared assumptions because several polished outputs can fail together if they inherit the same workload, metric, proxy, or retrieval error.
 
-An architect tuning a tensor program can compare four ways to perform the work. An LLM could generate schedules only (one role). A coding agent could propose, read compiler feedback, repair, and explain (several roles). A specialized generator, surrogate, and optimizer could exchange state (specialists). A hybrid could use schedule-generation rules, a learned cost model, evolutionary search, a compiler, measured hardware runs, deterministic correctness tests, and a person who chooses the deployment boundary. KernelBench, AgentDSE, and AutoTVM illustrate the first, second, and fourth organizations respectively [@OuyangEtAl2025KernelBench; @WangEtAl2026AgentDSE; @ChenEtAl2018AutoTVM]. The organizational comparison becomes useful only when applied to complete, published study systems.
+An architect tuning a tensor program can compare four ways to perform the work. An LLM could generate schedules only (one role). A coding agent could propose, read compiler feedback, repair, and explain (several roles).
+
+A specialized generator, surrogate, and optimizer could exchange state (specialists). A hybrid could use schedule-generation rules, a learned cost model, evolutionary search, a compiler, measured hardware runs, deterministic correctness tests, and a person who chooses the deployment boundary. KernelBench, AgentDSE, and AutoTVM illustrate the first, second, and fourth organizations respectively [@OuyangEtAl2025KernelBench; @WangEtAl2026AgentDSE; @ChenEtAl2018AutoTVM]. The organizational comparison becomes useful only when applied to complete, published study systems.
 
 ## Compose Roles Under Study Constraints {#sec-choosing-a-method-under-constraints}
 
@@ -842,7 +852,9 @@ A system reconstruction should use the same fields every time:
 2. State, data, and representations available to the method.
 3. Roles performed and component assigned to each role.
 4. Conventional tools, scripts, formal checks, and people in the loop.
-5. Feedback, retry, and stopping behavior.
+5.
+
+Feedback, retry, and stopping behavior.
 6. Evaluation protocol, baselines, and cost accounting.
 7. Observed failures, unsupported regions, and untested assumptions.
 8. Permissions and the decision the system does not own.
@@ -850,18 +862,28 @@ A system reconstruction should use the same fields every time:
 The following four system reconstructions use this structure to compare organizations rather than to assemble a parade of standalone papers.
 
 **System A: KernelBench** illustrates one model in one role.
-Task: generate faster GPU kernels for PyTorch workloads. State: workload and baseline implementation. Roles: an LLM generates; profiling feedback may support revision. Tools: compilation, correctness harness, performance measurement. Feedback and retries: one-shot and iterative settings are distinct. Evaluation: combining correctness with a speed threshold against a strong baseline. Failures: compile, execution, numerical correctness, and insufficient speed are different. Lesson: one model in one role can be useful when a strong harness performs the rejection work [@OuyangEtAl2025KernelBench].
+Task: generate faster GPU kernels for PyTorch workloads. State: workload and baseline implementation. Roles: an LLM generates; profiling feedback may support revision.
+
+Tools: compilation, correctness harness, performance measurement. Feedback and retries: one-shot and iterative settings are distinct. Evaluation: combining correctness with a speed threshold against a strong baseline. Failures: compile, execution, numerical correctness, and insufficient speed are different. Lesson: one model in one role can be useful when a strong harness performs the rejection work [@OuyangEtAl2025KernelBench].
 
 **System B: AgentDSE** illustrates one model in several separated roles.
-Task: select simulator calls for accelerator mapping, hardware-software co-design, or cache hierarchy optimization. State: task brief, action-space specification, workload/hardware files, candidate, history, notes, best result, and budget. Roles: one coding agent forms hypotheses, generates candidates, selects experiments, interprets feedback, and records explanations. Tools: MAESTRO (a deep learning accelerator evaluator), Timeloop (a spatial architecture mapping tool), or ChampSim (a trace-based simulator) through an evaluation harness. Feedback and retries: measured metrics update persistent history until budget or self-termination. Evaluation: compare against task-specific baselines and count simulator calls. Failures and limits: correlated hypothesis formation, candidate selection, and interpretation. Ambiguous feedback may be interpreted through assumptions established earlier in the same trajectory. Lesson: one model can reuse context across several roles, but role reuse does not supply an independent challenge to the hypothesis [@WangEtAl2026AgentDSE; @KwonEtAl2019MAESTRO; @ParasharEtAl2019Timeloop].
+Task: select simulator calls for accelerator mapping, hardware-software co-design, or cache hierarchy optimization. State: task brief, action-space specification, workload/hardware files, candidate, history, notes, best result, and budget. Roles: one coding agent forms hypotheses, generates candidates, selects experiments, interprets feedback, and records explanations. Tools: MAESTRO (a deep learning accelerator evaluator), Timeloop (a spatial architecture mapping tool), or ChampSim (a trace-based simulator) through an evaluation harness.
+
+Feedback and retries: measured metrics update persistent history until budget or self-termination. Evaluation: compare against task-specific baselines and count simulator calls. Failures and limits: correlated hypothesis formation, candidate selection, and interpretation. Ambiguous feedback may be interpreted through assumptions established earlier in the same trajectory. Lesson: one model can reuse context across several roles, but role reuse does not supply an independent challenge to the hypothesis [@WangEtAl2026AgentDSE; @KwonEtAl2019MAESTRO; @ParasharEtAl2019Timeloop].
 
 **System C: AutoTVM and Ansor**, tensor program optimization frameworks, illustrate a hybrid system.
-Task: find high-performance tensor programs across hardware targets. State: program representations and measured candidates. Roles: schedule generation, learned cost prediction, evolutionary selection, and task scheduling. Tools: compiler and target hardware measurement. Feedback and retries: measured performance updates the cost model and search. Evaluation: end-to-end workload performance against established libraries. Failures and limits: search-space construction, support, and cost-model error shape the result. Lesson: a hybrid system earns its complexity because symbolic generation, numerical prediction, search, compilation, and measurement are different jobs [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor].
+Task: find high-performance tensor programs across hardware targets. State: program representations and measured candidates. Roles: schedule generation, learned cost prediction, evolutionary selection, and task scheduling.
+
+Tools: compiler and target hardware measurement. Feedback and retries: measured performance updates the cost model and search. Evaluation: end-to-end workload performance against established libraries. Failures and limits: search-space construction, support, and cost-model error shape the result. Lesson: a hybrid system earns its complexity because symbolic generation, numerical prediction, search, compilation, and measurement are different jobs [@ChenEtAl2018AutoTVM; @ZhengEtAl2020Ansor].
 
 **System D: Chip-Chat** illustrates human-model-tool coordination.
-Task: co-design an 8-bit accumulator-based processor under real constraints. State: conversational specification and evolving Verilog. Roles: the LLM generates and repairs; the hardware engineer supplies intent, feedback, and decisions. Tools: open-source simulation and synthesis, followed by physical implementation. Feedback and retries: failures and constraints prompt revisions. Evaluation: the artifact reaches tapeout. Lesson: human-model-tool iteration should not be mislabeled as an autonomous multi-agent architecture system [@BlockloveEtAl2023ChipChat].
+Task: co-design an 8-bit accumulator-based processor under real constraints. State: conversational specification and evolving Verilog. Roles: the LLM generates and repairs; the hardware engineer supplies intent, feedback, and decisions.
 
-Return to the chapter's opening accelerator study for a worked selection. An architect might use deterministic scripts for schema and legality checks. A general model proposes hypotheses and candidates. A calibrated surrogate ranks them only within in-support screening. Bayesian optimization or a simple heuristic selects scarce experiments. The simulator supplies observations, and a reference test checks correctness. The architect owns the scope, ambiguous diagnosis, and final comparison.
+Tools: open-source simulation and synthesis, followed by physical implementation. Feedback and retries: failures and constraints prompt revisions. Evaluation: the artifact reaches tapeout. Lesson: human-model-tool iteration should not be mislabeled as an autonomous multi-agent architecture system [@BlockloveEtAl2023ChipChat].
+
+Return to the chapter's opening accelerator study for a worked selection. An architect might use deterministic scripts for schema and legality checks. A general model proposes hypotheses and candidates.
+
+A calibrated surrogate ranks them only within in-support screening. Bayesian optimization or a simple heuristic selects scarce experiments. The simulator supplies observations, and a reference test checks correctness. The architect owns the scope, ambiguous diagnosis, and final comparison.
 
 If a failure occurs, the composition changes: a proxy mismatch removes the surrogate; repeated schema failures replace free-form generation with a grammar; review backlog adds critique without adding another generator. Role choice is conditional and revisable, not a universal stack.
 
@@ -887,7 +909,7 @@ The chapter compares one model in one role, one model in several roles, speciali
 6. **How should an AI-assisted composition adapt as workloads, tools, and deployed hardware evolve without invalidating its recorded traces or silently shifting the study's objective?**
 The chapter treats role choice as conditional and revisable, since a proxy mismatch removes the surrogate, repeated schema failures replace free-form generation with a grammar, and a review backlog adds critique, and its version-skew example shows how a single timing repair can leave a compiler schedule, latency constraint, and performance surrogate stale. The open problem, and the one that grows as a study runs longer, is keeping a composition current as its software, workloads, tools, and taped-out hardware change, without discarding traces that remain valid or letting the objective drift away from the architecture question the study began with. Manual re-validation and static pipelines are the current baseline. The comparison should count stale artifacts and objective drift caught before they reach a decision, the valid traces preserved rather than needlessly rerun, and the re-validation cost weighed against the regressions that slipped through under the previous, unrevised composition.
 
-## Conclusion
+## Summarize Methods and Capabilities
 
 Name the architecture work before naming the method. Define the role by what it reads, changes, returns, consumes, and hands off. Use the simplest component that fits the role. Split components only when their data, representations, tools, permissions, latency, cost, failure containment, or checking paths genuinely differ. Preserve backward edges because failure may change the role or method needed next.
 
