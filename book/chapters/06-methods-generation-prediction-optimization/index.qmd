@@ -22,9 +22,9 @@ composition can reduce it without obscuring its checks or authority limits?
 
 An accelerator study can stall for several reasons. The architect may lack viable array organizations, have too few simulator runs to evaluate proposed ones, or face a review backlog of inconsistent results. These conditions call for different assistance. A generator can propose legal array geometries, a predictor can estimate which geometry might reduce cycles or trigger an IR drop, an optimizer can choose the next configuration to evaluate, and a critic can find a missing comparison, after which a cycle-level simulator can test the selected configurations. The first method question is therefore not which model performs best overall, but rather what work prevents the bounded study from reaching its next defensible result. Current model rankings will age, while the distinction among missing alternatives, expensive evaluation, poor experiment selection, weak review, malformed artifacts, and disconnected tool work remains useful.
 
-To make sense of these options, we must draw a strict line. **A role is the *job description*, and the method is the *tool* we hire for the job.** The same role can be filled by different methods depending on the hardware or software problem at hand. An AI role operates in a vacuum unless its output is tested against a physical simulator. We must replace generic terms like performance with specific physical constraints, such as routing congestion or thermal density, to measure the cost of being wrong.
+To make sense of these options, we must draw a strict line. **A role is the *job description*, and the method is the *tool* we hire for the job.** The same role can be filled by different methods depending on the hardware or software problem at hand. An AI role operates in a vacuum unless its output is tested against a physical simulator. We must replace generic terms like performance with specific physical constraints, such as routing congestion or thermal density, to measure the cost of being wrong. To prevent hallucinations from corrupting the design loop, the architect must pivot to become an orchestrator, enforcing a strict sequence: **generate** to explore candidates, **predict** to filter unpromising options, and **verify** against a ground-truth physical oracle.
 
-## Defining Roles and Feedback Budgets
+## Define Roles and Feedback Budgets
 
 Eight roles cover the work developed in this chapter. Generation proposes
 candidates. Prediction estimates consequences. Optimization chooses what to
@@ -64,7 +64,7 @@ That means you can:
   remain with the architect.
 :::
 
-## Matching AI Roles to the Architecture Bottleneck
+## Match AI Roles to the Architecture Bottleneck
 
 Rather than monolithic agents, AI-assisted architecture relies on distinct, orchestratable roles (@tbl-ai-roles).
 
@@ -123,7 +123,7 @@ several. For
 example, a generator may propose array geometries, a predictor may rank them,
 and independent tool checks may reject illegal or incorrect candidates.
 
-## Comparing Method Roles by Level of Trust
+## Compare Method Roles by Level of Trust
 
 All of those outputs go through evidence review on the right. Before comparing the mechanics of these roles, we must establish their *levels of trust*. Treating all AI outputs as evidence is a mistake. If an architect treats a generated guess as a final result, the entire design process breaks down. These roles represent different levels of reliability:
 
@@ -201,7 +201,7 @@ cross-cutting tests to each role.
 \FloatBarrier
 ```
 
-## Generation
+## Generate Candidates and Proposals
 
 Generation helps when an architect needs more alternatives or a faster first
 draft. An AI method can propose a simulator configuration, generate code or an
@@ -209,7 +209,13 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
-The method that fills a role spans a wide range. Simple, low-cost Support Vector Machines (SVMs) and decision trees handle basic classification, Small Language Models (SLMs) handle local code generation, and frontier Large Language Models (LLMs) and diffusion models handle complex reasoning or spatial layout. For generation, the choice depends on the type of artifact. For texts like RTL, C++ models, or compiler scripts, LLMs are the obvious choice. When the artifact is spatial, such as macro placement or floorplanning, architects use **Diffusion Models**. While the math under the hood differs, their reliability is the same. Both produce guesses, not evidence. Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource, causing 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled compute clusters. Generating RTL requires more than syntactic correctness. A generated module might compile perfectly but fail logic equivalence checking or create impossible combinational paths violating setup and hold times. To catch these errors early, generation must be paired with fast, local checks.
+The method that fills a role spans a wide range. Simple, low-cost Support Vector Machines (SVMs) and decision trees handle basic classification, Small Language Models (SLMs) handle local code generation, and frontier Large Language Models (LLMs) and diffusion models handle complex reasoning or spatial layout. For generation, the choice depends on the type of artifact. For texts like RTL, C++ models, or compiler scripts, LLMs are the obvious choice.
+
+When the artifact is spatial, such as macro placement or floorplanning, architects use **Diffusion Models**. While the math under the hood differs, their reliability is the same. Both produce guesses, not evidence.
+
+Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. It causes 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled compute clusters. Generating RTL requires more than syntactic correctness. A generated module might compile perfectly but fail logic equivalence checking or create impossible combinational paths violating setup and hold times.
+
+To catch these errors early, the human architect must orchestrate the generator by pairing it with fast, local checks. These checks ground the AI's output in strict physical constraints like PPA, routing, and timing limits before authorization.
 
 ::: {.callout-design-principle title="The action space must not exceed the oracle's fidelity"}
 Never allow a generative model or optimizer to propose architectural changes that the available simulator or formal tool cannot verify. If the AI can mutate a thermal property but the current EDA loop only runs logic simulation, the AI will silently exploit the unchecked dimension. Constrain the method's action space strictly to the dimensions the feedback budget can measure.
@@ -330,7 +336,7 @@ drafts. A parser, simulator, and synthesis flow could reject them, while a human
 designer decided when a candidate was ready to advance. Another engineer could
 review the result because those responsibilities remained separate.
 
-## Prediction {#sec-prediction-estimating-behavior-before-full-evaluation}
+## Predict Behavior Before Full Evaluation {#sec-prediction-estimating-behavior-before-full-evaluation}
 
 Prediction helps an architect avoid a full tool run for every candidate. Long
 before recent foundation models,[^fn-ml-foundation-models] architects used
@@ -339,7 +345,9 @@ design spaces. Regression models for microarchitectural performance and power,
 and predictive models for architectural design-space exploration, are part of
 this lineage [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
 
-Unlike generative brainstorming, prediction requires models that can be calibrated against real data. Large Language Models are poor fits here. Instead, to predict routing congestion or critical path delays from a netlist, architects have turned to **Graph Neural Networks (GNNs)**. Because chips are physical graphs, GNNs pass messages over the circuit's wiring graph and align with its structure, catching routing hotspots before an expensive 72-hour place-and-route run. For power and thermal estimation, **Physics-Informed Neural Networks** penalize violations of physical laws during training, biasing the model away from thermodynamically impossible predictions rather than forbidding them outright [@RaissiEtAl2019PINNs].
+Unlike generative brainstorming, prediction requires models that can be calibrated against real data. Large Language Models are poor fits here. Instead, to predict routing congestion or critical path delays from a netlist, architects have turned to **Graph Neural Networks (GNNs)**. Because chips are physical graphs, GNNs pass messages over the circuit's wiring graph and align with its structure. The architect integrates these GNNs to catch routing hotspots before an expensive 72-hour place-and-route run, grounding the model in silicon realities.
+
+For power and thermal estimation, **Physics-Informed Neural Networks** penalize violations of physical laws during training. The human architect orchestrates these networks to bias the model away from thermodynamically impossible predictions, ensuring estimates respect strict thermal and power limits [@RaissiEtAl2019PINNs].
 
 A predictor can guide an architecture decision only when its support region,
 uncertainty, calibration source, escalation trigger, and decision owner are
@@ -483,12 +491,13 @@ plt.show()
 plt.close(fig)
 ```
 
-Nothing in the surrogate's own report changes at the shift boundary in
-@fig-ch06-conformal-coverage. The band keeps its width and its nominal 90
-percent claim; only the observed points climbing out of it reveal that
-empirical coverage has collapsed. When an optimizer pushes a surrogate into a novel design space, it is highly vulnerable to Out-of-Distribution (OOD) failures where the model confidently returns wildly inaccurate proxy scores. When observations begin to fall outside the interval, drift detection has fired and the surrogate should not be trusted in that region. The study then issues an **active-learning** query [@Settles2009ActiveLearning], choosing the high-fidelity evaluation (such as a cycle-accurate simulation) that is most informative for that region, and folds the new ground-truth observation back into the surrogate to *retrain and update* it. Whether that new observation supports the architectural claim remains a separate question.
+Nothing in the surrogate's own report changes at the shift boundary in @fig-ch06-conformal-coverage. The band keeps its width and its nominal 90 percent claim; only the observed points climbing out of it reveal that empirical coverage has collapsed. When an optimizer pushes a surrogate into a novel design space, it is highly vulnerable to Out-of-Distribution (OOD) failures where the model confidently returns wildly inaccurate proxy scores.
 
-When a surrogate predicts a performance win but the cycle-accurate golden simulator shows a regression, the architect must debug the boundary between the two. The solution is not for the architect to manually tune the surrogate's weights. Instead, the architect must systematically update the AI's constraints or feature representations. For example, if the surrogate missed a routing congestion bottleneck, the architect adds a physical-design constraint to the generator or explicitly includes a congestion metric in the surrogate's training features. Constraining the search space or expanding the proxy's input features based on the simulator's failure report helps the system learn the physical boundary without requiring the architect to act as a machine learning engineer tweaking hyperparameters.
+When observations begin to fall outside the interval, drift detection has fired and the surrogate should not be trusted in that region. The human architect must intervene to issue an **active-learning** query [@Settles2009ActiveLearning], choosing the high-fidelity evaluation (such as a cycle-accurate simulation) that is most informative for that region. The architect then folds the new ground-truth observation back into the surrogate to *retrain and update* it, grounding the model back in physical realities. Whether that new observation supports the architectural claim remains a separate question.
+
+When a surrogate predicts a performance win but the cycle-accurate golden simulator shows a regression, the architect must debug the boundary between the two. The solution is not for the architect to manually tune the surrogate's weights. Instead, the human architect must systematically orchestrate the AI by updating its constraints or feature representations.
+
+For example, if the surrogate missed a routing congestion bottleneck, the architect adds a physical-design constraint to the generator or explicitly includes a congestion metric in the surrogate's training features. Constraining the search space or expanding the proxy's input features based on the simulator's failure report helps the system learn the physical boundary without requiring the architect to act as a machine learning engineer tweaking hyperparameters.
 
 The accelerator study keeps the same distinction. The model's qualitative
 prediction and mechanism help select a test, but neither counts as performance
@@ -498,9 +507,9 @@ replacement explanation. A rough predictor may still be enough to discard
 obviously bad candidates, but that use still needs calibration and independent
 observations from the region being pruned.
 
-## Optimization
+## Optimize Candidate Selection
 
-Optimization allocates a scarce evaluation budget, and Bayesian optimization is the standard way to spend it under expensive feedback. It fits a surrogate model to the results seen so far, reads where that surrogate is most uncertain, and uses an acquisition rule to pick the next evaluation most likely to improve the objective.
+Optimization allocates a scarce evaluation budget, and Bayesian optimization is the standard way to spend it under expensive feedback. It fits a surrogate model to the results seen so far, reads where that surrogate is most uncertain, and uses an acquisition rule to pick the next evaluation most likely to improve the objective. The human architect orchestrates this search by defining strict physical constraints and PPA goals that guide the acquisition rule.
 
 ```{python}
 #| label: fig-bayesian-optimization
@@ -573,9 +582,15 @@ ax2.set_yticks([])
 fig.subplots_adjust(left=0.10, right=0.98, top=0.98, bottom=0.11, hspace=0.12)
 ```
 
-Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. @fig-bayesian-optimization shows that allocation for Bayesian optimization: a surrogate predicts the objective, uncertainty bands mark where the model is unsure, and an acquisition function turns both into the next point to evaluate. That single method fills two of the eight roles at once, since its surrogate is a predictor and its acquisition rule is an optimizer, and the two cannot be pulled apart. Read the roles as an audit decomposition for asking what a method reads, returns, and hands off, not as a claim that each method occupies exactly one box. The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics.
+Optimization does not design the architecture. It allocates candidate and fidelity evaluations under a declared action space, objective, constraints, stopping condition, and feedback budget. @fig-bayesian-optimization shows that allocation for Bayesian optimization: a surrogate predicts the objective, uncertainty bands mark where the model is unsure, and an acquisition function turns both into the next point to evaluate.
 
-To spend our simulation budget efficiently, we use algorithms built to handle uncertainty. We apply **Bayesian Optimization** when tuning continuous parameters or hyperparameters, such as sizing caches or out-of-order window dimensions under the 3W XR thermal constraints. When Bayesian optimization hits a nonlinear physical constraint, such as an unroutable configuration where the simulator crashes, the model stalls unless the constraint boundary is mapped. We apply **Reinforcement Learning (RL)** for combinatorial, sequential tasks like macro floorplanning. In these sequential tasks, the reward function must directly tie to physical metrics such as routing congestion and thermal hotspots. These methods are resource managers. They do not invent the design; they choose *where* to spend the next simulation run.
+That single method fills two of the eight roles at once, since its surrogate is a predictor and its acquisition rule is an optimizer, and the two cannot be pulled apart. Read the roles as an audit decomposition for asking what a method reads, returns, and hands off, not as a claim that each method occupies exactly one box.
+
+The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics. In all cases, the human architect must supervise the optimizer, ensuring the search is anchored to hard physical limits like timing and area.
+
+To spend our simulation budget efficiently, we use algorithms built to handle uncertainty. We apply **Bayesian Optimization** when tuning continuous parameters or hyperparameters, such as sizing caches or out-of-order window dimensions under the 3W XR thermal constraints. When Bayesian optimization hits a nonlinear physical constraint, such as an unroutable configuration where the simulator crashes, the model stalls unless the constraint boundary is mapped.
+
+We apply **Reinforcement Learning (RL)** for combinatorial, sequential tasks like macro floorplanning. In these sequential tasks, the architect must tightly control the reward function, tying it directly to physical metrics such as routing congestion and thermal hotspots. These methods are resource managers orchestrated by the architect. They do not invent the design; they choose *where* to spend the next simulation run.
 
 The useful outcome may be a Pareto region,[^fn-math-pareto-region] a constraint boundary, a sensitivity, a ruled-out class of candidates, or a decision about which expensive experiment to run next. Hardware design spaces are often discrete, non-differentiable, and highly constrained, so an optimizer must work with sparse feedback and reject illegal actions rather than assume a smooth search space.
 
@@ -602,7 +617,11 @@ To optimize the RISC-V XR subsystem, an architect might select a cheap heuristic
 
 Method, budget, and tuning procedure form one comparison, and no single named method wins.
 
-Bayesian optimization was developed for sequential experiments on expensive black-box functions [@JonesSchonlauWelch1998EGO; @SnoekLarochelleAdams2012BayesianOptimization]. Its surrogate and acquisition rule balance exploration against exploitation and make uncertainty part of the choice of what to evaluate next. The standard Gaussian-process surrogate assumes a smooth, continuous domain and loses efficiency as the space grows higher-dimensional, discrete, or categorical, which is the regime that architecture's constrained, combinatorial design spaces tend to occupy. Random-forest sequential model-based optimization, tree-structured Parzen estimators, and trust-region Bayesian optimization keep the sample-efficient, uncertainty-guided search while fitting those spaces [@HutterHoosLeytonBrown2011SMAC; @BergstraEtAl2011HyperParam; @ErikssonEtAl2019TuRBO]. A Gaussian-process surrogate exposes where it lacks data (posterior variance) separately from irreducible observation noise, and the acquisition rule uses that posterior variance to balance exploring uncertain regions against exploiting promising ones rather than converging prematurely on a local optimum. Cleanly separating that observation noise from the model's own uncertainty requires a noise-aware or heteroscedastic surrogate rather than a single homoscedastic noise term. Recording the acquisition rule, score, and current uncertainty lets a reviewer see why the optimizer selected a candidate. The run record should also include evaluation fidelity, expected benefit, and the stopping condition.
+Bayesian optimization was developed for sequential experiments on expensive black-box functions [@JonesSchonlauWelch1998EGO; @SnoekLarochelleAdams2012BayesianOptimization]. Its surrogate and acquisition rule balance exploration against exploitation and make uncertainty part of the choice of what to evaluate next. The standard Gaussian-process surrogate assumes a smooth, continuous domain and loses efficiency as the space grows higher-dimensional, discrete, or categorical, which is the regime that architecture's constrained, combinatorial design spaces tend to occupy.
+
+Random-forest sequential model-based optimization, tree-structured Parzen estimators, and trust-region Bayesian optimization keep the sample-efficient, uncertainty-guided search while fitting those spaces [@HutterHoosLeytonBrown2011SMAC; @BergstraEtAl2011HyperParam; @ErikssonEtAl2019TuRBO]. A Gaussian-process surrogate exposes where it lacks data (posterior variance) separately from irreducible observation noise. The acquisition rule uses that posterior variance to balance exploring uncertain regions against exploiting promising ones rather than converging prematurely on a local optimum.
+
+Cleanly separating that observation noise from the model's own uncertainty requires a noise-aware or heteroscedastic surrogate rather than a single homoscedastic noise term. Recording the acquisition rule, score, and current uncertainty lets a human reviewer see why the optimizer selected a candidate. The run record should also include evaluation fidelity, expected benefit, and the stopping condition.
 
 One auditable acquisition rule is GP-UCB[^fn-ml-gp-ucb] (Gaussian Process Upper Confidence Bound). The logged acquisition rule, not its abstract no-regret bound,[^fn-ml-no-regret] lets a reviewer examine why the optimizer selected a particular point [@SrinivasEtAl2010GPUCB].
 
@@ -632,11 +651,15 @@ A reviewer should judge an optimizer by what it reveals about the design space a
 
 If the run record cannot answer these questions, the optimizer may have improved a score without improving architectural understanding.
 
-### Allocating the Feedback Budget {#sec-sample-efficiency-under-expensive-feedback}
+### Allocate the Feedback Budget {#sec-sample-efficiency-under-expensive-feedback}
 
 Optimization makes the feedback budget visible because it chooses where the next evaluation goes. The same budget constrains every role. Simulator, synthesis, and hardware runs are scarce, while checking generated artifacts, calibrating predictors, reviewing critiques, and rerunning repairs also take time. Failed runs and expert rejections can be useful feedback records, but they are not interchangeable ML samples.
 
-Architecture often has a few high-fidelity runs, more medium-fidelity simulations, many cheap proxies, and hidden costs such as tool setup, debugging, license availability, and review. The useful method role changes with that budget. Architecture design spaces grow combinatorially. A single accelerator mapping space can exceed $10^{18}$ legal configurations before mapping-factor choices, orders of magnitude more candidates than any real evaluation budget can reach. AI inference is itself a design budget, so we balance the compute cost of the AI against the compute cost of the simulator. Running an LLM agent in a loop might be cheap, but if it hallucinates and triggers 1,000 invalid RTL synthesis runs, it will bankrupt the project's compute budget. @fig-evidence-gap places representative candidate counts and affordable feedback counts on one logarithmic axis.
+Architecture often has a few high-fidelity runs, more medium-fidelity simulations, many cheap proxies, and hidden costs such as tool setup, debugging, license availability, and review. The useful method role changes with that budget. Architecture design spaces grow combinatorially.
+
+A single accelerator mapping space can exceed $10^{18}$ legal configurations before mapping-factor choices, orders of magnitude more candidates than any real evaluation budget can reach. AI inference is itself a design budget, so we balance the compute cost of the AI against the compute cost of the simulator.
+
+Running an LLM agent in a loop might be cheap, but if it hallucinates and triggers 1,000 invalid RTL synthesis runs, it will bankrupt the project's compute budget. The architect must constrain the agent's actions to prevent this waste. @fig-evidence-gap places representative candidate counts and affordable feedback counts on one logarithmic axis.
 ```{python}
 #| label: fig-evidence-gap
 #| fig-cap: |
@@ -733,11 +756,11 @@ The value of each evaluation also depends on what the environment records. If it
 
 The core strength of a human-in-the-loop workflow is the architect's ability to examine a failed result, identify the likely root cause, and patch the error. When transitioning to automated loops, we decompose this capacity into critique, repair, and verification. Together, these roles let an automated loop recover from a failed artifact without a person intervening at each step.
 
-## Critique, Repair, and Verification
+## Critique, Repair, and Verify Artifacts
 
 An architect who already has hundreds of candidates and inconsistent run logs does not need another proposed design. The more useful AI job may be to identify a specific weakness, revise a malformed artifact, or run a check that can reject a stated property. These are three different jobs.
 
-### Critique
+### Critique Assumptions and Evidence
 
 A critic can inspect a design-space report, simulator log, configuration file, benchmark description, or paper draft. It can ask whether the workload matches the claim, whether the metric represents the intended objective, whether rejected candidates are missing, or whether a table proves less than the prose claims. The useful output is not a general score. It is a finding tied to an artifact, assumption, tool result, or missing comparison that another check or qualified reviewer can examine.
 
@@ -745,7 +768,7 @@ In the context of the XR Lighthouse prompt, a critique agent might review a prop
 
 Question-answering resources such as QuArch, a benchmark for evaluating LLMs on computer architecture, make published architecture knowledge accessible to automated methods [@PrakashEtAl2025QuArch]. Critique also needs the project records that papers often omit, including tool settings, failed runs, rejected alternatives, and review decisions. Adjacent code-review research found that model-written critiques could help people find inserted bugs, while models acting alone also invented problems [@McAleeseEtAl2024CriticGPT]. That result motivates a testable architecture critique role. It does not establish that code-review performance transfers to architecture studies.
 
-### Repair
+### Repair Malformed Artifacts
 
 Repair begins from a known failure. It may correct a malformed configuration, fix tool syntax, patch a test bench, or revise an RTL fragment after simulation. The output should identify what changed, preserve the diff, rerun the check that found the failure, and report what remains unresolved. In the Chip-Chat flow described earlier, simulator and synthesis failures can prompt another Verilog revision, but the model does not get to declare its own revision correct [@BlockloveEtAl2023ChipChat].
 
@@ -755,14 +778,14 @@ For example, if the generated RTL for the RISC-V decoder fails to synthesize due
 An automated method may repair malformed artifacts, but the repair role does not include authority to relax a design constraint. The architect must record the violation and obtain a waiver from the person authorized to accept that risk before proceeding.
 :::
 
-### Verification
+### Verify Artifact Properties
 
 Verification checks a stated property against an oracle that can be inspected independently of the model output. The oracle may be a reference implementation, formal property, test suite, simulator behavior, synthesis constraint, or hardware measurement. The model may help construct tests or route failures, but it cannot generate an artifact, judge the adequacy of its own tests, approve its output, and call that independently.
 
 In physical design, verification might mean passing an LVS (Layout vs. Schematic) or DRC (Design Rule Check) before signing off on tapeout. For functional generation, a property checker such as SymbiYosys proves stated assertions on the generated RTL by model checking, while an equivalence checker proves that the RTL and its golden reference compute the same function. If the generative agent proposed a new instruction extension for XR vertex transformations, the verification agent must prove that this custom RTL is logically equivalent to the software C++ model. Similarly, KernelBench provides a narrow software example. If a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
 
 A verification result is no broader than the property and scope checked. A passing numerical test does not establish portability, timing closure, or system performance. A failed check returns a concrete result that may stop the candidate, trigger a bounded repair, or reach a reviewer. The policy governing that response and the amount of evidence required are separate from the verification role itself.
-## Explanation and Coordination
+## Explain and Coordinate the Design Loop
 
 Explanation uses recorded state, tool results, and rejected alternatives to connect a result to a proposed architectural mechanism. In an accelerator study, it should connect array geometry to utilization and cycle count and name a declared contrast that could challenge that account. A fluent explanation is a mechanism hypothesis and interpretation. It cannot repair a failed probe or make a weak observation support a stronger claim.
 
@@ -776,7 +799,7 @@ Every handoff incurs operational costs. Context can drop, an artifact can become
 
 AgentDSE's persistent workspace, an automated design space exploration framework, provides one example of inspectable coordination state, while Chip-Chat demonstrates human-model-tool coordination where the person retains the decision boundary [@WangEtAl2026AgentDSE; @BlockloveEtAl2023ChipChat]. Explanation and coordination can consume substantial expert attention even when they do not use a simulator license. Their value should be measured by the analysis or handoff work they save and by whether architects can still inspect the mechanism account, underlying artifacts, and unresolved failures.
 
-## One Model, Specialists, or a Hybrid System {#sec-one-model-specialists-hybrid}
+## Choose One Model, Specialists, or a Hybrid System {#sec-one-model-specialists-hybrid}
 
 Choose components only after role outputs and checks are specified. A single large model, a team of specialized agents, or a hybrid system with conventional architecture tools are engineering choices rather than stages of maturity.
 
@@ -788,7 +811,9 @@ The strongest case against this decomposition is the scaling argument that a sin
 
 The third reason is inference speed. Where a model sits in the loop determines how fast it must respond. A massive model suits outer-loop tasks such as proposing ideas or explaining an unexpected simulation result, where a query happens perhaps once an hour. An inner-loop optimizer that scores 10,000 cache configurations cannot wait seconds per query without stalling the search. Tight, high-volume loops need small, fast models.
 
-A scaling optimist will object that a sufficiently capable model with tool access absorbs these roles as capability grows, leaving decomposition a temporary artifact of today's weaker models. Two of the three reasons are indeed capability-contingent. A faster, more capable model erodes the inference-speed argument, and a stronger model that reasons about interacting constraints erodes the physical-reality argument. The independence reason is structural and does not yield to scale. A model that grades its own artifact supplies no check outside the process that produced it, however capable that process becomes, so an external verifier remains necessary and composition survives even very capable models.
+A scaling optimist will object that a sufficiently capable model with tool access absorbs these roles as capability grows, leaving decomposition a temporary artifact of today's weaker models. Two of the three reasons are indeed capability-contingent. A faster, more capable model erodes the inference-speed argument, and a stronger model that reasons about interacting constraints erodes the physical-reality argument.
+
+However, the independence reason is structural and does not yield to scale. A model that grades its own artifact supplies no check outside the process that produced it, however capable that process becomes. An external verifier remains necessary, and the human architect must compose these tools to ensure rigorous physical checks survive even very capable models.
 
 Before comparing AI organizations, an architect should state the minimum non-AI backbone. Deterministic schemas and scripts enforce legal formats and routine routing. Compiler, simulator, synthesis, formal, equivalence, and measurement tools return the domain observations or property checks they are built to produce. A person owns unresolved intent, coupled architectural tradeoffs, permission changes, ambiguous failures, and decision preparation. The comparison in @tbl-method-organization is therefore about where a specialized model or search method adds value to this backbone, rather than replacing every component with a monolithic agent.
 
@@ -807,7 +832,7 @@ Account for total cost when comparing organizations. Include inference, context 
 
 An architect tuning a tensor program can compare four ways to perform the work. An LLM could generate schedules only (one role). A coding agent could propose, read compiler feedback, repair, and explain (several roles). A specialized generator, surrogate, and optimizer could exchange state (specialists). A hybrid could use schedule-generation rules, a learned cost model, evolutionary search, a compiler, measured hardware runs, deterministic correctness tests, and a person who chooses the deployment boundary. KernelBench, AgentDSE, and AutoTVM illustrate the first, second, and fourth organizations respectively [@OuyangEtAl2025KernelBench; @WangEtAl2026AgentDSE; @ChenEtAl2018AutoTVM]. The organizational comparison becomes useful only when applied to complete, published study systems.
 
-## Composing Roles Under Study Constraints {#sec-choosing-a-method-under-constraints}
+## Compose Roles Under Study Constraints {#sec-choosing-a-method-under-constraints}
 
 An architect should be able to reconstruct and select a complete role composition for the study at hand. Begin from the study bottleneck, name each required output, choose the lowest-complexity fitting component, attach a rejection or return path, budget the feedback, expose shared assumptions, define failure containment, and leave decision preparation with a person.
 
@@ -878,7 +903,7 @@ For every method, the architect should state its job, feedback budget, independe
 - Use explanation to form a mechanism account, but leave the hypothesis open to testing.
 - Use coordination to route state and work, but do not combine authority across roles.
 
-A composition is useful when it reduces the limiting work without hiding which role produced each result or which check can reject it.
+A composition is useful when it reduces the limiting work without hiding which role produced each result or which check can reject it. Ultimately, the core thesis of Architecture 2.0 is that generation without independent verification inevitably produces physically ungrounded artifacts. To prevent these hallucinations from corrupting the design loop, methods must be composable but strictly sequenced: **Generate** to explore the candidate space, **Predict** via fast surrogates to filter unpromising options, and **Verify** against a ground-truth physical oracle.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Choose and compose AI roles according to the work limiting the bounded architecture study, not a model leaderboard.
