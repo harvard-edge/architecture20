@@ -1,4 +1,4 @@
-# Running the Loop {#sec-running-the-loop}
+# Run the Loop {#sec-running-the-loop}
 
 ::: {.epigraph}
 > *"In theory, there is no difference between theory and practice. But, in practice, there is."*
@@ -15,13 +15,17 @@
 What must an architect fix, execute, and preserve so that one bounded AI-assisted study reaches no conclusion stronger than its recorded results?
 :::
 
-This crux addresses baseline shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, the penalty for guessing wrong is severe. Waiting eight hours for a physical routing failure consumes vastly more calendar time and limited FlexLM license checkouts than waiting ten milliseconds for a Python syntax error. This trial-and-error hides massive physical costs, and the design loop must be strictly bounded to prevent them.
+This crux addresses baseline shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates—often employing the ReAct (Reasoning and Acting) pattern to achieve better search space efficiency—but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture.
+
+In a real EDA environment, the penalty for guessing wrong is severe. Waiting eight hours for a physical routing failure consumes vastly more calendar time and limited FlexLM license checkouts than waiting ten milliseconds for a Python syntax error. This trial-and-error hides massive physical costs. To combat this, the design loop must be strictly bounded, and the AI agent must employ autonomous recovery by parsing actual physical verification logs rather than merely retrying crashed scripts blindly.
 
 Before any model or simulator output is known, the architect fixes the workload, legal array shapes, simulator configuration, comparison budget, rejection criteria, and decision owner. Fixing these choices prevents post-result goalpost moving and enforces discipline without claiming the choices were intrinsically optimal, serving as the baseline search strategy that an AI generative proposer must beat (@sec-methods-generation-prediction-optimization).
 
-## The Control Case Experiment
+## Execute the Control Case Experiment
 
-The experiment below is deliberately modest, yet it anchors back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform. We specifically zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms under one frozen configuration [@RajEtAl2025ScaleSimV3], and a declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, full-chip XR evaluation, and tapeout, it illustrates how a bounded architectural question is rigorously executed. It evaluates whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported cleanly without being recast as an AI success.
+The experiment below serves as a proof-of-concept for the automated Architecture 2.0 loop in motion. While deliberately modest, it instantiates the framework on a concrete architectural problem, anchoring back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform. We specifically zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. Instead of brute-forcing all geometries, the AI proposes candidates that must satisfy physical constraints like die area and wiring congestion before simulation.
+
+One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms under one frozen configuration [@RajEtAl2025ScaleSimV3], and a declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, full-chip XR evaluation, and tapeout, it illustrates how a bounded architectural question is rigorously executed. It evaluates whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported cleanly without being recast as an AI success.
 
 The experiment still reaches a reviewable result, although no nonbaseline shape clears the declared decision margin. The model and fixed heuristic arms tie, and the model's directional prediction fails its contrast. The recorded status-quo recommendation is to retain the 32 by 32 baseline for the five unique evaluated shapes and stop this bounded search. For context, an illustrative system might use specific square or rectangular datapath dimensions (e.g., 256 by 256) optimized for its target workloads; our 32 by 32 baseline similarly serves as a fixed reference point rather than a claim of global optimality among all fifteen legal shapes. Another reader can inspect the proposal and rerun the recorded simulator computation without mistaking that replay for independent validation of the workload, score, or simulator.
 
@@ -34,13 +38,13 @@ study. That means you can:
 - **Separate** the architecture outcome, AI contribution, mechanism explanation,
   and stopping decision;
 - **Lock** simulation parameters via scientific preregistration to prevent baseline shopping;
-- **Validate** structured output, bound repair, and preserve rejected alternatives;
+- **Validate** structured output, manage search space efficiency with the ReAct pattern, and implement autonomous recovery via physical verification logs;
 - **Challenge** a proposed mechanism with a declared distinguishing contrast; and
 - **Distinguish** replay of the recorded computation from independent reproduction and validation.
 :::
 
 
-## Four Separate Judgments
+## Render Four Separate Judgments
 
 A candidate ranking does not answer every question in an AI-assisted architecture study, so this experiment produces four distinct judgments from different parts of the record.
 
@@ -136,9 +140,9 @@ three-layer workload, local score, 32 by 32 baseline, 1 percent decision margin,
 an architecture choice that would need a rationale and sensitivity analysis
 before a broader decision relied on it.
 
-## Design State and Mechanism Hypothesis
+## Formalize the Design State and Mechanism Hypothesis
 
-As established in @sec-data-representations-world-models, general knowledge is meaningless without explicit project constraints. The representation for this study is small, serving as a specific record rather than a general world model of the accelerator. The fifteen legal shapes, baseline, mutable array dimensions, fixed simulator conditions, local score, and workload matrices form the explicit design state. The candidate representation changes only the datapath's `ArrayHeight` and `ArrayWidth`, while the weight-stationary dataflow, SRAM capacity, interface bandwidth, layout, workload, and simulator version remain fixed.
+As established in @sec-data-representations-world-models, general knowledge is meaningless without explicit project constraints. The representation for this study is small, serving as a specific record rather than a general world model of the accelerator. The fifteen legal shapes, baseline, mutable array dimensions, fixed simulator conditions, local score, and workload matrices form the explicit design state. By formalizing these variables, the architect retains authority over the design boundaries. In this instance, the candidate representation changes only the datapath's `ArrayHeight` and `ArrayWidth`, while the weight-stationary dataflow, SRAM capacity, interface bandwidth, layout, workload, and simulator version remain fixed.
 
 That representation is useful only if a candidate change can be connected to a predicted consequence. The model proposed three shape deltas and predicted that a wider 16 by 64 array would better match the workload's N dimensions than its mirrored 64 by 16 alternative, further asserting that exchanging M and N in the workload would reverse the winner. The AI's ability to predict a directional outcome relies on its learned statistical priors, which must be tested against the simulator acting as the execution world model. The proposal therefore emitted both a design-state change and a testable consequence hypothesis that the simulator could challenge.
 
@@ -152,7 +156,9 @@ since under weight-stationary mapping the GEMM axes bind to array height and
 width through the loaded weight tile, so exchanging M and N does not simply swap
 the two array dimensions and width does not cleanly correspond to the N-side
 effect. The explanation assumes that array width corresponds to the relevant
-N-side effect. That premise was not grounded in the retained study context.
+N-side effect.
+
+That premise was not grounded in the retained study context.
 The transposition still distinguishes the model's exact directional prediction,
 but it is not a causally isolated test of orientation. This mismatch is an open
 follow-up, not permission to invent a replacement explanation after the result.
@@ -180,11 +186,11 @@ The role separation in @tbl-practitioner-path matters because while the model an
 
 ## Record the Model Call and an Environment Failure
 
-The model received the architecture question, legal dimension set, processing-element budget, workload matrix dimensions, fixed environment assumptions, mandatory baseline, output schema, scoring definition, and evidence boundary, but it did not receive the fixed heuristic's candidates or simulator results. Its response had to name three candidates, predict qualitative behavior, state an anticipated failure mode, and propose a directional mechanism with a testable failure condition.
+The model received the architecture question, legal dimension set, processing-element budget, workload matrix dimensions, fixed environment assumptions, mandatory baseline, output schema, scoring definition, and evidence boundary, but it did not receive the fixed heuristic's candidates or simulator results. The model then proposed a design mutation by naming three candidates, predicting qualitative behavior, stating an anticipated failure mode, and offering a directional mechanism with a testable failure condition. The architect evaluates this output as a candidate, not a final decision.
 
-The first attempt to invoke the runtime never reached inference because the response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference.
+The first attempt to invoke the runtime never reached inference because the response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference. Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations.
 
-Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations. While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol.
+While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. In a physical design loop, a useful model must parse actual physical verification failures—like negative slack reports or DRC violations—rather than merely retrying crashed scripts.
 
 ::: {.callout-war-story title="The illusion of zero-shot success"}
 **The claim.** An AI model generates a highly optimized architecture design on the first try, claiming zero-shot capability in a published paper.
@@ -216,8 +222,9 @@ heuristic ranked legal shapes by processing-element count, then by closeness to
 the workload's aggregate N-to-M aspect ratio, with a deterministic tie break.
 It proposed 16 by 64, 8 by 128, and 64 by 16. The two arms therefore selected
 two of the same nonbaseline shapes. Including the shared 32 by 32 baseline, the
-union contains five unique evaluated shapes from the fifteen legal shapes. This
-overlap matters because the shared choices cannot be attributed uniquely to the
+union contains five unique evaluated shapes from the fifteen legal shapes.
+
+This overlap matters because the shared choices cannot be attributed uniquely to the
 model. The arms agree on two of their three proposals and differ in only one,
 where the model's 32 by 16 and the heuristic's 64 by 16 are each dominated. With
 only fifteen legal shapes and two competent proposers converging this closely,
@@ -251,7 +258,9 @@ evaluations.
 
 : **The model and fixed heuristic arms tie under equal simulator-call budgets.** Neither finds a nonbaseline candidate that clears the predeclared 1 percent decision margin over 32 by 32. Values are computed by SCALE-Sim, not measured on silicon. {#tbl-ai-study-results tbl-colwidths="[12,23,11,18,14,22]"}
 
-The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers. At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses. Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. This is a classic case of proxy mismatch as described in @sec-feedback-verification-trust. The composite score gamed the system by ignoring memory traffic. In a physical chip, doubling DRAM traffic blows up the energy budget and requires wider physical interfaces, necessitating independent oracles like power analysis tools beyond a simple cycle simulator. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does. The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
+The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers. At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses. Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. This is a classic case of proxy mismatch as described in @sec-feedback-verification-trust.
+
+The composite score gamed the system by ignoring memory traffic. In a physical chip, doubling DRAM traffic blows up the energy budget and requires wider physical interfaces, necessitating independent oracles like power analysis tools beyond a simple cycle simulator. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does. The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
 @fig-ai-study-result places the two conclusions side by side. In the left panel,
 the comparison is whether either arm moves below the baseline. In the right
 panel, the test is whether the mirrored shapes exchange positions after the
@@ -338,7 +347,9 @@ plt.show()
 In the left panel, the 32 by 32 baseline and 16 by 64 candidate have the same
 shortest bar in both arms. No nonbaseline shape moves below the baseline. In the
 right panel, 16 by 64 remains below 64 by 16 after M and N are exchanged. The
-gap narrows, but the lines do not cross. The first panel shows why no change is
+gap narrows, but the lines do not cross.
+
+The first panel shows why no change is
 warranted for the five evaluated shapes and why the two proposal arms tie on
 simulator score. It does not establish that 32 by 32 is optimal across all
 fifteen legal shapes or that the two methods consumed equal total effort. The
@@ -346,7 +357,7 @@ second panel weakens the exact directional explanation. Together, the panels
 warrant stopping this bounded search rather than declaring a new winner or
 inventing an explanation after the fact.
 
-## Testing the Mechanism With a Matched Contrast
+## Test the Mechanism With a Matched Contrast
 
 The model predicted that 16 by 64 would beat its mirrored 64 by 16 shape on the
 original workload because the wider array would align better with the supplied
@@ -443,7 +454,7 @@ representativeness, justify the local score or thresholds, resolve the missing
 mapping semantics, or predict the output of another model call. Those are new
 claims requiring new evidence.
 
-## Open Research Questions
+## Frame Open Research Questions
 
 Each question below grows out of a difficulty this bounded study exposed. The equal-call tie, the failed mechanism contrast, the memory axis the local score never registered, and the model call that cannot be replayed exactly each point to a problem one well-run study cannot settle. Every question asks what an AI system must expose, match, detect, or leave to the architect, and judges success by the effect on an architecture decision rather than on a model score. In each case the comparison is with how architects run bounded studies today.
 
@@ -471,14 +482,14 @@ Each question below grows out of a difficulty this bounded study exposed. The eq
 
    This chapter judged a single study by hand, separating the architecture outcome, the AI contribution, the mechanism explanation, and the stopping decision, and it stressed that one model call cannot establish a population-level result about a model family. The wider open problem is to evaluate the agent itself across many bounded studies rather than one, so the evaluation reflects its effect on real architecture decisions and stays meaningful as the underlying model changes rather than rewarding one generation's habits on one workload. The hand-run four-judgment review used here and general-purpose agent benchmarks are the starting baseline, and the measure is whether such an evaluation predicts an agent's effect on retained architecture decisions and holds its ranking of agents steady across successive model generations.
 
-## Conclusion
+## Conclude the Execution
 
 This bounded integration study ends with a tie against the baseline, where the model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the 32 by 32 baseline. This no-change outcome carries weight because the decision rule was fixed before execution, not because any candidate was exposed as flawed; the nonbaseline shapes tied or were dominated, and none was ruled out as defective.
 
-More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, any post-hoc rationalization or baseline shopping would be visible against the recorded rule rather than silent. Architecture must treat AI as a candidate generator and leave the simulator as the final judge. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
+More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, any post-hoc rationalization or baseline shopping would be visible against the recorded rule rather than silent. Moving forward, as agents leverage the ReAct pattern for greater search space efficiency, they will inevitably generate more complex proposals. Architecture must treat AI as a candidate generator capable of autonomous recovery from physical verification logs, but strictly leave the simulator as the final judge. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
 
 ::: {.callout-carry-forward}
-- **Carry forward:** Keep the architecture outcome, AI contribution, mechanism explanation, and stopping decision separate, and preserve every evaluated candidate even when the result is no change, an equal-call tie, a contradicted directional prediction, or an unsupported mechanism explanation.
+- **Carry forward:** Keep the architecture outcome, AI contribution, mechanism explanation, and stopping decision separate. Preserve every evaluated candidate, require search space efficiency through reasoning and acting (ReAct), and demand autonomous recovery via physical verification logs, even when the final result is a no-change tie or an unsupported mechanism explanation.
 - **Reader test:** Can another architect distinguish replay of the fixed computation from independent reproduction, identify the missing mapping semantics, and explain why stopping does not imply optimality?
 - **Up next:** @sec-evaluating-agentic-architect introduces the formal metrics and philosophy required to evaluate the AI agent itself across these loops.
 :::
