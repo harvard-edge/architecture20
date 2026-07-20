@@ -1,4 +1,4 @@
-# The Scaling Limits of Traditional Design {#sec-design-loop-no-longer-scales}
+# The Design Loop No Longer Scales {#sec-design-loop-no-longer-scales}
 
 ::: {.epigraph}
 > *"Feedback is the control of a system by reinserting into the system the results of its performance. If these results are merely used as numerical data for the criticism of the system and its regulation, we have the simple feedback of the control engineers."*
@@ -10,9 +10,6 @@
 **Author's Note:** Norbert Wiener, who founded cybernetics, made feedback the defining property of control. This chapter uses that familiar idea to examine why modern architecture work is harder to complete and where AI might help.
 :::
 
-```{=latex}
-\abstract*{This chapter explains why familiar architecture work has become harder to complete and where AI may help. More information and feedback must stay synchronized, specialization and chiplets create coupled choices, hardware proposals include an executable software path, software keeps moving before and after release, and stronger evidence can reverse an early result. These pressures compound into missing information, unhelpful choices, scarce evaluation, overloaded review, and unclear decisions. AI is useful only when it reduces one of those burdens without weakening the comparison or moving the work elsewhere.}
-```
 
 ::: {.callout-crux}
 Why is familiar architecture work becoming harder to complete, and where can
@@ -473,6 +470,22 @@ whether the survivors are valid and worth deeper analysis. A hardware ranking
 also remains provisional until the software can use the design.
 
 The binding limit often becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI's most defensible role here is triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
+
+### Advanced Packaging and "Known Good Die" Testing
+
+The composition of systems into chiplets introduces physical and economic penalties that narrow the viable design space. In 2.5D and 3D integration, such as TSMC CoWoS or Intel Foveros, discovering a defective chiplet only after packaging ruins the entire expensive assembly, including the silicon interposer and pristine High Bandwidth Memory (HBM) stacks. This economic penalty shifts the burden of testability leftward, demanding high-coverage, pre-bond test patterns at the bare-die stage. An AI agent proposing a novel chiplet partition cannot merely optimize for interconnect bandwidth or power; it must also ensure that the topology does not obscure test access, treating Known Good Die (KGD) constraints as a strict filter on valid architectures.
+
+### Reliability, Fault Tolerance, and Safety
+
+As physical constraints multiply, a candidate's viability extends beyond performance and power to encompass soft errors, silicon aging phenomena such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and manufacturing variations. In specialized domains, such as automotive systems governed by ISO 26262 or aerospace applications, reliability is a primary evaluation bottleneck. Evaluating these metrics requires statistical fault injection and aging simulations, rather than deterministic cycle counts. A generative AI that hill-climbs solely for peak instructions per cycle will produce brittle designs. It must instead reason over statistical proofs of reliability, acknowledging that peak performance is irrelevant if the system fails in the field.
+
+### Hardware Security and Isolation Verification
+
+Security evaluation adds a further dimension that cheap performance proxies cannot capture. Systemic security involves verifying information flow and isolation across complex privilege levels and untrusted third-party intellectual property (IP). While a functional bug causes a crash, a security bug causes a breach, fundamentally altering the stakes of the design loop. When an AI optimizer aggressively shares speculative state buffers or execution units between secure and non-secure domains to save power, it risks inadvertently opening side-channel vulnerabilities. Because proxies cannot measure security guarantees, the evaluation loop must incorporate expensive formal methods or extensive penetration testing to verify that a structurally optimal candidate does not violate information flow.
+
+### Power Delivery Networks and Thermomechanical Stress
+
+Beneath the architectural organization lies the stark physical reality of dark silicon. Pushing hundreds of amps into a tightly packed chiplet package creates localized thermal hotspots and severe Power Delivery Network (PDN) stress. Moving data does not just consume average energy; it can fail signoff due to thermomechanical warping or localized voltage droop even if the aggregate energy budget appears acceptable. An AI cost model must represent spatial power distribution and layout-aware congestion. If an agent relies purely on aggregate power proxies, it will confidently hallucinate feasible-looking designs that would physically warp the substrate, wasting expensive downstream synthesis cycles.
 
 ## Hardware Proposals Include an Executable Software Path
 
@@ -1251,6 +1264,10 @@ and to judge whether it helped.
 The practical test is to identify the work limiting progress before choosing a
 method. AI is useful only when it reduces that specific burden without creating
 more verification, review, or decision work elsewhere.
+
+### Open Source Hardware and IP Integration
+
+A final layer of complexity in composition is the reliance on third-party IP. Modern SoCs are not built entirely from scratch; they integrate proprietary blocks such as ARM cores, PCIe PHYs, and DDR controllers. The design loop stalls when architects, and by extension AI agents, must treat these IPs as black boxes, relying on static vendor datasheets and opaque models rather than fully executable, open-source RTL. An AI agent cannot co-optimize the internals of proprietary IP; it must instead navigate interface boundaries and synthesize glue logic based on incomplete, non-executable data. This opaque boundary forces the loop to rely on integration-level testing rather than cycle-accurate internal metrics, significantly complicating the verification of timing and power constraints across the SoC.
 
 ```{=latex}
 \FloatBarrier

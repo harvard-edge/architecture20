@@ -10,17 +10,16 @@
 **Author's Note:** The aphorism fits this study, which compares a model proposal against a fixed aspect-ratio heuristic in a physical simulator. The model's explanation fails a declared distinguishing contrast. It proves useful precisely because the recorded results are less exciting than the initial hypothesis.
 :::
 
-```{=latex}
-\abstract*{This chapter presents one bounded integration study using a recorded model response and SCALE-Sim, a cycle-accurate systolic array simulator. The model and a fixed aspect-ratio heuristic each select three candidates under identical simulator-call budgets. Across five unique evaluated shapes, no nonbaseline candidate clears the declared decision margin. The two proposal arms reach an equal-call tie, while the model's directional mechanism prediction contradicts its declared contrast. This study demonstrates how to preserve a no-change architecture outcome, an equal-call tie, a contradicted directional prediction, an unsupported mechanism explanation, and a stopping decision without claiming that one small experiment validates the complete Architecture 2.0 discipline.}
-```
 
 ::: {.callout-crux}
 What must an architect fix, execute, and preserve so that one bounded AI-assisted study reaches no conclusion stronger than its recorded results?
 :::
 
-This crux addresses baseline shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, where a single iteration takes days of RTL simulation and fighting for limited FlexLM license checkouts, this trial-and-error hides massive physical and calendar costs. The design loop must be strictly bounded to prevent these hidden expenses.
+This crux addresses baseline shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture. In a real EDA environment, the penalty for guessing wrong is severe. Waiting eight hours for a physical routing failure consumes vastly more calendar time and limited FlexLM license checkouts than waiting ten milliseconds for a Python syntax error. This trial-and-error hides massive physical costs, and the design loop must be strictly bounded to prevent them.
 
-Before any model or simulator output is known, the architect fixes the workload, legal array shapes, simulator configuration, comparison budget, rejection criteria, and decision owner. Fixing these choices prevents post-result goalpost moving and enforces discipline without claiming the choices were intrinsically optimal.
+Before any model or simulator output is known, the architect fixes the workload, legal array shapes, simulator configuration, comparison budget, rejection criteria, and decision owner. Fixing these choices prevents post-result goalpost moving and enforces discipline without claiming the choices were intrinsically optimal, serving as the baseline search strategy that an AI generative proposer must beat (@sec-methods-generation-prediction-optimization).
+
+## The Control Case Experiment
 
 The experiment below is deliberately modest, yet it anchors back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform. We specifically zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms under one frozen configuration [@RajEtAl2025ScaleSimV3], and a declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, full-chip XR evaluation, and tapeout, it illustrates how a bounded architectural question is rigorously executed. It evaluates whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported cleanly without being recast as an AI success.
 
@@ -139,9 +138,9 @@ before a broader decision relied on it.
 
 ## Design State and Mechanism Hypothesis
 
-The representation for this study is small, serving as a specific record rather than a general world model of the accelerator. It records the workload matrices, baseline, mutable array dimensions, fifteen legal shapes, fixed simulator conditions, local score, and the allowed decisions. The candidate representation changes only the datapath's `ArrayHeight` and `ArrayWidth`, while the weight-stationary dataflow, SRAM capacity, interface bandwidth, layout, workload, and simulator version remain fixed.
+As established in @sec-data-representations-world-models, general knowledge is meaningless without explicit project constraints. The representation for this study is small, serving as a specific record rather than a general world model of the accelerator. The fifteen legal shapes, baseline, mutable array dimensions, fixed simulator conditions, local score, and workload matrices form the explicit design state. The candidate representation changes only the datapath's `ArrayHeight` and `ArrayWidth`, while the weight-stationary dataflow, SRAM capacity, interface bandwidth, layout, workload, and simulator version remain fixed.
 
-That representation is useful only if a candidate change can be connected to a predicted consequence. The model proposed three shape deltas and predicted that a wider 16 by 64 array would better match the workload's N dimensions than its mirrored 64 by 16 alternative, further asserting that exchanging M and N in the workload would reverse the winner. The proposal therefore emitted both a design-state change and a testable consequence hypothesis that the simulator could challenge.
+That representation is useful only if a candidate change can be connected to a predicted consequence. The model proposed three shape deltas and predicted that a wider 16 by 64 array would better match the workload's N dimensions than its mirrored 64 by 16 alternative, further asserting that exchanging M and N in the workload would reverse the winner. The AI's ability to predict a directional outcome relies on its learned statistical priors, which must be tested against the simulator acting as the execution world model. The proposal therefore emitted both a design-state change and a testable consequence hypothesis that the simulator could challenge.
 
 ![**GEMM dimensions map onto the array.** M and N map to array height and width under weight-stationary mapping; transposing M and N does not simply swap the two.](images/F8-array-mapping.svg){#fig-array-mapping fig-alt="A systolic array with GEMM M and N labels on its height and width, and a second panel showing the workload after M and N are exchanged, illustrating that the mapping to array height and width does not simply invert."}
 
@@ -185,7 +184,15 @@ The model received the architecture question, legal dimension set, processing-el
 
 The first attempt to invoke the runtime never reached inference because the response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference.
 
-Toolchain failures must be isolated from architectural evaluations. While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol.
+Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations. While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol.
+
+::: {.callout-war-story title="The illusion of zero-shot success"}
+**The claim.** An AI model generates a highly optimized architecture design on the first try, claiming zero-shot capability in a published paper.
+
+**The gap.** The publication omitted the fifty prior manual iterations where the architect tweaked the prompt, added constraints, and fixed syntax errors. This prompt shopping hides the true human-in-the-loop cost, framing a heavily curated result as autonomous intelligence.
+
+**The lesson.** Bounded studies must record all inference attempts, repairs, and environment failures. The true cost of a candidate includes the discarded prompts and failed runs that led to it.
+:::
 
 The subsequent call returned a schema-valid response. Since semantic validation found three unique legal candidates, no repair call was made. The complete response is retained, not only the candidate coordinates or a prose summary. The runtime exposed only part of the provenance needed to identify the call, so @tbl-model-provenance records the supplied values and marks the rest as unavailable instead of inferring them.
 
@@ -244,7 +251,7 @@ evaluations.
 
 : **The model and fixed heuristic arms tie under equal simulator-call budgets.** Neither finds a nonbaseline candidate that clears the predeclared 1 percent decision margin over 32 by 32. Values are computed by SCALE-Sim, not measured on silicon. {#tbl-ai-study-results tbl-colwidths="[12,23,11,18,14,22]"}
 
-The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers. At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses. Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does. The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
+The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers. At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses. Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. This is a classic case of proxy mismatch as described in @sec-feedback-verification-trust. The composite score gamed the system by ignoring memory traffic. In a physical chip, doubling DRAM traffic blows up the energy budget and requires wider physical interfaces, necessitating independent oracles like power analysis tools beyond a simple cycle simulator. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does. The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
 @fig-ai-study-result places the two conclusions side by side. In the left panel,
 the comparison is whether either arm moves below the baseline. In the right
 panel, the test is whether the mirrored shapes exchange positions after the
@@ -397,6 +404,16 @@ answer.
 | Reference manifest and replay | Whether retained files match their hashes and a network-free rerun regenerates every stable input, report, metric, and result. |
 
 : **Files and commands available for review.** These artifacts do not establish that the simulator is accurate or the workload representative. They preserve the declared run so that reviewers can examine those assumptions. {#tbl-study-archive tbl-colwidths="[26,64]"}
+
+These artifacts support verification across three distinct levels of scrutiny, as categorized in @tbl-verification-levels.
+
+| **Verification Level** | **Action** | **What It Establishes** |
+| --- | --- | --- |
+| Replay | Rerunning the exact same simulator logs with the same deterministic inputs. | Proves the execution is honest and the math adds up. |
+| Reproduction | Rerunning the AI agent with the same prompt and seed. | Highlights model drift, API changes, and non-determinism. |
+| Independent validation | A different team building a different model or testbench to evaluate the same architectural claim in RTL. | Proves the architectural mechanism holds in physical reality, using independent oracles. |
+
+: **Three levels of verification.** True architectural trust requires independent validation, while replay guarantees only that the study faithfully executed its own declared loop. {#tbl-verification-levels tbl-colwidths="[22,38,40]"}
 
 The preregistration and model artifacts show what was fixed before inference.
 The raw reports and parsed results show what SCALE-Sim returned. The manifest

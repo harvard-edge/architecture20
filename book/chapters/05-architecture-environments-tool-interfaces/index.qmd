@@ -10,9 +10,6 @@
 **Author's Note:** John Culkin, an influential American media scholar, observed that tools reshape how people work. An architecture tool also shapes what an AI method can change and what an architect can observe. Those limits must be explicit when the method acts through the tool.
 :::
 
-```{=latex}
-\abstract*{An AI method needs more than permission to call an architecture tool. The tool path must expose a read, action, and return interface that connects a candidate change to several legal tool actions. This chapter develops that environment interface across multi-action execution, cross-layer candidate identity, asynchronous execution mechanics, typed returns, and environment maintenance, ensuring the environment remains interpretable as tools and schemas change.}
-```
 
 ::: {.callout-crux}
 How do we bridge the semantic gap between an AI's abstract intent and the messy, stateful reality of computer architecture tools to create a reliable design environment?
@@ -36,16 +33,16 @@ After this chapter you can turn an ad-hoc tool path into a documented environmen
 
 ## The Balancing Act of Architecture Environments
 
-An architecture environment constantly weighs fidelity against execution cost, and determinism against the flakiness of real tools. A fast analytical cache model returns an estimate in seconds but approximates timing, while a cycle-accurate RTL run costs hours and can still vary from one attempt to the next because of tool heuristics and host state.
+An architecture environment constantly weighs fidelity against execution cost, and determinism against the flakiness of real tools. This trade-off forms a "fidelity ladder" that agents must navigate. A fast analytical cache model at the top of the ladder returns an estimate in seconds but only approximates timing, making it cheap but physically unconstrained. Conversely, a physical simulator or cycle-accurate RTL run at the bottom of the ladder guarantees true physical constraints, but costs hours of compute and can still vary from one attempt to the next because of tool heuristics and host state.
 
 An AI expects fast, deterministic APIs, but hardware design relies on slow, stateful, and expensive legacy software. The environment sits between them. It gives the AI enough autonomy to explore the design space at scale while enforcing strict rules through permissions, budgets, and interface schemas. These rules ensure the agent does not propose physically impossible designs or waste compute time on broken Electronic Design Automation (EDA) runs.
 
 ## The Origin Mismatch Between Human Intuition and AI APIs
 
 
-For decades, architecture tools such as CACTI for memory modeling [@MuralimanoharEtAl2009CACTI], DRAMSys for memory controllers [@WeisEtAl2021DRAMSys], or gem5 for full-system simulation [@BinkertEtAl2011Gem5] were engineered to support human intuition and manual workflows. They often assume an architect who can read dense log files, debug build errors interactively, or interpret color-coded waveforms in an RTL viewer. Inserting a custom vector block into an XR subsystem requires modifying Chisel, a hardware construction language used to generate RTL, changing linker scripts, and hacking a Device Tree Blob (DTB), all disconnected from a clean API.
+In modern machine learning, an agent typically interacts with an environment (such as an OpenAI Gym simulation) via a clean, synchronous loop: the agent takes an action, and the environment instantly returns a new state and a dense scalar reward. For decades, architecture tools such as CACTI for memory modeling [@MuralimanoharEtAl2009CACTI], DRAMSys for memory controllers [@WeisEtAl2021DRAMSys], or gem5 for full-system simulation [@BinkertEtAl2011Gem5] were engineered to support human intuition and manual workflows, not programmatic APIs. They assume an architect who can read dense log files, debug build errors interactively, or interpret color-coded waveforms in an RTL viewer. Inserting a custom vector block into an XR subsystem requires modifying Chisel, a hardware construction language used to generate RTL, changing linker scripts, and hacking a Device Tree Blob (DTB), all disconnected from a clean API.
 
-This legacy created the **semantic gap**. This massive gulf separates the high-level semantic intent of a design ("increase the cache size to improve hit rate") from the low-level, unstructured mechanics of the tool itself (editing a specific line in a `.cfg` file, running a brittle bash script, and parsing a 10,000-line unstructured log file to extract one metric). This gap directly results from the transparency gradient. The EDA tools at the bottom of the stack rely heavily on the tacit knowledge of physical design engineers to interpret unroutable netlists. In contrast, an AI system requires fully explicit, programmatic interfaces.
+This legacy shatters the familiar ML environment paradigm, creating a severe **semantic gap**. This massive gulf separates the high-level semantic intent of a design ("increase the cache size to improve hit rate") from the low-level, unstructured mechanics of the tool itself. Instead of returning a simple scalar reward, EDA tools return gigabytes of unparsed logs, crash silently, or hang for days. This gap directly results from the transparency gradient. The EDA tools at the bottom of the stack rely heavily on the tacit knowledge of physical design engineers to interpret unroutable netlists. In contrast, an AI system requires fully explicit, programmatic interfaces.
 
 
 Foundation models interact most reliably with external software through strict, typed APIs rather than unconstrained shell commands. Tool-use research points the same way: Toolformer teaches a model to invoke typed APIs for subtasks it cannot perform reliably on its own [@SchickEtAl2023Toolformer]. This maps directly to the architectural domain. While "computer use" models can visually parse GUIs and move a mouse, relying on visual GUI automation for architecture design is brittle and computationally inefficient. Because of this, system intent, a GUI, and simple permission to call a tool are insufficient for real architecture work.
@@ -156,7 +153,7 @@ However, ensuring data provenance and reproducibility is impossible if the agent
 
 ## Killing the Synchronous `env.step()`
 
-In pedagogical AI tutorials, agents often interact with simulated games (like OpenAI Gym) using a synchronous `env.step()` function. The agent takes a discrete action, the simulation instantly steps forward in time, and the function returns the new state and a reward. However, because of the physical and economic constraints of real hardware design, this standard synchronous `env.step()` wrapper (which blocks execution until a scalar reward is returned) is the wrong abstraction. This again highlights why hardware benchmarking is so much harder than SWE-bench. You cannot just `env.step()` a physical synthesis flow. A blocking synchronous call will inevitably time out or hang when a placement job takes 40 hours, or waits three days for an EDA license checkout.
+In pedagogical AI tutorials, agents often interact with simulated games using a synchronous `env.step()` function. The agent takes a discrete action, the simulation instantly steps forward in time, and the function returns the new state and a reward. However, because of the physical and economic constraints of real hardware design, this standard synchronous wrapper is the wrong abstraction. This highlights the "Simulator Tax" in practice: an agent waiting for a synchronous `env.step()` could wait 8 hours for a physical routing failure in an EDA tool, compared to the 10 milliseconds it takes to receive a Python syntax error in a software environment. You cannot just `env.step()` a physical synthesis flow. A blocking synchronous call will inevitably time out or hang when a placement job takes 40 hours, or waits three days for an EDA license checkout.
 
 Synchrony is only the most visible assumption this tutorial abstraction imports. Gym also assumes a cheap reset, yet an architecture environment has none; branching from a pristine snapshot is the closest equivalent, and every branch still pays real build and simulation cost. It assumes a Markov step whose outcome depends only on the action, while EDA tools carry hidden cross-call state in caches, working directories, and license servers. It assumes a dense scalar reward after every step, where architectural feedback is sparse and arrives only at the end of a long chain of builds and checks, leaving a poor final result hard to attribute to any single upstream action. Each of these gaps has to be engineered away in the harness rather than the learning algorithm. The harness, not the agent that acts against it, is the deliverable.
 
@@ -164,7 +161,14 @@ Consequently, real tool chains require asynchronous, scarce, and protected execu
 
 A critical requirement of this asynchronous system is explicitly distinguishing between an **infrastructure failure** and an **architectural constraint violation**. If an AI proposes an SRAM configuration and the simulator crashes due to a host Out-Of-Memory (OOM) error, or because a license^[Many commercial EDA tools require checking out a network license token before they will execute, which can cause jobs to hang if tokens are exhausted.] server went offline, this is an infrastructure failure. If the AI is simply penalized for this attempt, it will incorrectly assume the SRAM configuration itself is invalid, polluting the design space exploration with infrastructure noise.
 
-The environment harness must catch infrastructure failures and flag them as `RETRY_ELIGIBLE` or `TOOL_CRASH`, preventing the AI from absorbing false negative architectural lessons. Only true architectural failures, such as failing to meet a timing constraint in synthesis or causing a thermal violation in the system's 3 W envelope, should be passed back to the AI as negative design feedback.
+| **Failure type** | **Symptom** | **Environment action** | **Architectural meaning** |
+| --- | --- | --- | --- |
+| Infrastructure failure | Host out of memory, EDA license checkout timeout, cluster node crash. | Flag as `RETRY_ELIGIBLE` or `TOOL_CRASH`. | None. The candidate remains untested and must not be penalized in the design space. |
+| Architectural constraint | Negative timing slack, unroutable netlist congestion, thermal violation > 3 W. | Flag as valid evaluation return. | Negative design feedback. The candidate is physically infeasible and should be rejected or penalized. |
+
+: **Distinguishing infrastructure from architecture.** An AI agent must not learn negative architectural lessons from cluster flakiness. The environment harness must trap infrastructure failures and handle them separately from true physical design constraints. {#tbl-failure-taxonomy tbl-colwidths="[20,30,25,25]"}
+
+The environment harness must catch infrastructure failures and flag them appropriately (@tbl-failure-taxonomy), preventing the AI from absorbing false negative architectural lessons. Only true architectural failures, such as failing to meet a timing constraint in synthesis or causing a thermal violation in the system's 3 W envelope, should be passed back to the AI as negative design feedback.
 
 Some tool crashes, however, carry real architectural signal. A pathological candidate can exhaust host memory, prove unroutable, or fail synthesis because its own resource footprint is infeasible rather than because the cluster is at fault. The harness cannot always separate the two before running, so it needs a retry-with-fingerprint rule. If the same candidate crashes the same tool in the same way across repeated attempts, the harness reclassifies the outcome from `TOOL_CRASH` to an architectural infeasibility signal instead of looping and burning the retry budget. The safe-by-construction action space described later is the first line of defense against these cases, but it cannot catch every infeasible footprint before execution.
 
@@ -199,7 +203,7 @@ Distillation must preserve, not discard, unclassified anomalies. A parser tuned 
 
 To make these paths concrete, @lst-schema-example illustrates the JSON payload an AI agent might exchange with the environment wrapper during the read/action cycle.
 
-```json {#lst-schema-example lst-cap="Concrete JSON schema illustrating the Read and Action Paths"}
+```json {#lst-schema-example lst-cap="Concrete JSON schema illustrating the Read, Action, and Return Paths"}
 {
   "read_path_state": {
     "target_candidate": "soc_v4_accelerator",
@@ -217,6 +221,16 @@ To make these paths concrete, @lst-schema-example illustrates the JSON payload a
     "transformations": { "l2_cache_size_kb": 1024 },
     "fidelity_requested": "cycle_approximate",
     "timeout_seconds": 3600
+  },
+  "return_path_observation": {
+    "job_id": "slurm_9942",
+    "status": "COMPLETED",
+    "distilled_metrics": {
+      "ipc": 1.42,
+      "l2_miss_rate": 0.08
+    },
+    "anomalies_flagged": [],
+    "log_integrity_hash": "a1b2c3d4"
   }
 }
 ```
@@ -307,7 +321,7 @@ In computational biology, executing a genomic pipeline previously required britt
 
 Architecture 2.0 environments must act as this orchestration layer. A semantic proposal may require several reads, transformations, builds, executions, and checks. Their dependencies form a graph rather than a single call or mandatory sequence.
 
-For a complex System-on-Chip (SoC) fulfilling the **Lighthouse prompt**, orchestrating the design intent requires managing the Chipyard generator framework. Integrating the low-power RISC-V compute subsystem with custom XR accelerators requires explicit lowering from MLIR, a reusable multi-level compiler intermediate representation, to RTL, along with related compiler IR transformations. It may demand a compiler transform to emit new spatial-tracking instructions, a hardware target feature declaration within the Chipyard configuration, generated RTL, a rebuilt custom Linux binary, a functional correctness run in Verilator, an open-source RTL simulator, and a physical implementation check to verify the power budget. Some branches can execute in parallel, some become legal only after earlier artifacts exist, and some are omitted because the bounded study does not need them.
+For a complex System-on-Chip (SoC) fulfilling the **Lighthouse prompt**, orchestrating the design intent requires managing the Chipyard generator framework through a directed acyclic graph (DAG) of dependencies. Integrating the low-power RISC-V compute subsystem with custom XR accelerators requires explicit lowering from MLIR, a reusable multi-level compiler intermediate representation, to RTL, along with related compiler IR transformations. The dataflow must orchestrate several precise stages: an agent's high-level intent first triggers an MLIR lowering to emit new spatial-tracking instructions, which then informs a hardware target feature declaration within the Chipyard configuration. This configuration generates RTL, which in turn feeds both a rebuilt custom Linux binary for a functional correctness run in Verilator, an open-source RTL simulator, and a physical logic synthesis flow to check routing congestion and verify the power budget. The environment acts as the arbiter of this DAG, ensuring that some branches execute in parallel while others block until earlier artifacts exist, and exposing exactly where the agent is allowed to intervene.
 
 
 To illustrate this orchestration complexity, consider how a single architecture proposal formally splits into specific software and hardware instantiations (@fig-artifact-lineage).
