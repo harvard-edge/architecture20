@@ -145,7 +145,7 @@ When transitioning from abstract reasoning to concrete execution, we must ask: w
 
 To bridge this gap, agents increasingly rely on Intermediate Representations (IRs) like CIRCT [@CIRCT] and FIRRTL. These IRs fundamentally shift the verification burden from slow, late-stage simulation to fast, upfront compilation. Instead of waiting hours for an EDA tool to fail on a mismatched bit-width or an unassigned wire, a typed, composable IR acts as a safe-by-construction API that catches illegal mutations instantly. By constraining the AI to emit structurally valid IR rather than raw text, the architecture team bounds the agent's action space, ensuring it spends expensive compute cycles exploring meaningful semantic tradeoffs rather than debugging trivial syntax hallucinations.
 
-Furthermore, the representation problem extends beyond logic to physical realization. Power and timing bounds are codified in syntax-heavy constraints like UPF (Unified Power Format) [UPF] and SDC (Synopsys Design Constraints) [SDC]. An agent must parse and generate these formats to operate within a realistic physical envelope, transforming an abstract concept into a manufacturable netlist (@tbl-representation-formats).
+Furthermore, the representation problem extends beyond logic to physical realization. Power and timing bounds are codified in syntax-heavy constraints like UPF (Unified Power Format) and SDC (Synopsys Design Constraints). An agent must parse and generate these formats to operate within a realistic physical envelope, transforming an abstract concept into a manufacturable netlist (@tbl-representation-formats).
 
 | **Format** | **Generative Brittleness** | **Verification Burden** |
 | --- | --- | --- |
@@ -159,7 +159,7 @@ Furthermore, the representation problem extends beyond logic to physical realiza
 
 Beneath these high-level knowledge objects lies the physical reality of how an AI system encodes hardware. General-purpose large language models (LLMs) rely on 1D sequence tokenizers (like Byte-Pair Encoding) optimized for natural language. When applied naively to hardware description languages like Verilog or Chisel, these tokenizers chop signal names and structural code into meaningless fragments, destroying the implicit connectivity of the design.
 
-To reason about hardware natively, an AI system must move beyond text sequences to structural embeddings. Instead of reading Verilog as a string, a specialized encoder parses the RTL into an Abstract Syntax Tree (AST) or a Data Flow Graph (DFG). For placed netlists and floorplans, Graph Neural Networks (GNNs) [GNN] are far superior to sequence models. A GNN represents macros and standard cells as nodes and wires as edges, inherently capturing physical locality, fan-out, and combinational depth, properties that a 1D sequence model must struggle to infer through attention mechanisms.
+To reason about hardware natively, an AI system must move beyond text sequences to structural embeddings. Instead of reading Verilog as a string, a specialized encoder parses the RTL into an Abstract Syntax Tree (AST) or a Data Flow Graph (DFG). For placed netlists and floorplans, Graph Neural Networks (GNNs) are a better fit than sequence models. A GNN represents macros and standard cells as nodes and wires as edges, inherently capturing physical locality, fan-out, and combinational depth, properties that a 1D sequence model must struggle to infer through attention mechanisms.
 
 Beyond graphs, bridging the semantic gap requires multi-modal representations. By moving beyond text tokens to Visual Language Models (VLMs) and spatial encodings, agents can reason directly over 2D floorplans and physical layouts. This allows the AI searcher to comprehend density, congestion, and spatial topologies visually. This shift from 1D sequence tokenization to graph embeddings and multi-modal spatial awareness is the core data representation problem in AI-assisted architecture.
 
@@ -236,10 +236,7 @@ A common flaw in many early predictive surrogates is that they fall into the cor
 
 To overcome this, an AI requires a mechanistic or causal world model. Such a model explicitly encodes structural causality; it knows that adding a cache level forces an increase in access latency due to wire physics and multiplexing, not just because the two variables co-occurred in a dataset.
 
-Only causal representations allow the AI to safely generalize to novel, un-simulated architectures.[^fn-arch-3-0] Correlative models tend to collapse outside their training distribution when the optimizer pushes them into Out-of-Distribution (OOD) spaces, generating confident but physically impossible predictions.
-
-[^fn-arch-3-0]: Safely generalizing to novel, un-simulated architectures is the hallmark of Architecture 3.0.
-
+Causal structure is what lets a model generalize more credibly to novel, unsimulated architectures. Correlative models tend to collapse outside their training distribution when the optimizer pushes them into Out-of-Distribution (OOD) spaces, generating confident but physically impossible predictions.
 Because high-fidelity RTL simulation is too slow for exhaustive exploration, an AI method needs an intermediate predictor. A learned cost model or surrogate serves this role by running a fast, low-fidelity prediction (such as an analytical model or learned surrogate) before committing to a slow, expensive simulation.
 
 A learned cost model performs this estimation job. Given the current constrained design state and a proposed mutation, it emits a predicted consequence (such as cycle count or power). This prediction is *not* a tool observation. It is an estimate fraught with epistemic and aleatoric uncertainty.[^fn-uncertainty-types]
@@ -287,7 +284,7 @@ A learned cost model gives a concrete example. Fit to earlier cycle-accurate res
 
 : **Cost, fidelity, and scope change across evaluation paths.** The representation records the resources, assumptions, and context needed for a reviewer to judge what each observation can support. {#tbl-sample-cost-regimes tbl-colwidths="[20,24,24,22]"}
 
-Regardless of the fidelity of the prediction or the cost model used, the Architect's Pivot remains mandatory. The AI's predicted consequence is strictly a search heuristic to prune the design space. Before any architectural claim is accepted, the human architect must orchestrate the evaluation harness to validate the candidate against physical silicon constraints such as routing congestion, PPA, and STA, serving as the ultimate judge of its physical correctness.
+Regardless of the fidelity of the prediction or the cost model used, the division of labor stays fixed. The AI's predicted consequence is a search heuristic for pruning the design space. Before any architectural claim is accepted, the candidate must be validated against physical constraints such as routing congestion, PPA, and STA, and the human architect judges what that evidence supports.
 
 ## Tracking Knowledge Drift
 
