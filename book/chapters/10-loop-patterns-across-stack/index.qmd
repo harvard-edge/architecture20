@@ -46,8 +46,7 @@ Start with the next architecture decision rather than the AI method. The artifac
 | Cross-interface and deployment | Feedback spans layers, organizational boundaries, or live cohorts; rollback is guarded and can still impose user or operational cost. | Multiple owners and interfaces; telemetry may be noisy, confounded, private, or only partly independent. | Record cross-layer tradeoffs. Noisy field telemetry updates execution histories and retrieval corpora, not fast-tuning loops. |
 | High consequence | Tool feedback is slow and expensive; rollback becomes difficult toward signoff, tapeout, or irreversible deployment. | Independent flows, experts, and formal or physical checks become central; every waiver requires a recorded decision. | Use AI to narrow search or repair bounded artifacts. Severe failures (e.g., routing DRCs) append negative constraints to explicit design states. |
 
-: **Recurring operating conditions.** Feedback latency, reversibility, consequence, interface span, and check independence determine the required evidence and how the AI's internal representation is updated. The rows overlap and are not a maturity ladder.
-: **Four recurring combinations of operating conditions and feedback loops.** {#tbl-loop-patterns tbl-colwidths="[18,25,27,22]"}
+: **Recurring operating conditions.** Feedback latency, reversibility, consequence, interface span, and check independence determine the required evidence and how the AI's internal representation is updated. The rows overlap and are not a maturity ladder. {#tbl-loop-patterns tbl-colwidths="[18,25,27,22]"}
 
 ```{=latex}
 \Needspace{11\baselineskip}
@@ -97,7 +96,7 @@ Architecture exploration often evaluates candidate parameters that are cheap to 
 
 Model-mediated exploration requires an explicit representation of architecture state, legal actions, and tool observations. Methods may generate candidates, predict behavior, allocate evaluations, or critique assumptions. ArchGym, an open-source environment for architecture, provides an interface for exploration, predictive DSE uses data-driven models to proxy evaluations, and Apollo allocates expensive evaluations using transfer learning [@yazdanbakhsh2021apollo]. Chiplet exploration adds package-interface contracts like the Universal Chiplet Interconnect Express (UCIe).
 
-AlphaChip is a concrete instance of model-mediated exploration. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy needs. The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
+AlphaChip is a concrete instance of model-mediated exploration [@MirhoseiniEtAl2021GraphPlacement], with reported results that remain publicly contested [@ChengEtAl2023AssessmentRL]. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy needs. The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
 
 In @sec-running-the-loop's array study, SCALE-Sim was used to compare array geometries under a frozen workload and software path. A simulator can support a no-change decision for the represented metrics. Moving a candidate toward implementation requires compiler mapping semantics, a memory-system model, end-to-end offload granularity, RTL legality, and later physical checks.
 
@@ -109,7 +108,7 @@ Historically, architecture gains came from technology scaling, architecture inno
 
 @fig-domain-specificity-shapes outlines the required properties for a specialization claim. A claim is credible only when a domain shows these properties together, because a domain that satisfies only some of them cannot amortize the design and interface cost that dedicated hardware imposes.
 
-![**Properties that define a specialization domain.**](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing properties that define a specialization domain." fig-alt="**Properties that define a specialization domain.**"}
+![**Properties that define a specialization domain.**](images/F10a-domain-specificity-shapes){#fig-domain-specificity-shapes width="100%" fig-alt="Multi-shape diagram showing properties that define a specialization domain."}
 
 ```{python}
 #| label: fig-hardware-efficiency
@@ -131,7 +130,7 @@ from _python.labels import place_labels
 
 apply_style()
 
-# Data: Epoch AI ML hardware database , accelerators with a
+# Data: Epoch AI ML hardware database, accelerators with a
 # stated release date and precision-normalized energy efficiency (bit-OP/s per
 # watt). Values dataset-transcribed; the growth factor is a least-squares fit to
 # the efficiency frontier. Accessed 2026-07-19.
@@ -285,7 +284,7 @@ The three curves place the same accelerator at increasing distance from the host
 
 The software path connects domain intent to hardware. Programming models, compiler IRs, libraries, runtimes, and generated code form the executable path that makes specialized hardware usable (@fig-codegen-narrow-waist).
 
-![**The software path to specialized hardware.** Domain-specific architectural claims require executable software paths and evidence about correctness, performance, portability, and maintenance.](images/F10b-codegen-narrow-waist){#fig-codegen-narrow-waist width="92%" fig-alt="Narrow-waist diagram showing programming models, compiler representations, libraries, runtimes, and generated code connecting specialized hardware to evidence checks." fig-alt="**The software path to specialized hardware.** Domain-specific architectural claims require executable software paths and evidence about correctness, performance, portability, and maintenance."}
+![**The software path to specialized hardware.** Domain-specific architectural claims require executable software paths and evidence about correctness, performance, portability, and maintenance.](images/F10b-codegen-narrow-waist){#fig-codegen-narrow-waist width="92%" fig-alt="Narrow-waist diagram showing programming models, compiler representations, libraries, runtimes, and generated code connecting specialized hardware to evidence checks."}
 
 A local kernel result cannot bypass this software path. The hardware/lowering path must be retained so a failure on either side invalidates the paired claim.
 
@@ -315,7 +314,7 @@ This mismatch in timescales also dictates the choice of AI method. Fast, reversi
 
 @fig-hardware-software-coevolution illustrates how these two different timescales must remain joined by one shared study record without bypassing the hardware layer's slower, more rigorous checks.
 
-![**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks.](images/F10c-hardware-software-coevolution.svg){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware and software evolving together." fig-alt="**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks."}
+![**Recording hardware and software state.** Hardware target state and software path state evolve together through a shared study record, ensuring fast software tuning does not bypass slower hardware checks.](images/F10c-hardware-software-coevolution){#fig-hardware-software-coevolution width="100%" fig-alt="Two-lane diagram showing hardware and software evolving together."}
 
 ### Monitoring Deployment Feedback
 
@@ -442,7 +441,7 @@ This progression down the stack requires *action space adaptation*. For example,
 
 Consequently, each layer's checks must enforce its physical reality. RTL checks reject functional errors, synthesis rejects timing or area violations, and physical design rejects congestion, power integrity, or thermal failures. When delayed checks return a failure, that telemetry must translate into negative constraints within the explicit design state. A Design Rule Check (DRC) failure or a post-route STA timing violation must become a forbidden region, preventing automated proposals from repeating similar unroutable topologies.
 
-Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. By generating constrained random tests and reading formal counter-examples, AI can generate stimulus, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
+Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. Generating constrained random tests and reading formal counter-examples, AI can produce stimulus, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
 
 Public reports indicate learning methods can contribute to physical-implementation search, such as in peer-reviewed synthesis for parallel-prefix circuits and learning-assisted placement (whose evidence review was discussed in @sec-feedback-verification-trust). A vendor-reported DSO.ai system has also searched the physical-implementation flow for commercial tapeouts [@Synopsys2023DSOai]. These are bounded learned subflows, not automated tapeout authority. The record must include tool versions, failed candidates, signoff checks, waivers, escalation points, and the named decision owner.
 
@@ -521,7 +520,7 @@ These observations describe different system states and bear on different decisi
 
 Feeding delayed, noisy field telemetry directly into a high-frequency AI optimizer makes it overcorrect and thrash, because the telemetry arrives far too late to guide rapid tuning. The fix is to run the two at different speeds, nesting a fast tuning loop inside a slow review loop (@fig-cascade-control).
 
-![**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing.](images/F9-cascade-control.svg){#fig-cascade-control fig-alt="**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing."}
+![**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing.](images/F9-cascade-control){#fig-cascade-control fig-alt="**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing."}
 
 Fast inner loops handle local software tuning and immediate stabilization using close tests and proxies. Slow outer loops review the delayed field telemetry, updating the architectural assumptions and test targets. The fast tuning loop must only tune against immediate proxies. It should never act directly on delayed telemetry.
 
@@ -529,7 +528,7 @@ Fast inner loops handle local software tuning and immediate stabilization using 
 
 When telemetry is captured and isolated into calibration datasets, post-silicon results from one generation can recalibrate the surrogate models used to design the next (@fig-hw-flywheel).
 
-![**Telemetry compounds across silicon generations.** Post-silicon telemetry from Generation N recalibrates the AI surrogates used to design Generation N+1, so each surrogate reflects the bottlenecks the previous generation actually encountered.](images/F9-hw-flywheel.svg){#fig-hw-flywheel width="100%" fig-alt="Six-stage cycle showing post-silicon telemetry from one hardware generation recalibrating the AI surrogate models used to design the next generation."}
+![**Telemetry compounds across silicon generations.** Post-silicon telemetry from Generation N recalibrates the AI surrogates used to design Generation N+1, so each surrogate reflects the bottlenecks the previous generation actually encountered.](images/F9-hw-flywheel){#fig-hw-flywheel width="100%" fig-alt="Six-stage cycle showing post-silicon telemetry from one hardware generation recalibrating the AI surrogate models used to design the next generation."}
 
 In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon telemetry from Generation $N$ is fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself.
 
@@ -596,7 +595,7 @@ A passing test cannot be treated as authorization when the change alters a hardw
 
 Crossing from a fast proxy into a high-consequence domain replaces automated checks with slower, expensive human review, causing the settlement rate to drop and creating a persistent bottleneck.
 
-![**The review bottleneck.** An AI generator can propose candidates faster than human verification can settle them, so the settlement rate, not the proposal rate, sets the pace of useful progress.](images/F9-review-bottleneck.svg){#fig-review-bottleneck fig-alt="Diagram contrasting a high proposal arrival rate from an AI generator with the lower settlement rate of human verification."}
+![**The review bottleneck.** An AI generator can propose candidates faster than human verification can settle them, so the settlement rate, not the proposal rate, sets the pace of useful progress.](images/F9-review-bottleneck){#fig-review-bottleneck fig-alt="Diagram contrasting a high proposal arrival rate from an AI generator with the lower settlement rate of human verification."}
 
 If proposals arrive faster than reliable evaluation can settle them, more generation grows a queue rather than useful progress. A measurable bottleneck occurs when proposal arrival rate $\lambda_{\mathrm{propose}}$ exceeds trusted settlement rate $\mu_{\mathrm{review}}$ (@fig-review-bottleneck). Just as Amdahl's law bounds parallel scaling by the serial fraction, the human verification step that cannot be automated bounds the end-to-end speedup of AI-assisted design. Proposal supply is not the limit here; trusted evaluation and human review set the pace. Improving throughput requires validating cheaper checks, reducing review cost, and cutting avoidable routing and escalation overhead. For quantitative limits on service-cost speedups, see the service-cost model below (@fig-rejection-bound-ceiling).
 
