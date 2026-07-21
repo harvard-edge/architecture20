@@ -29,17 +29,19 @@ After reading this chapter, you can:
 :::
 
 
-## Establish the Epistemic Trust Boundary: Separate Intent from Implementation {#sec-epistemic-trust-boundary}
+## The Epistemic Trust Boundary {#sec-epistemic-trust-boundary}
 
 At the core of AI-assisted architecture is a strict epistemic boundary between *probabilistic generation* and *deterministic validation*. Large Language Models and Reinforcement Learning agents operate in continuous, probabilistic latent spaces; they optimize likelihoods and expected returns rather than absolute physical truths. An AI does not "know" that a pipeline stage is correct in the Boolean sense; it only predicts that the token sequence representing that stage is highly probable given the prompt context.
 
 Consequently, architects must structurally separate the AI's *intent* (the natural language rationale, prompt, or ungrounded objective function) from its *implementation* (the emitted RTL, script, or layout). Trusting an AI's intent is an epistemological trap. An agent might output a perfectly reasoned explanation for why its proposed cache hierarchy avoids deadlocks, but that probabilistic rationale carries zero formal verification weight. True epistemic trust requires passing the generated artifact across the boundary into deterministic, physics-bound solvers that evaluate the structural reality of the implementation strictly independently of how or why the AI generated it.
 
-The architect strictly enforces this separation through Equivalence Checking (EC) and Bounded Property Checking (BPC). Bounded Property Checking transforms high-level architectural constraints (e.g., "a cache controller never deadlocks under a specific coherency race") into mathematically exhaustive proofs over a bounded number of clock cycles using SystemVerilog Assertions (SVA) and SAT solvers. BPC operates without bias, comprehensively hunting for edge cases in the AI's logic that heuristic simulation misses.
+The architect strictly enforces this separation through Equivalence Checking (EC) and Bounded Property Checking (BPC). Bounded Property Checking transforms high-level architectural constraints[^fn-deadlock-example] into mathematically exhaustive proofs over a bounded number of clock cycles using SystemVerilog Assertions (SVA) and SAT solvers. BPC operates without bias, comprehensively hunting for edge cases in the AI's logic that heuristic simulation misses.
+
+[^fn-deadlock-example]: For example, "a cache controller never deadlocks under a specific coherency race."
 
 Once the RTL is proven, Logical Equivalence Checking (LEC) ensures the elaborated Boolean logic perfectly matches the downstream synthesized netlist. This guarantees that aggressive optimizations—whether proposed by the AI during structural generation or the EDA tool during synthesis—do not mutate the golden semantic behavior. Without rigorous EC and BPC, the architect is blindly trusting that a probabilistic text generator understood silicon concurrency, risking catastrophic physical bugs that only manifest post-tapeout.
 
-## Transform Feedback into Observation, Evidence, and Decision {#sec-from-feedback-to-decision}
+## Observation, Evidence, and Decision {#sec-from-feedback-to-decision}
 
 Architecture needs a formal verification path where the human architect orchestrates the burden of proof. Raw feedback just means a tool finished running. An observation records the specific outputs. Evidence links that observation to a specific design claim. A review judges whether the claim holds.
 
@@ -68,7 +70,7 @@ The design-loop card introduced in @sec-architecture-20-ontology acts as the bin
 
 Returning to the 3W RISC-V XR subsystem, the synthesis report is the observation. The evidence relation connects that report to the claim about clock speed. The review result states the claim is unsupported. The knowledge-update branch decides to store the failure in the project trajectory, while the architecture decision stops the transition to RTL.
 
-## Bind Evidence to the Claim and Scope {#sec-evidence-specific-to-claim-and-scope}
+## Binding Evidence to Claims {#sec-evidence-specific-to-claim-and-scope}
 
 Evidence has no useful strength independent of a claim. An observation bears on a property for a candidate relative to a comparator under a stated workload, design state, tool path, metric, assumptions, validity region, uncertainty, and proposed action. A cycle estimate can support a bounded performance comparison while remaining irrelevant to power, timing, isolation, software usability, or system intent (@fig-claim-frame).
 
@@ -76,7 +78,7 @@ Evidence has no useful strength independent of a claim. An observation bears on 
 
 A compact claim frame reads: candidate and comparator; property and metric; workload and design state; tool path and assumptions; validity region and uncertainty; proposed action and nonclaims.
 
-This traceable link among claim, assumption, evidence, and challenge mirrors the Goal Structuring Notation (GSN) used in safety-critical engineering, without implying that every architecture experiment is safety critical [@Kelly2004GSN]. In the quantitative architecture tradition, measurement and abstraction serve bounded comparisons rather than universal conclusions [@HennessyPatterson2017QuantitativeApproach].
+This traceable link among claim, assumption, evidence, and challenge mirrors the Goal Structuring Notation (GSN) used in safety-critical engineering, without implying that every architecture experiment is safety critical . In the quantitative architecture tradition, measurement and abstraction serve bounded comparisons rather than universal conclusions .
 
 For the 3W RISC-V XR subsystem, a structural check can reject a malformed custom instruction encoding. A regression suite can support functional behavior for covered cases. Workload experiments can support a bounded performance comparison. A synthesis report can address timing and area under its constraints. None of those checks silently establishes the other properties.
 
@@ -95,7 +97,9 @@ For the 3W RISC-V XR subsystem, a structural check can reject a malformed custom
 
 Evidence types cannot be ranked on one universal fidelity scale. Cheap legality checks can decisively reject a candidate, while expensive out-of-scope measurements might be useless for the specific transition. @tbl-evidence-dimensions lists what an evidence record must capture.
 
-Seen together, these observations are noisy, partial readings of a quantity no tool reports directly, the design's true performance, power, and area in deployment. Inferring that hidden quantity from imperfect measurements is the problem control theory calls state estimation, where a system's internal condition is reconstructed from sensors that each capture part of it with error. The analogy is a discipline rather than a formula. It requires the architect to treat each proxy, simulator, and synthesis result as a measurement with a characteristic bias and variance rather than as ground truth, weighting a reading by how much it actually constrains the hidden quantity for this decision, and stating the residual uncertainty that no available measurement removes.
+Seen together, these observations are noisy, partial readings of a quantity no tool reports directly, the design's true performance, power, and area in deployment. Inferring that hidden quantity from imperfect measurements is the problem control theory calls state estimation.[^fn-state-estimation] The analogy is a discipline rather than a formula. It requires the architect to treat each proxy, simulator, and synthesis result as a measurement with a characteristic bias and variance rather than as ground truth, weighting a reading by how much it actually constrains the hidden quantity for this decision, and stating the residual uncertainty that no available measurement removes.
+
+[^fn-state-estimation]: In control theory, state estimation is where a system's internal condition is reconstructed from sensors that each capture part of it with error.
 
 | **Dimension** | **Question the record must answer** |
 | --- | --- |
@@ -108,7 +112,7 @@ Seen together, these observations are noisy, partial readings of a quantity no t
 
 : **Dimensions of an evidence record.** {#tbl-evidence-dimensions tbl-colwidths="[26,74]"}
 
-## Diagnose Proxy Mismatch, Calibration, Confounding, and Nondeterminism {#sec-proxy-mismatch-metric-gaming-and-calibration}
+## Proxy Mismatch and Confounding {#sec-proxy-mismatch-metric-gaming-and-calibration}
 
 A well-bounded, correctly recorded favorable result can still fail to support the intended architecture conclusion. Four different problems can weaken a result:
 
@@ -119,11 +123,11 @@ A well-bounded, correctly recorded favorable result can still fail to support th
 
 These are not synonyms. A deterministic proxy can be invalid. A calibrated proxy comparison can be confounded. A matched comparison can be too noisy to resolve the declared margin. A flaky environment can fail to return a valid observation at all. AI can exploit an incomplete objective more quickly than a human, searching thousands of candidates and consistently finding the same omitted cost in new forms.
 
-AI systems actively exploit the gap between fast proxies and physical ground truth oracles. When an AI optimizes a surrogate metric without physical checks, it heavily biases toward reward hacking through proxy misspecification [@AmodeiEtAl2016Concrete; @OpenAIClark2016FaultyRewards]. In rigorous reinforcement learning terms, if the true architectural objective $R_{true}$ is replaced by a computationally cheap surrogate $R_{proxy}$, policy optimization will systematically drive the agent into out-of-distribution state spaces where $R_{proxy}$ and $R_{true}$ diverge. The agent mathematically exploits the regions of highest epistemic uncertainty in the surrogate model—areas where the predictive mean is artificially inflated because it lacks the capacity to penalize unmodeled physical constraints. Because architects cannot fully trust or inspect the internals of these proxy models, they must treat every architectural proxy as an adversarial attack surface prone to gradient-based exploitation.
+AI systems actively exploit the gap between fast proxies and physical ground truth oracles. When an AI optimizes a surrogate metric without physical checks, it heavily biases toward reward hacking through proxy misspecification . In rigorous reinforcement learning terms, if the true architectural objective $R_{true}$ is replaced by a computationally cheap surrogate $R_{proxy}$, policy optimization will systematically drive the agent into out-of-distribution state spaces where $R_{proxy}$ and $R_{true}$ diverge. The agent mathematically exploits the regions of highest epistemic uncertainty in the surrogate model—areas where the predictive mean is artificially inflated because it lacks the capacity to penalize unmodeled physical constraints. Because architects cannot fully trust or inspect the internals of these proxy models, they must treat every architectural proxy as an adversarial attack surface prone to gradient-based exploitation.
 
-If an architect asks an AI to optimize estimated instructions per cycle (IPC) without checking physical constraints, the agent will find architectural shortcuts that mimic the CoastRunners loophole. It might strip out decoupling queues or introduce combinational loops to artificially boost the throughput score in a high-level CPU simulator. That modification maximizes the proxy metric but completely breaks downstream physical routing and timing closure. This behavior exemplifies specification gaming, where the AI games the proxy instead of solving the real design problem.
+If an architect asks an AI to optimize estimated instructions per cycle (IPC) without checking physical constraints, the agent will find architectural shortcuts that mimic the CoastRunners loophole [@CoastRunners]. It might strip out decoupling queues or introduce combinational loops to artificially boost the throughput score in a high-level CPU simulator. That modification maximizes the proxy metric but completely breaks downstream physical routing and timing closure. This behavior exemplifies specification gaming, where the AI games the proxy instead of solving the real design problem.
 
-It is a form of Goodhart's law, under which a measure that served well as an indicator stops serving once it becomes the optimization target [@Goodhart1975MonetaryManagement; @Strathern1997Goodhart]. Fast proxies that worked well for human architects break down when an AI optimizes against them. As illustrated in @fig-trust-calibration, simulator inaccuracies are no longer just random noise; they become loopholes the AI exploits. Consequently, the architect must anchor AI proposals with physical ground-truth oracles to prevent these escapes.
+It is a form of Goodhart's law, under which a measure that served well as an indicator stops serving once it becomes the optimization target . Fast proxies that worked well for human architects break down when an AI optimizes against them. As illustrated in @fig-trust-calibration, simulator inaccuracies are no longer just random noise; they become loopholes the AI exploits. Consequently, the architect must anchor AI proposals with physical ground-truth oracles to prevent these escapes.
 
 ![**Schematic trust-calibration curve.** As an AI optimizes a surrogate proxy, the metric initially correlates with physical ground truth. However, beyond the calibration boundary, the AI exploits the proxy's blind spots (reward hacking), causing the ground truth value to collapse while the proxy score continues to rise.](images/F9-trust-calibration.svg){#fig-trust-calibration width="100%" fig-alt="A line graph showing surrogate proxy score increasing monotonically while the physical ground truth curve collapses sharply after crossing the calibration boundary."}
 
@@ -143,9 +147,11 @@ The curve shows the failure directly. Up to the calibration boundary the proxy t
 
 : **Diagnostics for weak evidence.** Each check is tied to a specific failure it can expose. {#tbl-proxy-diagnostics tbl-colwidths="[18,41,41]"}
 
-For the illustrative 3W RISC-V XR subsystem, an early fast Python ISA simulator acts as a surrogate biomarker, a fast proxy that stands in for the physical result the way a biomarker stands in for a clinical outcome and can mislead the same way, estimating performance improvements for a new instruction extension. However, the Phase III trial (physical placement and routing closure) might reverse the apparent preference due to severe timing degradation. Or, if the performance check omits thermal considerations, the new instruction implementation might create a thermal hotspot that violates the 3W limit.
+For the illustrative 3W RISC-V XR subsystem, an early fast Python ISA simulator acts as a surrogate biomarker,[^fn-biomarker-proxy] estimating performance improvements for a new instruction extension. However, the Phase III trial (physical placement and routing closure) might reverse the apparent preference due to severe timing degradation. Or, if the performance check omits thermal considerations, the new instruction implementation might create a thermal hotspot that violates the 3W limit.
 
-Calibration checks whether a proxy tracks a decision-relevant measurement in the region where it is used. Architecture predictors must be validated against held-out data or stronger evaluations [@LeeBrooks2006RegressionModeling; @IpekEtAl2006PredictiveDSE].
+[^fn-biomarker-proxy]: A fast proxy stands in for the physical result the way a biomarker stands in for a clinical outcome, and can mislead the same way.
+
+Calibration checks whether a proxy tracks a decision-relevant measurement in the region where it is used. Architecture predictors must be validated against held-out data or stronger evaluations .
 
 ::: {.callout-architect-checkpoint title="The Calibration Check"}
 Has the architect stated when a candidate falls outside the range where the generator's proxy was validated? A proxy win supports a claim only within that range. Outside it, the architect must seek a decision-relevant or independent check rather than treat the prediction as evidence.
@@ -153,7 +159,7 @@ Has the architect stated when a candidate falls outside the range where the gene
 
 This checkpoint ensures that predictive models or fast proxies are not trusted blindly when design parameters move into uncharted territory. Relying on an uncalibrated proxy can lead to catastrophic late-stage failures when the physical implementation diverges from the prediction.
 
-Just as passing a fast software simulation doesn't guarantee RTL timing closure, an AI maximizing a high-level proxy metric doesn't mean the hardware is physically viable. This distinction separates hardware benchmarking from software benchmarking. A software LLM agent on SWE-bench, a software engineering benchmark [@JimenezEtAl2024SWEBench], is scored by passing unit tests, but those tests are themselves an incomplete proxy, which is why the curated SWE-bench Verified subset was introduced and why agents can still game the tests they are graded against [@OpenAI2024SWEBenchVerified; @OpenAI2026SWEBenchLimits].
+Just as passing a fast software simulation doesn't guarantee RTL timing closure, an AI maximizing a high-level proxy metric doesn't mean the hardware is physically viable. This distinction separates hardware benchmarking from software benchmarking. A software LLM agent on SWE-bench, a software engineering benchmark , is scored by passing unit tests, but those tests are themselves an incomplete proxy, which is why the curated SWE-bench Verified subset was introduced and why agents can still game the tests they are graded against [@OpenAI2024SWEBenchVerified].
 
 Hardware agents add a brutal, orthogonal physical gauntlet of multi-corner multi-mode (MCMM) timing closure, dynamic voltage and frequency scaling (DVFS) constraints, IR drop limits, and physical design rule checks (DRC) that a functional proxy simply cannot observe. At advanced nodes, wire delay dominates logic delay; an AI's clever 5-stage pipeline may fail spectacularly during post-route physical synthesis when long wire RC-constants shatter the setup time margins. An AI winning a zero-delay RTL simulation or surrogate proxy metric never constitutes true architectural evidence without a sign-off grade physical audit. To prevent the sim-to-silicon gap from sinking a tapeout, the architect must maintain a strict boundary between fast proxies used for exploration and the ground-truth oracles required for silicon success, demanding physical placement and clock-tree synthesis data.
 
@@ -161,7 +167,7 @@ Nondeterministic observations require careful interpretation relative to the dec
 
 Guarding a single candidate against a lucky run is not the same as guarding the search against a lucky winner. When AI selects the best of thousands of candidates scored on a noisy proxy, the winner's proxy value is biased upward, because the search preferentially surfaces candidates that happened to score high rather than only those that are genuinely better. The architect must therefore re-measure the selected candidate on fresh held-out seeds and workloads that the search did not use before its apparent margin counts as evidence.
 
-## Require Independent Checks to Expose Correlated Errors {#sec-independent-checks-and-correlated-errors}
+## Independent Checks {#sec-independent-checks-and-correlated-errors}
 
 Diagnostics are useful only when a purportedly stronger check observes the missing property and is not merely another expression of the same assumptions. Independence is relative to a claim and a failure class, not a binary property of components (@fig-independent-checks).
 
@@ -176,7 +182,7 @@ The most dangerous gap is not a check that agrees wrongly but a property that no
 ::: {.callout-war-story title="The check no one wrote"}
 **The claim.** The affected processors passed their full functional and performance verification. On every property those suites encoded, the computed results were correct and the cycle counts were as designed.
 
-**The gap.** Meltdown and Spectre, disclosed in January 2018, exploit speculative execution to leak data across privilege boundaries through shared microarchitectural state [@LippEtAl2018Meltdown; @KocherEtAl2019Spectre]. The suites measured result correctness and cycles; none observed information flow or the timing channel, so none could reject the vulnerability. More independent functional checks would not have helped, because independence guards against correlated failure among checks that observe a property, and here no check observed it. Spectre reached shipping CPUs across Intel, AMD, and Arm; Meltdown chiefly Intel.
+**The gap.** Meltdown and Spectre, disclosed in January 2018, exploit speculative execution to leak data across privilege boundaries through shared microarchitectural state . The suites measured result correctness and cycles; none observed information flow or the timing channel, so none could reject the vulnerability. More independent functional checks would not have helped, because independence guards against correlated failure among checks that observe a property, and here no check observed it. Spectre reached shipping CPUs across Intel, AMD, and Arm; Meltdown chiefly Intel.
 
 **The lesson.** A check cannot reject a property it does not observe. Coverage decides which failures are visible at all, while independence only strengthens a challenge to a property already under test. The side channels were later reduced through software and microcode mitigations at a performance cost.
 :::
@@ -250,7 +256,9 @@ AI proposals require independent, out-of-distribution checks. When a generator, 
 
 If an LLM generates both the Verilog RTL and the SystemVerilog testbench, those two artifacts share the same semantic omissions. The testbench will pass the broken design, creating a false sense of security. To break that shared blind spot, the architect must demand an independent oracle rather than accepting consensus among correlated models.
 
-Using an AI to check an AI is flawed if it lacks physical grounding. True independence requires a modality shift, where the verification path does not share the generator's assumptions. In hardware, this means using established electronic design automation (EDA) tools as independent oracles. An architect might use SymbiYosys for formal verification to prove safety properties or Synopsys Formality for equivalence checking to guarantee the synthesized netlist matches the RTL. A consensus among LLM-driven checkers is not an independent rejection path. The architect must demand strict, independent ground truth oracles to authorize architecture transitions.
+Using an AI to check an AI is flawed if it lacks physical grounding. True independence requires a modality shift, where the verification path does not share the generator's assumptions. In hardware, this means using established electronic design automation (EDA) tools as independent oracles.[^fn-independent-oracles] A consensus among LLM-driven checkers is not an independent rejection path. The architect must demand strict, independent ground truth oracles to authorize architecture transitions.
+
+[^fn-independent-oracles]: An architect might use SymbiYosys for formal verification to prove safety properties or Synopsys Formality [@Formality] for equivalence checking to guarantee the synthesized netlist matches the RTL.
 
 
 
@@ -270,19 +278,21 @@ Independence assumes the checks come from outside the thing they judge. In an AI
 
 Not every check needs to be an expensive independent oracle. Because an AI generator can emit syntactically plausible but invalid RTL or scripts, and can propose faster than a human can review, fast deterministic checks belong ahead of expensive ones. A linter, a static bounds check, and a syntax verifier reject a malformed candidate before a simulator or synthesis run is spent on it. Requiring an agent to clear those checks and attach the passing result before it escalates a proposal keeps the volume of generated candidates from overwhelming the reviewer.
 
-## Detect Hardware Trojans and Poisoned Models {#sec-hardware-trojans}
+## Trojans and Poisoned Models {#sec-hardware-trojans}
 
 The reliance on generative AI introduces a distinctly new class of security risk: the hallucinated vulnerability and the maliciously injected hardware trojan. In traditional architecture, a backdoor required a rogue engineer or compromised EDA tool to intentionally alter the netlist. In AI-driven architecture, a generator trained on unvetted, scraped open-source RTL can inadvertently memorize and reproduce deeply buried trojans. Worse, an adversary could poison the foundation model's training data, teaching the agent to subtly weaken cryptographic isolation boundaries or insert data-leaking side-channels under specific, rare workload triggers.
 
-Because these malicious structures—such as a finite state machine that bypasses a privilege check after a highly specific sequence of branch mispredicts—are structurally valid and functionally silent during standard regressions, they evade traditional code coverage metrics completely. To defend against these poisoned models, the architect must orchestrate verification beyond checking that the generated RTL meets the design specification, employing strict formal path-sensitization and information flow tracking (IFT) to mathematically prove the absence of undocumented state transitions and data exfiltration routes.
+Because these malicious structures[^fn-malicious-structures] are structurally valid and functionally silent during standard regressions, they evade traditional code coverage metrics completely. To defend against these poisoned models, the architect must orchestrate verification beyond checking that the generated RTL meets the design specification, employing strict formal path-sensitization and information flow tracking (IFT) to mathematically prove the absence of undocumented state transitions and data exfiltration routes.
 
-## Frame Protected Evidence and Public Claims {#sec-protected-evidence-and-public-claims}
+[^fn-malicious-structures]: Such as a finite state machine that bypasses a privilege check after a highly specific sequence of branch mispredicts.
+
+## Protected Evidence and Public Claims {#sec-protected-evidence-and-public-claims}
 
 A technically appropriate independent check may rely on workloads, flows, or results that cannot be released. Confidentiality changes who can inspect evidence and what can be released; it does not erase the need to state the claim, scope, method, uncertainty, reviewer, and bounded conclusion.
 
 Internal protected evidence may support an internal decision when an authorized reviewer can inspect it. A public claim must remain within what the public record or a credible protected audit can establish. Missing public information is not proof that internal evidence did not exist, while a production report is not an independently replayable comparison.
 
-The AlphaChip dispute shows how this boundary holds when an internal result meets outside scrutiny. The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on the reported metrics, and later reports noted its contribution to several TPU generations [@MirhoseiniEtAl2021GraphPlacement; @GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip]. Independent assessments then questioned the proxy correlation, the baselines, and the reproducibility of the result, and the authors replied that those assessments did not reproduce the proprietary pretraining and production setup and used different cases and compute budgets [@ChengEtAl2023AssessmentRL; @ChengEtAl2026UpdatedAssessment; @GoldieEtAl2024ThatChipHasSailed]. Each public record tests a related placement claim under different cases and conditions. A bounded claim is supportable within its own setup, but unmatched evaluations cannot be forced into a single retroactive experiment.
+The AlphaChip dispute shows how this boundary holds when an internal result meets outside scrutiny. The 2021 AlphaChip paper reported that a reinforcement-learning method generated macro placements with quality comparable to or better than expert placements on the reported metrics, and later reports noted its contribution to several TPU generations [@GoldieEtAl2024AlphaChipAddendum; @GoogleDeepMind2024AlphaChip]. Independent assessments then questioned the proxy correlation, the baselines, and the reproducibility of the result, and the authors replied that those assessments did not reproduce the proprietary pretraining and production setup and used different cases and compute budgets [@ChengEtAl2026UpdatedAssessment]. Each public record tests a related placement claim under different cases and conditions. A bounded claim is supportable within its own setup, but unmatched evaluations cannot be forced into a single retroactive experiment.
 
 Neither side could collapse the disagreement into one shared experiment because the strongest results depended on a proprietary setup that the public cases did not match. A public claim about AI-assisted placement stays within what an outside reviewer can inspect or reproduce, even when a stronger internal result exists.
 
@@ -305,7 +315,7 @@ State which evidence is restricted, which AI tools may access it, and who can in
 
 This checkpoint forces teams to establish clear boundaries for confidentiality before a review begins. Defining what can and cannot be shared prevents the leak of proprietary data while still allowing authorized reviewers to evaluate the architecture's claims.
 
-## Weigh Evidence Cost against Consequence {#sec-evidence-cost-and-consequence}
+## Weighing Evidence Cost vs. Consequence {#sec-evidence-cost-and-consequence}
 
 Cost limits which observations an architect can obtain; it does not assign confidence or evidentiary strength. A cheap legality check may decisively reject an invalid candidate. An expensive post-route result may still be irrelevant to a security claim. The useful next check is one whose plausible outcomes could change the claim disposition, candidate ordering, scope, or proposed action enough to justify its computational and human cost.
 
@@ -324,7 +334,7 @@ The burden of proof depends heavily on the action being considered. The proposed
 
 Returning to the illustrative RISC-V XR subsystem prototype, a cheap structural check rejects illegal parameters quickly. Simulation determines if a performance hypothesis deserves scarce synthesis time. A synthesis flow exposes a timing failure. Security review might be more valuable than an additional cycle estimate if it reveals a shared-state flaw. Each check has a different cost and a different decision job.
 
-## Resolve Disputes, Record Waivers, and Reopen Claims {#sec-disputes-waivers-and-reopening}
+## Dispute Resolution {#sec-disputes-waivers-and-reopening}
 
 A finite evidence plan can still produce disagreement or leave a failed condition that someone proposes to accept. A dispute should first determine whether the parties are testing the same claim under aligned workloads, baselines, budgets, implementations, versions, metrics, and tool paths. A review then records supported, unsupported, or unresolved within the declared scope.
 
@@ -374,7 +384,7 @@ Each question below grows out of a verification difficulty this chapter examined
 
    The six-part branch in this chapter separated reviewing a claim from two independent choices, the knowledge-update branch and the architecture-action branch, and warned against treating every result as training data or a parameter change. It showed a failed 3W RISC-V XR timing candidate that could be stored in the project trajectory or a timing-surrogate calibration set but should not be automatically fine-tuned into a model. The open problem is whether an AI system can screen an observation before it reaches a shared knowledge surface, admitting results whose scope and provenance make them safe to generalize while rejecting gamed, confounded, or correlated evidence that would poison a downstream predictor or world model. Human-curated dataset construction and logging every run for later training without a scope check are the current baseline, and success is measured by whether models updated only from screened evidence make better-calibrated architecture predictions than models trained on all feedback, and by contamination caught before it degrades a later decision.
 
-## Summarize the Trust Boundary {#sec-conclusion-and-carry-forward}
+## Summarize the Trust Boundary {#sec-trust-boundary-conclusion}
 
 Automated AI generators increase the volume of design candidates and introduce new security risks like hardware trojans, meaning they don't lower the bar for verification. Architects must enforce an epistemic trust boundary by separating probabilistic intent from deterministic implementation. They must guard against AI gaming fast proxies, use formal proofs (BPC/EC) to verify semantic reality, and uncover correlated errors where multiple AI tools share the same blind spots. Architects retain control by bounding claims, requiring independent physical oracles, and treating waivers as recorded risks rather than test passes. Finally, architects must balance the capacity to evaluate candidates by weighing evidence cost against decision consequences, and ensure public claims never exceed what can be verified outside protected confidentiality boundaries.
 

@@ -30,18 +30,18 @@ After this chapter, you can:
 - Distill massive tool logs into dense, semantic summaries without discarding critical failure data.
 :::
 
-## Balance Architecture Environments
+## Balancing Architecture Environments
 
 An architecture environment constantly weighs fidelity against execution cost, and determinism against the flakiness of real tools. This trade-off forms a "fidelity ladder" that agents must navigate. A fast analytical cache model at the top of the ladder returns an estimate in seconds but only approximates timing, making it cheap but physically unconstrained. Conversely, a physical simulator or cycle-accurate RTL run at the bottom of the ladder guarantees true physical constraints, but costs hours of compute and can still vary from one attempt to the next because of tool heuristics and host state.
 
 An AI expects fast, deterministic APIs, but hardware design relies on slow, stateful, and expensive legacy software. The environment sits between them. It gives the AI enough autonomy to explore the design space at scale while enforcing strict rules through permissions, budgets, and interface schemas. These rules ensure the agent does not propose physically impossible designs or waste compute time on broken Electronic Design Automation (EDA) runs.
 
-## Resolve the Origin Mismatch Between Human Intuition and AI APIs
+## The Human–API Mismatch
 
 
 **In modern machine learning**, an agent typically interacts with an environment (such as an OpenAI Gym simulation) via a clean, synchronous loop: the agent takes an action, and the environment instantly returns a new state and a dense scalar reward.
 
-**Hardware tools, however, were built for humans, not APIs.** For decades, architecture tools such as CACTI [@MuralimanoharEtAl2009CACTI], DRAMSys [@WeisEtAl2021DRAMSys], or gem5 [@BinkertEtAl2011Gem5] were engineered to support manual workflows. They assume an architect who can read dense log files, debug build errors interactively, or interpret color-coded waveforms.
+**Hardware tools, however, were built for humans, not APIs.** For decades, architecture tools such as CACTI [@MuralimanoharEtAl2009CACTI], DRAMSys [@WeisEtAl2021DRAMSys], or gem5  were engineered to support manual workflows. They assume an architect who can read dense log files, debug build errors interactively, or interpret color-coded waveforms.
 
 **Modifying a real design requires navigating a chaotic, disconnected stack.** Inserting a custom vector block into an XR subsystem requires modifying Chisel, changing linker scripts, and hacking a Device Tree Blob (DTB). Forcing these messy realities into a standard ML environment loop without exposing their low-level details prevents the human architect from verifying physical constraints like timing and power.
 
@@ -67,22 +67,21 @@ At the top are fast analytical models (ISA-level or spreadsheet models) that act
 | **Fidelity Level** | **Example Tools** | **Speed** | **Physical Laws Enforced** |
 | --- | --- | --- | --- |
 | Analytical / ISA | Spreadsheet, gem5 (Atomic) | ~30x slowdown | None (Execution only) |
-| Cycle-Approximate | ZSim, Sniper | ~1,000x slowdown | Structural pipeline abstractions |
+| Cycle-Approximate | ZSim [@ZSim], Sniper [@Sniper] | ~1,000x slowdown | Structural pipeline abstractions |
 | Cycle-Accurate | gem5 (O3) | ~15,000x slowdown | Detailed timing, abstract physics |
 | RTL Simulation | Verilator | ~30,000x slowdown | Full logic behavior |
 | FPGA Emulation | FireSim | ~20x slowdown | Full logic, mapped to FPGA fabric |
-| Physical Design | Yosys, OpenROAD | Hours to Days | Power, Thermals, Routing, DRC |
+| Physical Design | Yosys [@Yosys], OpenROAD | Hours to Days | Power, Thermals, Routing, DRC |
 
 : **The Multi-Fidelity Spectrum.** An agent must trade fidelity for speed, climbing this ladder as design candidates mature. {#tbl-multi-fidelity-spectrum tbl-colwidths="[20,25,20,35]"}
 
 ```{python}
 #| label: fig-simulator-tax
 #| fig-cap: |
-#|   **The simulator tax: fidelity costs orders of magnitude, unless you burn an FPGA.** Representative slowdown of each architecture-evaluation approach relative to a roughly 3 GHz core. Software simulation slows by four to five orders of magnitude as fidelity rises toward cycle-accurate and RTL detail; FPGA-accelerated emulation stays within about twenty times real time, at the cost of dedicated hardware. Figures are order-of-magnitude and workload- and configuration-dependent [@BinkertEtAl2011Gem5; @KarandikarEtAl2018FireSim].
+#|   **The simulator tax: fidelity costs orders of magnitude, unless you burn an FPGA.** Representative slowdown of each architecture-evaluation approach relative to a roughly 3 GHz core. Software simulation slows by four to five orders of magnitude as fidelity rises toward cycle-accurate and RTL detail; FPGA-accelerated emulation stays within about twenty times real time, at the cost of dedicated hardware. Figures are order-of-magnitude and workload- and configuration-dependent .
 #| out-width: "92%"
-#| fig-alt: "Horizontal log chart of simulation slowdown versus real hardware across six approaches. Native silicon is one times.
-
-FPGA emulation (FireSim) is about twenty times slower. Functional or ISA simulation is about thirty times. Cycle-approximate simulation (ZSim, Sniper) is about one thousand times. Cycle-accurate simulation (gem5) is about fifteen thousand times. RTL simulation (Verilator) is about thirty thousand times slower."
+#| fig-alt: |
+#|   Horizontal log chart of simulation slowdown versus real hardware across six approaches. Native silicon is one times. FPGA emulation (FireSim) is about twenty times slower. Functional or ISA simulation is about thirty times. Cycle-approximate simulation (ZSim, Sniper) is about one thousand times. Cycle-accurate simulation (gem5) is about fifteen thousand times. RTL simulation (Verilator) is about thirty thousand times slower.
 
 import csv
 from pathlib import Path
@@ -96,8 +95,8 @@ apply_style()
 # Data: representative simulation throughput per fidelity rung, synthesized from
 # primary sources and expressed as slowdown versus a ~3 GHz core. CPU-sim rungs
 # count instructions, RTL/FPGA rungs count cycles (~comparable at IPC ~1). Anchors:
-# ZSim (Sanchez & Kozyrakis 2013), gem5-class ~200 KIPS [@BinkertEtAl2011Gem5],
-# Verilator (Chipyard), FireSim [@KarandikarEtAl2018FireSim]. Order-of-magnitude,
+# ZSim (Sanchez & Kozyrakis 2013), gem5-class ~200 KIPS ,
+# Verilator (Chipyard), FireSim . Order-of-magnitude,
 # workload/config/host dependent. Accessed 2026-07-19.
 # Receipt: data/source-receipts/chapter5-simulator-tax.csv
 _root = Path(_ap.__file__).resolve().parents[2]
@@ -141,7 +140,9 @@ AI should act as an architectural control plane. Rather than just generating scr
 
 This is a constraint inversion. Historically, architecture flowed top-down from intent to RTL and RTL to physical design. Today, physical limitations like thermal envelopes, wire delay, and routing congestion constrain architectural choices bottom-up.
 
-Like drug discovery, finding a high-performance design is often easier than passing these inverted physical limits, what we might call silicon ADMET, borrowing the drug-discovery ADMET screen (absorption, distribution, metabolism, excretion, toxicity) that filters candidate compounds on downstream physical viability rather than potency alone. The multi-fidelity ladder screens candidates by evaluation cost; the same filtering recurs along the physical axis, where data movement, thermal limits, and routing progressively reject high-scoring candidates that cannot survive signoff (@fig-silicon-admet-funnel). Architecture also faces a sim-to-silicon gap, so the AI must seek designs that survive physical variation and tool noise rather than fragile peaks in a proxy score.
+Like drug discovery, finding a high-performance design is often easier than passing these inverted physical limits, what we might call silicon ADMET, borrowing the drug-discovery ADMET screen[^fn-admet] that filters candidate compounds on downstream physical viability rather than potency alone. The multi-fidelity ladder screens candidates by evaluation cost; the same filtering recurs along the physical axis, where data movement, thermal limits, and routing progressively reject high-scoring candidates that cannot survive signoff (@fig-silicon-admet-funnel). Architecture also faces a sim-to-silicon gap, so the AI must seek designs that survive physical variation and tool noise rather than fragile peaks in a proxy score.
+
+[^fn-admet]: Absorption, distribution, metabolism, excretion, toxicity.
 
 ![**The "Silicon ADMET" funnel.** Drawing a parallel between the phased, rigorous filtering of drug discovery and the physical signoff funnel in computer architecture, both disciplines must weed out high-scoring "decoys" early using increasingly expensive and faithful evaluations.](images/F5-silicon-admet-funnel.svg){#fig-silicon-admet-funnel fig-alt="The Silicon ADMET Funnel"}
 
@@ -168,7 +169,7 @@ Physical-design environments make this staged interface particularly clear. Logi
 
 To balance determinism versus reproducibility, we must consider costs, operational fidelity, nondeterminism, and integrity. Two post-route attempts for the same hardware artifact may differ because of seed, thread count, host state, or tool heuristics. To manage nondeterminism and flakiness, distinguish three cases: expected statistical variation, declared tool nondeterminism, and flaky/unstable execution. Do not silently average contradictory returns from different stages, sources, or attempts.
 
-**Software engineering benchmarks like SWE-bench** [@JimenezEtAl2024SWEBench] demonstrate that loosely connected scripts lead to unreproducible outcomes. An AI needs explicit read/action/return paths to avoid falsely assuming success.
+**Software engineering benchmarks like SWE-bench**  demonstrate that loosely connected scripts lead to unreproducible outcomes. An AI needs explicit read/action/return paths to avoid falsely assuming success.
 
 **Architecture 2.0 must adopt best practices for tool execution**, ensuring strict data provenance and reproducible environment snapshots. Much like modern Cloud DevOps relies on Immutable Infrastructure, declaring a new state rather than manually patching a running server, architecture environments must enforce **Immutable Architecture States**.
 
@@ -186,9 +187,11 @@ In pedagogical AI tutorials, agents often interact with simulated games using a 
 
 **Finally, Gym expects a dense scalar reward** after every step. In contrast, architectural feedback is sparse and arrives only at the end of a long chain of builds and checks, leaving a poor final result hard to attribute to any single upstream action. Each of these gaps has to be engineered away in the harness rather than the learning algorithm. The harness, not the agent that acts against it, is the deliverable.
 
-Consequently, real tool chains require asynchronous, scarce, and protected execution mechanics. Long simulations, FPGA builds, EDA stages, and signoff require explicit submit, poll, resume, cancel, timeout, retry, queue, license, permission, artifact-isolation, and partial-return behavior. These are architecture environment semantics because they determine which candidate ran, which stage completed, which artifacts are valid, and whether another attempt is comparable. For instance, a FireSim build, an FPGA-accelerated cycle-accurate hardware simulation, or a physical tool run may wait for an FPGA slot or EDA license, produce a checkpoint or partial report, time out, and later retry [@KarandikarEtAl2018FireSim]. Because returns now arrive asynchronously, out of order, and sometimes days late, the decision loop must consume rewards without blocking and keep many candidates in flight at once, a consequence @sec-methods-generation-prediction-optimization develops when it turns to the acting method.
+Consequently, real tool chains require asynchronous, scarce, and protected execution mechanics. Long simulations, FPGA builds, EDA stages, and signoff require explicit submit, poll, resume, cancel, timeout, retry, queue, license, permission, artifact-isolation, and partial-return behavior. These are architecture environment semantics because they determine which candidate ran, which stage completed, which artifacts are valid, and whether another attempt is comparable. For instance, a FireSim build, an FPGA-accelerated cycle-accurate hardware simulation, or a physical tool run may wait for an FPGA slot or EDA license, produce a checkpoint or partial report, time out, and later retry . Because returns now arrive asynchronously, out of order, and sometimes days late, the decision loop must consume rewards without blocking and keep many candidates in flight at once, a consequence @sec-methods-generation-prediction-optimization develops when it turns to the acting method.
 
-A critical requirement of this asynchronous system is explicitly distinguishing between an **infrastructure failure** and an **architectural constraint violation**. If an AI proposes an SRAM configuration and the simulator crashes due to a host Out-Of-Memory (OOM) error, or because a license^[Many commercial EDA tools require checking out a network license token before they will execute, which can cause jobs to hang if tokens are exhausted.] server went offline, this is an infrastructure failure. If the AI is simply penalized for this attempt, it will incorrectly assume the SRAM configuration itself is invalid, polluting the design space exploration with infrastructure noise.
+A critical requirement of this asynchronous system is explicitly distinguishing between an **infrastructure failure** and an **architectural constraint violation**. If an AI proposes an SRAM configuration and the simulator crashes due to a host Out-Of-Memory (OOM) error, or because a license[^fn-eda-licenses] server went offline, this is an infrastructure failure. If the AI is simply penalized for this attempt, it will incorrectly assume the SRAM configuration itself is invalid, polluting the design space exploration with infrastructure noise.
+
+[^fn-eda-licenses]: Many commercial EDA tools require checking out a network license token before they will execute, which can cause jobs to hang if tokens are exhausted.
 
 | **Failure type** | **Symptom** | **Environment action** | **Architectural meaning** |
 | --- | --- | --- | --- |
@@ -204,7 +207,7 @@ Some tool crashes, however, carry real architectural signal. A pathological cand
 
 
 
-## Adopt the Three-Path Environment Interface
+## The Three-Path Interface
 
 A tool returns raw, unstructured text, but an architecture study needs structured observations it can compare, check, and store. Turning one into the other is the job of the environment interface.
 
@@ -259,11 +262,11 @@ An agent's action space can range from simple parameter tuning to complex struct
 ```
 
 ::: {.content-visible when-format="html"}
-Rather than providing raw Python code, we can also formalize the overall execution loop as a standard algorithmic interface (@lst-environment-interface), drawing inspiration from frameworks like OpenAI Gymnasium but tailored for the unique constraints of hardware design [@TowersEtAl2023Gymnasium; @KrishnanEtAl2023ArchGym].
+Rather than providing raw Python code, we can also formalize the overall execution loop as a standard algorithmic interface (@lst-environment-interface), drawing inspiration from frameworks like OpenAI Gymnasium but tailored for the unique constraints of hardware design [@TowersEtAl2023Gymnasium].
 :::
 
 ::: {.content-visible when-format="pdf"}
-Rather than providing raw Python code, we can also formalize the overall execution loop as a standard algorithmic interface (Algorithm~\ref{lst-environment-interface}), drawing inspiration from frameworks like OpenAI Gymnasium but tailored for the unique constraints of hardware design [@TowersEtAl2023Gymnasium; @KrishnanEtAl2023ArchGym].
+Rather than providing raw Python code, we can also formalize the overall execution loop as a standard algorithmic interface (Algorithm~\ref{lst-environment-interface}), drawing inspiration from frameworks like OpenAI Gymnasium but tailored for the unique constraints of hardware design [@TowersEtAl2023Gymnasium].
 :::
 
 ::: {.content-visible when-format="pdf"}
@@ -333,7 +336,7 @@ If another method can act in the same harness and another architect can interpre
 
 The Return Path is where a raw tool log becomes the observation the agent acts on. But capturing the return safely is only the first step; we must also ensure the AI can comprehend it.
 
-## Bypass the Attention Bottleneck and Distill Data
+## Attention Bottlenecks and Distillation
 
 When interfacing AI models with traditional architecture tools, a mismatch occurs at the observation layer. A commercial EDA tool or a detailed simulator like gem5 generates exhaustive text output, often containing tens of thousands of lines. If an environment wrapper naively pipes raw stdout directly back to an AI, the agent will struggle to isolate relevant signals from the noise, making it harder to debug the actual hardware issue.
 
@@ -349,13 +352,16 @@ Representing a tool like Yosys or OpenROAD for an agent involves defining its in
 
 Truncating a million-line timing trace to fit a context window creates a permanent verification blind spot for the AI, causing it to hallucinate success simply because the error was paginated away. By formalizing tools as typed APIs with explicit failure modes and hierarchical summarization, the agent can programmatically construct valid toolchain requests. It parses the resulting metrics directly into its internal state, executing deterministic recovery actions without hitting the telemetry wall. The architect ultimately reviews these structured summaries in the Evaluation Harness to ensure thermal budgets and STA hold.
 
-## Standardize Hardware APIs
+## Hardware API Standardization
 
 While a robust three-path interface manages execution, the payloads traversing those paths must be mathematically and structurally unambiguous. Historically, hardware descriptions relied on fragmented, vendor-specific languages (like SystemVerilog) built for human designers and proprietary logic synthesizers, not programmatic mutation.
 
 If an AI agent relies on text-based string-matching or shallow Abstract Syntax Tree (AST) parsing to modify a Verilog module, it will inevitably corrupt the design. Textual regex cannot safely resolve tangled macro expansions, evaluate parameterized `generate` blocks, or infer the unspoken module hierarchies that ultimately dictate physical placement and routing.
 
-This brittleness necessitates the **Standardization of Hardware APIs** through open, formally structured intermediary representations, most notably MLIR (Multi-Level Intermediate Representation) and its hardware-centric counterpart, CIRCT (Circuit IR Compilers and Tools).
+This brittleness necessitates the **Standardization of Hardware APIs** through open, formally structured intermediary representations, most notably MLIR[^fn-mlir] and its hardware-centric counterpart, CIRCT[^fn-circt].
+
+[^fn-mlir]: Multi-Level Intermediate Representation.
+[^fn-circt]: Circuit IR Compilers and Tools.
 
 CIRCT replaces unstructured text with a strict, queryable Static Single Assignment (SSA) form that explicitly models dataflow, concurrency, and structural dependencies. By capturing hardware intent as a graph of progressive dialects—stepping down from high-level abstractions (`firrtl` or `handshake`) to structural nets (`hw` and `comb`)—CIRCT provides a universal, deterministic API for AI agents.
 
@@ -366,7 +372,7 @@ For the human architect, these standardized representations form an indispensabl
 
 
 
-## Orchestrate Complex Toolchains
+## Orchestrating Complex Toolchains
 
 When a candidate design successfully navigates the Three-Path Interface and its intent is safely encoded in a standardized IR like MLIR, it must be translated into actionable physical tool commands. However, a single high-level intent rarely maps to a single tool. A hardware configuration might need to fan out to multiple distinct evaluation backends. These include an RTL simulator for functional correctness, a VLSI flow for power and area estimates, and an FPGA emulation path for full-stack software booting.
 
@@ -395,9 +401,9 @@ To illustrate this orchestration complexity, consider how a single architecture 
 
 ![**Artifact lineage and cryptographic provenance.** A single Lighthouse intent fans out into software binaries and hardware RTL, each hashed to ensure reproducible evaluations.](images/F5-artifact-lineage.svg){#fig-artifact-lineage fig-alt="Artifact Lineage and Cryptographic Provenance. A single Lighthouse intent fans out into software binaries and hardware RTL, each hashed to ensure reproducible evaluations."}
 
-Software variant S2 may be an MLIR-derived lowering compiled into binary B2 [@LattnerEtAl2020MLIR]. Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 [@chipyard]. Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
+Software variant S2 may be an MLIR-derived lowering compiled into binary B2 . Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 . Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
 
-An evaluation instance binds every layer relevant to that tool action. Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. Google's Bazel build system guarantees reproducibility by enforcing hermeticity, where every output is a strict cryptographic hash of its inputs. This perfectly matches the architectural need to track hardware candidate identity as it lowers from a C++ memory model to RTL to Layout. A hash proves artifact identity, not architectural or functional equivalence.
+An evaluation instance binds every layer relevant to that tool action. Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. Google's Bazel [@Bazel] build system guarantees reproducibility by enforcing hermeticity, where every output is a strict cryptographic hash of its inputs. This perfectly matches the architectural need to track hardware candidate identity as it lowers from a C++ memory model to RTL to Layout. A hash proves artifact identity, not architectural or functional equivalence.
 
 ## Open Research Questions
 

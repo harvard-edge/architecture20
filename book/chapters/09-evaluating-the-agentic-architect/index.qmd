@@ -26,11 +26,11 @@ After reading this chapter, you can:
 - Assess the trade-off between the computational cost of an agent and the reliability of its results.
 :::
 
-## Shift Measurement for AI-Driven Design
+## Measurement Shifts
 
 Before we can benchmark an AI architect, we should recall why human architects measure anything at all. Computer architecture is a strictly empirical discipline. We do not evaluate a processor by reading its source code; we evaluate it by running standardized workloads such as SPEC CPU or MLPerf and measuring the physical consequences, including IPC, power, area, and latency.
 
-Because building a physical chip costs millions of dollars and takes years, we measure these properties early and often using simulators and analytical models such as the Roofline model or McPAT. The goal of traditional architectural measurement is risk reduction. We measure to gain confidence that a design point will meet its physical requirements before we commit it to silicon.
+Because building a physical chip costs millions of dollars and takes years, we measure these properties early and often using simulators and analytical models such as the Roofline model [@Roofline] or McPAT [@McPAT]. The goal of traditional architectural measurement is risk reduction. We measure to gain confidence that a design point will meet its physical requirements before we commit it to silicon.
 
 When an AI agent enters the design loop, the object of measurement shifts. We are no longer only evaluating the *artifact*, the generated chip. We must now also evaluate the *agent*, the generative system driving the loop, because an agent can reach a correct architecture through incorrect and unscalable means.
 
@@ -41,7 +41,7 @@ In hardware, this is expensive in a way software is not. In software, a stochast
 | **Dimension** | **Evaluating the Artifact (Traditional)** | **Evaluating the Agent (Architecture 2.0)** |
 | --- | --- | --- |
 | **What is measured?** | The physical consequences of the processor. | The algorithmic efficiency of the search under physical constraints. |
-| **Standard Benchmarks** | SPEC CPU, MLPerf, PARSEC. | ArchEval, VerilogEval, RTLLM. |
+| **Standard Benchmarks** | SPEC CPU, MLPerf, PARSEC [@PARSEC]. | ArchEval, VerilogEval [@VerilogEval], RTLLM [@RTLLM]. |
 | **Primary Cost** | Paid once per design phase (NRE). | Paid iteratively during every loop (EDA Simulator Tax). |
 | **Failure Mode** | Thermal throttling, timing violations. | Unroutable netlists, PDN violations, ignored formal equivalence constraints. |
 | **Goal of Measurement** | Prove the chip works. | Prove the agent can reason causally about hardware constraints. |
@@ -49,17 +49,19 @@ In hardware, this is expensive in a way software is not. In software, a stochast
 : **From measuring the chip to measuring the agent.** Evaluating an AI architect requires a different set of metrics than evaluating the chip it produces. {#tbl-eval-shift tbl-colwidths="[20,40,40]"}
 
 
-## Discard Software Analogies
+## The Limits of Software Analogies
 
-To establish how to benchmark agents, the immediate temptation is to look to software engineering. However, trivial software benchmarks like HumanEval or LeetCode—and even complex repository-level evaluations like SWE-bench—simply measure whether an agent can emit syntax that passes a hidden, purely logical test suite. While these highlight the importance of execution-based evaluation, software analogies fail in architecture because they are completely decoupled from physics and indifferent to *execution cost*.
+To establish how to benchmark agents, the immediate temptation is to look to software engineering. However, trivial software benchmarks like HumanEval [@HumanEval] or LeetCode [@LeetCode]—and even complex repository-level evaluations like SWE-bench—simply measure whether an agent can emit syntax that passes a hidden, purely logical test suite. While these highlight the importance of execution-based evaluation, software analogies fail in architecture because they are completely decoupled from physics and indifferent to *execution cost*.
 
 In software, running five hundred unit tests takes seconds. In architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources. Because of this steep cost, the field requires standardized, physics-bound benchmarks to mature. We must discard software-only analogies and instead measure true engineering value: an agent's ability to navigate power analysis, timing closure, and unroutable congestion.
 
-Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. VerilogEval and RTLLM evaluate the basic structural correctness of RTL generation, assessing whether models can produce compilable, functional hardware modules. However, they often fall short of capturing system-level design space exploration.
+Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. VerilogEval [@VerilogEval] and RTLLM [@RTLLM] evaluate the basic structural correctness of RTL generation, assessing whether models can produce compilable, functional hardware modules. However, they often fall short of capturing system-level design space exploration.
 
-ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. For instance, an ArchEval task might fix the memory hierarchy constraints (e.g., L1 size, associativity) as inviolable, while providing the agent with a set of parameterizable Verilog templates and a cycle-accurate simulator. The agent must discover the optimal pipeline depth without modifying the fixed memory configuration. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.
+ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.[^fn-archeval-constraints]
 
-## Measure the Search, Not the Chip
+[^fn-archeval-constraints]: For instance, an ArchEval task might fix the memory hierarchy constraints (e.g., L1 size, associativity) as inviolable, while providing the agent with a set of parameterizable Verilog templates and a cycle-accurate simulator. The agent must discover the optimal pipeline depth without modifying the fixed memory configuration.
+
+## Measuring the Search
 
 If we cannot rely on software benchmarks, what exactly should we measure? Evaluating the process of design means tracking metrics across three roles: **generation** (creating the design), **prediction** (estimating its value), and **optimization** (searching the space).
 
@@ -87,7 +89,7 @@ First, fix the unit of evaluation. A *task* is one bounded design problem posed 
 
 The following sections take each metric in turn and ground it in the machine-learning idea that makes it necessary.
 
-### Prevent Reward Hacking
+### Reward Hacking
 
 The most basic evaluation of an agent is whether it produces a valid proposal at all. In an open-topology search, generative models frequently propose illegal configurations. An agent might route a memory bus through a blocked macro, request an L2 cache that violates the SRAM area budget, or emit Verilog that does not compile.
 
@@ -95,7 +97,7 @@ The most basic evaluation of an agent is whether it produces a valid proposal at
 
 **Why we measure it (Goodhart's Law and reward hacking).** If we reward an agent only for maximizing IPC, it learns to reward hack. For instance, an agent might propose a cache larger than the die, or exploit a known bug in a McPAT power model to artificially deflate estimated energy usage by gating clocks that are structurally required. Measuring bounds adherence proves the agent is engineering within physical reality rather than exploiting the abstractions of the simulator.
 
-### Calibrate the Proxy
+### Proxy Calibration
 
 Before an agent queries a slow EDA tool, it usually queries a fast surrogate model to predict the outcome. Evaluating the prediction role means measuring how much that proxy can be trusted, ensuring the agent is not artificially inflating its performance by **overfitting to proxy metrics**.
 
@@ -103,7 +105,7 @@ Before an agent queries a slow EDA tool, it usually queries a fast surrogate mod
 
 **Why we measure it (the Proxy Mirage).** A poorly calibrated proxy sends the optimizer confidently toward a Proxy Mirage, a region where the proxy predicts large gains but physical synthesis returns poor results. Scoring rank fidelity precisely where the search concentrates is what catches the mirage—preventing the agent from exploiting the surrogate's blind spots. For the field to mature, it requires standardized, physics-bound benchmarks that rigorously punish this kind of metric-gaming and validate true engineering value.
 
-### Track Trajectory Efficiency and the Simulator Tax
+### Trajectory Efficiency
 
 An agent's practical value is set by its trajectory efficiency, how quickly it converges on a strong design instead of wandering.
 
@@ -111,16 +113,18 @@ An agent's practical value is set by its trajectory efficiency, how quickly it c
 
 **Why we measure it (the Simulator Tax).** Architecture has a **Simulator Tax**: every unreasoned guess spends scarce EDA tool license hours and compute node limits. If Agent A finds a five percent improvement in ten simulator calls and Agent B finds six percent but needs a thousand, Agent A is far more useful. An evaluation must charge the Simulator Tax.
 
-### Evaluate Autonomous Recovery
+### Autonomous Recovery
 
 When an architecture environment returns an error, such as a setup-time violation from Static Timing Analysis (STA) or a failure in formal equivalence checking, the agent must parse that output and adjust its next proposal.
 
 **What to measure.** The Self-Correction Rate (SCR):
 $$ SCR = \frac{\text{Resolved Errors}}{\text{Total Environment Failures}} $$
 
-**Why we measure it (causal reasoning versus random search).** A failing STA trace pinpoints the exact critical path. A strong agent parses the timing report, identifies the bottleneck, and fixes the logic depth or the congested route. For example, if an agent routes a 128-bit bus across the die, failing STA with a massive setup violation, a capable agent inserts pipeline registers to break the path. A weak agent treats the timing log as random noise and simply guesses a new configuration. The Self-Correction Rate measures the agent's capacity to resolve physical constraints rather than brute-forcing the simulator.
+**Why we measure it (causal reasoning versus random search).** A failing STA trace pinpoints the exact critical path. A strong agent parses the timing report, identifies the bottleneck, and fixes the logic depth or the congested route.[^fn-sta-correction] A weak agent treats the timing log as random noise and simply guesses a new configuration. The Self-Correction Rate measures the agent's capacity to resolve physical constraints rather than brute-forcing the simulator.
 
-### Verify Tool Use and Rationale Faithfulness
+[^fn-sta-correction]: For example, if an agent routes a 128-bit bus across the die, failing STA with a massive setup violation, a capable agent inserts pipeline registers to break the path.
+
+### Verifying Tool Use
 
 Modern agents act by calling tools: invoking a synthesis script, querying a timing path, plotting a power map.
 
@@ -128,7 +132,7 @@ Modern agents act by calling tools: invoking a synthesis script, querying a timi
 
 **Why we measure it (the credit-assignment problem).** When an agent gathers evidence precisely, for example by querying the critical path with STA *before* touching the ALU, it shows it can assign credit as it goes. An evaluation should check the rationale against the trajectory rather than accept it at face value, ensuring the agent is not hallucinating post-hoc explanations for lucky design changes.
 
-### Test Context Retention
+### Context Retention
 
 Hardware design is a multi-week, stateful project. An agent might learn a constraint on the memory subsystem's latency on day one that it must apply when fixing a pipeline deadlock on day fourteen.
 
@@ -136,15 +140,17 @@ Hardware design is a multi-week, stateful project. An agent might learn a constr
 
 **Why we measure it.** Models still suffer amnesia, silently dropping earlier physical constraints as the RTL and run log expand. Architecture benchmarks must rigorously test deep constraint state retention.
 
-## Validate the Measurement
+## Measurement Validation
 
 A metric is only as trustworthy as the benchmark that produces it. Four failures make a good-looking score a lie: the tasks were contaminated, the number was noise, there was nothing to compare it against, or the metric was never shown to predict the capability it stands in for.
 
-### Isolate Held-Out Tasks to Prevent Contamination
+### Held-Out Tasks
 
-The public corpus of open-source hardware, such as RISC-V cores like BOOM or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of **data contamination**—where the benchmark's test data leaks into the model's training corpus—is critically high for standard hardware tasks. When this leakage occurs, a high pass-rate measures **memorization** (data retrieval of existing RTL) rather than **generalization** (the capability to reason about novel microarchitectural trade-offs).
+The public corpus of open-source hardware, such as RISC-V cores like BOOM [@BOOM] or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of **data contamination**—where the benchmark's test data leaks into the model's training corpus—is critically high for standard hardware tasks. When this leakage occurs, a high pass-rate measures **memorization** (data retrieval of existing RTL) rather than **generalization** (the capability to reason about novel microarchitectural trade-offs).
 
-**What to measure.** Whether the score survives contact with purely synthetic, zero-day tasks the model could not have possibly seen. If the performance collapses when an open-source task is swapped for a novel, procedurally generated microarchitectural challenge, the benchmark was merely measuring memory. Frameworks like ArchEval mitigate test leakage by parameterizing the environment: rather than asking the agent to implement a static specification (which might be memorized), they dynamically synthesize the constraints (e.g., generating randomized but physically valid memory hierarchies) and measure the agent's real-time trajectory to optimize around them. This creates an un-gameable pass/fail criterion where success requires generalizing physics-bound logic rather than regurgitating leaked training data.
+**What to measure.** Whether the score survives contact with purely synthetic, zero-day tasks the model could not have possibly seen. If the performance collapses when an open-source task is swapped for a novel, procedurally generated microarchitectural challenge, the benchmark was merely measuring memory. Frameworks like ArchEval mitigate test leakage by parameterizing the environment: rather than asking the agent to implement a static specification (which might be memorized), they dynamically synthesize the constraints[^fn-dynamic-constraints] and measure the agent's real-time trajectory to optimize around them. This creates an un-gameable pass/fail criterion where success requires generalizing physics-bound logic rather than regurgitating leaked training data.
+
+[^fn-dynamic-constraints]: For example, generating randomized but physically valid memory hierarchies.
 
 ::: {.callout-war-story title="Overfitting to the Simulator and the Proxy Mirage"}
 **The claim.** An early agent evaluation reported massive IPC gains across a suite of DSP accelerators by aggressively pipelining functional units. The trajectory showed high efficiency and consistent simulated performance improvements.
@@ -154,23 +160,23 @@ The public corpus of open-source hardware, such as RISC-V cores like BOOM or Roc
 **The lesson.** Repairing this required more than just fixing the area model; it required the benchmark to enforce physical constraints. The headline number mixed genuine architectural exploration with simulator exploitation. An architectural benchmark's credibility depends on evaluating agents against the hard walls of physical realities—like timing, power, and routing—not just the soft estimates of an analytical proxy.
 :::
 
-### Ensure Statistical and Physical Validity
+### Statistical and Physical Validity
 
 *   **Control Variance, Seeds, and Replay:** Agents are stochastic, so a single run is an anecdote, not a measurement. Report the number of seeds, the sample size per task, and the spread of results. Pin the model version and a response digest, fix the seeds and the budget before the run, and archive each trajectory so another team can replay it.
 *   **Compare Baselines at Equal Budgets:** A score means little without a floor (human-expert baseline) and a ceiling (exhaustive search where possible). Agents of different cost must be compared at an equal simulator-call budget to ensure we measure efficiency, not just spending limits.
 *   **Ensure Metrics Predict Physical Quality:** The missing check is whether a high suite score actually predicts a good outcome on physical hardware. If the metric cannot reliably correlate with routing congestion, timing closure, or power budgets, the agent may climb the scoreboard while producing physically useless architectures.
 
-## Turn Scores into Decisions
+## Scoring and Decisions
 
 An evaluation exists to change what an architect does next. Answering it requires reading the scores through reliability and cost, not peak capability.
 
-### Separate Capability from Reliability
+### Capability vs. Reliability
 
 Pass@k rewards at least one success in $k$ tries. Deployment usually needs the opposite property: that the agent does not fail catastrophically and ruin a tape-out schedule.
 
 **What to measure.** A reliability figure reported next to the optimistic ones: the worst-case outcome across runs, or the fraction of runs that finish with no constraint violation.
 
-### Navigate the Cost-Quality Pareto
+### Navigating the Cost-Quality Pareto
 
 Because agents differ in both quality and cost, the comparison is a cost-quality plane. @fig-agent-pareto places candidate agents by total evaluation compute against the best design quality they reach.
 
@@ -180,7 +186,7 @@ Because agents differ in both quality and cost, the comparison is a cost-quality
 
 ![**The economics of agentic evaluation.** The total computational cost forms a U-shaped curve. Weak agents incur a large EDA Simulator Tax through brute-force interaction. Frontier agents minimize simulation but incur a high Transformer inference cost.](images/F9-compute-economics.pdf){#fig-compute-economics fig-alt="A U-shaped curve showing that total evaluation compute is a trade-off between inference cost and simulation cost." width=80%}
 
-### Calibrate Autonomy
+### Autonomy Calibration
 
 How much of the initial search can run with lightweight supervision is a risk decision keyed to the reliability of the agent and the cost of a wasted simulator run. A steady agent proposing a cache sweep can be allowed to batch its runs; however, no agent is permitted to make final architectural decisions or approve an RTL freeze without the human architect serving as the final judge (@tbl-eval-checklist).
 

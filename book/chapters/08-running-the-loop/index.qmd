@@ -21,7 +21,7 @@ In a real EDA environment, the penalty for guessing wrong is severe. Waiting eig
 
 Before any model or simulator output is known, the architect fixes the workload, legal array shapes, simulator configuration, comparison budget, rejection criteria, and decision owner. Fixing these choices prevents post-result goalpost moving and enforces discipline without claiming the choices were intrinsically optimal, serving as the baseline search strategy that an AI generative proposer must beat (@sec-methods-generation-prediction-optimization).
 
-## Execute the Control Case Experiment
+## Executing the Control Case
 
 The experiment below serves as a proof-of-concept for the automated Architecture 2.0 loop in motion. While deliberately modest, it instantiates the framework on a concrete architectural problem, anchoring back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform. We specifically zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. Instead of brute-forcing all geometries, the AI proposes candidates that must satisfy physical constraints like die area and wiring congestion before simulation.
 
@@ -41,9 +41,9 @@ After this chapter, you can:
 :::
 
 
-## Preregister the Study {#sec-executed-scale-study}
+## Preregistering the Study {#sec-executed-scale-study}
 
-### Define the Decision
+### Defining the Decision
 
 The architecture question is deliberately narrow to test a precise hypothesis without overextending the methodology.
 
@@ -52,9 +52,11 @@ The architecture question is deliberately narrow to test a precise hypothesis wi
 > baseline, and does the model's directional prediction survive its declared
 > contrast?
 
-The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, SRAM capacity (the on-chip SRAM scratchpad), interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
+The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, SRAM capacity[^fn-sram-scratchpad], interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
 
-### Render Four Separate Judgments
+[^fn-sram-scratchpad]: The on-chip SRAM scratchpad.
+
+### The Four Judgments
 
 A candidate ranking does not answer every question in an AI-assisted architecture study, so this experiment produces four distinct judgments from different parts of the record.
 
@@ -65,7 +67,7 @@ A candidate ranking does not answer every question in an AI-assisted architectur
 
 These judgments can disagree, meaning a model might propose a competitive candidate without beating the heuristic, or a tied candidate could leave the status quo in place. A useful candidate might arrive with a failed explanation, and a bounded study can stop even though most of the legal design space remains unevaluated. The executed comparison below reports all four outcomes without inappropriately combining them into a single claim that the model or the complete discipline succeeded.
 
-### Separate Outcomes from AI Claims
+### Separating Outcomes from Claims
 
 The preregistration keeps the architecture-outcome and AI-contribution claims
 separate. This deliberate decoupling enforces one rule. The AI proposes candidates, and the deterministic simulator evaluates them. The model must never be allowed to grade its own homework. This ensures that a "successful" model invocation (one that generates valid JSON or a plausible explanation) is not automatically conflated with a successful architectural design. @fig-bounded-study-workflow lays out the full study in four stages, from preregistering the decision, through bounded candidate generation and deterministic simulation, to the four separate judgments that follow.
@@ -112,7 +114,7 @@ produces results. @tbl-executed-study-protocol records those rules.
 | --- | --- |
 | Workloads | One three-layer GEMM slice, plus a versioned copy with M and N exchanged for the mechanism test. |
 | Legal shapes | Rows and columns each in {8, 16, 32, 64, 128}; product no greater than 1,024 processing elements. These rules admit fifteen shapes. |
-| Environment | SCALE-Sim 3.0.0, GEMM interface, weight-stationary dataflow, 128 KiB per SRAM, and 64 interface words per cycle. |
+| Environment | SCALE-Sim 3.0.0, GEMM interface, weight-stationary dataflow [@ChenEtAl2016Eyeriss], 128 KiB per SRAM, and 64 interface words per cycle. |
 | Baseline and rejection criteria | Insert 32 by 32 into both arms; reject shapes above 1,024 processing elements or runs above 90,000 cycles. |
 | Proposal arms | Three model proposals and three candidates from a fixed aggregate-aspect-ratio heuristic. |
 | Evaluation budget | Four SCALE-Sim evaluations per arm after inserting the baseline; no post-result replacement. |
@@ -139,9 +141,9 @@ three-layer workload, local score, 32 by 32 baseline, 1 percent decision margin,
 an architecture choice that would need a rationale and sensitivity analysis
 before a broader decision relied on it.
 
-### Formalize the Design State and Mechanism Hypothesis
+### The Mechanism Hypothesis
 
-As established in @sec-data-representations-world-models, general knowledge is meaningless without explicit project constraints. The representation for this study is small, serving as a specific record rather than a general world model of the accelerator. The fifteen legal shapes, baseline, mutable array dimensions, fixed simulator conditions, local score, and workload matrices form the explicit design state. By formalizing these variables, the architect retains authority over the design boundaries. In this instance, the candidate representation changes only the datapath's `ArrayHeight` and `ArrayWidth`, while the weight-stationary dataflow, SRAM capacity, interface bandwidth, layout, workload, and simulator version remain fixed.
+As established in @sec-data-representations-world-models, general knowledge is meaningless without explicit project constraints. The representation for this study is small, serving as a specific record rather than a general world model of the accelerator. The fifteen legal shapes, baseline, mutable array dimensions, fixed simulator conditions, local score, and workload matrices form the explicit design state. By formalizing these variables, the architect retains authority over the design boundaries. In this instance, the candidate representation changes only the datapath's `ArrayHeight` and `ArrayWidth`, while the weight-stationary dataflow [@ChenEtAl2016Eyeriss], SRAM capacity, interface bandwidth, layout, workload, and simulator version remain fixed.
 
 That representation is useful only if a candidate change can be connected to a predicted consequence. The model proposed three shape deltas and predicted that a wider 16 by 64 array would better match the workload's N dimensions than its mirrored 64 by 16 alternative, further asserting that exchanging M and N in the workload would reverse the winner. The AI's ability to predict a directional outcome relies on its learned statistical priors, which must be tested against the simulator acting as the execution world model. The proposal therefore emitted both a design-state change and a testable consequence hypothesis that the simulator could challenge.
 
@@ -164,7 +166,7 @@ follow-up, not permission to invent a replacement explanation after the result.
 A stronger follow-up would pin the mapping semantics and choose contrasts that
 isolate them.
 
-### Fix the Environment and Method Roles
+### Fixing Environment and Roles
 
 @tbl-practitioner-path summarizes the completed design loop. The card is an
 index into the retained record rather than a substitute for it.
@@ -184,16 +186,18 @@ index into the retained record rather than a substitute for it.
 The role separation in @tbl-practitioner-path matters because while the model and fixed heuristic select candidates, neither produces the measured score or approves an architecture change. The validator may reject malformed or illegal output but cannot decide whether the workload or objective is appropriate. SCALE-Sim calculates the recorded quantities without establishing its own fidelity, leaving the architect to own those judgments and the final stopping decision.
 
 
-## Record the Model Call and an Environment Failure
+## Model Calls and Failures
 
 The model received the architecture question, legal dimension set, processing-element budget, workload matrix dimensions, fixed environment assumptions, mandatory baseline, output schema, scoring definition, and evidence boundary, but it did not receive the fixed heuristic's candidates or simulator results. The model then proposed a design mutation by naming three candidates, predicting qualitative behavior, stating an anticipated failure mode, and offering a directional mechanism with a testable failure condition. The architect evaluates this output as a candidate, not a final decision.
 
-The first attempt to invoke the runtime never reached inference because the response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference. Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations.
+The first attempt to invoke the runtime never reached inference.[^fn-json-schema] Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations.
+
+[^fn-json-schema]: The response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference.
 
 While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. In a physical design loop, a useful model must parse actual physical verification failures—like negative slack reports or DRC violations—rather than merely retrying crashed scripts.
 
 ::: {.callout-war-story title="The illusion of zero-shot success"}
-**The claim.** An AI model generates a highly optimized architecture design on the first try, claiming zero-shot capability in a published paper.
+**The claim.** An AI model generates a highly optimized architecture design on the first try, claiming zero-shot capability in a published paper .
 
 **The gap.** The publication omitted the fifty prior manual iterations where the architect tweaked the prompt, added constraints, and fixed syntax errors. This prompt shopping hides the true human-in-the-loop cost, framing a heavily curated result as autonomous intelligence.
 
@@ -215,7 +219,9 @@ The subsequent call returned a schema-valid response. Since semantic validation 
 
 : **Recorded and unavailable model settings.** The record reports values supplied by the runtime and marks the remaining settings as unavailable. {#tbl-model-provenance tbl-colwidths="[27,63]"}
 
-Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Second, the requested alias is not a pinned model identity because the provider did not expose a model revision, digest, seed, temperature, or top-p. The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
+Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Second, the requested alias is not a pinned model identity.[^fn-llm-api-opacity] The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
+
+[^fn-llm-api-opacity]: The provider did not expose a model revision, digest, seed, temperature, or top-p.
 
 The model proposed 16 by 64, 8 by 128, and 32 by 16. The fixed aspect-ratio
 heuristic ranked legal shapes by processing-element count, then by closeness to
@@ -232,7 +238,7 @@ the comparison had little power to separate them from the start. A tie was the
 likely outcome before either arm ran, so it reports low resolving power between
 the two proposers rather than measured parity, whatever the model's quality.
 
-## Run the Same Comparison and Report Every Selected Candidate
+## Reporting Selected Candidates
 
 Every proposed candidate passed the processing-element and cycle-limit checks,
 so this run does not exercise the invalid-candidate repair path, the
@@ -258,7 +264,9 @@ evaluations.
 
 : **The model and fixed heuristic arms tie under equal simulator-call budgets.** Neither finds a nonbaseline candidate that clears the predeclared 1 percent decision margin over 32 by 32. Values are computed by SCALE-Sim, not measured on silicon. {#tbl-ai-study-results tbl-colwidths="[12,23,11,18,14,22]"}
 
-The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers. At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses. Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. This is a classic case of proxy mismatch as described in @sec-feedback-verification-trust.
+The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers.[^fn-dram-traffic] Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. This is a classic case of proxy mismatch as described in @sec-feedback-verification-trust.
+
+[^fn-dram-traffic]: At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses.
 
 The composite score gamed the system by ignoring memory traffic. In a physical chip, doubling DRAM traffic blows up the energy budget and requires wider physical interfaces, necessitating independent oracles like power analysis tools beyond a simple cycle simulator. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does.
 
@@ -359,7 +367,7 @@ second panel weakens the exact directional explanation. Together, the panels
 warrant stopping this bounded search rather than declaring a new winner or
 inventing an explanation after the fact.
 
-## Test the Mechanism With a Matched Contrast
+## Testing Matched Contrasts
 
 The model predicted that 16 by 64 would beat its mirrored 64 by 16 shape on the
 original workload because the wider array would align better with the supplied
@@ -373,7 +381,7 @@ On the original workload, 16 by 64 wins by 38.56 percent, with scores of
 
 The directional prediction therefore fails its declared contrast. This result weakens that exact explanation, but the study did not causally match every mapping effect because the retained context does not specify how GEMM axes map to array height and width in the selected weight-stationary mode. The result neither shows that orientation is irrelevant nor supplies a replacement explanation, meaning a follow-up must pin those semantics and declare a new contrast before looking for another mechanism.
 
-## Judge the Claims and Decide Whether to Stop
+## Judging Claims
 
 The four conclusions in @tbl-study-claim-dispositions answer distinctly different questions.
 
@@ -399,7 +407,7 @@ machine-readable result records the proposed action as
 `awaiting_author_confirmation`. That status separates the completed bounded
 search from the architecture action that the named decision owner may approve.
 
-## Package the Study for Review and Replay {#sec-ai-study-archive}
+## Packaging the Study {#sec-ai-study-archive}
 
 The retained replay package contains the frozen context, complete model
 response, public-safe provenance, exact simulator inputs, raw summary reports,
