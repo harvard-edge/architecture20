@@ -275,7 +275,9 @@ The scatter shows what specialization has done to the design space. Publicly ann
 
 An architect must decide what to specialize, where the specialized function belongs, and how it communicates with the rest of the system. Choosing between a CPU and an accelerator is only the start of designing a low-power XR subsystem, since the decision also raises questions about vector length, memory hierarchy, local buffers, compression, dataflow, quantization, runtime scheduling, compiler support, sensor streams, display deadlines, thermal behavior, and fallback modes.
 
-Each of those questions widens the space of specialized options an AI system might explore, but the width is not the hard part. For the XR subsystem the trap is concrete. A vector unit sized for the throughput of one SLAM [@DurrantWhyteBailey2006SLAM] matrix-multiplication kernel can post the best performance per watt in the search and still be the wrong block, because the perception model beside it has a different tensor shape and reuse pattern, and because the display holds a fixed per-frame deadline that a throughput-optimal design can miss while a slower design meets it. Specialization ties a candidate's worth to one workload's efficiency measure, so a method that optimizes performance per watt for the wrong workload, or that saves area while missing the display deadline, can rank candidates confidently in a way that means nothing for the target. AI can enumerate and score specialized options quickly; it helps only when the measure it optimizes is the one the deployment rewards and the architect has fixed which constraint a candidate may not violate. A larger search aimed at the wrong measure produces more candidates tuned for a workload no one will deploy.
+Each of those questions widens the space of specialized options an AI system might explore, but the width is not the hard part. For the XR subsystem the trap is concrete. A vector unit sized for the throughput of one SLAM[^fn-slam-c02] [@DurrantWhyteBailey2006SLAM] matrix-multiplication kernel can post the best performance per watt in the search and still be the wrong block, because the perception model beside it has a different tensor shape and reuse pattern, and because the display holds a fixed per-frame deadline that a throughput-optimal design can miss while a slower design meets it. Specialization ties a candidate's worth to one workload's efficiency measure, so a method that optimizes performance per watt for the wrong workload, or that saves area while missing the display deadline, can rank candidates confidently in a way that means nothing for the target. AI can enumerate and score specialized options quickly; it helps only when the measure it optimizes is the one the deployment rewards and the architect has fixed which constraint a candidate may not violate. A larger search aimed at the wrong measure produces more candidates tuned for a workload no one will deploy.
+
+[^fn-slam-c02]: **Simultaneous Localization and Mapping (SLAM)**: The robotics workload that builds a map of an unknown environment while tracking the sensor's own position within it. In mobile XR it runs continuously for head tracking, which is why its kernels anchor the subsystem's real-time compute demand.
 
 ## SoC and Chiplet Composition
 
@@ -606,14 +608,14 @@ A hardware comparison can become outdated while the chip is still being designed
 During a multiyear silicon program, AI models, precision formats, sparsity
 patterns, compiler passes, kernel libraries, runtimes, serving systems, batching
 strategies, fleet policies, and benchmarks can all change. Precision formats
-such as FP8, INT4, and block-scale formats[^fn-hw-block-scale-formats] may change
+such as FP8, INT4, and block-scale formats[^fn-block-scale-formats-c02] may change
 even though the hardware must commit to its supported data types years in
 advance. Sparsity patterns, the structured or unstructured zeros in weights or
 activations that hardware can skip, can change as models and software evolve.
 When a long-lived hardware decision still rests on an outdated workload, the
 evidence no longer supports the original commitment.
 
-[^fn-hw-block-scale-formats]: Block-scale formats share an exponent across a block of low-precision mantissas, preserving dynamic range with a small memory footprint. Supporting one in silicon fixes datapath choices years before deployment, so the architect must consider whether the format and workload are likely to remain relevant.
+[^fn-block-scale-formats-c02]: **Block-scale formats**: Low-precision number formats that share one exponent across a block of mantissas, preserving dynamic range at a small memory cost. Committing to one in silicon fixes datapath choices years before deployment, so the architect must judge whether the format and its workload will still matter then.
 
 The target moves in two different periods. Before release, hardware and software
 teams can revise the design together, although late changes become increasingly
@@ -653,12 +655,14 @@ architect should distinguish improvements made for the hardware from unrelated
 changes in the workload. The former can strengthen the case for an existing
 design, while the latter can make its original evidence stale.
 
-AI workloads provide an unusually visible example of changing scale and shifting computation. Traditional convolutional networks performed fixed, deterministic computation, but modern generative models perform dynamic, iterative computation where memory access patterns change constantly due to growing key-value caches, variable sequence lengths, sparse mixture-of-experts routing, and the split between prefill and decode phases that serving systems now place on separate hardware. An analysis of Epoch AI's model database estimated roughly four- to fivefold annual growth in training compute for recent notable and frontier models through May 2024 (@fig-training-compute-growth), with results that depend on model class, outliers, and the form of the fit [@SevillaRoldan2024ComputeGrowth]. Compute growth is not itself
+AI workloads provide an unusually visible example of changing scale and shifting computation. Traditional convolutional networks performed fixed, deterministic computation, but modern generative models perform dynamic, iterative computation where memory access patterns change constantly due to growing key-value caches, variable sequence lengths, sparse mixture-of-experts[^fn-mixture-of-experts-c02] routing, and the split between prefill and decode phases that serving systems now place on separate hardware. An analysis of Epoch AI's model database estimated roughly four- to fivefold annual growth in training compute for recent notable and frontier models through May 2024 (@fig-training-compute-growth), with results that depend on model class, outliers, and the form of the fit [@SevillaRoldan2024ComputeGrowth]. Compute growth is not itself
 workload drift. It does show why evidence tied to one model scale, software
 stack, or training regime cannot be transferred to another without checking
 the assumptions. For the mobile XR subsystem comparison, that means stating which model,
 compiler, runtime, benchmark, trace, and deployment versions support each
 decision.
+
+[^fn-mixture-of-experts-c02]: **Mixture-of-experts (MoE) routing**: A model structure that activates only a small subset of its parameters, the experts, for each token. Which experts fire depends on the input, so the memory traffic a design must serve varies token to token instead of following a fixed schedule.
 
 ```{python}
 #| label: fig-training-compute-growth
@@ -770,11 +774,11 @@ measurements are comparable because the benchmark specifies scenarios, latency
 constraints, accuracy targets, and reporting rules while allowing submitters
 to optimize their own software toolchains [@ReddiEtAl2021VisionBehindMLPerf].
 A benchmark remains useful only while the
-community maintains the tasks and run rules that make results comparable.[^fn-inst-nist]
+community maintains the tasks and run rules that make results comparable.[^fn-metrology-calibration-c02]
 When those rules change, an earlier comparison may no longer answer the same
 question.
 
-[^fn-inst-nist]: Metrology offers a useful analogy. The U.S. National Institute of Standards and Technology (NIST) maintains reference standards and calibration chains so that a stated unit has the same meaning across laboratories. Architecture benchmarks require similar maintenance if their results are to remain comparable over time.
+[^fn-metrology-calibration-c02]: **Calibration chain (metrology)**: The U.S. National Institute of Standards and Technology (NIST) maintains reference standards and calibration chains so that a stated unit means the same thing in every laboratory. Architecture benchmarks need the same maintenance of tasks and run rules if their results are to stay comparable over time.
 
 For the mobile XR subsystem example, "XR" is too broad to define a workload. The workload
 is a moving bundle of sensing, perception, graphics, display, interaction, latency,

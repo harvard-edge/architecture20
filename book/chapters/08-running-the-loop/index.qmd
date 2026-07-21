@@ -24,7 +24,9 @@ Before any model or simulator output is known, the architect fixes the workload,
 
 The experiment below serves as a proof-of-concept for the automated Architecture 2.0 loop in motion. While deliberately modest, it instantiates the framework on a concrete architectural problem, anchoring back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform. We specifically zoom in on the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. Instead of brute-forcing all geometries, the AI proposes candidates that must satisfy physical constraints like die area and wiring congestion before simulation.
 
-One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms under one frozen configuration [@RajEtAl2025ScaleSimV3], and a declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, full-chip XR evaluation, and tapeout, it illustrates how a bounded architectural question is rigorously executed. It evaluates whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported cleanly without being recast as an AI success.
+One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms[^fn-study-arm-c08] under one frozen configuration [@RajEtAl2025ScaleSimV3], and a declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, full-chip XR evaluation, and tapeout, it illustrates how a bounded architectural question is rigorously executed. It evaluates whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported cleanly without being recast as an AI success.
+
+[^fn-study-arm-c08]: **Arm**: In experimental design, one of the parallel groups in a controlled comparison, as in the treatment and control arms of a clinical trial. The model and the fixed heuristic are this study's two proposal arms.
 
 The experiment still reaches a reviewable result, although no nonbaseline shape clears the declared decision margin. The model and fixed heuristic arms tie, and the model's directional prediction fails its contrast. The recorded status-quo recommendation is to retain the 32 by 32 baseline for the five unique evaluated shapes and stop this bounded search. For context, an illustrative system might use specific square or rectangular datapath dimensions (e.g., 256 by 256) optimized for its target workloads; our 32 by 32 baseline similarly serves as a fixed reference point rather than a claim of global optimality among all fifteen legal shapes. Another reader can inspect the proposal and rerun the recorded simulator computation without mistaking that replay for independent validation of the workload, score, or simulator.
 
@@ -41,6 +43,8 @@ After this chapter, you can:
 
 ## Preregistering the Study {#sec-executed-scale-study}
 
+Preregistration fixes the terms of the study before any candidate is measured. The decision question, the judgments the record must support, and the constraints and budgets that bound the run are all declared first, so no later result can quietly redefine what would have counted as success. The declarations that follow are short, but they are what makes the study's numbers reviewable rather than curated.
+
 ### Defining the Decision
 
 The architecture question is deliberately narrow to test a precise hypothesis without overextending the methodology.
@@ -50,9 +54,7 @@ The architecture question is deliberately narrow to test a precise hypothesis wi
 > baseline, and does the model's directional prediction survive its declared
 > contrast?
 
-The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, SRAM capacity[^fn-sram-scratchpad], interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
-
-[^fn-sram-scratchpad]: The on-chip SRAM scratchpad.
+The workload contains three GEMM layers extracted from the XR platform's spatial tracking (SLAM) pipeline, serving as a compact test slice rather than a claim about a full XR application. Only the datapath's array dimensions vary, while dataflow, on-chip scratchpad capacity, interface bandwidth, layout, simulator version, workload, deadline, and scoring rule remain fixed. This narrowness isolates the effect of proposal source and array shape by holding most of the environment still.
 
 ### The Four Judgments
 
@@ -60,8 +62,10 @@ A candidate ranking does not answer every question in an AI-assisted architectur
 
 - The **architecture outcome** asks whether any evaluated nonbaseline shape clears the local decision margin over 32 by 32.
 - The **AI contribution** asks whether the recorded model arm finds a better score than the fixed aspect-ratio heuristic under the same simulator-call budget.
-- The **mechanism explanation** asks whether the model's directional prediction survives its declared distinguishing contrast.
+- The **mechanism explanation** asks whether the model's directional prediction survives its declared distinguishing contrast.[^fn-planned-contrast-c08]
 - The **stopping decision** asks whether another evaluation is warranted under the predeclared rule and current project scope.
+
+[^fn-planned-contrast-c08]: **Contrast**: In the design of experiments, a specific comparison between conditions planned before the data are seen. The M/N-transposed workload is this study's planned comparison for testing the model's directional explanation.
 
 These judgments can disagree, meaning a model might propose a competitive candidate without beating the heuristic, or a tied candidate could leave the status quo in place. A useful candidate might arrive with a failed explanation, and a bounded study can stop even though most of the legal design space remains unevaluated. The executed comparison below reports all four outcomes without inappropriately combining them into a single claim that the model or the complete discipline succeeded.
 
@@ -187,14 +191,14 @@ The role separation in @tbl-practitioner-path matters because while the model an
 
 The model received the architecture question, legal dimension set, processing-element budget, workload matrix dimensions, fixed environment assumptions, mandatory baseline, output schema, scoring definition, and evidence boundary, but it did not receive the fixed heuristic's candidates or simulator results. The model then proposed a design mutation by naming three candidates, predicting qualitative behavior, stating an anticipated failure mode, and offering a directional mechanism with a testable failure condition. The architect evaluates this output as a candidate, not a final decision.
 
-The first attempt to invoke the runtime never reached inference.[^fn-json-schema] Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations.
+The first attempt to invoke the runtime never reached inference. The response-format service rejected the request's JSON Schema before any tokens were generated.[^fn-json-schema-c08] Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations.
 
-[^fn-json-schema]: The response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference.
+[^fn-json-schema-c08]: **JSON Schema rejection (detail)**: Two constant-string properties in the schema lacked explicit types, so no model output or usage was produced. The schema-only correction and both hashes were added as a preregistration amendment before inference.
 
 While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. In a physical design loop, a useful model must parse actual physical verification failures (negative slack reports, DRC violations) rather than just retrying crashed scripts.
 
 ::: {.callout-war-story title="The illusion of zero-shot success"}
-**The claim.** An AI model generates a highly optimized architecture design on the first try, and the write-up presents the result as zero-shot capability.
+**The claim.** An AI model generates a highly optimized architecture design on the first try, and the write-up presents the result as zero-shot capability, a first-try success with no examples or iteration.
 
 **The gap.** The write-up omits the dozens of prior manual iterations in which an architect tweaked the prompt, added constraints, and fixed syntax errors. This prompt shopping hides the true human-in-the-loop cost, framing a heavily curated result as autonomous intelligence. The case here is a composite of a pattern reviewers report across AI-for-design evaluations, not one specific publication.
 
@@ -216,9 +220,7 @@ The subsequent call returned a schema-valid response. Since semantic validation 
 
 : **Recorded and unavailable model settings.** The record reports values supplied by the runtime and marks the remaining settings as unavailable. {#tbl-model-provenance tbl-colwidths="[27,63]"}
 
-Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Second, the requested alias is not a pinned model identity.[^fn-llm-api-opacity] The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
-
-[^fn-llm-api-opacity]: The provider did not expose a model revision, digest, seed, temperature, or top-p.
+Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Second, the requested alias is not a pinned model identity. The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
 
 The model proposed 16 by 64, 8 by 128, and 32 by 16. The fixed aspect-ratio
 heuristic ranked legal shapes by processing-element count, then by closeness to
@@ -231,9 +233,11 @@ This overlap matters because the shared choices cannot be attributed uniquely to
 model. The arms agree on two of their three proposals and differ in only one,
 where the model's 32 by 16 and the heuristic's 64 by 16 are each dominated. With
 only fifteen legal shapes and two competent proposers converging this closely,
-the comparison had little power to separate them from the start. A tie was the
+the comparison had little power[^fn-statistical-power-c08] to separate them from the start. A tie was the
 likely outcome before either arm ran, so it reports low resolving power between
 the two proposers rather than measured parity, whatever the model's quality.
+
+[^fn-statistical-power-c08]: **Statistical power**: The probability that a comparison detects a real difference when one exists. A study with few distinct candidates and overlapping proposals has low power, so a tie is expected even when the proposers genuinely differ.
 
 ## Reporting Selected Candidates
 

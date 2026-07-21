@@ -94,9 +94,13 @@ When a simulator returns a delayed thermal trace or IPC penalty, the agent does 
 
 Architecture exploration often evaluates candidate parameters that are cheap to propose, but feedback comes from simulators and staged tools. Feedback here is slow and unreliable in kind. An AI optimizer mediating architecture encounters 3-day RTL simulation times, toolchain crashes, out-of-memory errors, and silent simulation corruptions. Actions can violate physical constraints, and a proxy can fail outside its calibrated region, invalidating the optimizer's assumptions.
 
-Model-mediated exploration requires an explicit representation of architecture state, legal actions, and tool observations. Methods may generate candidates, predict behavior, allocate evaluations, or critique assumptions. ArchGym, an open-source environment for architecture, provides an interface for exploration, predictive DSE uses data-driven models to proxy evaluations, and Apollo allocates expensive evaluations using transfer learning [@yazdanbakhsh2021apollo]. Chiplet exploration adds package-interface contracts like the Universal Chiplet Interconnect Express (UCIe).
+Model-mediated exploration requires an explicit representation of architecture state, legal actions, and tool observations. Methods may generate candidates, predict behavior, allocate evaluations, or critique assumptions. ArchGym, an open-source environment for architecture, provides an interface for exploration, predictive DSE uses data-driven models to proxy evaluations, and Apollo allocates expensive evaluations using transfer learning[^fn-transfer-learning-c10] [@yazdanbakhsh2021apollo]. Chiplet exploration adds package-interface contracts like the Universal Chiplet Interconnect Express (UCIe).
 
-AlphaChip is a concrete instance of model-mediated exploration [@MirhoseiniEtAl2021GraphPlacement], with reported results that remain publicly contested [@ChengEtAl2023AssessmentRL]. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy needs. The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
+[^fn-transfer-learning-c10]: **Transfer learning**: The ML practice of reusing what a model learned on one task to start a related task, rather than training from scratch, much as an architect seeds a new design-space search with the tuned parameters of the previous generation.
+
+AlphaChip is a concrete instance of model-mediated exploration [@MirhoseiniEtAl2021GraphPlacement], with reported results that remain publicly contested [@ChengEtAl2023AssessmentRL]. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy[^fn-rl-policy-c10] needs. The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
+
+[^fn-rl-policy-c10]: **Policy (reinforcement learning)**: The learned mapping from an observed state to the next action, trained by trial and error against a reward signal. In placement, the policy maps the current partial layout to the next macro position.
 
 In @sec-running-the-loop's array study, SCALE-Sim was used to compare array geometries under a frozen workload and software path. A simulator can support a no-change decision for the represented metrics. Moving a candidate toward implementation requires compiler mapping semantics, a memory-system model, end-to-end offload granularity, RTL legality, and later physical checks.
 
@@ -318,11 +322,11 @@ This mismatch in timescales also dictates the choice of AI method. Fast, reversi
 
 ### Monitoring Deployment Feedback
 
-Deployment-facing work evaluates real systems but produces noisy, confounded feedback. The pattern that makes it survivable is guarded progressive exposure with an automatic halt. Release the change to a small cohort, watch a few bounded metrics against a service-level objective, and let a breach trip an automatic rollback before the change reaches the rest of the fleet. A canary bounds the blast radius; it does not prove that the change caused what the metrics show.
+Deployment-facing work evaluates real systems but produces noisy, confounded feedback. The pattern that makes it survivable is guarded progressive exposure with an automatic halt. Release the change to a small cohort, watch a few bounded metrics against a service-level objective, and let a breach trip an automatic rollback before the change reaches the rest of the fleet. A canary[^fn-canary-release-c10] bounds the blast radius; it does not prove that the change caused what the metrics show.
 
-Because this delayed deployment telemetry is highly confounded, it cannot be fed directly into a fast-tuning AI loop.[^fn-fleet-telemetry] Instead, it must be appended to the execution history and updated in the retrieval corpus to inform the next silicon generation.
+[^fn-canary-release-c10]: **Canary release**: The deployment practice of exposing a change to a small live cohort before the full fleet, named for the coal-mine canary, so a fault surfaces while its blast radius is still small.
 
-[^fn-fleet-telemetry]: Telemetry in the fleet often includes noise like silent data corruptions or thermal throttling.
+Because this delayed deployment telemetry is highly confounded, carrying noise from silent data corruptions and thermal throttling, it cannot be fed directly into a fast-tuning AI loop. Instead, it must be appended to the execution history and updated in the retrieval corpus to inform the next silicon generation.
 
 Google's warehouse-scale migration from x86 to Arm illustrates cross-interface conditions [@ChristopherEtAl2025ISAMigration]. The migration involved more than 38,000 commits. A fine-tuned language model classified the commits, revealing that repository activity concentrated in build, deployment, infrastructure, monitoring, and rollback rather than low-level code translation (@fig-isa-migration-effort). Those categories are owned by different teams, so the dominant cost was coordination across team and interface boundaries, not the code translation itself.
 
@@ -427,11 +431,11 @@ Deployment feedback includes operational state, SLOs, resource contention, and r
 
 ## RTL and Physical Design
 
-High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a large capital expense on a multi-year horizon. AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.
+High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a large capital expense on a multi-year horizon. AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.[^fn-differentiability-c10]
 
-Because you cannot `git revert` a tapeout, AI-assisted hardware changes require built-in escape hatches to compensate for unexpected failures once they reach silicon.[^fn-escape-hatches] A passing early check in a proxy or simulator can never authorize a difficult-to-reverse physical transition.
+[^fn-differentiability-c10]: **Differentiability**: A signal is differentiable when small input changes produce smooth, computable gradients, which is what lets ML optimizers follow a slope toward better designs. Physical-design feedback offers no such gradient, so gradient-based methods give way to slower black-box search.
 
-[^fn-escape-hatches]: These escape hatches can include microcode patches, degraded fallback modes, or fuses.
+Because you cannot `git revert` a tapeout, AI-assisted hardware changes require built-in escape hatches, such as microcode patches, fuses, or degraded fallback modes, to compensate for unexpected failures once they reach silicon. A passing early check in a proxy or simulator can never authorize a difficult-to-reverse physical transition.
 
 The cost of getting this wrong is not hypothetical. In 2011 Intel shipped its 6-series "Cougar Point" chipset with a design fault in the SATA ports that would degrade over time, a defect no firmware update could reach; the company halted shipments, recalled parts, and absorbed about \$700 million to respin the silicon [@Intel2011CougarPoint]. Where Knight Capital lost its \$440 million to software in forty-five minutes, a silicon escape is undone only by months and a new mask set, which is exactly why the escape hatches and independent signoff above have to be in place before commitment rather than after.
 
@@ -536,7 +540,9 @@ An organization with more GPU compute but no comparable deployment telemetry can
 
 Run naively, the flywheel can also lock in the past. Because telemetry records only the workloads Generation $N$ actually served, a surrogate recalibrated on it sharpens on yesterday's traffic and goes blind to workloads that have not yet appeared, reinforcing the design distribution it was trained on and steering Generation $N+1$ toward the previous generation's bottlenecks [@SculleyEtAl2015Hidden]. This is the algorithm evolution treadmill seen from the design side, and that advantage lasts only while the fleet keeps sampling the workloads the next generation will run.
 
-A common failure mode in AI-assisted architecture is treating surrogate models such as power or timing predictors as static artifacts that are trained once and deployed forever. Models decay. As the underlying software compiler is updated, or as the process node shrinks from 5nm to 3nm, the training distribution drifts. Borrowing the practice from MLOps, the architecture loop must recalibrate its surrogates on a schedule rather than treat them as fixed. Every time a candidate reaches true RTL or silicon, that ground-truth data returns to retrain the faster surrogate models used earlier in the funnel, and drift detection becomes a tracked metric in the environment.
+A common failure mode in AI-assisted architecture is treating surrogate models such as power or timing predictors as static artifacts that are trained once and deployed forever. Models decay. As the underlying software compiler is updated, or as the process node shrinks from 5nm to 3nm, the training distribution drifts. Borrowing the practice from MLOps,[^fn-mlops-c10] the architecture loop must recalibrate its surrogates on a schedule rather than treat them as fixed. Every time a candidate reaches true RTL or silicon, that ground-truth data returns to retrain the faster surrogate models used earlier in the funnel, and drift detection becomes a tracked metric in the environment.
+
+[^fn-mlops-c10]: **Machine Learning Operations (MLOps)**: The software discipline of versioning, monitoring, and retraining deployed ML models as their input data drifts, the ML counterpart of keeping a fielded chip's firmware and characterization data current.
 
 Before a recalibrated surrogate is trusted to steer a multi-million-dollar chip design, it can run silently alongside the human-led EDA flow, predicting outcomes without controlling the project. Architects measure its calibration against the ground-truth tools over thousands of commits, and only then authorize it to steer the search.
 
@@ -587,9 +593,7 @@ Before reusing a method or artifact at another decision boundary, ask three ques
    Audit samples of both accepts and rejects against the new reference path.
 3. **Did the AI role or decision rights change?**
 
-   A move across an interface may turn an action AI could execute into one it may only recommend. For instance, moving from behavioral simulation to logic synthesis requires the AI's internal representation to shift from throughput cost models to delay and slack surrogates.[^fn-ipc-timing]
-
-[^fn-ipc-timing]: In behavioral simulation, IPC is the metric; in logic synthesis, timing paths are the metric.
+   A move across an interface may turn an action AI could execute into one it may only recommend. For instance, moving from behavioral simulation to logic synthesis requires the AI's internal representation to shift from throughput cost models to delay and slack surrogates.
 
 A passing test cannot be treated as authorization when the change alters a hardware interface, enters RTL, or supports a signoff decision.
 
@@ -701,11 +705,15 @@ Each theme below takes a step this chapter kept under human judgment and asks wh
 **Theme 1: Zero-Shot Hardware Transfer.** What an agent learns on one architecture may not carry to a very different one.
 
 - To what extent can learned cache-behavior representations transfer to a distinct domain such as NPU interconnects?
-- Can meta-learning policies let an agent adapt its search strategy when it moves from optimizing an in-order microcontroller to an out-of-order superscalar core?
+- Can meta-learning[^fn-meta-learning-c10] policies let an agent adapt its search strategy when it moves from optimizing an in-order microcontroller to an out-of-order superscalar core?
 
 **Theme 2: Post-Silicon Recalibration.** Data from shipped silicon could correct the pre-silicon models that guided the design.
 
-- How can causal inference methods isolate hardware-specific failure signals from noisy, application-level fleet telemetry to recalibrate pre-silicon surrogate models?
+- How can causal inference[^fn-causal-inference-c10] methods isolate hardware-specific failure signals from noisy, application-level fleet telemetry to recalibrate pre-silicon surrogate models?
+
+[^fn-meta-learning-c10]: **Meta-learning**: Training a model across many related tasks so that it learns how to adapt to a new task quickly, rather than mastering any single task. The goal is a search strategy that transfers, not a tuned design.
+
+[^fn-causal-inference-c10]: **Causal inference**: Statistical methods for estimating cause-and-effect from observational data when a controlled experiment is impossible, distinguishing a true hardware fault signal from a correlated software or workload change.
 - Can an agent propose microcode patches or architectural workarounds from observed post-silicon timing violations alone?
 
 **Theme 3: Autonomous CI/CD.** Merging an agent's change into mainline RTL safely means gating on checks that can take days to return.
