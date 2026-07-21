@@ -225,20 +225,6 @@ To make this data usable, the environment establishes three distinct paths:
 2. **The Action Path:** To prevent catastrophic or nonsensical proposals, the Action Path exposes a *safe-by-construction* action space (e.g., tweaking generator parameters). The environment acts as the safety controller, accepting a typed request that identifies the target candidate, requested transformation, and budget, preventing the AI from proposing physically impossible states.
 3. **The Return Path:** This carries typed tool returns, raw artifacts, cost, latency, provenance, and terminal outcomes.
 
-The Return Path is where a raw tool log becomes the observation the agent acts on. But capturing the return safely is only the first step; we must also ensure the AI can comprehend it.
-
-## Bypass the Attention Bottleneck and Distill Data
-
-When interfacing AI models with traditional architecture tools, a mismatch occurs at the observation layer. A commercial EDA tool or a detailed simulator like gem5 generates exhaustive text output, often containing tens of thousands of lines. If an environment wrapper naively pipes raw stdout directly back to an AI, the agent will struggle to isolate relevant signals from the noise, making it harder to debug the actual hardware issue.
-
-A critical requirement of the Return Path is **Data Distillation**. Because traditional architecture and EDA tools are extremely verbose, the architect must build rigid **log-to-semantic parsers** into the environment wrapper.
-
-This presents a painful asymmetry: while we can strictly bound the agent's *input* actions using elegant compiler IRs like CIRCT, the *output* from legacy EDA tools remains a chaotic stream of unstructured text. Until EDA vendors provide structured telemetry APIs, the environment is forced to rely on brittle log-parsers to extract signals from the noise.
-
-Much like DevOps engineers use monitoring tools to distill millions of server logs into key metrics, architecture environments must translate sprawling outputs into structured summaries. If the AI is trying to resolve routing congestion, the environment wrapper must parse the EDA log, filter out irrelevant setup warnings, extract the specific design-rule violations, and return *only* that targeted feedback.
-
-Distillation must preserve, not discard, unclassified anomalies. A parser tuned to known design-rule violations can silently drop the swapped library corner, downgraded constraint, or version-deprecation notice that a brownfield debug actually turns on. A safer wrapper returns two channels, a structured vector of the recognized metrics and violations alongside a flagged residual of the unparsed warning and error lines plus an integrity hash of the full log, so the agent gets a dense observation without the harness deciding on its own that a warning was irrelevant.
-
 An agent's action space can range from simple parameter tuning to complex structural mutations (like rewriting an MLIR dataflow graph). To make a simple parameter-tuning path concrete, @lst-schema-example illustrates the JSON payload an AI agent might exchange with the environment wrapper during the read/action cycle.
 
 ```json {#lst-schema-example lst-cap="Concrete JSON schema illustrating the Read, Action, and Return Paths"}
@@ -345,9 +331,20 @@ Distinct read, action, and return paths let an architecture environment carry ar
 
 If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound. Generative models and optimization algorithms can then operate on the environment independently.
 
-## Expose EDA to Agents via Tool APIs
 
-Just as the hardware itself must be encoded, the tools that manipulate it require formal representations. An AI agent cannot reliably interact with legacy EDA tools through fragile, unstructured shell scripts or screen-scraping text logs. Instead, the design loop demands structured tool API representations—schemas that expose tool capabilities as typed endpoints.
+The Return Path is where a raw tool log becomes the observation the agent acts on. But capturing the return safely is only the first step; we must also ensure the AI can comprehend it.
+
+## Bypass the Attention Bottleneck and Distill Data
+
+When interfacing AI models with traditional architecture tools, a mismatch occurs at the observation layer. A commercial EDA tool or a detailed simulator like gem5 generates exhaustive text output, often containing tens of thousands of lines. If an environment wrapper naively pipes raw stdout directly back to an AI, the agent will struggle to isolate relevant signals from the noise, making it harder to debug the actual hardware issue.
+
+A critical requirement of the Return Path is **Data Distillation**. Because traditional architecture and EDA tools are extremely verbose, the architect must build rigid **log-to-semantic parsers** into the environment wrapper.
+
+This presents a painful asymmetry: while we can strictly bound the agent's *input* actions using elegant compiler IRs like CIRCT, the *output* from legacy EDA tools remains a chaotic stream of unstructured text. Until EDA vendors provide structured telemetry APIs, the environment is forced to rely on brittle log-parsers to extract signals from the noise.
+
+Much like DevOps engineers use monitoring tools to distill millions of server logs into key metrics, architecture environments must translate sprawling outputs into structured summaries. If the AI is trying to resolve routing congestion, the environment wrapper must parse the EDA log, filter out irrelevant setup warnings, extract the specific design-rule violations, and return *only* that targeted feedback.
+
+Distillation must preserve, not discard, unclassified anomalies. A parser tuned to known design-rule violations can silently drop the swapped library corner, downgraded constraint, or version-deprecation notice that a brownfield debug actually turns on. A safer wrapper returns two channels, a structured vector of the recognized metrics and violations alongside a flagged residual of the unparsed warning and error lines plus an integrity hash of the full log, so the agent gets a dense observation without the harness deciding on its own that a warning was irrelevant.
 
 Representing a tool like Yosys or OpenROAD for an agent involves defining its input schema (e.g., accepted flags, valid file formats, constraint objects), its execution bounds, and its structured outputs (e.g., JSON-formatted area and timing reports rather than raw text stdout). However, agents inevitably hit the **Telemetry Wall**: the physics of context windows restrict how much output they can observe. When an API serializes a massive physical layout into text, it risks lossy serialization.
 
