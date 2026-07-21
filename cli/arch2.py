@@ -1631,18 +1631,24 @@ def _load_quarto_config() -> tuple[dict, list[Finding]]:
         ]
 
 
+def _extract_qmds(items: list) -> list[Path]:
+    entries = []
+    for item in items:
+        if isinstance(item, dict) and "chapters" in item:
+            if isinstance(item["chapters"], list):
+                entries.extend(_extract_qmds(item["chapters"]))
+        elif isinstance(item, str) and item.strip() != "---" and item.endswith(".qmd"):
+            entries.append((BOOK_DIR / item).resolve())
+    return entries
+
+
 def _manifest_qmd_entries(config: dict) -> list[Path]:
     book_config = config.get("book") or {}
     entries: list[Path] = []
     for section in ("chapters", "appendices"):
         raw_items = book_config.get(section) or []
-        if not isinstance(raw_items, list):
-            continue
-        for item in raw_items:
-            if not isinstance(item, str) or item.strip() == "---":
-                continue
-            if item.endswith(".qmd"):
-                entries.append((BOOK_DIR / item).resolve())
+        if isinstance(raw_items, list):
+            entries.extend(_extract_qmds(raw_items))
     return entries
 
 
@@ -1712,7 +1718,17 @@ def manifest_findings() -> list[Finding]:
             )
         )
 
-    chapter_items = book_config.get("chapters") or []
+    def _flatten_items(items):
+        flat = []
+        for item in items:
+            if isinstance(item, dict) and "chapters" in item:
+                if isinstance(item["chapters"], list):
+                    flat.extend(_flatten_items(item["chapters"]))
+            else:
+                flat.append(item)
+        return flat
+
+    chapter_items = _flatten_items(book_config.get("chapters") or [])
     chapter_qmds = [
         item
         for item in chapter_items
