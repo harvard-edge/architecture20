@@ -405,6 +405,79 @@ While these methods narrow the work, their output alone does not prove whether a
 
 [^fn-ml-overfitting]: Overfitting, in machine learning, is fitting the noise and idiosyncrasies of a training sample so that performance fails to generalize to new data. An optimizer can overfit a proxy the same way, raising the proxy's measured score by exploiting its quirks rather than improving the true objective. Architects should therefore test a promising candidate with stronger evidence before committing to it.
 
+## Formulate Efficiency Claims Across the Design Loop {#sec-efficiency-claims-need-rejectable-loops}
+
+Even if an AI-assisted process can produce a candidate and report end to end, the efficiency claim still requires a scoped system comparison. The difference between a plausible candidate and a defensible design is especially clear in an efficiency claim, because the Lighthouse subsystem cannot be judged from one score. Workload behavior, software support, data movement, physical limits, verification effort, and deployment conditions can all change which design is preferable. AI may help architects coordinate those choices, but the resulting claim still demands evidence for the stated workload and constraints.
+
+Efficiency is a strict claim about how well a particular architecture performs useful work with limited resources. The claim must name the exact design, workload, and resource budget it covers. A faster design fails to solve the problem if it exceeds the power budget, cannot be verified, or depends on fragile software assumptions.
+
+Efficiency now spans far more than performance and power. Classical computer architecture made performance quantitative while treating cost and power as first-class constraints [@HennessyPatterson2017QuantitativeApproach]. Dennard-style scaling once made it easier to improve performance while keeping power density manageable [@DennardEtAl1974Scaling]. When that scaling regime weakened, dark silicon (the share of a chip that must stay powered off to fit its thermal budget) and the limits of multicore scaling pushed the field toward specialization [@BorkarChien2011FutureMicroprocessors; @EsmaeilzadehEtAl2011DarkSilicon; @HennessyPatterson2019GoldenAge].
+
+The energy cost of data movement soon made arithmetic alone an incomplete measure [@Horowitz2014Energy]. Warehouse-scale operation expanded the boundary to include power delivery, utilization, networking, operations, and total cost of ownership [@BarrosoHolzleRanganathan2019DatacenterAsComputer]. Today, sustainability adds operational and embodied carbon to the comparison, factors that depend heavily on energy use, hardware manufacturing, utilization, geography, and system lifetime [@GuptaEtAl2021ChasingCarbon]. An AI-assisted comparison must clearly state the assumptions and evidence relevant to each efficiency dimension and explicitly name the violations—such as DRC failures or thermal limits—that would immediately rule out a candidate during the Evaluation Harness review.
+
+A valid comparison must also account for failed and rejected alternatives, not
+only the winners. Keeping those results prevents later architects from
+reevaluating candidates that earlier evidence ruled out. It also shows
+which parts of the design space the claim actually covers.
+
+Modern benchmark suites already reflect this broader view. MLPerf, a community
+effort to make machine-learning performance claims reproducible across
+systems, includes deployment scenario, latency, throughput, and accuracy in its
+comparisons [@MattsonEtAl2020MLPerf]. Useful work must be evaluated
+against the resource that is scarce in the stated setting, whether that is
+latency, throughput, energy, power, area, cost, carbon, reliability,
+verification effort, engineering time, or risk.
+
+The design, workload, scenario, and scarce resource together define what
+"efficient" means. For the Lighthouse system, a candidate that improves average
+throughput may still be a poor choice if it misses an XR frame deadline, exceeds
+the 3 W envelope under sustained load, or adds verification work that the
+project cannot absorb. Changing any of those conditions changes the claim and
+the evidence needed to support it.
+
+@tbl-efficiency-dimensions separates six dimensions that an architect may need
+to compare. The architect should select the dimensions that define the claim.
+Reading the rows together also shows where a gain may shift cost or risk
+elsewhere.
+
+| **Dimension** | **Efficiency question** | **Why it complicates the comparison** |
+| --- | --- | --- |
+| **Performance** | How much useful work is delivered per unit time, latency budget, or service-level target? | The answer depends on workload selection, scenario, software stack, and whether the measured behavior matches the deployment claim. |
+| **Power and energy** | How much useful work is delivered per watt, joule, thermal budget, or battery envelope? | A credible comparison must account for activity, data movement, voltage/frequency choices, thermal constraints, and fidelity gaps between estimates and signoff. |
+| **Reliability and correctness** | How much useful work survives faults, corner cases, nondeterminism, and validation? | A faster candidate is not efficient if it spends its savings on fragility, security side-channels, debug burden, or invalid software and hardware assumptions. |
+| **Scalability and cost** | How much useful work is delivered per dollar, rack, network hop, operator action, or unit of capacity? | Local wins can shift cost to memory, network, power delivery, utilization, operations, or total cost of ownership. |
+| **Sustainability** | How much useful work is delivered per unit of operational and embodied environmental footprint? | Carbon depends on hardware lifetime, manufacturing, energy mix, utilization, and where and when computation runs. |
+| **Evidence and engineering effort** | How much decision-relevant evidence is obtained per simulation, experiment, verification run, or engineer-hour? | Generating more candidates can still be inefficient if evaluation consumes scarce feedback, hides failures, or cannot reject weak outputs. |
+
+: **Dimensions of an efficiency claim:** Performance, power, reliability, scalability, sustainability, and evidence cost are increasingly coupled. A valid comparison must show when an apparent improvement shifts cost or changes the scope. {#tbl-efficiency-dimensions tbl-colwidths="[22,32,34]"}
+
+Two kinds of efficiency operate in this comparison. The proposed hardware system must perform useful work within its resource limits, and the study itself must allocate simulator runs, physical-design experiments, verification effort, and expert review carefully enough to reach a reliable conclusion. Reducing the cost of the study is valuable only when the remaining observations can still distinguish the alternatives and expose the failures that matter to the decision.
+
+These efficiency dimensions heavily interact. In the mobile XR setting anchored by XRBench and ILLIXR, frame latency, energy, sustained power, and data movement are so tightly coupled that a gain in one can easily violate a deadline or thermal limit in another. Better simulated performance can be completely offset by added verification work, and lower energy may depend on fragile software assumptions. A candidate that wins under a proxy may fail entirely on a more faithful workload. The architect must explicitly explain which tradeoffs are acceptable for the stated constraints, defining the scope of the efficiency claim instead of relying on a single attractive artifact or score.
+
+These coupled requirements do not imply that every architecture project needs AI. Traditional architecture methods remain highly effective when the workload, abstraction, feedback path, and proposed change are clearly bounded. Architects should first identify what familiar models, scripts, simulators, and expert reviews already handle well before stating exactly what they expect AI to improve. The true test is whether the assistance leads to a better system or a more reliable conclusion rather than simply generating more artifacts.
+
+A common objection is that today's models hallucinate and cannot be trusted to produce correct hardware, so an AI-assisted architecture program is premature. The objection is right about reliability and wrong about what the program needs. Nothing here asks a model to be trustworthy on its own. It asks that every AI proposal pass the same rejection checks, matched baselines, and evidence standard as any other candidate, so that an unreliable generator is bounded by the loop rather than believed. The open question is not whether models are reliable enough to trust, but whether the loop around them can catch their errors cheaply enough to be worth running.
+
+The Lighthouse prompt makes this friction concrete. The requested subsystem must support a workload class, meet a strict power envelope, fit a technology assumption, interact flawlessly with software, and produce reviewable evidence. The final comparison must weigh energy, latency, memory traffic, programmability, verification, and deployment risk. While a single scalar objective may help an automated search navigate the space, it cannot substitute for the holistic architectural judgment.
+
+```{=latex}
+\Needspace{20\baselineskip}
+```
+
+## Evaluate Existing Systems Across the Design Loop
+
+Current work has demonstrated useful parts of AI-assisted architecture under
+bounded conditions. Predictive design-space exploration uses simulated performance to train surrogate models that estimate behavior across a specified design space [@IpekEtAl2006PredictiveDSE]. AutoTVM uses measured hardware execution to guide a statistical search for tensor-program schedules [@ChenEtAl2018AutoTVM]. In each case, the input, architecture job, feedback source, and bounded result remain clear.
+
+AlphaChip, a learning-based macro-placement method, is a prominent physical-design example. Its inputs are a netlist and macro descriptions, its job is macro placement, and its feedback comes from proxy rewards such as wirelength and congestion [@MirhoseiniEtAl2021GraphPlacement]. Its reported placement speed established how fast the method produces a candidate, not that it beats strong classical baselines, and its reported deployment across several TPU generations is relevant evidence without settling that matched comparison. @sec-proxy-mismatch-metric-gaming-and-calibration examines the proxy-metric and baseline dispute in full.
+
+
+
+Generation methods have begun to reach real hardware in narrow settings. In a conversational study, a language model drafted the Verilog for a small 8-bit processor that reached tapeout, though a human guided the model through many revisions [@BlockloveEtAl2023ChipChat]. A separate method that learns a CPU's logic from input-output examples produced a RISC-V core, Enlightenment-1, that was fabricated and runs Linux, reaching that result through a non-agentic search rather than a tool-using loop [@ChengEtAl2024AutomatedCPU]. Each reaches silicon on a narrow slice of the problem, and no autonomous loop has yet carried a full architecture study from intent to fabricated hardware.
+
+These tools succeed at their individual tasks while exposing the integration problem that a whole architecture study must solve. Adjacent fields faced a version of it and moved forward by adopting shared baselines, standardized datasets, and common evaluation. ImageNet [@RussakovskyEtAl2015ImageNet] gave computer vision a common benchmark, and CASP (Critical Assessment of Structure Prediction) [@MoultEtAl1995CASP] let AlphaFold's [@JumperEtAl2021AlphaFold] structure predictions be measured against community-held standards. Computer architecture needs the same shared tasks, public datasets, and open evaluation protocols to turn narrow tool use into a reviewable AI-assisted practice.
+
 Progress toward the moonshot will require far more than isolated demonstrations. In software engineering, benchmarks like SWE-bench, a benchmark of real GitHub-issue fixes, provide immediate, exact correctness checks via unit tests, and agents have advanced quickly on it (@fig-swebench-progress) [@JimenezEtAl2024SWEBench]. Hardware benchmarking is fundamentally different because evaluation is delayed and physical limits are non-linear. An AI agent might output structurally valid RTL, but that code must eventually satisfy highly-coupled physical silicon constraints—Power, Performance, and Area (PPA) targets, Static Timing Analysis (STA), Design Rule Checking (DRC), and thermal budgets. Correctness requires passing through many siloed EDA tools, forcing the human architect to orchestrate this physical Evaluation Harness to ground AI proposals in reality.
 
 ```{python}
@@ -502,79 +575,6 @@ This structural data scarcity explains the strategic importance of open-source h
 Because AI models lack the data to generate zero-shot perfect hardware, they will inevitably hallucinate plausible but subtly flawed structures, placing immense pressure on verification. Modern hardware verification and validation already consume the majority of project engineering resources, often exceeding fifty percent of the total schedule. Generative AI risks exacerbating this crisis by rapidly producing candidates at a scale that human reviewers cannot manually verify. Consequently, an AI's ability to interface with formal verification tools and constrained-random testing environments is a critical necessity rather than an afterthought. An AI that generates a novel cache controller is useless to the architect if it introduces coherence deadlocks that take humans months to diagnose.
 
 Furthermore, in a post-Spectre era, verification must extend beyond functional correctness to encompass hardware security. Verifying that AI-generated structures do not inadvertently introduce microarchitectural side-channel vulnerabilities, isolation boundary violations, or hardware Trojans is a massive challenge. The loop must be capable of generating the SystemVerilog assertions, security properties, and testbenches required to check its own proposed structures.
-
-## Formulate Efficiency Claims Across the Design Loop {#sec-efficiency-claims-need-rejectable-loops}
-
-Even if an AI-assisted process can produce a candidate and report end to end, the efficiency claim still requires a scoped system comparison. The difference between a plausible candidate and a defensible design is especially clear in an efficiency claim, because the Lighthouse subsystem cannot be judged from one score. Workload behavior, software support, data movement, physical limits, verification effort, and deployment conditions can all change which design is preferable. AI may help architects coordinate those choices, but the resulting claim still demands evidence for the stated workload and constraints.
-
-Efficiency is a strict claim about how well a particular architecture performs useful work with limited resources. The claim must name the exact design, workload, and resource budget it covers. A faster design fails to solve the problem if it exceeds the power budget, cannot be verified, or depends on fragile software assumptions.
-
-Efficiency now spans far more than performance and power. Classical computer architecture made performance quantitative while treating cost and power as first-class constraints [@HennessyPatterson2017QuantitativeApproach]. Dennard-style scaling once made it easier to improve performance while keeping power density manageable [@DennardEtAl1974Scaling]. When that scaling regime weakened, dark silicon (the share of a chip that must stay powered off to fit its thermal budget) and the limits of multicore scaling pushed the field toward specialization [@BorkarChien2011FutureMicroprocessors; @EsmaeilzadehEtAl2011DarkSilicon; @HennessyPatterson2019GoldenAge].
-
-The energy cost of data movement soon made arithmetic alone an incomplete measure [@Horowitz2014Energy]. Warehouse-scale operation expanded the boundary to include power delivery, utilization, networking, operations, and total cost of ownership [@BarrosoHolzleRanganathan2019DatacenterAsComputer]. Today, sustainability adds operational and embodied carbon to the comparison, factors that depend heavily on energy use, hardware manufacturing, utilization, geography, and system lifetime [@GuptaEtAl2021ChasingCarbon]. An AI-assisted comparison must clearly state the assumptions and evidence relevant to each efficiency dimension and explicitly name the violations—such as DRC failures or thermal limits—that would immediately rule out a candidate during the Evaluation Harness review.
-
-A valid comparison must also account for failed and rejected alternatives, not
-only the winners. Keeping those results prevents later architects from
-reevaluating candidates that earlier evidence ruled out. It also shows
-which parts of the design space the claim actually covers.
-
-Modern benchmark suites already reflect this broader view. MLPerf, a community
-effort to make machine-learning performance claims reproducible across
-systems, includes deployment scenario, latency, throughput, and accuracy in its
-comparisons [@MattsonEtAl2020MLPerf]. Useful work must be evaluated
-against the resource that is scarce in the stated setting, whether that is
-latency, throughput, energy, power, area, cost, carbon, reliability,
-verification effort, engineering time, or risk.
-
-The design, workload, scenario, and scarce resource together define what
-"efficient" means. For the Lighthouse system, a candidate that improves average
-throughput may still be a poor choice if it misses an XR frame deadline, exceeds
-the 3 W envelope under sustained load, or adds verification work that the
-project cannot absorb. Changing any of those conditions changes the claim and
-the evidence needed to support it.
-
-@tbl-efficiency-dimensions separates six dimensions that an architect may need
-to compare. The architect should select the dimensions that define the claim.
-Reading the rows together also shows where a gain may shift cost or risk
-elsewhere.
-
-| **Dimension** | **Efficiency question** | **Why it complicates the comparison** |
-| --- | --- | --- |
-| **Performance** | How much useful work is delivered per unit time, latency budget, or service-level target? | The answer depends on workload selection, scenario, software stack, and whether the measured behavior matches the deployment claim. |
-| **Power and energy** | How much useful work is delivered per watt, joule, thermal budget, or battery envelope? | A credible comparison must account for activity, data movement, voltage/frequency choices, thermal constraints, and fidelity gaps between estimates and signoff. |
-| **Reliability and correctness** | How much useful work survives faults, corner cases, nondeterminism, and validation? | A faster candidate is not efficient if it spends its savings on fragility, security side-channels, debug burden, or invalid software and hardware assumptions. |
-| **Scalability and cost** | How much useful work is delivered per dollar, rack, network hop, operator action, or unit of capacity? | Local wins can shift cost to memory, network, power delivery, utilization, operations, or total cost of ownership. |
-| **Sustainability** | How much useful work is delivered per unit of operational and embodied environmental footprint? | Carbon depends on hardware lifetime, manufacturing, energy mix, utilization, and where and when computation runs. |
-| **Evidence and engineering effort** | How much decision-relevant evidence is obtained per simulation, experiment, verification run, or engineer-hour? | Generating more candidates can still be inefficient if evaluation consumes scarce feedback, hides failures, or cannot reject weak outputs. |
-
-: **Dimensions of an efficiency claim:** Performance, power, reliability, scalability, sustainability, and evidence cost are increasingly coupled. A valid comparison must show when an apparent improvement shifts cost or changes the scope. {#tbl-efficiency-dimensions tbl-colwidths="[22,32,34]"}
-
-Two kinds of efficiency operate in this comparison. The proposed hardware system must perform useful work within its resource limits, and the study itself must allocate simulator runs, physical-design experiments, verification effort, and expert review carefully enough to reach a reliable conclusion. Reducing the cost of the study is valuable only when the remaining observations can still distinguish the alternatives and expose the failures that matter to the decision.
-
-These efficiency dimensions heavily interact. In the mobile XR setting anchored by XRBench and ILLIXR, frame latency, energy, sustained power, and data movement are so tightly coupled that a gain in one can easily violate a deadline or thermal limit in another. Better simulated performance can be completely offset by added verification work, and lower energy may depend on fragile software assumptions. A candidate that wins under a proxy may fail entirely on a more faithful workload. The architect must explicitly explain which tradeoffs are acceptable for the stated constraints, defining the scope of the efficiency claim instead of relying on a single attractive artifact or score.
-
-These coupled requirements do not imply that every architecture project needs AI. Traditional architecture methods remain highly effective when the workload, abstraction, feedback path, and proposed change are clearly bounded. Architects should first identify what familiar models, scripts, simulators, and expert reviews already handle well before stating exactly what they expect AI to improve. The true test is whether the assistance leads to a better system or a more reliable conclusion rather than simply generating more artifacts.
-
-A common objection is that today's models hallucinate and cannot be trusted to produce correct hardware, so an AI-assisted architecture program is premature. The objection is right about reliability and wrong about what the program needs. Nothing here asks a model to be trustworthy on its own. It asks that every AI proposal pass the same rejection checks, matched baselines, and evidence standard as any other candidate, so that an unreliable generator is bounded by the loop rather than believed. The open question is not whether models are reliable enough to trust, but whether the loop around them can catch their errors cheaply enough to be worth running.
-
-The Lighthouse prompt makes this friction concrete. The requested subsystem must support a workload class, meet a strict power envelope, fit a technology assumption, interact flawlessly with software, and produce reviewable evidence. The final comparison must weigh energy, latency, memory traffic, programmability, verification, and deployment risk. While a single scalar objective may help an automated search navigate the space, it cannot substitute for the holistic architectural judgment.
-
-```{=latex}
-\Needspace{20\baselineskip}
-```
-
-## Evaluate Existing Systems Across the Design Loop
-
-Current work has demonstrated useful parts of AI-assisted architecture under
-bounded conditions. Predictive design-space exploration uses simulated performance to train surrogate models that estimate behavior across a specified design space [@IpekEtAl2006PredictiveDSE]. AutoTVM uses measured hardware execution to guide a statistical search for tensor-program schedules [@ChenEtAl2018AutoTVM]. In each case, the input, architecture job, feedback source, and bounded result remain clear.
-
-AlphaChip, a learning-based macro-placement method, is a prominent physical-design example. Its inputs are a netlist and macro descriptions, its job is macro placement, and its feedback comes from proxy rewards such as wirelength and congestion [@MirhoseiniEtAl2021GraphPlacement]. Its reported placement speed established how fast the method produces a candidate, not that it beats strong classical baselines, and its reported deployment across several TPU generations is relevant evidence without settling that matched comparison. @sec-proxy-mismatch-metric-gaming-and-calibration examines the proxy-metric and baseline dispute in full.
-
-
-
-Generation methods have begun to reach real hardware in narrow settings. In a conversational study, a language model drafted the Verilog for a small 8-bit processor that reached tapeout, though a human guided the model through many revisions [@BlockloveEtAl2023ChipChat]. A separate method that learns a CPU's logic from input-output examples produced a RISC-V core, Enlightenment-1, that was fabricated and runs Linux, reaching that result through a non-agentic search rather than a tool-using loop [@ChengEtAl2024AutomatedCPU]. Each reaches silicon on a narrow slice of the problem, and no autonomous loop has yet carried a full architecture study from intent to fabricated hardware.
-
-These tools succeed at their individual tasks while exposing the integration problem that a whole architecture study must solve. Adjacent fields faced a version of it and moved forward by adopting shared baselines, standardized datasets, and common evaluation. ImageNet [@RussakovskyEtAl2015ImageNet] gave computer vision a common benchmark, and CASP (Critical Assessment of Structure Prediction) [@MoultEtAl1995CASP] let AlphaFold's [@JumperEtAl2021AlphaFold] structure predictions be measured against community-held standards. Computer architecture needs the same shared tasks, public datasets, and open evaluation protocols to turn narrow tool use into a reviewable AI-assisted practice.
 
 The rest of the book develops the representations, tool interfaces, methods, evidence practices, and decision rules this chapter has named:
 
