@@ -406,65 +406,17 @@ Software variant S2 may be an MLIR-derived lowering compiled into binary B2 . Ha
 
 An evaluation instance binds every layer relevant to that tool action. Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. Google's Bazel [@Bazel] build system guarantees reproducibility by enforcing hermeticity, where every output is a strict cryptographic hash of its inputs. This perfectly matches the architectural need to track hardware candidate identity as it lowers from a C++ memory model to RTL to Layout. A hash proves artifact identity, not architectural or functional equivalence.
 
+::: {.callout-design-principle title="The Action Space Must Not Exceed the Oracle's Fidelity"}
+Never allow an agent to propose architectural changes that the available simulator or formal tool cannot verify. If an AI can mutate a thermal property but the current EDA loop only runs logic simulation, the agent will silently exploit the unchecked dimension. The permitted action space must be strictly bounded by the dimensions the feedback budget can physically measure.
+:::
+
 ## Open Research Questions
 
-Each question below grows out of a difficulty this chapter examined while bridging an AI method to real architecture tools. Some ask what the environment must let a method observe or trust; others ask how the harness should classify a failure, compress an observation, or attribute a result. In every case the comparison is with how architects run these tools today, and success is judged by the effect on architecture work rather than by the AI method's output alone.
+Each question below grows out of a difficulty examined in this chapter. They represent foundational challenges in the discipline, intended to push the boundaries of architecture research at top-tier venues. Success in these areas is measured by the reduction of architectural burdens, formal bounds on search spaces, and the establishment of trust in automated orchestration.
 
-1. **How can AI decide when a fast, low-fidelity model can be trusted and when a candidate must climb to expensive signoff?**
-
-   The simulator tax in this chapter puts orders of magnitude between a fast analytical estimate and a cycle-accurate or RTL run, and the silicon ADMET funnel shows physical signoff rejecting high-scoring candidates that looked strong on a cheaper model.
-
-   What remains open is whether an AI method can predict, for a specific candidate, when a cheap rung's ranking will hold at signoff and when the sim-to-silicon gap will reverse it, so it spends an expensive run only where the cheaper model would mislead. The baseline to beat is a fixed fidelity schedule with hand-set confidence thresholds and an expert's sense of which designs need a real run.
-
-   A result would show up on the architecture as rank inversions that survive to signoff, promising candidates screened out early by a cheap rung, expensive runs consumed, and a chosen design that survives physical variation rather than sitting on a fragile peak in a proxy score.
-
-2. **How can AI tell an infrastructure failure apart from a candidate that is genuinely infeasible?**
-
-   This chapter separates an infrastructure failure, such as a host out-of-memory crash or an offline license server, from an architectural constraint violation, such as missing timing closure or breaking the 3 W envelope, because charging a candidate for infrastructure noise fills the design space exploration with false negatives.
-
-   The hard case is the pathological candidate that crashes the tool for a real architectural reason, exhausting host memory or proving unroutable because its own footprint cannot be built. The retry-with-fingerprint rule proposed here catches only the exactly repeatable crash, so the open question is whether an AI method can read a single failure and classify it before it burns the retry budget or mislabels a sound design.
-
-   Manual triage of crash logs by an engineer, backed by simple retry heuristics, is the current practice. Success would be measured by how faithfully the explored space matches ground truth, counting sound candidates wrongly rejected as infeasible, infeasible candidates retried until the budget is gone, and infrastructure noise absorbed as false architectural feedback.
-
-3. **Can AI distill a massive tool log into a dense observation without discarding the anomaly that actually matters?**
-
-   A commercial EDA tool or a detailed gem5 run can emit tens of thousands of lines, and this chapter warns that a parser tuned to known violations will silently drop the swapped library corner, downgraded constraint, or version-deprecation notice that a brownfield debug actually turns on.
-
-   The two-channel return proposed here, a structured vector of recognized metrics beside a flagged residual and an integrity hash, keeps the raw text available but still leaves the agent to notice the rare line. What no one can yet do is have an AI method compress a log into an observation dense enough to act on while preserving the unrecognized line that would change the architectural decision.
-
-   The baseline is the hand-written log-to-semantic parser that an architect must author and maintain, extended at best by keyword filters. The measure is the fraction of consequential warnings that survive distillation, and whether an agent acting on the distilled observation reaches the same decision it would have reached from the full log.
-
-4. **How can AI tell that a tool run which exited cleanly still returned an invalid result?**
-
-   The Ariane 5 war story in this chapter is an environment failure, not an intent failure. A reused module ran to completion, returned a value, and exited cleanly while a frozen numeric range no longer held for the new vehicle.
-
-   Architecture environments hide the same trap, since a tool version, a reused wrapper's operating range, or the meaning of a return can go unrevalidated when the tool or workload changes, and a tool call can exit with code 0 while the proposal it was meant to evaluate is logically broken.
-
-   The question is whether an AI method can detect that a clean return rests on an assumption that no longer holds for the current candidate, instead of trusting the exit code. A provenance hash proves artifact identity, not that a clean return is still valid, so today the safeguard is a human rechecking assumptions and keeping regression suites current. Progress would show up as silently wrong returns caught before they enter a decision and as needless revalidation avoided when the assumptions still hold.
-
-5. **How can AI act on opaque vendor and foundry components without access to their confidential internals?**
-
-   Most real architecture work in this chapter is brownfield, wiring a black-box legacy memory controller into a modern coherency fabric from an opaque datasheet, and the physical stack sits behind proprietary vendor tools and a confidential foundry PDK.
-
-   The transparency gradient leaves the tools at the bottom assuming a physical-design engineer's tacit knowledge, while an AI method needs an explicit interface. The open problem is whether an environment can expose enough architectural scope of an opaque result, a black-box block's timing behavior or a foundry-rule violation, for an AI method to act on it, without the protected parameters of the PDK or vendor IP crossing the harness boundary.
-
-   The baseline is the physical-design engineer who holds the tacit knowledge and works the vendor relationship under NDA. The test is whether opaque components reach passing signoff without an engineer bridging each interface by hand, whether confidential parameters ever leave the boundary, and whether the decisions stay reproducible for an architect who cannot see the vendor internals.
-
-6. **When an evaluation fails only at final signoff, how can AI trace it back to the upstream action that caused it?**
-
-   This chapter has the environment act as an architecture query planner that fans one intent out across a compiler transform, an RTL generator, a functional run, and a physical check, with returns arriving asynchronously, out of order, and sometimes days late.
-
-   Architectural feedback is sparse and lands only at the end of that chain, so a failed signoff is hard to attribute to any single upstream action. The harder question is whether an AI method can localize a late, end-of-chain failure to the action that introduced it, an MLIR lowering, a generator parameter, or a floorplan choice, rather than re-running the whole fan-out to bisect it.
-
-   Expert post-mortem debugging of the toolchain and manual bisection are the baseline. The measure is how often the method names the true causal action, the tool cost and wall-clock spent to localize a fault, and the wasted re-runs it avoids.
-
-7. **How can the AI method behind an architecture environment be swapped without invalidating its prior evidence or leaking a protected parameter?**
-
-   This chapter's claim that the harness, not the agent, is the deliverable is tested by time. A three-year silicon program cannot have its optimization interface deprecated, rate-limited, or re-priced under it, and it cannot re-run finished evaluations every time the tools, schemas, or AI method change.
-
-   What is not yet settled is which interface guarantees let an environment swap the AI method behind it, including a strictly on-premise model, while keeping prior evidence comparable and keeping every RTL, PDK, and foundry-rule parameter inside the harness boundary.
-
-   Today's brittle script wrappers and one-off environment bindings, together with vendor-hosted APIs that can change under a program, are the baseline. The comparison should count evaluations that stay valid across a model swap, interface changes that force earlier runs to be repeated, and protected parameters that ever leave the boundary, judged over the length of a chip program rather than a single study.
+1. **Zero-Shot Translation from Opaque Tool Telemetry:** What methods allow an AI system to distill the unstructured, tens-of-thousands-of-lines output from proprietary EDA tools into dense, actionable state observations without losing the single anomalous line that dictates physical failure?
+2. **Causal Attribution in Asynchronous Feedback Loops:** When a design fails late in the physical sign-off process, what algorithms can probabilistically backtrace the failure to the specific upstream generative action (e.g., a specific compiler transform or RTL parameter) that caused it?
+3. **Secure Agentic Interfaces for Confidential PDKs:** How can we design cryptographic or privacy-preserving environment interfaces that allow an AI model to optimize against foundry-specific constraints without the proprietary parameters ever leaving the secure harness boundary?
 
 ## Summarize Environment Design
 
