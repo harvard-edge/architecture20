@@ -17,6 +17,15 @@ How do we rigorously measure an agent's ability to navigate formal verification 
 
 The chapter answers this in three parts: what to measure about the search, whether the resulting score can be trusted, and how to turn that score into a decision. The three build on each other, because a metric is only as useful as the benchmark that produces it, and a benchmark is only useful if it changes what an architect does next.
 
+::: {.callout-learning-objectives}
+After this chapter you can construct a trustworthy evaluation of an AI architect. Specifically, you can:
+
+- **Measure** the search itself using **physics-bound benchmarks**: pass-rate, proxy calibration to avoid the **Proxy Mirage**, trajectory efficiency, autonomous recovery, tool use, and long-horizon context retention;
+- **Trust** a score by mitigating **data contamination** and **test leakage**, reporting variance across seeds, and comparing against a baseline at an equal simulator-call budget;
+- **Decide** with the result by separating capability from reliability, placing agents on a cost-versus-quality frontier, and calibrating how much autonomy to grant;
+- **Ground** each metric in the machine-learning idea that makes it necessary, from Goodhart's Law to the credit-assignment problem.
+:::
+
 ## Shift Measurement for AI-Driven Design
 
 Before we can benchmark an AI architect, we should recall why human architects measure anything at all. Computer architecture is a strictly empirical discipline. We do not evaluate a processor by reading its source code; we evaluate it by running standardized workloads such as SPEC CPU or MLPerf and measuring the physical consequences, including IPC, power, area, and latency.
@@ -39,14 +48,6 @@ In hardware, this is expensive in a way software is not. In software, a stochast
 
 : **From measuring the chip to measuring the agent.** Evaluating an AI architect requires a different set of metrics than evaluating the chip it produces. {#tbl-eval-shift tbl-colwidths="[20,40,40]"}
 
-::: {.callout-learning-objectives}
-After this chapter you can construct a trustworthy evaluation of an AI architect. Specifically, you can:
-
-- **Measure** the search itself using **physics-bound benchmarks**: pass-rate, proxy calibration to avoid the **Proxy Mirage**, trajectory efficiency, autonomous recovery, tool use, and long-horizon context retention;
-- **Trust** a score by mitigating **data contamination** and **test leakage**, reporting variance across seeds, and comparing against a baseline at an equal simulator-call budget;
-- **Decide** with the result by separating capability from reliability, placing agents on a cost-versus-quality frontier, and calibrating how much autonomy to grant;
-- **Ground** each metric in the machine-learning idea that makes it necessary, from Goodhart's Law to the credit-assignment problem.
-:::
 
 ## Discard Software Analogies
 
@@ -153,19 +154,11 @@ The public corpus of open-source hardware, such as RISC-V cores like BOOM or Roc
 **The lesson.** Repairing this required more than just fixing the area model; it required the benchmark to enforce physical constraints. The headline number mixed genuine architectural exploration with simulator exploitation. An architectural benchmark's credibility depends on evaluating agents against the hard walls of physical realities—like timing, power, and routing—not just the soft estimates of an analytical proxy.
 :::
 
-### Control Variance, Seeds, and Replay
+### Ensure Statistical and Physical Validity
 
-Agents are stochastic, so a single run is an anecdote, not a measurement.
-
-**What to measure.** Report the number of seeds, the sample size per task, and the spread of results. Pin the model version and a response digest, fix the seeds and the budget before the run, and archive each trajectory so another team can replay it.
-
-### Compare Baselines at Equal Budgets
-
-A score means little without a floor (human-expert baseline) and a ceiling (exhaustive search where possible). Agents of different cost must be compared at an equal simulator-call budget to ensure we measure efficiency, not just spending limits.
-
-### Ensure Metrics Predict Physical Quality
-
-The missing check is whether a high suite score actually predicts a good outcome on physical hardware. If the metric cannot reliably correlate with routing congestion, timing closure, or power budgets, the agent may climb the scoreboard while producing physically useless architectures.
+*   **Control Variance, Seeds, and Replay:** Agents are stochastic, so a single run is an anecdote, not a measurement. Report the number of seeds, the sample size per task, and the spread of results. Pin the model version and a response digest, fix the seeds and the budget before the run, and archive each trajectory so another team can replay it.
+*   **Compare Baselines at Equal Budgets:** A score means little without a floor (human-expert baseline) and a ceiling (exhaustive search where possible). Agents of different cost must be compared at an equal simulator-call budget to ensure we measure efficiency, not just spending limits.
+*   **Ensure Metrics Predict Physical Quality:** The missing check is whether a high suite score actually predicts a good outcome on physical hardware. If the metric cannot reliably correlate with routing congestion, timing closure, or power budgets, the agent may climb the scoreboard while producing physically useless architectures.
 
 ## Turn Scores into Decisions
 
@@ -189,7 +182,7 @@ Because agents differ in both quality and cost, the comparison is a cost-quality
 
 ### Calibrate Autonomy
 
-How much of this loop can run unsupervised is a risk decision keyed to the reliability of the agent, the cost of a wasted run, and the reversibility of the next action. A steady agent proposing a cache sweep can be given a long leash; a peaky agent one approval away from RTL freeze or tape-out sign-off cannot (@tbl-eval-checklist).
+How much of the initial search can run with lightweight supervision is a risk decision keyed to the reliability of the agent and the cost of a wasted simulator run. A steady agent proposing a cache sweep can be allowed to batch its runs; however, no agent is permitted to make final architectural decisions or approve an RTL freeze without the human architect serving as the final judge (@tbl-eval-checklist).
 
 | **Check** | **What a trustworthy agent evaluation reports** |
 | --- | --- |
@@ -230,13 +223,13 @@ How much of this loop can run unsupervised is a risk decision keyed to the relia
 
    An agent could read eval conditions from workload names or tool versions and switch modes. The open problem is whether a benchmark can detect this mode-switching.
 
-7. **How much reliability must an AI agent show before RTL freeze without human sign-off?**
+7. **How much reliability must an AI agent show to be trusted with batching large exploratory sweeps without continuous manual intervention?**
 
-   Deployment needs an agent that does not fail catastrophically. The open problem is how much reliability evidence should buy how much unsupervised authority over major milestones like tape-out.
+   Deployment needs an agent that does not fail catastrophically during routine searches. The open problem is how much reliability evidence should buy how much slack in the exploration phase, even though the human architect must always sign off on major milestones like tape-out.
 
 ## Conclude and Carry Forward {#sec-conclusion-and-carry-forward}
 
-Evaluating an AI architect is a different discipline from evaluating a chip. We must rely on **physics-bound benchmarks** to measure the search rather than only the artifact, tracking metrics like trajectory efficiency and self-correction, while avoiding the **Proxy Mirage** by grounding validation in physical hardware realities. We make the score trustworthy by aggressively mitigating **data contamination** and **test leakage** in open-source designs, reporting variance, and comparing against a baseline at an equal EDA tool budget. Finally, we turn the score into a decision, reading reliability and cost to judge how much of the loop an agent may autonomously run.
+Evaluating an AI architect is a different discipline from evaluating a chip. We must rely on **physics-bound benchmarks** to measure the search rather than only the artifact, tracking metrics like trajectory efficiency and self-correction, while avoiding the **Proxy Mirage** by grounding validation in physical hardware realities—such as strict power limits, area budgets, timing closure, and routing congestion constraints. We make the score trustworthy by aggressively mitigating **data contamination** and **test leakage** in open-source designs, reporting variance, and comparing against a baseline at an equal EDA tool budget. Finally, we turn the score into a decision, reading reliability and cost to judge how much of the exploratory search an agent may batch, while strictly preserving the human architect as the final judge of physical correctness.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Evaluating the agent is distinct from evaluating the hardware. Discard software analogies for **physics-bound benchmarks**, make the score trustworthy by preventing **data contamination**, and avoid the **Proxy Mirage** when deciding how much autonomy to grant.
