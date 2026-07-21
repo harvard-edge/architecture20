@@ -72,7 +72,7 @@ Once that comparison is defined, AI could reduce some of the repeated work by su
 
 Experienced architects also carry important context implicitly. They know which workloads were excluded, which tool settings are trusted, why a previous candidate failed, and what decision is actually under review.
 
-Machine learning models, however, are highly vulnerable to "catastrophic forgetting" [@McCloskeyCohen1989Catastrophic], the tendency to abruptly forget previously learned information upon learning new constraints. In an agentic loop, an AI searcher may forget a critical thermal budget or DRC rule while obsessively optimizing a newly introduced STA timing violation. It may produce a coherent analysis of a different comparison from the one the architect intended. The human architect must orchestrate an evaluation harness that explicitly tracks workload assumptions, interface constraints, tool settings, and physical limitations to maintain the epistemic trust boundary.
+Machine learning systems, however, hold that context imperfectly. Over a long session, an AI searcher can lose track of a critical thermal budget or DRC rule while optimizing a newly introduced STA timing violation, and it can produce a coherent analysis of a different comparison from the one the architect intended. The evaluation setup must therefore track workload assumptions, interface constraints, tool settings, and physical limitations explicitly, so the comparison the loop runs stays the comparison the architect meant to run.
 
 ### Explicit Inputs and Checks
 
@@ -88,9 +88,9 @@ design work.
 | --- | --- | --- |
 | System/360 compatibility | A stable Instruction Set Architecture (ISA) contract separated architecture from implementation across a product family [@AmdahlBlaauwBrooks1964System360]. | The ISA carries architectural commitments across implementations and product generations. |
 | Mead--Conway VLSI and MOSIS | Design rules, layout abstractions, and fabrication access turned custom-chip design into a shareable and reusable loop [@USCISI2025MOSISFirstYear]. | Shared representations and fabrication access broaden participation in architecture work. |
-| RISC | Workload, compiler, Very Large-Scale Integration (VLSI), and the quantitative cost/performance case became the architectural argument . | A complete comparison includes the workload, compiler, and implementation cost. |
-| SPEC-style benchmarking | Workload selection, run rules, reporting conventions, and comparability became community infrastructure . | Benchmarks govern workload choice, execution, and comparison. |
-| Logic synthesis and timing closure | Hardware Description Language (HDL), libraries, constraints, and timing reports let downstream checks reject upstream choices . Synthesis tools are not clean API calls; they require massive license servers, runtime budgets, and navigation of brittle failure logs. | Implementation checks can rule out architecture candidates before the project commits to them. |
+| RISC | Workload, compiler, Very Large-Scale Integration (VLSI), and the quantitative cost/performance case became the architectural argument [@PattersonDitzel1980RISC]. | A complete comparison includes the workload, compiler, and implementation cost. |
+| SPEC-style benchmarking | Workload selection, run rules, reporting conventions, and comparability became community infrastructure [@SPEC2017CPU]. | Benchmarks govern workload choice, execution, and comparison. |
+| Logic synthesis and timing closure | Hardware Description Language (HDL), libraries, constraints, and timing reports let downstream checks reject upstream choices [@DeMicheli1994SynthesisOptimization]. Synthesis tools are not clean API calls; they require massive license servers, runtime budgets, and navigation of brittle failure logs. | Implementation checks can rule out architecture candidates before the project commits to them. |
 | CUDA-style GPU programming | Kernels, thread hierarchies, memory spaces, libraries, and toolchains made specialized hardware programmable [@NickollsEtAl2008CUDA]. | Specialized hardware needs a usable programming model and toolchain. |
 
 : **Six changes that made architecture work easier to inspect.** Each one established a shared representation, interface, tool path, benchmark, or decision criterion where informal coordination no longer sufficed. {#tbl-historical-loop-transformations tbl-colwidths="[22,39,28]"}
@@ -124,7 +124,7 @@ consistent at once.
 
 ### Design State Connections
 
-For decades, computing advanced through a layered stack of technology, architecture, and optimization, which this book abbreviates TAO. Device scaling supplied faster transistors, microarchitecture organized them, and compilers mapped software onto the result. The end of Dennard scaling , the property that kept power density constant as transistors shrank, added a fourth layer, specialization, extending TAO to TAOS, because physical limits at the device level now shape every layer above rather than receding beneath them (@fig-tao-vs-taos). Because a chip's transistors could no longer all switch within its power budget, a growing fraction had to stay dark at any moment, the dark-silicon or utilization-wall problem , which made specialized, selectively powered blocks the primary route to further efficiency.
+For decades, computing advanced through a layered stack of technology, architecture, and optimization, which this book abbreviates TAO. Device scaling supplied faster transistors, microarchitecture organized them, and compilers mapped software onto the result. The end of Dennard scaling [@DennardEtAl1974Scaling], the property that kept power density constant as transistors shrank, added a fourth layer, specialization, extending TAO to TAOS, because physical limits at the device level now shape every layer above rather than receding beneath them (@fig-tao-vs-taos). Because a chip's transistors could no longer all switch within its power budget, a growing fraction had to stay dark at any moment, the dark-silicon or utilization-wall problem [@EsmaeilzadehEtAl2011DarkSilicon], which made specialized, selectively powered blocks the primary route to further efficiency.
 
 ![**TAO vs TAOS.** The shift from a top-down technology stack to one tightly constrained by physical limitations at the bottom.](images/ch2_tao_vs_taos.svg){#fig-tao-vs-taos width="100%" fig-alt="TAO vs TAOS Stack"}
 
@@ -179,9 +179,9 @@ exploration to begin.
 
 ## Microarchitecture Complexity
 
-Start with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance, and each adds corner cases a fair comparison must cover . A prefetcher that helps one access pattern can pollute a cache under another. A speculation policy that raises throughput can raise energy, and the same speculative machinery later proved able to leak data across protection boundaries, as Spectre and Meltdown showed [@KocherEtAl2019Spectre; @LippEtAl2018Meltdown]. A gain measured on one workload can carry a cost that surfaces only under another.
+Start with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance, and each adds corner cases a fair comparison must cover. A prefetcher that helps one access pattern can pollute a cache under another. A speculation policy that raises throughput can raise energy, and the same speculative machinery later proved able to leak data across protection boundaries, as Spectre and Meltdown showed [@KocherEtAl2019Spectre; @LippEtAl2018Meltdown]. A gain measured on one workload can carry a cost that surfaces only under another.
 
-These costs are not hypothetical. Intel's Pentium 4, built on the NetBurst microarchitecture, pushed pipeline depth hard to chase clock frequency, reaching 31 pipeline stages in its 90\ nm Prescott generation on a roadmap that had projected clocks approaching 10\ GHz. The bet was internally coherent and wrong for the machine it produced. A pipeline that deep made every branch misprediction expensive to refill, and at 90\ nm the rising power density stalled frequency far short of the projected targets, leaving a part that ran hot and retired fewer instructions per clock than shorter-pipeline contemporaries . Intel abandoned the frequency-first design and moved to shorter pipelines and multiple cores.
+These costs are not hypothetical. Intel's Pentium 4, built on the NetBurst microarchitecture, pushed pipeline depth hard to chase clock frequency, reaching 31 pipeline stages in its 90\ nm Prescott generation on a roadmap that had projected clocks approaching 10\ GHz. The bet was internally coherent and wrong for the machine it produced. A pipeline that deep made every branch misprediction expensive to refill, and at 90\ nm the rising power density stalled frequency far short of the projected targets, leaving a part that ran hot and retired fewer instructions per clock than shorter-pipeline contemporaries. Intel abandoned the frequency-first design and moved to shorter pipelines and multiple cores.
 
 That turn to multiple cores added a further layer. Coherence protocols, memory-ordering rules, synchronization costs, and workload partitioning all shape how a candidate behaves under a real workload, and none of them shows up in a single-thread proxy. Even here, before any specialized block is added, the information a comparison must carry has already outgrown a single number.
 
@@ -189,7 +189,7 @@ This layer is also where AI assistance meets its first test. The cheap proxies a
 
 ## The Specialization Explosion
 
-Specialization is the next layer, and it changes what a comparison must weigh. Where microarchitecture and multicore mechanisms tune a general-purpose machine, specialization tailors the hardware to a particular workload, which changes both the metrics that matter and the number of choices the architect must evaluate. A battery- and thermally limited mobile part and a warehouse-scale system bounded by power delivery and total cost of ownership (TCO) demand different measures of efficiency , and a specialized block is only worth judging against one such target.
+Specialization is the next layer, and it changes what a comparison must weigh. Where microarchitecture and multicore mechanisms tune a general-purpose machine, specialization tailors the hardware to a particular workload, which changes both the metrics that matter and the number of choices the architect must evaluate. A battery- and thermally limited mobile part and a warehouse-scale system bounded by power delivery and total cost of ownership (TCO) demand different measures of efficiency, and a specialized block is only worth judging against one such target.
 
 Specialization has already produced that explosion in the field. What was once a handful of processor families is now a dense, heterogeneous landscape of GPUs, FPGAs, neural processors, and other specialized parts, which the authors of Project Brainwave called a "Cambrian explosion" [@ChungEtAl2018Brainwave] and which @fig-accelerator-landscape plots across power and performance.
 
@@ -371,8 +371,8 @@ unconstrained mapspace already contains $(7!)^4 \times (2^4)^3$ arrangements.
 | --- | --- | --- |
 | DNN accelerator mapping | Timeloop enumerates loop permutations, factorization choices, and level-bypass alternatives. | Mapping is itself a combinatorial problem; architecture evaluation depends on the mapper and its constraints. |
 | DNN accelerator DSE | MAESTRO, an analytical cost model for estimating DNN dataflow performance, reports 480M candidates, 2.5M valid designs, and 0.17M designs/s [@KwonEtAl2019MAESTRO]. | Pruning rules determine which candidates are evaluated and which are never seen. |
-| TPU-block floorplanning | The AlphaChip paper reported reducing placement generation from months of human effort to hours of machine time . | Routed physical quality and strong baselines still require separate evaluation. |
-| Tensor-program tuning | AutoTVM, a machine learning-based tensor program optimizer, describes tensor-operator search spaces on the order of billions of possible implementations for a single GPU operator . | Compiler schedules create a hardware-dependent search problem of their own. |
+| TPU-block floorplanning | The AlphaChip paper reported reducing placement generation from months of human effort to hours of machine time [@MirhoseiniEtAl2021GraphPlacement]. | Routed physical quality and strong baselines still require separate evaluation. |
+| Tensor-program tuning | AutoTVM, a machine learning-based tensor program optimizer, describes tensor-operator search spaces on the order of billions of possible implementations for a single GPU operator [@ChenEtAl2018AutoTVM]. | Compiler schedules create a hardware-dependent search problem of their own. |
 
 : **Large search spaces place different demands on evaluation.** Mapping, accelerator DSE, floorplanning, and tensor-program tuning combine candidate scale, validity constraints, feedback cost, and different evidence requirements. {#tbl-design-loop-scale-anchors tbl-colwidths="[25,36,28]"}
 
@@ -406,7 +406,7 @@ from _python.arch2_plots import COLORS, apply_style, row_axis, top_log_axis
 # - Toy SoC design candidates: 5*4*6*4*3*3 = 4,320, computed earlier in this chapter.
 # - MAESTRO accelerator DSE: 480M candidates, stated [@KwonEtAl2019MAESTRO].
 # - AutoTVM tensor programs: "on the order of billions" per GPU operator, stated
-#   qualitatively (order-of-magnitude, hollow marker) .
+#   qualitatively (order-of-magnitude, hollow marker) [@ChenEtAl2018AutoTVM].
 # - Timeloop unconstrained mapspace: (7!)^4 * (2^4)^3 ~= 2.6e18, computed from the
 #   stated expression [@ParasharEtAl2019Timeloop]. Values not recomputed from sources.
 # As-of: 2026-07-14.
@@ -492,7 +492,7 @@ comparison [@RaganKelleyEtAl2017HalideCACM; @LattnerEtAl2020MLIR].
 Several well-known designs show why software assumptions belong in an
 architecture comparison. Itanium's EPIC (Explicitly Parallel Instruction
 Computing) architecture depended on compilers exposing enough instruction-level
-parallelism . Intel's Larrabee moved specific graphics
+parallelism [@SchlanskerRau2000EPIC]. Intel's Larrabee moved specific graphics
 stages into software on many x86 cores while retaining fixed-function hardware
 for others [@SeilerEtAl2008Larrabee]. Transmeta's Crusoe assumed that
 code-morphing software would let a simple core match x86
@@ -805,7 +805,7 @@ EDA and implementation flows needed to verify them.
 Data-movement estimates, for example, can reverse an early ranking based on
 compute alone. Moving data through a memory hierarchy often costs far more
 energy than arithmetic. Horowitz's widely used estimates quantify the
-difference . A compute-only comparison can therefore rank
+difference [@Horowitz2014Energy]. A compute-only comparison can therefore rank
 the wrong design. The result also depends on where the data resides, how often
 it moves, who schedules it, what locality is available, which precision is
 acceptable, and what the software stack can express.
@@ -819,7 +819,7 @@ values are order-of-magnitude anchors, not predictions for a current process.
 ```{python}
 #| label: fig-data-movement-energy-scale
 #| fig-cap: |
-#|   **Data movement can dominate arithmetic energy.** Rough Horowitz 45\ nm energy values show why architecture comparisons must represent locality, buffering, precision, scheduling, and memory hierarchy rather than counting arithmetic alone . The values are transcribed order-of-magnitude anchors, including the source's 1.3--2.6\ nJ DRAM range, not current-node device estimates.
+#|   **Data movement can dominate arithmetic energy.** Rough Horowitz 45\ nm energy values show why architecture comparisons must represent locality, buffering, precision, scheduling, and memory hierarchy rather than counting arithmetic alone [@Horowitz2014Energy]. The values are transcribed order-of-magnitude anchors, including the source's 1.3--2.6\ nJ DRAM range, not current-node device estimates.
 #| out-width: "92%"
 #| fig-alt: "Log-scale plot comparing arithmetic and memory-access energy, showing a 32-bit integer add at 0.1 picojoules, SRAM accesses from 10 to 100 picojoules, and an off-chip DRAM access range from 1.3 to 2.6 nanojoules."
 
@@ -1171,7 +1171,7 @@ rejected. No single throughput limit applies to every project.
 
 The public AlphaChip debate illustrates a narrower point about bottlenecks. The
 2021 AlphaChip paper reported that a reinforcement-learning method could produce
-macro placements in hours , and a later public
+macro placements in hours [@MirhoseiniEtAl2021GraphPlacement], and a later public
 disagreement turned on differences in cases, compute budgets, implementations,
 and downstream physical-design checks [@ChengEtAl2023AssessmentRL; @GoldieEtAl2024ThatChipHasSailed]. None of those comparisons measured
 candidate-arrival rates, review queues, or why candidates were rejected. We use
@@ -1269,8 +1269,8 @@ Several questions from this chapter stay open. The chapter's method asks an arch
 
 ## Summarizing the Scale Challenge
 
-::: {.callout-design-principle title="The Bottleneck Theorem of Automation"}
-Accelerating candidate generation actively harms project velocity if the limiting constraint is simulation capacity or expert review. AI assistance must target the specific bottleneck, whether search, tool execution, telemetry parsing, or evidence synthesis, rather than uniformly increasing the volume of unverified artifacts.
+::: {.callout-design-principle title="Target the binding bottleneck"}
+Accelerating candidate generation does not raise project velocity when the limiting constraint is simulation capacity or expert review; it only lengthens the queue at the real bottleneck. AI assistance must target the specific bottleneck, whether search, tool execution, telemetry parsing, or evidence synthesis, rather than uniformly increasing the volume of unverified artifacts.
 :::
 
 
