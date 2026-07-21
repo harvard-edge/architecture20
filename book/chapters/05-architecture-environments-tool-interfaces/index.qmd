@@ -10,7 +10,6 @@
 **Author's Note:** John Culkin, an influential American media scholar, observed that tools reshape how people work. An architecture tool also shapes what an AI method can change and what an architect can observe. Those limits must be explicit when the method acts through the tool.
 :::
 
-
 ::: {.callout-crux}
 How do we bridge the semantic gap between an AI's abstract intent and the messy, stateful reality of computer architecture tools to create a reliable design environment?
 :::
@@ -38,7 +37,6 @@ An AI expects fast, deterministic APIs, but hardware design relies on slow, stat
 
 ## The Human–API Mismatch
 
-
 **In modern machine learning**, an agent typically interacts with an environment (such as an OpenAI Gym simulation) via a clean, synchronous loop: the agent takes an action, and the environment instantly returns a new state and a dense scalar reward.
 
 **Hardware tools, however, were built for humans, not APIs.** For decades, architecture tools such as CACTI [@MuralimanoharEtAl2009CACTI], DRAMSys [@WeisEtAl2021DRAMSys], or gem5  were engineered to support manual workflows. They assume an architect who can read dense log files, debug build errors interactively, or interpret color-coded waveforms.
@@ -46,7 +44,6 @@ An AI expects fast, deterministic APIs, but hardware design relies on slow, stat
 **Modifying a real design requires navigating a chaotic, disconnected stack.** Inserting a custom vector block into an XR subsystem requires modifying Chisel, changing linker scripts, and hacking a Device Tree Blob (DTB). Forcing these messy realities into a standard ML environment loop without exposing their low-level details prevents the human architect from verifying physical constraints like timing and power.
 
 This legacy shatters the familiar ML environment paradigm, creating a severe **semantic gap**. This massive gulf separates the high-level semantic intent of a design ("increase the cache size to improve hit rate") from the low-level, unstructured mechanics of the tool itself. Instead of returning a simple scalar reward, EDA tools return gigabytes of unparsed logs, crash silently, or hang for days. This gap directly results from the transparency gradient. The EDA tools at the bottom of the stack rely heavily on the tacit knowledge of physical design engineers to interpret unroutable netlists. In contrast, an AI system requires fully explicit, programmatic interfaces.
-
 
 Foundation models interact most reliably with external software through strict, typed APIs rather than unconstrained shell commands. Tool-use research points the same way: Toolformer teaches a model to invoke typed APIs for subtasks it cannot perform reliably on its own [@SchickEtAl2023Toolformer]. This maps directly to the architectural domain. While "computer use" models can visually parse GUIs and move a mouse, relying on visual GUI automation for architecture design is brittle and computationally inefficient. Because of this, system intent, a GUI, and simple permission to call a tool are insufficient for real architecture work. By enforcing strict API boundaries instead of raw shell access, the environment returns control to the human architect, who can mathematically verify the limits of the AI's actions before burning cluster hours on unroutable silicon.
 
@@ -205,9 +202,6 @@ The environment harness must catch infrastructure failures and flag them appropr
 
 Some tool crashes, however, carry real architectural signal. A pathological candidate can exhaust host memory, prove unroutable, or fail synthesis because its own resource footprint is infeasible rather than because the cluster is at fault. The harness cannot always separate the two before running, so it needs a retry-with-fingerprint rule. If the same candidate crashes the same tool in the same way across repeated attempts, the harness reclassifies the outcome from `TOOL_CRASH` to an architectural infeasibility signal instead of looping and burning the retry budget. The safe-by-construction action space described later is the first line of defense against these cases, but it cannot catch every infeasible footprint before execution.
 
-
-
-
 ## The Three-Path Interface
 
 A tool returns raw, unstructured text, but an architecture study needs structured observations it can compare, check, and store. Turning one into the other is the job of the environment interface.
@@ -329,11 +323,9 @@ Rather than providing raw Python code, we can also formalize the overall executi
 :::
 :::
 
-
 Distinct read, action, and return paths let an architecture environment carry architectural intent across domain boundaries, from the compiler's intermediate representation to the final physical design signoff. The environment stops short of making the architectural decision, which keeps it a trusted observation platform.
 
 If another method can act in the same harness and another architect can interpret its results without private knowledge, the environment is sound. Generative models and optimization algorithms can then operate on the environment independently.
-
 
 The Return Path is where a raw tool log becomes the observation the agent acts on. But capturing the return safely is only the first step; we must also ensure the AI can comprehend it.
 
@@ -370,9 +362,6 @@ Instead of blind text mutation, an agent can programmatically walk the SSA graph
 
 For the human architect, these standardized representations form an indispensable safety boundary. They ensure the AI's intent survives translation across the physical toolchain, mathematically bounding the agent from hallucinating physically unrealizable states.
 
-
-
-
 ## Orchestrating Complex Toolchains
 
 When a candidate design successfully navigates the Three-Path Interface and its intent is safely encoded in a standardized IR like MLIR, it must be translated into actionable physical tool commands. However, a single high-level intent rarely maps to a single tool. A hardware configuration might need to fan out to multiple distinct evaluation backends. These include an RTL simulator for functional correctness, a VLSI flow for power and area estimates, and an FPGA emulation path for full-stack software booting.
@@ -397,7 +386,6 @@ Architecture 2.0 environments must act as this orchestration layer. A semantic p
 
 **The environment acts as the arbiter of this DAG.** It ensures that some branches execute in parallel while others block until earlier artifacts exist, guaranteeing that the AI's edits are vetted against physical realities before being presented back to the human architect.
 
-
 To illustrate this orchestration complexity, consider how a single architecture proposal formally splits into specific software and hardware instantiations (@fig-artifact-lineage).
 
 ![**Artifact lineage and cryptographic provenance.** A single Lighthouse intent fans out into software binaries and hardware RTL, each hashed to ensure reproducible evaluations.](images/F5-artifact-lineage.svg){#fig-artifact-lineage fig-alt="Artifact Lineage and Cryptographic Provenance. A single Lighthouse intent fans out into software binaries and hardware RTL, each hashed to ensure reproducible evaluations."}
@@ -405,10 +393,6 @@ To illustrate this orchestration complexity, consider how a single architecture 
 Software variant S2 may be an MLIR-derived lowering compiled into binary B2 . Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 . Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
 
 An evaluation instance binds every layer relevant to that tool action. Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. Google's Bazel [@Bazel] build system guarantees reproducibility by enforcing hermeticity, where every output is a strict cryptographic hash of its inputs. This perfectly matches the architectural need to track hardware candidate identity as it lowers from a C++ memory model to RTL to Layout. A hash proves artifact identity, not architectural or functional equivalence.
-
-::: {.callout-design-principle title="The Action Space Must Not Exceed the Oracle's Fidelity"}
-Never allow an agent to propose architectural changes that the available simulator or formal tool cannot verify. If an AI can mutate a thermal property but the current EDA loop only runs logic simulation, the agent will silently exploit the unchecked dimension. The permitted action space must be strictly bounded by the dimensions the feedback budget can physically measure.
-:::
 
 ## Open Research Questions
 
@@ -419,6 +403,11 @@ Each question below grows out of a difficulty examined in this chapter. They rep
 3. **Secure Agentic Interfaces for Confidential PDKs:** How can we design cryptographic or privacy-preserving environment interfaces that allow an AI model to optimize against foundry-specific constraints without the proprietary parameters ever leaving the secure harness boundary?
 
 ## Summarize Environment Design
+
+::: {.callout-design-principle title="The Action Space Must Not Exceed Oracle Fidelity"}
+Never allow an agent to propose architectural changes that the available simulator or formal tool cannot verify. If an AI mutates a thermal property but the EDA loop only runs logic simulation, the agent will silently exploit the unchecked dimension. The permitted action space must be strictly bounded by the physical dimensions the feedback budget can measure.
+:::
+
 
 An architecture environment transforms opaque tool executions into an explicit interface that AI methods and human architects can trust. It records precisely which tensor-enabled software artifact ran against which hardware artifact, exactly which tools completed, which actions failed or lacked support, and the typed meaning of every return.
 
