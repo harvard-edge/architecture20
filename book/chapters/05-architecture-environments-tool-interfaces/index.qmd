@@ -37,11 +37,9 @@ An AI expects fast, deterministic APIs, but hardware design relies on slow, stat
 
 ## The Human–API Mismatch
 
-**In modern machine learning**, an agent typically interacts with an environment (such as an OpenAI Gym simulation) via a clean, synchronous loop: the agent takes an action, and the environment instantly returns a new state and a dense scalar reward.
+In modern machine learning, an agent interacts with an environment such as an OpenAI Gym simulation through a clean, synchronous loop. It takes an action, and the environment returns a new state and a dense scalar reward.
 
-**Hardware tools, however, were built for humans, not APIs.** For decades, architecture tools such as CACTI [@MuralimanoharEtAl2009CACTI], DRAMSys [@WeisEtAl2021DRAMSys], or gem5  were engineered to support manual workflows. They assume an architect who can read dense log files, debug build errors interactively, or interpret color-coded waveforms.
-
-**Modifying a real design requires navigating a chaotic, disconnected stack.** Inserting a custom vector block into an XR subsystem requires modifying Chisel, changing linker scripts, and hacking a Device Tree Blob (DTB). Forcing these messy realities into a standard ML environment loop without exposing their low-level details prevents the human architect from verifying physical constraints like timing and power.
+Hardware tools were built for humans, not APIs. For decades, architecture tools such as CACTI [@MuralimanoharEtAl2009CACTI], DRAMSys [@WeisEtAl2021DRAMSys], or gem5 were engineered around manual workflows, assuming an architect who can read dense log files, debug build errors interactively, and interpret color-coded waveforms. Modifying a real design means navigating a disconnected stack. Inserting a custom vector block into an XR subsystem requires modifying Chisel, changing linker scripts, and hacking a Device Tree Blob (DTB). Forcing these messy realities into a standard ML environment loop without exposing their low-level details prevents the human architect from verifying physical constraints like timing and power.
 
 This legacy shatters the familiar ML environment paradigm, creating a severe **semantic gap**. This massive gulf separates the high-level semantic intent of a design ("increase the cache size to improve hit rate") from the low-level, unstructured mechanics of the tool itself. Instead of returning a simple scalar reward, EDA tools return gigabytes of unparsed logs, crash silently, or hang for days. This gap directly results from the transparency gradient. The EDA tools at the bottom of the stack rely heavily on the tacit knowledge of physical design engineers to interpret unroutable netlists. In contrast, an AI system requires fully explicit, programmatic interfaces.
 
@@ -167,25 +165,21 @@ Physical-design environments make this staged interface particularly clear. Logi
 
 To balance determinism versus reproducibility, we must consider costs, operational fidelity, nondeterminism, and integrity. Two post-route attempts for the same hardware artifact may differ because of seed, thread count, host state, or tool heuristics. To manage nondeterminism and flakiness, distinguish three cases: expected statistical variation, declared tool nondeterminism, and flaky/unstable execution. Do not silently average contradictory returns from different stages, sources, or attempts.
 
-**Software engineering benchmarks like SWE-bench**  demonstrate that loosely connected scripts lead to unreproducible outcomes. An AI needs explicit read/action/return paths to avoid falsely assuming success.
+Software engineering benchmarks like SWE-bench demonstrate that loosely connected scripts lead to unreproducible outcomes, so an AI needs explicit read, action, and return paths to avoid falsely assuming success. Architecture 2.0 must adopt the same discipline for tool execution, enforcing strict data provenance and reproducible environment snapshots. Much like modern cloud DevOps relies on immutable infrastructure, declaring a new state rather than manually patching a running server, architecture environments must enforce *immutable architecture states*.
 
-**Architecture 2.0 must adopt best practices for tool execution**, ensuring strict data provenance and reproducible environment snapshots. Much like modern Cloud DevOps relies on Immutable Infrastructure, declaring a new state rather than manually patching a running server, architecture environments must enforce **Immutable Architecture States**.
-
-**Mutating a source file in place often corrupts the working directory if an EDA tool crashes.** Instead of having the AI attempt to patch the broken directory with `sed`, every action must branch from a pristine, immutable snapshot to guarantee reproducible provenance. This immutable history returns control to the human architect, who can deterministically reproduce any physical design failure without fighting dirty state.
+Mutating a source file in place often corrupts the working directory when an EDA tool crashes. Rather than have the AI patch the broken directory with `sed`, every action branches from a pristine, immutable snapshot, which guarantees reproducible provenance and lets the architect deterministically reproduce any physical design failure without fighting dirty state.
 
 However, ensuring data provenance and reproducibility is impossible if the agent expects instant feedback. The sheer cost and latency of EDA tools requires a shift to asynchronous execution mechanics.
 
-## Kill the Synchronous `env.step()`
+## Killing the Synchronous `env.step()`
 
 In pedagogical AI tutorials, agents often interact with simulated games using a synchronous `env.step()` function. The agent takes a discrete action, the simulation instantly steps forward in time, and the function returns the new state and a reward. However, because of the physical and economic constraints of real hardware design, this standard synchronous wrapper is the wrong abstraction. This highlights the "Simulator Tax" in practice: an agent waiting for a synchronous `env.step()` could wait 8 hours for a physical routing failure in an EDA tool, compared to the 10 milliseconds it takes to receive a Python syntax error in a software environment. You cannot just `env.step()` a physical synthesis flow. A blocking synchronous call will inevitably time out or hang when a placement job takes 40 hours, or waits three days for an EDA license checkout.
 
-**Synchrony is only the most visible assumption** this tutorial abstraction imports. Gym also assumes a cheap reset, yet an architecture environment has none; branching from a pristine snapshot is the closest equivalent, and every branch still pays real build and simulation cost.
+Synchrony is only the most visible assumption this tutorial abstraction imports. Gym also assumes a cheap reset, yet an architecture environment has none; branching from a pristine snapshot is the closest equivalent, and every branch still pays real build and simulation cost. It assumes a Markov step whose outcome depends only on the action, but EDA tools carry hidden cross-call state in caches, working directories, and license servers, which breaks the Markov assumption. It also expects a dense scalar reward after every step, whereas architectural feedback is sparse, arriving only at the end of a long chain of builds and checks, which leaves a poor final result hard to attribute to any single upstream action.
 
-**Furthermore, Gym assumes a Markov step** whose outcome depends only on the action. In reality, EDA tools carry hidden cross-call state in caches, working directories, and license servers, completely breaking the Markov assumption.
+Each of these gaps has to be engineered away in the harness rather than the learning algorithm. The harness, not the agent that acts against it, is the deliverable.
 
-**Finally, Gym expects a dense scalar reward** after every step. In contrast, architectural feedback is sparse and arrives only at the end of a long chain of builds and checks, leaving a poor final result hard to attribute to any single upstream action. Each of these gaps has to be engineered away in the harness rather than the learning algorithm. The harness, not the agent that acts against it, is the deliverable.
-
-Consequently, real tool chains require asynchronous, scarce, and protected execution mechanics. Long simulations, FPGA builds, EDA stages, and signoff require explicit submit, poll, resume, cancel, timeout, retry, queue, license, permission, artifact-isolation, and partial-return behavior. These are architecture environment semantics because they determine which candidate ran, which stage completed, which artifacts are valid, and whether another attempt is comparable. For instance, a FireSim build, an FPGA-accelerated cycle-accurate hardware simulation, or a physical tool run may wait for an FPGA slot or EDA license, produce a checkpoint or partial report, time out, and later retry . Because returns now arrive asynchronously, out of order, and sometimes days late, the decision loop must consume rewards without blocking and keep many candidates in flight at once, a consequence @sec-methods-generation-prediction-optimization develops when it turns to the acting method.
+Consequently, real tool chains require asynchronous, scarce, and protected execution mechanics. Long simulations, FPGA builds, EDA stages, and signoff require explicit submit, poll, resume, cancel, timeout, retry, queue, license, permission, artifact-isolation, and partial-return behavior. These are architecture environment semantics because they determine which candidate ran, which stage completed, which artifacts are valid, and whether another attempt is comparable. For instance, a FireSim build, an FPGA-accelerated cycle-accurate hardware simulation, or a physical tool run may wait for an FPGA slot or EDA license, produce a checkpoint or partial report, time out, and later retry. Because returns now arrive asynchronously, out of order, and sometimes days late, the decision loop must consume rewards without blocking and keep many candidates in flight at once, a consequence @sec-methods-generation-prediction-optimization develops when it turns to the acting method.
 
 A critical requirement of this asynchronous system is explicitly distinguishing between an **infrastructure failure** and an **architectural constraint violation**. If an AI proposes an SRAM configuration and the simulator crashes due to a host Out-Of-Memory (OOM) error, or because a license[^fn-eda-licenses] server went offline, this is an infrastructure failure. If the AI is simply penalized for this attempt, it will incorrectly assume the SRAM configuration itself is invalid, polluting the design space exploration with infrastructure noise.
 
@@ -210,11 +204,9 @@ A tool returns raw, unstructured text, but an architecture study needs structure
 
 As illustrated in @fig-environment-tool-interface, an architecture environment explicitly maps intent to actions and actions to observations. The wrapper acts as a protective boundary, intercepting high-level requests, validating them via the read path, executing tool commands via the action path, and distilling logs into a semantic vector via the return path.
 
-**The machine learning community has long warned of Reward Hacking** [@AmodeiEtAl2016Concrete] (Goodhart's Law [@Strathern1997Goodhart; @Goodhart1975MonetaryManagement]). If an AI is given a simple scalar reward, it may find loopholes to maximize that number while violating physical constraints [@OpenAIClark2016FaultyRewards].
+The machine learning community has long warned of *reward hacking* [@AmodeiEtAl2016Concrete], a modern instance of Goodhart's Law [@Strathern1997Goodhart; @Goodhart1975MonetaryManagement]. Given a simple scalar reward, an AI may find loopholes to maximize that number while violating physical constraints [@OpenAIClark2016FaultyRewards]. In architecture, reward hacking manifests as physically impossible designs. If an environment merely reports IPC without constraints, the AI might propose a 10-terabyte L1 cache to maximize the score.
 
-**In architecture, reward hacking manifests as physically impossible designs.** If an environment merely reports IPC as a metric without constraints, the AI might propose a 10-Terabyte L1 cache to maximize the score.
-
-**Because of constraint inversion, physical ground truth is our only defense.** Physical design limits (power, thermals, area) dictate architectural choices bottom-up. Physical ground truth from traditional EDA tools remains indispensable to enforce laws like timing closure and power limits, preventing these AI exploits and returning valid options to the human architect.
+Constraint inversion makes physical ground truth our only defense. Physical design limits (power, thermals, area) dictate architectural choices bottom-up, and ground truth from traditional EDA tools remains indispensable for enforcing laws like timing closure and power limits, preventing these AI exploits.
 
 To make this data usable, the environment establishes three distinct paths:
 
@@ -343,7 +335,7 @@ Distillation must preserve, not discard, unclassified anomalies. A parser tuned 
 
 Representing a tool like Yosys or OpenROAD for an agent involves defining its input schema (e.g., accepted flags, valid file formats, constraint objects), its execution bounds, and its structured outputs (e.g., JSON-formatted area and timing reports rather than raw text stdout). However, agents inevitably hit the **Telemetry Wall**: the physics of context windows restrict how much output they can observe. When an API serializes a massive physical layout into text, it risks lossy serialization.
 
-Truncating a million-line timing trace to fit a context window creates a permanent verification blind spot for the AI, causing it to hallucinate success simply because the error was paginated away. By formalizing tools as typed APIs with explicit failure modes and hierarchical summarization, the agent can programmatically construct valid toolchain requests. It parses the resulting metrics directly into its internal state, executing deterministic recovery actions without hitting the telemetry wall. The architect ultimately reviews these structured summaries in the Evaluation Harness to ensure thermal budgets and STA hold.
+Truncating a million-line timing trace to fit a context window creates a permanent verification blind spot for the AI, causing it to hallucinate success simply because the error was paginated away. By formalizing tools as typed APIs with explicit failure modes and hierarchical summarization, the agent can programmatically construct valid toolchain requests. It parses the resulting metrics directly into its internal state, executing deterministic recovery actions without hitting the telemetry wall. The architect ultimately reviews these structured summaries in the evaluation harness to ensure thermal budgets and STA hold.
 
 ## Hardware API Standardization
 
@@ -356,7 +348,7 @@ This brittleness necessitates the **Standardization of Hardware APIs** through o
 [^fn-mlir]: Multi-Level Intermediate Representation.
 [^fn-circt]: Circuit IR Compilers and Tools.
 
-CIRCT replaces unstructured text with a strict, queryable Static Single Assignment (SSA) form that explicitly models dataflow, concurrency, and structural dependencies. By capturing hardware intent as a graph of progressive dialects—stepping down from high-level abstractions (`firrtl` or `handshake`) to structural nets (`hw` and `comb`)—CIRCT provides a universal, deterministic API for AI agents.
+CIRCT replaces unstructured text with a strict, queryable Static Single Assignment (SSA) form that explicitly models dataflow, concurrency, and structural dependencies. By capturing hardware intent as a graph of progressive dialects, stepping down from high-level abstractions (`firrtl` or `handshake`) to structural nets (`hw` and `comb`), CIRCT provides a universal, deterministic API for AI agents.
 
 Instead of blind text mutation, an agent can programmatically walk the SSA graph to inject a pipeline register or re-balance a datapath, knowing the compiler framework will enforce semantic legality by construction.
 
@@ -374,47 +366,42 @@ To manage this fan-out, we must look to adjacent domains that have solved this e
 
 In Database Query Optimization, a software engineer declares *what* data they want via a SQL query, never specifying *how* to read the disk or which B-tree to traverse. A query planner analyzes the request, checks its cached data, evaluates the compute budget, and builds an optimal execution plan dynamically. Similarly, an Architecture Environment should act as an **Architecture Query Planner**. Instead of the AI imperatively calling a specific simulator script, it should issue a declarative hypothesis: `Evaluate(Candidate=Lighthouse_V2, Metric=IPC)`. The environment then decides whether to serve a cached result, query a fast analytical model, or provision a 24-hour RTL simulation based on the current budget constraints.
 
-In computational biology, executing a genomic pipeline previously required brittle bash scripts. Frameworks like Nextflow [@DiTommasoEtAl2017Nextflow] and Snakemake [@KosterEtAl2012Snakemake] emerged to formalize dataflow, completely isolating the *scientific logic* from the *execution mechanics* (cluster queues, retries, and tool crashes). In cloud computing, Kubernetes relies on "desired state reconciliation." The user declares the intent, and the orchestration engine handles the low-level failures. By abstracting execution mechanics into a formal graph, these frameworks return control to the human architect, who can review high-level declarative goals instead of debugging why a synthesis job crashed on node 4.
+In computational biology, executing a genomic pipeline previously required brittle bash scripts. Frameworks like Nextflow [@DiTommasoEtAl2017Nextflow] and Snakemake [@KosterEtAl2012Snakemake] emerged to formalize dataflow, completely isolating the *scientific logic* from the *execution mechanics* (cluster queues, retries, and tool crashes). In cloud computing, Kubernetes relies on "desired state reconciliation." The user declares the intent, and the orchestration engine handles the low-level failures. By abstracting execution mechanics into a formal graph, these frameworks let the architect review high-level declarative goals instead of debugging why a synthesis job crashed on node 4.
 
 Architecture 2.0 environments must act as this orchestration layer. A semantic proposal may require several reads, transformations, builds, executions, and checks. Their dependencies form a graph rather than a single call or mandatory sequence.
 
-**For a complex System-on-Chip (SoC) fulfilling the Lighthouse prompt**, orchestrating the design intent requires managing the Chipyard generator framework through a directed acyclic graph (DAG) of dependencies. Integrating the low-power RISC-V compute subsystem with custom XR accelerators requires explicit lowering from MLIR, a reusable multi-level compiler intermediate representation, to RTL, along with related compiler IR transformations.
+Fulfilling the Lighthouse prompt for a complex System-on-Chip (SoC) means orchestrating the design intent through the Chipyard generator framework as a directed acyclic graph (DAG) of dependencies. Integrating the low-power RISC-V compute subsystem with custom XR accelerators requires explicit lowering from MLIR, a reusable multi-level compiler intermediate representation, to RTL, along with related compiler IR transformations. The dataflow moves through several precise stages. An agent's high-level intent first triggers an MLIR lowering to emit new spatial-tracking instructions, which then informs a hardware target feature declaration within the Chipyard configuration.
 
-**The dataflow must orchestrate several precise stages.** An agent's high-level intent first triggers an MLIR lowering to emit new spatial-tracking instructions, which then informs a hardware target feature declaration within the Chipyard configuration.
-
-**This configuration then fans out into multiple execution branches.** It generates RTL, which in turn feeds both a rebuilt custom Linux binary for a functional correctness run in Verilator, an open-source RTL simulator, and a physical logic synthesis flow to check routing congestion and verify the power budget.
-
-**The environment acts as the arbiter of this DAG.** It ensures that some branches execute in parallel while others block until earlier artifacts exist, guaranteeing that the AI's edits are vetted against physical realities before being presented back to the human architect.
+That configuration fans out into multiple execution branches. It generates RTL, which in turn feeds both a rebuilt custom Linux binary for a functional correctness run in Verilator, an open-source RTL simulator, and a physical logic synthesis flow that checks routing congestion and verifies the power budget. The environment acts as the arbiter of this DAG, running some branches in parallel while others block until earlier artifacts exist, so the AI's edits are vetted against physical realities before they are presented back for review.
 
 To illustrate this orchestration complexity, consider how a single architecture proposal formally splits into specific software and hardware instantiations (@fig-artifact-lineage).
 
 ![**Artifact lineage and cryptographic provenance.** A single Lighthouse intent fans out into software binaries and hardware RTL, each hashed to ensure reproducible evaluations.](images/F5-artifact-lineage.svg){#fig-artifact-lineage fig-alt="Artifact Lineage and Cryptographic Provenance. A single Lighthouse intent fans out into software binaries and hardware RTL, each hashed to ensure reproducible evaluations."}
 
-Software variant S2 may be an MLIR-derived lowering compiled into binary B2 . Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3 . Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
+Software variant S2 may be an MLIR-derived lowering compiled into binary B2. Hardware variant H3 may be a Chipyard-derived configuration elaborated into RTL R3. Changing B2 while holding R3 fixed creates a new evaluation instance even if the root proposal is unchanged.
 
 An evaluation instance binds every layer relevant to that tool action. Each transformation records parent, tool and transformation version, input identifiers, output identifiers, content hashes where useful, and the intended semantic relation. A semantics-changing edit creates a child candidate. Google's Bazel [@Bazel] build system guarantees reproducibility by enforcing hermeticity, where every output is a strict cryptographic hash of its inputs. This perfectly matches the architectural need to track hardware candidate identity as it lowers from a C++ memory model to RTL to Layout. A hash proves artifact identity, not architectural or functional equivalence.
 
 ## Open Research Questions
 
-Integrating autonomous agents with legacy Electronic Design Automation (EDA) workflows presents massive systems engineering challenges. Research in this area must address how to build robust, secure abstraction layers over proprietary foundry tools, how to distill days-long synthesis logs into actionable state observations, and how to accurately backtrace physical sign-off violations to upstream generative architectural mutations.
+Integrating autonomous agents with legacy EDA workflows raises several open problems, from building programmatic abstractions over proprietary foundry tools, to running those tools asynchronously and safely, to tracing a physical sign-off violation back to the upstream mutation that caused it.
 
+**Theme 1: The EDA Abstraction Layer.** Agents need a uniform programmatic interface over proprietary tools that were built for humans reading log files, not for APIs.
+- How can we build programmatic wrappers that give a reinforcement-learning agent a uniform interface over fragmented, proprietary vendor tools?
+- What observation schema captures the state of a proprietary synthesis run well enough for an open-source agent to act on it?
+- Can open IRs like CIRCT cover enough of a real vendor flow to replace brittle text mutation with structured, verifiable edits?
 
-**Theme 1: The EDA Abstraction Layer**
-* How do we build unified, robust programmatic wrappers around fragmented, legacy vendor tools to provide a seamless interface for RL environments?
-* What standardized observation spaces can capture the full, complex state of a proprietary synthesis run for ingestion by an open-source agent?
-* Can we develop environment APIs that natively handle the non-deterministic crashes and licensing failures inherent to massive EDA deployments?
+**Theme 2: Secure and Asynchronous Execution.** Real tool feedback arrives slowly and out of order, and the action space has to stay safe across tools without hand-coding every limit.
+- What makes an action space safe by construction across many vendor tools, so an agent cannot propose physically impossible states without hand-coding each tool's limits?
+- How must an agent maintain state and context when synthesis feedback takes days to arrive and returns out of order?
+- What harness rules can separate an infrastructure failure from a true architectural constraint violation before a candidate is penalized?
 
-**Theme 2: Secure and Asynchronous Execution**
-* How can cryptographic environment wrappers expose dense state observations to an optimizer while rigorously shielding proprietary foundry DRC rules?
-* How must agents be architected to maintain state and context when physical synthesis feedback takes multiple days to compute?
-* What protocols ensure that an agent cannot exfiltrate confidential PDK parameters by intentionally failing synthesis runs and observing the error logs?
+**Theme 3: Bridging the Sim-to-Silicon Gap.** A design can pass every simulation and still fail in silicon.
+- What models can trace a late-stage physical sign-off violation back to the upstream RTL mutation that caused it?
+- How can an environment detect when an agent is exploiting a physical dimension its current simulator fidelity cannot verify?
+- How can verbose EDA logs be distilled into a dense observation without discarding the unclassified anomalies a brownfield debug depends on?
 
-**Theme 3: Bridging the Sim-to-Silicon Gap**
-* What probabilistic models can accurately backtrace asynchronous, late-stage physical sign-off violations to the exact upstream generative RTL mutation responsible?
-* How can massive, unstructured EDA textual logs be distilled into dense, actionable architectural state observations while preserving the exact anomalies dictating sign-off failure?
-* Can we train diagnostic agents specifically to interpret routing congestion heatmaps and translate them into architectural parameter adjustments?
-
-## Summarize Environment Design
+## Summarizing Environment Design
 
 ::: {.callout-design-principle title="The Action Space Must Not Exceed Oracle Fidelity"}
 Never allow an agent to propose architectural changes that the available simulator or formal tool cannot verify. If an AI mutates a thermal property but the EDA loop only runs logic simulation, the agent will silently exploit the unchecked dimension. The permitted action space must be strictly bounded by the physical dimensions the feedback budget can measure.

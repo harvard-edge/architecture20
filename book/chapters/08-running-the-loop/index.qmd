@@ -16,7 +16,7 @@ What must an architect fix, execute, and preserve so that one bounded AI-assiste
 
 This crux addresses baseline shopping, a practical trap in AI-assisted architecture. Generative AI accelerates the creation of architectural candidates, but because simulators are highly configurable and models are highly sensitive to phrasing, it is easy to subconsciously baseline shop by tweaking simulator parameters after the fact to validate a plausible AI candidate. It is equally easy to prompt shop by silently discarding dozens of failed prompts until one produces the desired architecture.
 
-In a real EDA environment, the penalty for guessing wrong is severe. Waiting eight hours for a physical routing failure consumes vastly more calendar time and limited FlexLM license checkouts than waiting ten milliseconds for a Python syntax error. This trial-and-error hides massive physical costs. To combat this, the design loop must be strictly bounded.
+In a real EDA environment, the penalty for guessing wrong is large. Waiting eight hours for a physical routing failure consumes vastly more calendar time and limited FlexLM license checkouts than waiting ten milliseconds for a Python syntax error. This trial-and-error hides real physical costs. To combat this, the design loop must be strictly bounded.
 
 Before any model or simulator output is known, the architect fixes the workload, legal array shapes, simulator configuration, comparison budget, rejection criteria, and decision owner. Fixing these choices prevents post-result goalpost moving and enforces discipline without claiming the choices were intrinsically optimal, serving as the baseline search strategy that an AI generative proposer must beat (@sec-methods-generation-prediction-optimization).
 
@@ -191,10 +191,10 @@ The first attempt to invoke the runtime never reached inference.[^fn-json-schema
 
 [^fn-json-schema]: The response-format service rejected two constant-string properties in the JSON Schema whose types were unspecified. This meant no model output or usage was produced, so the schema-only correction and both hashes were added as a preregistration amendment before inference.
 
-While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. In a physical design loop, a useful model must parse actual physical verification failures—like negative slack reports or DRC violations—rather than merely retrying crashed scripts.
+While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. In a physical design loop, a useful model must parse actual physical verification failures (negative slack reports, DRC violations) rather than just retrying crashed scripts.
 
 ::: {.callout-war-story title="The illusion of zero-shot success"}
-**The claim.** An AI model generates a highly optimized architecture design on the first try, claiming zero-shot capability in a published paper .
+**The claim.** An AI model generates a highly optimized architecture design on the first try, claiming zero-shot capability in a published paper.
 
 **The gap.** The publication omitted the fifty prior manual iterations where the architect tweaked the prompt, added constraints, and fixed syntax errors. This prompt shopping hides the true human-in-the-loop cost, framing a heavily curated result as autonomous intelligence.
 
@@ -463,25 +463,32 @@ claims requiring new evidence.
 
 ## Open Research Questions
 
-Executing a multi-agent architectural search requires far more than zero-shot generation; it demands robust frameworks for trajectory management and error recovery. The open questions here involve designing representations that allow an agent to version its search tree and backtrack from physical synthesis failures, as well as reward structures capable of balancing competing power, performance, and area constraints without collapsing into oscillatory loops.
+Three genuine loose ends survive the bounded study's clean null result. Each marks a place where the worked mechanics stopped short of a general claim.
 
+**Theme 1: The Memory-Blind Proxy**
 
-**Theme 1: Autonomous Trajectory Management**
-* What latent-space representations enable an agent to semantically version physical synthesis failures and execute precise backtracking across non-linear hardware search trees?
-* How do we build distributed version control systems that track non-linear execution histories, failed branches, and multi-fidelity evidence from autonomous searches?
-* When an agent detects a local optimum, what algorithms dictate whether it should incrementally mutate the current state or completely restart the topology generation?
+The local score combined only cycles and average layer utilization, so it rated the 16 by 64 and 32 by 32 shapes identical while their off-chip write traffic differed by a factor of two.
 
-**Theme 2: Multi-Objective Co-Adaptation**
-* How can we construct a unified, differentiable state space that safely bounds divergent oscillations when an agent simultaneously optimizes compiler passes and microarchitectural parameters?
-* What reward structures successfully balance inherently competing constraints (e.g., power, timing, area) without collapsing into single-variable optimization?
-* Can hierarchical multi-agent reinforcement learning (MARL) stably decouple the optimization of layout from the optimization of logic without losing Pareto efficiency?
+- How can the local score fold in an energy-relevant axis such as off-chip write traffic without letting an unvalidated energy term overwhelm the two well-understood ingredients it already combines?
+- What independent oracle, such as a power or DRAM model, would have to run alongside SCALE-Sim to flag that doubled write traffic before a shape is adopted, and how would its fidelity be established?
+- Which of the candidate rankings in @tbl-ai-study-results flip once the score weights memory traffic, and how sensitive is the no-change decision to that reweighting?
 
-**Theme 3: Error Localization and Recovery**
-* How can an agent parse a 10,000-line synthesis failure log to pinpoint the exact architectural parameter or line of RTL responsible for the violation?
-* Can we build "recovery policies" that automatically patch syntax and DRC errors in generated RTL without requiring a full re-generation from the LLM?
-* What mechanisms allow an agent to isolate and quarantine buggy sub-modules while continuing to optimize the rest of the SoC?
+**Theme 2: The Unpinned Mapping**
 
-## Conclude the Execution
+The record named the GEMM (M, N, K) dimensions and fixed weight-stationary dataflow, but never stated how those axes bind to array height and width, so the transposition test distinguished the model's prediction without causally isolating orientation.
+
+- How can a study pin the mapping between the GEMM (M, N, K) axes and array height and width under weight-stationary dataflow so that a directional-mechanism prediction becomes a causally isolated test rather than an ungrounded one?
+- What contrast would isolate the N-side effect alone, holding the loaded weight tile fixed, so the mechanism probe tests orientation instead of confounding it with tile geometry (see @fig-array-mapping)?
+
+**Theme 3: The Sample of One**
+
+One recorded model call, replayed under its own retained tooling, cannot speak for a model family or stand in for an independent reproduction.
+
+- What sampling budget across model calls would let a study report a population-level result about a model family rather than the single-call comparison this one supports?
+- Because replay shares the same runner, simulator, workload, and score, what second and independent implementation would separate a genuine architecture finding from a shared-tooling artifact?
+- The repair path, illegal-shape rejection, and 90,000-cycle cutoff never fired, so they were demonstrated only in the passing direction. What adversarial workload or shape set would exercise those checks in the rejecting direction and confirm they behave as declared?
+
+## Concluding the Execution
 
 ::: {.callout-design-principle title="The Traceability Mandate"}
 A generated candidate is only as valuable as the reproducible tool path and evidence record that accompanies it. The architecture environment must capture the exact intent, baseline, constraints, and tool telemetry for every run, ensuring that negative evidence and failed candidates are preserved to map the boundaries of the design space.
@@ -490,9 +497,9 @@ A generated candidate is only as valuable as the reproducible tool path and evid
 
 This bounded integration study ends with a tie against the baseline, where the model and fixed aspect-ratio heuristic selected five unique datapath shapes from fifteen legal shapes. Because no evaluated nonbaseline shape cleared the 1 percent decision margin over 32 by 32, the record retains the 32 by 32 baseline. This no-change outcome carries weight because the decision rule was fixed before execution, not because any candidate was exposed as flawed; the nonbaseline shapes tied or were dominated, and none was ruled out as defective.
 
-More importantly, this study demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, any post-hoc rationalization or baseline shopping would be visible against the recorded rule rather than silent.
+The study also demonstrates how to evaluate AI fairly. The declared contrast tested the model's directional prediction, which failed to produce the anticipated reversal. Because the simulator environment, scoring rules, prompt structure, and decision margins were locked before execution, any post-hoc rationalization or baseline shopping would be visible against the recorded rule rather than silent.
 
-Furthermore, catching schema errors as simple API friction before simulation proves the necessity of validating structured output and parsing AI intent into strictly legal simulator actions. Architecture must treat AI as a candidate generator, but strictly leave the simulator as the final judge. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
+Catching schema errors as simple API friction before simulation shows why structured output must be validated and parsed into legal simulator actions. The AI generates candidates; the simulator and the architect decide. Reporting a null result cleanly, without recasting an equal-call tie or a contradicted directional prediction as an AI success, is the discipline this chapter set out to demonstrate. One small experiment does not validate the complete Architecture 2.0 discipline, but it shows that an adopted proposal can be tied to measured performance rather than to a persuasive model output.
 
 ::: {.callout-carry-forward}
 - **Carry forward:** Keep the architecture outcome, AI contribution, mechanism explanation, and stopping decision separate. Validate structured AI intent into legal simulator actions. Preserve every evaluated candidate, even when the final result is a no-change tie or an unsupported mechanism explanation.

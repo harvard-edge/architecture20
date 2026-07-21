@@ -14,7 +14,7 @@
 How should an AI-assisted architecture study change its internal representation and search strategy when its next decision is slower to evaluate, spans more interfaces, is harder to reverse, or carries greater consequences?
 :::
 
-@sec-running-the-loop provided a bounded control case. A 32-by-32 systolic array candidate was evaluated under deterministic, replayable SCALE-Sim measurements. The candidates were cheap to discard, and the architect stopped the study before implementation because the evidence supported retaining the baseline . @sec-evaluating-agentic-architect then turned from the chip to the agent that drives such a search. This chapter widens the frame again, from one bounded study to the range of decisions an architect faces across the computing stack, where feedback latency, reversibility, and consequence vary far more than they did in that control case.
+@sec-running-the-loop provided a bounded control case. A 32-by-32 systolic array candidate was evaluated under deterministic, replayable SCALE-Sim measurements. The candidates were cheap to discard, and the architect stopped the study before implementation because the evidence supported retaining the baseline. @sec-evaluating-agentic-architect then turned from the chip to the agent that drives such a search. This chapter widens the frame again, from one bounded study to the range of decisions an architect faces across the computing stack, where feedback latency, reversibility, and consequence vary far more than they did in that control case.
 
 If that same proposed array geometry were instead used to alter an RTL interface, the evidence burden and decision rights would change entirely. The simulator returns quickly and candidates are reversible before implementation, but the next RTL transition sharply increases consequence and required check independence.
 
@@ -22,7 +22,7 @@ If that same proposed array geometry were instead used to alter an RTL interface
 
 > **Operating condition.** An operating condition describes one property of the next decision, such as feedback latency, reversibility, interface span, consequence, or check independence. The architect uses the conditions that apply together to decide what an AI method may do, which evidence and checks are needed, how the AI's internal representation must be updated, and whether the result can advance. An operating condition is not a stack layer, a maturity score, or a property of an AI model.
 
-Four recurring combinations of operating conditions organize the cases considered here, which are detailed in @tbl-loop-patterns. These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate. Furthermore, as a design moves down the stack—from microarchitecture to logic generation and physical design—the AI's action space must adapt, shifting from discrete logical tasks to continuous, highly-coupled spatial tasks.
+Four recurring combinations of operating conditions organize the cases considered here, which are detailed in @tbl-loop-patterns. These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate.
 
 ::: {.callout-learning-objectives}
 After reading this chapter, you can:
@@ -75,15 +75,15 @@ Fast feedback allows aggressive bounded iteration, but speed does not prove work
 
 Fast feedback is useful only when executable checks cover the behavior in the claim. The workload specification defines what behavior matters, which software stack is assumed, and which design choices can be justified. The MICA framework established the importance of measured workload characterization to compare benchmark suites and separate inherent workload properties from specific machine artifacts [@HosteEeckhout2007MICA].
 
-An XR accelerator claim needs a strictly constrained formulation to be credible. The 3W RISC-V XR "Lighthouse" prompt (*"Design a 3W, 64-bit RISC-V-based compute subsystem for an XR platform"*) is a concrete example. While a suite like XRBench supplies an architecture anchor, the architect must still define the thermal constraints (3W TDP), the exact spatial tracking (SLAM) matrices, and the rejection bounds. Sending a vague prompt to an AI agent allows it to optimize one fast slice while missing the distribution the real XR subsystem serves. Grounding the theory in a physical constraint forces the generator to respect the system boundary.
+An XR accelerator claim needs a strictly constrained formulation to be credible. The 3\ W RISC-V XR "Lighthouse" prompt (*"Design a 3W, 64-bit RISC-V-based compute subsystem for an XR platform"*) is a concrete example. While a suite like XRBench supplies an architecture anchor, the architect must still define the thermal constraints (3\ W TDP), the exact spatial tracking (SLAM) matrices, and the rejection bounds. Sending a vague prompt to an AI agent allows it to optimize one fast slice while missing the distribution the real XR subsystem serves. Grounding the theory in a physical constraint forces the generator to respect the system boundary.
 
 Likewise, shared benchmarks need maintained versions and submission practices because workloads drift. The benchmark version, source, coverage claims, known gaps, leakage risks, and conditions where results do not generalize must be recorded.
 
 ### Software Tuning
 
-Close feedback lets an optimizer search more aggressively. Systems like the AutoTVM and Ansor tensor compilers combine search spaces, cost models, measurements, and scheduling to improve software performance across targets . This search is useful when generation is limited to artifacts with executable checks and cheap rollback. Because feedback cycles complete in seconds, the telemetry can directly update the AI's short-term cost model and in-context working set without the overhead of maintaining complex multi-fidelity state.
+Close feedback lets an optimizer search more aggressively. Systems like the AutoTVM and Ansor tensor compilers combine search spaces, cost models, measurements, and scheduling to improve software performance across targets. This search is useful when generation is limited to artifacts with executable checks and cheap rollback. Because feedback cycles complete in seconds, the telemetry can directly update the AI's short-term cost model and in-context working set without the overhead of maintaining complex multi-fidelity state.
 
-KernelBench, a benchmark for evaluating AI-generated GPU kernels, demonstrates generated GPU kernels validated for correctness and speed against a baseline . Its bounded task keeps the generated artifact, versioned environment, tests, compiler, and measurements close enough to support repeated rejection and local rollback. This immediate feedback ensures the AI's generative priors remain tightly coupled to the actual hardware execution time.
+KernelBench, a benchmark for evaluating AI-generated GPU kernels, demonstrates generated GPU kernels validated for correctness and speed against a baseline. Its bounded task keeps the generated artifact, versioned environment, tests, compiler, and measurements close enough to support repeated rejection and local rollback. This immediate feedback ensures the AI's generative priors remain tightly coupled to the actual hardware execution time.
 
 For an AI-generated or tuned GPU kernel, a versioned compiler and test harness can reject compile failures and correctness errors, and the source can be rolled back. However, the architecture claim still fails if the input distribution is narrow, tail latency regresses, or the kernel requires a software path unavailable in the target system.
 
@@ -91,13 +91,13 @@ An AI-generated kernel that wins on one input size may regress another. An AI-pr
 
 ## Proxies and Simulators
 
-When a simulator returns a delayed thermal trace or IPC penalty, the agent does not just see a float. Following the mechanics described in @sec-data-representations-world-models, this telemetry is translated into a 1D tokenized sequence or a structured JSON response. If the trace is truncated to fit the context window, the agent loses the critical temporal data needed to optimize thermal throttling. The fidelity of the proxy metric is therefore strictly bottlenecked by the agent's encoding capacity; if the proxy's failure mode isn't represented in the textual serialization, the agent remains blind to it.
+When a simulator returns a delayed thermal trace or IPC penalty, the agent does not just see a float. Following the mechanics described in @sec-data-representations-world-models, this telemetry is translated into a 1D tokenized sequence or a structured JSON response. If the trace is truncated to fit the context window, the agent loses the critical temporal data needed to optimize thermal throttling. The proxy's fidelity is therefore bounded by the agent's encoding capacity. A failure mode absent from the textual serialization is one the agent cannot observe.
 
-Architecture exploration often evaluates candidate parameters that are cheap to propose, but feedback comes from simulators and staged tools. Feedback is not merely "slower" than software tests; it is a hostile environment. An AI optimizer mediating architecture will encounter 3-day RTL simulation times, toolchain crashes, out-of-memory errors, and silent simulation corruptions. Actions can violate physical constraints, and proxies can fail catastrophically outside their calibrated regions, destroying the optimizer's assumptions.
+Architecture exploration often evaluates candidate parameters that are cheap to propose, but feedback comes from simulators and staged tools. Feedback here is slow and unreliable in kind. An AI optimizer mediating architecture encounters 3-day RTL simulation times, toolchain crashes, out-of-memory errors, and silent simulation corruptions. Actions can violate physical constraints, and a proxy can fail outside its calibrated region, invalidating the optimizer's assumptions.
 
-Model-mediated exploration requires an explicit representation of architecture state, legal actions, and tool observations. Methods may generate candidates, predict behavior, allocate evaluations, or critique assumptions. ArchGym, an open-source environment for architecture, provides an interface for exploration , predictive DSE uses data-driven models to proxy evaluations , and Apollo allocates expensive evaluations using transfer learning [@yazdanbakhsh2021apollo]. Chiplet exploration adds package-interface contracts like the Universal Chiplet Interconnect Express (UCIe) .
+Model-mediated exploration requires an explicit representation of architecture state, legal actions, and tool observations. Methods may generate candidates, predict behavior, allocate evaluations, or critique assumptions. ArchGym, an open-source environment for architecture, provides an interface for exploration, predictive DSE uses data-driven models to proxy evaluations, and Apollo allocates expensive evaluations using transfer learning [@yazdanbakhsh2021apollo]. Chiplet exploration adds package-interface contracts like the Universal Chiplet Interconnect Express (UCIe).
 
-AlphaChip is a concrete instance of model-mediated exploration. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy needs . The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
+AlphaChip is a concrete instance of model-mediated exploration. Its reinforcement-learning agent was guided by fast wirelength and congestion estimators rather than full routing, because RTL-to-GDS placement is far too slow to supply the millions of feedback cycles a learned policy needs. The proxy helps only while it tracks the final routed design. Once it diverges, the agent optimizes a target that does not exist, which is why the architect, not the optimizer, must own proxy calibration.
 
 In @sec-running-the-loop's array study, SCALE-Sim was used to compare array geometries under a frozen workload and software path. A simulator can support a no-change decision for the represented metrics. Moving a candidate toward implementation requires compiler mapping semantics, a memory-system model, end-to-end offload granularity, RTL legality, and later physical checks.
 
@@ -428,9 +428,9 @@ Deployment feedback includes operational state, SLOs, resource contention, and r
 
 ## RTL and Physical Design
 
-High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a massive capital expense defined by multi-year horizons. AI heuristics that work well in software frequently break down when hitting the physical realities of multi-day placement and routing runs, severe Design Rule Check (DRC) violations, and highly non-linear timing closure loops where physical design feedback is notoriously noisy and non-differentiable.
+High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a large capital expense on a multi-year horizon. AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.
 
-Because you cannot `git revert` a tapeout, AI-assisted hardware changes require built-in escape hatches to compensate for unexpected failures once they reach silicon.[^fn-escape-hatches] Consequently, a passing early check in a proxy or simulator can never authorize a difficult-to-reverse physical transition.
+Because you cannot `git revert` a tapeout, AI-assisted hardware changes require built-in escape hatches to compensate for unexpected failures once they reach silicon.[^fn-escape-hatches] A passing early check in a proxy or simulator can never authorize a difficult-to-reverse physical transition.
 
 [^fn-escape-hatches]: These escape hatches can include microcode patches, degraded fallback modes, or fuses.
 
@@ -438,13 +438,13 @@ The cost of getting this wrong is not hypothetical. In 2011 Intel shipped its 6-
 
 AI assistance can narrow search, critique, organize evidence, repair bounded artifacts, or generate tests. A passing early check, however, cannot waive later verification or authorize commitment. Independent checks and named roles retain rejection, waiver, recommendation, and authorization rights.
 
-This progression down the stack requires **action space adaptation**. For example, moving the @sec-running-the-loop candidate toward implementation shifts the required checks from logical simulation to physical constraints. During microarchitecture exploration, search evaluates parameter spaces like buffer sizes or array geometries while holding logic fixed. During logic generation, synthesis targets a discrete domain of Boolean functions and state transitions guided by functional simulation. Physical design, however, imposes the harsher spatial realities of continuous, highly coupled constraints. The required evidence pivots entirely from simple RTL syntax to STA reports and routing congestion that drive floorplanning, cell placement, and wire routing.
+This progression down the stack requires *action space adaptation*. For example, moving the @sec-running-the-loop candidate toward implementation shifts the required checks from logical simulation to physical constraints. During microarchitecture exploration, search evaluates parameter spaces like buffer sizes or array geometries while holding logic fixed. During logic generation, synthesis targets a discrete domain of Boolean functions and state transitions guided by functional simulation. Physical design, however, imposes the harsher spatial realities of continuous, highly coupled constraints. The required evidence pivots entirely from simple RTL syntax to STA reports and routing congestion that drive floorplanning, cell placement, and wire routing.
 
 Consequently, each layer's checks must enforce its physical reality. RTL checks reject functional errors, synthesis rejects timing or area violations, and physical design rejects congestion, power integrity, or thermal failures. When delayed checks return a failure, that telemetry must translate into negative constraints within the explicit design state. A Design Rule Check (DRC) failure or a post-route STA timing violation must become a forbidden region, preventing automated proposals from repeating similar unroutable topologies.
 
 Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. By generating constrained random tests and reading formal counter-examples, AI can generate stimulus, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
 
-Public reports indicate learning methods can contribute to physical-implementation search, such as in peer-reviewed synthesis for parallel-prefix circuits  and learning-assisted placement  (whose evidence review was discussed in @sec-feedback-verification-trust). A vendor-reported DSO.ai system has also searched the physical-implementation flow for commercial tapeouts [@Synopsys2023DSOai]. These are bounded learned subflows, not automated tapeout authority. The record must include tool versions, failed candidates, signoff checks, waivers, escalation points, and the named decision owner.
+Public reports indicate learning methods can contribute to physical-implementation search, such as in peer-reviewed synthesis for parallel-prefix circuits and learning-assisted placement (whose evidence review was discussed in @sec-feedback-verification-trust). A vendor-reported DSO.ai system has also searched the physical-implementation flow for commercial tapeouts [@Synopsys2023DSOai]. These are bounded learned subflows, not automated tapeout authority. The record must include tool versions, failed candidates, signoff checks, waivers, escalation points, and the named decision owner.
 
 Post-silicon bring-up and validation represent a controlled implementation return after fabrication and before deployment. Those controlled lab measurements inform the architect before fleet deployment introduces new confounding variables.
 
@@ -513,7 +513,7 @@ These observations describe different system states and bear on different decisi
 
 **Design-time evaluation** estimates behavior. The SCALE-Sim observations from @sec-running-the-loop evaluated candidates tied to frozen workload and software assumptions.
 
-**In-field evidence** tests the deployment context. Google and Meta discovered "mercurial" cores that silently returned wrong results after passing manufacturing tests [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. This observation rejected the sufficiency of earlier test regimes under fleet-scale operation. It showed that deployment can expose failure classes missed by prior checks. Furthermore, in-field evidence frequently reveals the algorithm evolution treadmill. When a specialized accelerator is fabricated and deployed, the neural network architectures it was originally optimized for have often been superseded by entirely new models.
+**In-field evidence** tests the deployment context. Google and Meta discovered "mercurial" cores that silently returned wrong results after passing manufacturing tests [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. This observation rejected the sufficiency of earlier test regimes under fleet-scale operation. It showed that deployment can expose failure classes missed by prior checks. In-field evidence also reveals the algorithm evolution treadmill. When a specialized accelerator is fabricated and deployed, the neural network architectures it was originally optimized for have often been superseded by entirely new models.
 
 **Continuing enablement** observes later software workloads using a fixed hardware contract. For example, NVIDIA reported single-node training performance improvements of up to 17 percent on the same H100 hardware between MLPerf Training v2.1 preview and v3.0 by identifying software optimizations. BERT improved 17 percent, ResNet-50 by 8.4 percent, 3D U-Net by 8.2 percent, and Mask R-CNN by 6.1 percent [@EassaEryilmaz2023H100MLPerfSoftware]. This is a vendor-reported, workload-specific public continuing-enablement comparison, not a dependable first-year improvement rate.
 
@@ -697,25 +697,24 @@ plt.close(fig)
 
 ## Open Research Questions
 
-The ultimate promise of foundational hardware models is their ability to generalize optimizations across disparate abstraction layers and deployment environments. The frontier of this research explores how agents can zero-shot transfer learned strategies to entirely new topologies, how post-silicon fleet telemetry can autonomously recalibrate pre-silicon surrogates, and how to safely implement autonomous CI/CD pipelines for mainline RTL repositories.
-
+Each theme below takes a step this chapter kept under human judgment and asks what it would take to trust that step to an automated loop instead.
 
 **Theme 1: Zero-Shot Hardware Transfer**
-* To what extent can representational embeddings trained on microarchitectural cache dynamics zero-shot transfer to accelerate search spaces in fundamentally distinct domains like NPU interconnects?
-* What invariant structural motifs can foundational world models learn to enable generalized optimization across disparate hardware abstractions?
-* Can meta-learning policies allow an agent to rapidly adapt its search strategy when transitioning from optimizing an in-order microcontroller to an out-of-order superscalar core?
+
+- To what extent can learned cache-behavior representations transfer to a distinct domain such as NPU interconnects?
+- Can meta-learning policies let an agent adapt its search strategy when it moves from optimizing an in-order microcontroller to an out-of-order superscalar core?
 
 **Theme 2: Post-Silicon Recalibration**
-* How can causal inference methods isolate hardware-specific failure signals from noisy, application-level fleet telemetry to automatically recalibrate pre-silicon surrogate models?
-* What frameworks enable the continuous, automated feedback loop from in-field silicon degradation monitors back into the generative architectural optimizer?
-* Can an agent automatically propose microcode patches or architectural workarounds based solely on observed post-silicon timing violations?
+
+- How can causal inference methods isolate hardware-specific failure signals from noisy, application-level fleet telemetry to recalibrate pre-silicon surrogate models?
+- Can an agent propose microcode patches or architectural workarounds from observed post-silicon timing violations alone?
 
 **Theme 3: Autonomous CI/CD**
-* What theoretical foundations enable autonomous agents to continuously propose, verify, and merge microarchitectural optimizations into mainline RTL repositories with guaranteed non-regression?
-* How can we design asynchronous CI/CD pipelines that handle physical synthesis evaluations that take days to complete without blocking concurrent agent PRs?
-* Can we implement autonomous "code review" agents that specifically vet other agents' architectural proposals for security vulnerabilities and side-channel leakage?
 
-## Summarize Loop Patterns
+- Can an agent merge a microarchitectural change into mainline RTL only when a non-regression check has passed on every affected target?
+- How can an asynchronous CI/CD pipeline handle physical-synthesis evaluations that take days to return without blocking concurrent agent PRs?
+
+## Summarizing Loop Patterns
 
 ::: {.callout-design-principle title="Proxy Calibration and Decay"}
 A surrogate model is only as valid as its last correlation with an RTL or silicon observation. When an optimizer tunes against a fast local proxy, the test harness must periodically reject candidates that violate downstream physical constraints (like routing congestion) and use those failures to recalibrate the surrogate's uncertainty bounds.
@@ -724,7 +723,7 @@ A surrogate model is only as valid as its last correlation with an RTL or silico
 
 The next architecture decision determines how an AI-assisted study should operate. Close feedback and local reversal support automated execution under bounded tests. Model-mediated work needs matched baselines, proxy calibration, and new evidence before implementation.
 
-Cross-interface work adds versioned interfaces, system objectives, and guarded rollout. Difficult-to-reverse decisions shift AI work toward search narrowing, critique, and evidence organization under independent checks. As a design moves down the stack—from microarchitecture to logic generation and physical design—the AI's action space must adapt, transitioning from discrete logical tasks to continuous, highly-coupled spatial constraints. Transfer to a new boundary requires renewed evidence, check, permission, and settlement-capacity tests.
+Cross-interface work adds versioned interfaces, system objectives, and guarded rollout. Difficult-to-reverse decisions shift AI work toward search narrowing, critique, and evidence organization under independent checks. As a design moves down the stack, from microarchitecture to logic generation to physical design, the AI's action space must adapt, transitioning from discrete logical tasks to continuous, tightly coupled spatial constraints. Transfer to a new boundary requires renewed evidence, check, permission, and settlement-capacity tests.
 
 Evidence arrives on three distinct clocks. Design-time evaluation estimates behavior within a represented study. In-field evidence tests the deployment context. Continuing software enablement changes realized performance on fixed hardware. None substitutes for the other, and delayed evidence does not update knowledge by itself.
 

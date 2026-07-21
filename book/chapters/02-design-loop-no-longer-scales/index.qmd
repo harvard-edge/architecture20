@@ -16,7 +16,7 @@ AI reduce the burden without weakening the evidence behind a decision?
 
 :::
 
-Architecture work is getting harder to finish, not because good ideas are scarcer but because each new design must hold more of the system at once. This imposes severe cognitive limits on the architect. The explosion of parameters across microarchitecture, power delivery, and software optimization outpaces the human capacity to hold the system state in a single mind, explaining why traditional heuristics fail.
+Architecture work is getting harder to finish, not because good ideas are scarcer but because each new design must hold more of the system at once. The explosion of parameters across microarchitecture, power delivery, and software optimization outpaces the human capacity to hold the system state in a single mind, explaining why traditional heuristics fail.
 
 A modern project spans more design information, more software and physical constraints, more possible designs, and more expensive forms of evaluation than an earlier one, and it must keep all of that consistent long enough to defend a single decision. Much of the complexity an architect once inherited from the next process node now has to be built and managed by hand.
 
@@ -34,7 +34,7 @@ measurements, and reviews before it can support a decision.
 
 AI can accelerate parts of that work, but strictly as an explorer and searcher. An agent might collect design information, propose alternatives, or predict PPA (Power, Performance, Area) costs, yet it cannot make final architectural commitments. A system working from incomplete context may strengthen the wrong comparison, while faster generation may flood the pipeline with weak candidates.
 
-The human architect remains the final judge, orchestrating the Evaluation Harness to validate these proposals against physical silicon constraints like STA and DRC. The first task is to identify what is actually slowing the work, delegating rapid search to the AI while reserving rigorous evaluation for the architect.
+The human architect remains the final judge, orchestrating the evaluation harness to validate these proposals against physical silicon constraints like STA and DRC. The first task is to identify what is actually slowing the work, delegating rapid search to the AI.
 
 ::: {.callout-learning-objectives}
 After this chapter, you can:
@@ -51,8 +51,7 @@ Every architecture project runs a design loop. The architect frames a question, 
 
 That loop is worth making precise, because the rest of this chapter traces where each of its parts strains. Computer architecture has always advanced through feedback and revision, with a typical project beginning with an aim such as improving latency, reducing energy, raising throughput, supporting a workload, or fitting a system within a power and cost envelope. The architect chooses an abstraction, builds or selects a model, runs an analysis or simulation, studies the result, and revises the design so that work surviving this cycle eventually reaches implementation,
 validation, verification, and signoff. Textbooks and industrial practice both
-follow this basic pattern
-.
+follow this basic pattern.
 
 Consider a traditional SPEC CPU  study. An architect selects workloads, proposes
 a cache-hierarchy or branch-predictor change, runs a simulator or performance
@@ -73,7 +72,7 @@ Once that comparison is defined, AI could reduce some of the repeated work by su
 
 Experienced architects also carry important context implicitly. They know which workloads were excluded, which tool settings are trusted, why a previous candidate failed, and what decision is actually under review.
 
-Machine learning models, however, are highly vulnerable to "catastrophic forgetting" [@McCloskeyCohen1989Catastrophic]—the tendency to abruptly forget previously learned information upon learning new constraints. In an agentic loop, an AI searcher may forget a critical thermal budget or DRC rule while obsessively optimizing a newly introduced STA timing violation. It may produce a coherent analysis of a different comparison from the one the architect intended. The human architect must orchestrate an Evaluation Harness that explicitly tracks workload assumptions, interface constraints, tool settings, and physical limitations to maintain the epistemic trust boundary.
+Machine learning models, however, are highly vulnerable to "catastrophic forgetting" [@McCloskeyCohen1989Catastrophic], the tendency to abruptly forget previously learned information upon learning new constraints. In an agentic loop, an AI searcher may forget a critical thermal budget or DRC rule while obsessively optimizing a newly introduced STA timing violation. It may produce a coherent analysis of a different comparison from the one the architect intended. The human architect must orchestrate an evaluation harness that explicitly tracks workload assumptions, interface constraints, tool settings, and physical limitations to maintain the epistemic trust boundary.
 
 ### Explicit Inputs and Checks
 
@@ -318,11 +317,7 @@ interfaces, package constraints, software path, and tools needed to evaluate
 it. A compiler or runtime choice can likewise make a hardware configuration
 feasible or unusable. Representing that coupled state, so another method or reviewer can see which choices depend on which, is the problem @sec-data-representations-world-models takes up.
 
-### The Integration Bottleneck
-
-The difficulty of composing systems-on-chip extends far beyond partitioning and package constraints. Modern SoCs integrate dozens to hundreds of heterogeneous IP blocks—CPU clusters, GPUs, NPUs, memory controllers, and Network-on-Chip (NoC) interconnects. These are often sourced from different vendors with varying interface standards and incomplete documentation.
-
-This creates a severe integration bottleneck where architectural validation breaks down. Subtle mismatches in coherence protocols, unspoken timing constraints, and system-level deadlocks frequently emerge only when the full SoC is assembled. An AI method that optimizes a single accelerator block but cannot synthesize correct-by-construction glue logic or verify cross-domain coherence protocols fails to solve the actual labor bottleneck scaling modern system design.
+A modern SoC integrates dozens to hundreds of heterogeneous IP blocks (CPU clusters, GPUs, NPUs, memory controllers, Network-on-Chip interconnects), often sourced from different vendors with different interface standards and incomplete documentation. Coherence-protocol mismatches, unstated timing constraints, and system-level deadlocks surface only when the full SoC is assembled, so a method that optimizes one accelerator block but cannot synthesize correct glue logic or verify cross-domain coherence leaves the integration work untouched. Each added block narrows the set of valid designs and adds validation the search must account for.
 
 The search can fail in two opposite ways. If its choices are broad but poorly
 constrained, it spends evaluations on combinations that cannot be implemented.
@@ -466,31 +461,11 @@ also remains provisional until the software can use the design.
 
 The binding limit often becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI's most defensible role here is triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
 
-### Emulation and Prototyping
+### Physical and Integration Constraints
 
-Even when a candidate survives simulation, software bring-up requires running trillions of cycles—a scale that software-based simulation cannot reach. Currently, hardware emulation and FPGA prototyping are the only viable platforms for this scale of evaluation. However, these platforms introduce their own severe bottlenecks. They are notoriously difficult to compile to, often requiring days for a single build, and offer incredibly low visibility for debugging compared to software simulators. The architect is trapped between slow, high-visibility simulation and fast, low-visibility emulation. An AI-assisted loop must help bridge this gap, perhaps by predicting which traces to capture or by steering emulation runs, rather than blindly generating hardware that crashes opaquely on an FPGA.
+Composition multiplies the physical and economic constraints a candidate must satisfy, and each one adds evaluation the search cannot skip. Software bring-up runs trillions of cycles, past the reach of software simulation, so it falls to hardware emulation and FPGA prototyping, which compile in days and give far less debug visibility than a simulator. Chiplet stacking adds a manufacturing constraint. In 2.5D and 3D integration such as TSMC CoWoS [@TSMCCoWoS] or Intel Foveros [@IntelFoveros], a defective die found only after packaging ruins the whole assembly, including the silicon interposer and the High Bandwidth Memory stacks, so a proposed partition is valid only if it preserves pre-bond test access to every die, the Known-Good-Die constraint. Reliability narrows the space again. Soft errors, silicon aging such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and process variation decide viability in domains such as automotive systems under ISO 26262 [@ISO2018Iso26262], and they are measured by statistical fault injection and aging simulation rather than deterministic cycle counts.
 
-### Known Good Die Constraints
-
-The composition of systems into chiplets introduces physical and economic penalties that narrow the viable design space. In 2.5D and 3D integration, such as TSMC CoWoS [@TSMCCoWoS] or Intel Foveros [@IntelFoveros], discovering a defective chiplet only after packaging ruins the entire expensive assembly, including the silicon interposer and pristine High Bandwidth Memory (HBM) stacks. This economic penalty shifts the burden of testability leftward, demanding high-coverage, pre-bond test patterns at the bare-die stage. An AI agent proposing a novel chiplet partition cannot merely optimize for interconnect bandwidth or power; it must also ensure that the topology does not obscure test access, treating Known Good Die (KGD) constraints as a strict filter on valid architectures.
-
-### Reliability and Safety
-
-As physical constraints multiply, a candidate's viability extends beyond performance and power to encompass soft errors, silicon aging phenomena such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and manufacturing variations. In specialized domains, such as automotive systems governed by ISO 26262 [@ISO2018Iso26262] or aerospace applications, reliability is a primary evaluation bottleneck. Evaluating these metrics requires statistical fault injection and aging simulations, rather than deterministic cycle counts.
-
-A generative AI acting as a searcher that hill-climbs solely for peak instructions per cycle will produce brittle designs. Instead of expecting the AI to independently reason over reliability, the human architect must orchestrate an Evaluation Harness. This harness enforces the epistemic trust boundary, rejecting brittle candidates based on rigorous physical constraints, thermal budgets, and statistical proofs before any silicon commitment is made.
-
-### Hardware Security
-
-Security evaluation adds a further dimension that cheap performance proxies cannot capture. Systemic security involves verifying information flow and isolation across complex privilege levels and untrusted third-party intellectual property (IP). While a functional bug causes a crash, a security bug causes a breach, fundamentally altering the stakes of the design loop. When an AI optimizer aggressively shares speculative state buffers or execution units between secure and non-secure domains to save power, it risks inadvertently opening side-channel vulnerabilities. Because proxies cannot measure security guarantees, the evaluation loop must incorporate expensive formal methods or extensive penetration testing to verify that a structurally optimal candidate does not violate information flow.
-
-### PDN and Thermomechanical Modeling
-
-Beneath the architectural organization lies the stark physical reality of dark silicon. Pushing hundreds of amps into a tightly packed chiplet package creates localized thermal hotspots and severe Power Delivery Network (PDN) stress. Moving data does not just consume average energy; it can fail signoff due to thermomechanical warping or localized voltage droop even if the aggregate energy budget appears acceptable. An AI cost model must represent spatial power distribution and layout-aware congestion. If an agent relies purely on aggregate power proxies, it will confidently hallucinate feasible-looking designs that would physically warp the substrate, wasting expensive downstream synthesis cycles.
-
-### Integrating Open Source IP
-
-A final layer of complexity in composition is the reliance on third-party IP. Modern SoCs are not built entirely from scratch; they integrate proprietary blocks such as ARM cores, PCIe PHYs, and DDR controllers. The design loop stalls when architects, and by extension AI agents, must treat these IPs as black boxes, relying on static vendor datasheets and opaque models rather than fully executable, open-source RTL. An AI agent cannot co-optimize the internals of proprietary IP; it must instead navigate interface boundaries and synthesize glue logic based on incomplete, non-executable data. This opaque boundary forces the loop to rely on integration-level testing rather than cycle-accurate internal metrics, significantly complicating the verification of timing and power constraints across the SoC.
+The remaining constraints work the same way. Sharing speculative-state buffers or execution units across secure and non-secure domains can save power while opening side channels, so security must be checked by formal methods or penetration testing that performance proxies cannot stand in for. Pushing hundreds of amps through a dense package produces IR drop and localized hotspots, so a Power Delivery Network (PDN) and thermomechanical model, not an aggregate-power proxy, decides whether a layout passes signoff. Much of the SoC is opaque as well. Third-party blocks such as ARM cores, PCIe PHYs, and DDR controllers arrive as datasheets and black-box models rather than executable RTL, which forces integration-level testing across interfaces the search cannot see inside. Every one of these constraints removes designs from the valid set and adds a check the search must pay for before silicon.
 
 ## Executable Software Paths
 
@@ -1273,28 +1248,29 @@ more verification, review, or decision work elsewhere.
 
 ## Open Research Questions
 
-When human-driven heuristic search reaches its mathematical breaking point, we are forced to reevaluate the economics and mechanisms of architectural exploration. The fundamental research challenges in this domain lie in formally defining the inflection points where autonomous agents become necessary, and establishing rigorous bounds to dictate when an agent should trust a fast proxy versus when it must invoke a costly, cycle-accurate oracle.
+Several questions from this chapter stay open. The chapter's method asks an architect to match AI to whichever bottleneck limits a project, and three practical uncertainties still stand in the way of doing that reliably.
 
+**Theme 1: The Binding Bottleneck.** The chapter names five bottlenecks but shows that neither industry trends nor faster candidate generation reveals which one actually binds a given project.
 
-**Theme 1: Identifying the AI Inflection Point**
-* At what exact threshold of structural complexity does heuristic, human-driven search mathematically break down and necessitate autonomous agentic traversal?
-* How can we quantify the "entropy" of a microarchitectural design space to predict whether an RL agent will outperform a traditional solver?
-* What metrics define when the dimensionality of cross-layer co-design (e.g., compiler + RTL + layout) exceeds the cognitive limits of a human engineering team?
+- The chapter names five bottlenecks but shows that industry-wide trends and faster candidate generation cannot reveal which one limits a given project. What per-project instrumentation of candidate arrival, review throughput, and rejection reasons would identify the binding bottleneck instead of defaulting to the assumption that the search space is too large?
+- The AlphaChip debate turned on the speed of macro placement without measuring review queues or why candidates were rejected. What experimental design would let a project show that reviewer capacity, rather than candidate production, is the constraint on its progress?
+- How can a project detect when faster candidate generation is worsening progress because the true limit is simulation or review capacity rather than search?
 
-**Theme 2: The Economics of Exploration**
-* How do we mathematically formalize the tradeoff between exploring novel, paradigm-shifting architectures and the immense compute cost of simulating them?
-* At what point does the compute cost of training a reinforcement learning agent for architectural search exceed the non-recurring engineering (NRE) savings of human labor?
-* Can we develop predictive cost models that dynamically halt an agent's search when the marginal gain in PPA no longer justifies the required simulation compute?
+**Theme 2: The Search Break-Even Point.** Autonomous search only pays off past some scale, and a project needs to find that point before it spends to build an agent.
 
-**Theme 3: The Simulation vs. Prediction Tradeoff**
-* Under what formal bounds should an autonomous agent safely escalate from fast analytical proxies to expensive, cycle-accurate oracles to prevent rank-inversions?
-* How can surrogate search algorithms be formally constrained to proactively prune physically unroutable architectural states without requiring any cycle-accurate oracle invocation?
-* What are the theoretical limits of multi-fidelity optimization when the highest-fidelity oracle requires days of execution time?
+- At what design-space scale does autonomous search outperform a conventional solver or expert-guided sweep, and what would measure that threshold before a project pays to train an agent?
+- What cost model would let a project halt a search once the marginal gain in PPA no longer pays for the simulation the next round consumes?
 
-## Summarize the Scale Challenge
+**Theme 3: The Evidence-Trust Gap.** A cheap proxy can rank the wrong design first, and a moving software target can stale a comparison before signoff.
+
+- When should an agent escalate from a cheap analytical estimate to an expensive cycle-accurate run to avoid the rank inversion a cheap proxy can produce, as when lower compute energy hides a worse system total (@fig-waterbed-effect)?
+- How can a surrogate be constrained to prune physically unroutable or otherwise illegal candidates without a full oracle call?
+- How can an architectural decision be kept robust when the software target shifts within a single silicon cycle, so a comparison tied to one model scale does not go stale before signoff?
+
+## Summarizing the Scale Challenge
 
 ::: {.callout-design-principle title="The Bottleneck Theorem of Automation"}
-Accelerating candidate generation actively harms project velocity if the limiting constraint is simulation capacity or expert review. AI assistance must target the specific bottleneck—whether search, tool execution, telemetry parsing, or evidence synthesis—rather than uniformly increasing the volume of unverified artifacts.
+Accelerating candidate generation actively harms project velocity if the limiting constraint is simulation capacity or expert review. AI assistance must target the specific bottleneck, whether search, tool execution, telemetry parsing, or evidence synthesis, rather than uniformly increasing the volume of unverified artifacts.
 :::
 
 
