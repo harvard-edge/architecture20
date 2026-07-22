@@ -35,7 +35,7 @@ After reading this chapter, you can:
 
 Before exploring how an AI represents hardware, we must clarify what the AI is building with these representations. In current AI-assisted architecture, systems rely heavily on **Cost Models** (surrogates). A cost model takes a proposed design state and predicts its physical consequence (e.g., predicting that an expanded cache will consume 3 W of power).
 
-This is fundamentally different from a true **World Model**. In artificial intelligence, a world model predicts the *next state* of an environment, allowing an agent to plan several steps ahead without querying a simulator. Because hardware environments are deterministic once a mutation is chosen, true architecture world models are rarely needed. Instead, the field relies on highly accurate, multi-fidelity cost models. We introduce this distinction now to set baseline expectations: current agents do not hallucinate entire physical worlds; they search structural representations guided by learned cost proxies.
+This is fundamentally different from a true **World Model**. In artificial intelligence, a world model predicts the *next state* of an environment, allowing an agent to plan several steps ahead without querying a simulator. Because hardware environments are deterministic once a mutation is chosen, true architecture world models are rarely needed. Instead, the field relies on highly accurate, multi-fidelity cost models. We introduce this distinction now to set baseline expectations: the distinction between generative models (producing candidate designs) and predictive models (estimating PPA) must be crystal clear. Current agents do not hallucinate entire physical worlds; they search structural representations guided by learned cost proxies, with physical synthesis (PPA) serving as the ultimate arbiter for these predictive models.
 
 ## Architectural Knowledge
 
@@ -181,7 +181,7 @@ Beneath these high-level knowledge objects lies the physical reality of how an A
 
 To reason about hardware natively, an AI system must move beyond text sequences to structural embeddings. Instead of reading Verilog as a string, a specialized encoder parses the RTL into an Abstract Syntax Tree (AST) or a Data Flow Graph (DFG). For placed netlists and floorplans, Graph Neural Networks (GNNs) are a better fit than sequence models. A GNN represents macros and standard cells as nodes and wires as edges, inherently capturing physical locality, fan-out, and combinational depth, properties that a 1D sequence model must struggle to infer through attention mechanisms.
 
-Beyond graphs, bridging the semantic gap requires multi-modal representations. Visual Language Models (VLMs) and spatial encodings move past text tokens, letting agents reason directly over 2D floorplans and physical layouts. This allows the AI searcher to comprehend density, congestion, and spatial topologies visually. This shift from 1D sequence tokenization to graph embeddings and multi-modal spatial awareness is the core data representation problem in AI-assisted architecture.
+Beyond graphs, bridging the semantic gap requires multi-modal representations. Visual Language Models (VLMs) and spatial encodings move past text tokens, letting agents reason directly over 2D floorplans and physical layouts. This allows the AI searcher to comprehend density, congestion, and spatial topologies visually. When projecting these structures into continuous latent spaces (embeddings), a central challenge is maintaining structural validity—for example, preserving graph invariants for RTL or Network-on-Chip (NoC) topologies so that decoded candidates remain physically realizable. This shift from 1D sequence tokenization to structurally-valid graph embeddings and multi-modal spatial awareness is the core data representation problem in AI-assisted architecture.
 
 ## Design State, Not Text
 
@@ -203,7 +203,7 @@ The representation connects information that final artifacts often separate. It 
 
 ### Workload Representations and Phase Behavior
 
-Because architecture is a co-design problem, static RTL code is not enough. The AI agent must understand runtime execution. Traces, phase classifications (like SimPoint), and bottleneck graphs serve as the fundamental data representations of the software target. The AI must be able to ingest and reason about workload state just as fluently as it does design state, matching the hardware mechanisms to the dynamic phase behavior of the target application.
+Because architecture is a co-design problem, static RTL code is not enough. The AI agent must understand runtime execution. Traces, phase classifications (like SimPoint), and bottleneck graphs serve as the fundamental data representations of the software target. However, while generating execution traces is easy, translating those into cycle-accurate switching activity for power and thermal analysis requires deep pipeline semantics that simple LLMs lack. The AI must be able to ingest and reason about workload state just as fluently as it does design state, matching the hardware mechanisms to the dynamic phase behavior of the target application without losing the physical context of the switching activity.
 
 ### State Mutation and Tradeoffs
 
@@ -211,9 +211,9 @@ An explicit design state must distinguish the fields that an AI method may mutat
 
 If an AI method is tasked with optimizing against a Lighthouse comparison, the representation might declare that the SRAM capacity and MAC array dimensions are mutable. The peak power limit and the target workload mix are fixed constraints. If these boundaries are not explicit, an AI method might propose a candidate that achieves high performance by silently violating a power constraint or altering the workload mix, invalidating the comparison.
 
-Within these boundaries, we must explicitly distinguish two types of legal moves. The first is *parametric tuning*, such as resizing a buffer, changing queue depths, or adjusting cache associativity. This represents a continuous or bounded discrete search where the pipeline topology remains unchanged, and it requires only a simple scalar or JSON schema to govern the action space.
+Within these boundaries, we must explicitly distinguish two types of legal moves. The first is *parametric tuning*, such as resizing a buffer, changing queue depths, or adjusting cache associativity. This represents a continuous or bounded discrete search where the pipeline topology remains unchanged, and it requires only a simple scalar or JSON schema to govern the action space. In this context, Bayesian Optimization (BO) is highly effective for low-dimensional, high-cost parameter searches where sample efficiency is paramount, often outperforming reinforcement learning (RL) methods like PPO that require massive interaction data.
 
-The second type is *structural mutation*. This involves topological changes, such as adding a new pipeline stage, swapping a mesh interconnect for a ring, or inserting a bespoke accelerator block. Governing this action space is far more complex. Structural mutation requires a graph-based representation (such as an AST or a netlist graph) to enforce physical connectivity, validate interface protocols, and maintain coherence rules during the transformation.
+The second type is *structural mutation*. This involves topological changes, such as adding a new pipeline stage, swapping a mesh interconnect for a ring, or inserting a bespoke accelerator block. Governing this action space is far more complex. Structural mutation requires a graph-based representation grounded in actual EDA intermediate representations (e.g., structural Verilog or And-Inverter Graphs [AIGs]). Translating between an ML agent's abstract graph and an EDA tool's netlist often introduces semantic gaps where verification fails, making it critical to enforce physical connectivity, validate interface protocols, and maintain coherence rules during the transformation.
 
 Regardless of the mutation type, the state space is large. The number of reachable configurations grows combinatorially and quickly exceeds any space that could be searched exhaustively. Without explicit constraints on the search, an optimizer wanders through useless regions of that space.
 
@@ -366,6 +366,7 @@ Building world models for silicon design turns on three open data problems: asse
 
 - How can a single learned representation jointly encode a design's logical structure (its RTL graph) and its 2D physical layout without losing the structural fidelity of either?
 - What training objectives align a textual RTL description with its graph-based netlist so the two modalities index the same design state?
+- How can the industry develop standardized APIs or Intermediate Representations (akin to MLIR for compilers) to allow seamless bi-directional data flow between ML agents and commercial EDA tools?
 
 **Theme 3: Modeling Negative Evidence.** Knowing a design failed is as useful as knowing one worked, but representing that failure so an agent generalizes from it is unsolved.
 
