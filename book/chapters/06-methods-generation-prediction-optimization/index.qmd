@@ -232,12 +232,6 @@ primary structural contract rather than a scalar hyperparameter. That choice
 changes reuse, memory traffic, interconnect demand, and which tool feedback can
 reject the proposal. It also supplies a mechanism the architect can test.
 
-It is tempting to treat a plausible AI-generated artifact, such as an RTL fragment,
-a configuration, or a benchmark question, as a result. It is a proposal. Tool
-checks, a matched baseline, and retained failures can challenge the proposal.
-The architect responsible for the decision determines whether it deserves
-further work.
-
 Generation is especially useful for breadth. It can propose
 candidate decompositions, list assumptions, create alternative experiment
 plans, translate design intent into structured records, or draft the first
@@ -333,7 +327,7 @@ checking capacity also improves.
 Chip-Chat, an interactive hardware design study, brings the same role separation into RTL design. In that study, a language model drafts Verilog, open-source simulation and synthesis tools return errors for revision, and a small processor design produces GDSII for tapeout. The generator supplied
 drafts. A parser, simulator, and synthesis flow could reject them, while a human
 designer decided when a candidate was ready to advance. Another engineer could
-review the result because those responsibilities remained separate.
+review the result because those responsibilities remained separate. But running these full tool flows for every generated candidate is prohibitively expensive.
 
 ## Early Behavior Prediction {#sec-prediction-estimating-behavior-before-full-evaluation}
 
@@ -498,17 +492,9 @@ When a surrogate predicts a performance win but the cycle-accurate golden simula
 
 For example, if the surrogate missed a routing congestion bottleneck, the architect adds a physical-design constraint to the generator or explicitly includes a congestion metric in the surrogate's training features. Constraining the search space or expanding the proxy's input features based on the simulator's failure report helps the system learn the physical boundary without requiring the architect to act as a machine learning engineer tweaking hyperparameters.
 
-The accelerator study keeps the same distinction. The model's qualitative
-prediction and mechanism help select a test, but neither counts as performance
-evidence. The simulator evaluates the candidates, and the declared contrast
-fails the model's directional prediction without supplying a causally isolated
-replacement explanation. A rough predictor may still be enough to discard
-obviously bad candidates, but that use still needs calibration and independent
-observations from the region being pruned.
-
 ## Optimizing Candidate Selection
 
-Optimization allocates a scarce evaluation budget, and Bayesian optimization is the standard way to spend it under expensive feedback. It fits a surrogate model to the results seen so far, reads where that surrogate is most uncertain, and uses an acquisition rule to pick the next evaluation most likely to improve the objective. The architect sets the physical constraints and PPA goals that shape the acquisition rule.
+Even with a well-calibrated surrogate, deciding *which* candidate to evaluate next requires balancing exploration against exploitation. Optimization allocates a scarce evaluation budget, and Bayesian optimization is the standard way to spend it under expensive feedback. It fits a surrogate model to the results seen so far, reads where that surrogate is most uncertain, and uses an acquisition rule to pick the next evaluation most likely to improve the objective. The architect sets the physical constraints and PPA goals that shape the acquisition rule.
 
 ```{python}
 #| label: fig-bayesian-optimization
@@ -758,7 +744,7 @@ The value of each evaluation also depends on what the environment records. If it
 
 The core strength of a human-in-the-loop workflow is the architect's ability to examine a failed result, identify the likely root cause, and patch the error. When transitioning to automated loops, we decompose this capacity into critique, repair, and verification. Together, these roles let an automated loop recover from a failed artifact without a person intervening at each step.
 
-## Artifact Verification
+## Verification, Critique, and Repair
 
 An architect who already has hundreds of candidates and inconsistent run logs does not need another proposed design. The more useful AI job may be to identify a specific weakness, revise a malformed artifact, or run a check that can reject a stated property. These are three different jobs.
 
@@ -789,9 +775,10 @@ In physical design, verification might mean passing an LVS (Layout vs. Schematic
 If the generative agent proposed a new instruction extension for XR vertex transformations, the verification agent must prove that this custom RTL is logically equivalent to the software C++ model. Similarly, KernelBench provides a narrow software example. If a generated CUDA kernel produces the same numerical output as its reference under an automated test suite, verification passes. If not, verification fails, returning a rigid Boolean and an associated traceback to critique [@OuyangEtAl2025KernelBench].
 
 A verification result is no broader than the property and scope checked. A passing numerical test does not establish portability, timing closure, or system performance. A failed check returns a concrete result that may stop the candidate, trigger a bounded repair, or reach a reviewer. The policy governing that response and the amount of evidence required are separate from the verification role itself.
-## Coordinating the Design Loop
 
-Explanation uses recorded state, tool results, and rejected alternatives to connect a result to a proposed architectural mechanism. In an accelerator study, it should connect array geometry to utilization and cycle count and name a declared contrast that could challenge that account. A fluent explanation is a mechanism hypothesis and interpretation. It cannot repair a failed probe or make a weak observation support a stronger claim.
+## Explanation and Coordination
+
+Once properties are verified and candidates are repaired, the remaining tasks are to interpret the results and manage the overall process. Explanation uses recorded state, tool results, and rejected alternatives to connect a result to a proposed architectural mechanism. In an accelerator study, it should connect array geometry to utilization and cycle count and name a declared contrast that could challenge that account. A fluent explanation is a mechanism hypothesis and interpretation. It cannot repair a failed probe or make a weak observation support a stronger claim.
 
 Coordination routes state, tasks, and artifacts when work crosses several tools or roles. Rather than viewing the coordinator as a simple shell script, architects should treat it as an automated routing engine managing dependencies, version skew, and tool dispatch. The coordinator does not need to understand the internal weights of a GNN or the prompt structure of the RTL generator; it only needs to interface with their *contracts*, their stated support regions, uncertainties, and resource costs. For the human acting as the auditor of evidence, this intersection requires **mixed-initiative interfaces** [@Horvitz1999MixedInitiative], where the human specifies intent and bounds, and the tools execute.
 

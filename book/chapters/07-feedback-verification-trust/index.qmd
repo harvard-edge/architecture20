@@ -43,7 +43,7 @@ Once the RTL is proven, Logical Equivalence Checking (LEC) ensures the elaborate
 
 ## Observation, Evidence, and Decision {#sec-from-feedback-to-decision}
 
-Architecture needs a formal verification path where the human architect orchestrates the burden of proof. Raw feedback just means a tool finished running. An observation records the specific outputs. Evidence links that observation to a specific design claim. A review judges whether the claim holds.
+Even with deterministic solvers in place, architecture needs a formalized evidence path where the human architect orchestrates the burden of proof. Raw feedback from any tool just means a run finished. An observation records the specific outputs. Evidence links that observation to a specific design claim. A review judges whether the claim holds.
 
 These deliberate steps prevent raw tool outputs from directly changing the design or automatically updating an AI's training data without human oversight. Treating the AI as an untrusted generator means the architect must demand physical proof, such as a timing report or a formal equivalence check, that independently verifies every proposed architecture change.
 
@@ -68,11 +68,9 @@ Third, evidence and a review result do not automatically become either training 
 
 The design-loop card introduced in @sec-architecture-20-ontology acts as the binding artifact across these stages. It points to the observation, evidence, review, update, and decision records rather than trying to contain every detail itself.
 
-Returning to the 3\ W RISC-V XR subsystem, the synthesis report is the observation. The evidence relation connects that report to the claim about clock speed. The review result states the claim is unsupported. The knowledge-update branch decides to store the failure in the project trajectory, while the architecture decision stops the transition to RTL.
-
 ## Binding Evidence to Claims {#sec-evidence-specific-to-claim-and-scope}
 
-Evidence has no useful strength independent of a claim. An observation bears on a property for a candidate relative to a comparator under a stated workload, design state, tool path, metric, assumptions, validity region, uncertainty, and proposed action. A cycle estimate can support a bounded performance comparison while remaining irrelevant to power, timing, isolation, software usability, or system intent (@fig-claim-frame).
+While the design-loop card tracks the overall flow, the evidence record itself has no useful strength independent of a specific claim. An observation bears on a property for a candidate relative to a comparator under a stated workload, design state, tool path, metric, assumptions, validity region, uncertainty, and proposed action. A cycle estimate can support a bounded performance comparison while remaining irrelevant to power, timing, isolation, software usability, or system intent (@fig-claim-frame).
 
 ![**The compact claim frame.** The diagram visualizes the relational graph linking the artifact candidate to its measurement metrics and environmental constraints.](images/F7-claim-frame.svg){#fig-claim-frame width="100%" fig-alt="The Compact Claim Frame diagram visualizes the relational graph linking the artifact candidate to its measurement metrics and environmental constraints."}
 
@@ -133,9 +131,7 @@ It is a form of Goodhart's law [@Goodhart1975MonetaryManagement; @Strathern1997G
 
 ![**Schematic trust-calibration curve.** As an AI optimizes a surrogate proxy, the metric initially correlates with physical ground truth. However, beyond the calibration boundary, the AI exploits the proxy's blind spots (reward hacking), causing the ground truth value to collapse while the proxy score continues to rise.](images/F9-trust-calibration.svg){#fig-trust-calibration width="100%" fig-alt="A line graph showing surrogate proxy score increasing monotonically while the physical ground truth curve collapses sharply after crossing the calibration boundary."}
 
-For example, an AI optimizing a Network-on-Chip (NoC) for latency might strip away essential decoupling queues. A high-level proxy simulator might report zero-cycle transfer times, yielding a perfect score, but physically synthesizing this design would result in routing congestion and timing violations because the proxy ignored hold-time constraints.
-
-The curve shows the failure directly. Up to the calibration boundary the proxy tracks the ground truth, so optimizing the proxy also improves the real design. Past that boundary the two diverge. The proxy score keeps climbing because the AI has found the shapes the surrogate rewards, while the physical ground truth falls away because those shapes break timing, area, or power that the surrogate never modeled. The widening gap between the two lines is the reward hacking, and it is invisible to anyone watching only the proxy.
+The curve shows this failure directly. Up to the calibration boundary, the proxy tracks the ground truth, so optimizing the proxy also improves the real design. Past that boundary, the two diverge. The proxy score keeps climbing because the AI has found the shapes the surrogate rewards, while the physical ground truth falls away because those shapes break timing, area, or power that the surrogate never modeled. The widening gap between the two lines is the reward hacking, and it is invisible to anyone watching only the proxy.
 
 @tbl-proxy-diagnostics pairs these concerns with diagnostic checks.
 
@@ -171,7 +167,7 @@ Guarding a single candidate against a lucky run is not the same as guarding the 
 
 ## Independent Checks {#sec-independent-checks-and-correlated-errors}
 
-Diagnostics are useful only when a purportedly stronger check observes the missing property and is not merely another expression of the same assumptions. Independence is relative to a claim and a failure class, not a binary property of components (@fig-independent-checks).
+Re-measuring on fresh workloads or applying proxy diagnostics is useful only when a purportedly stronger check observes the missing property and is not merely another expression of the same assumptions. Independence is relative to a claim and a failure class, not a binary property of components (@fig-independent-checks).
 
 ![**Correlated errors vs. independent checks.** A correlated check shares the generator's blind spots. A physical simulator provides an independent, orthogonal modality shift.](images/ch7_independent_checks.svg){#fig-independent-checks width="100%" fig-alt="Correlated Error vs Independent Modality Shift diagram"}
 
@@ -278,13 +274,13 @@ Not every check needs to be an expensive independent oracle. Because an AI gener
 
 ## Trojans and Poisoned Models {#sec-hardware-trojans}
 
-Generative AI introduces two security risks that traditional flows rarely faced, the hallucinated vulnerability and the maliciously injected hardware trojan. In traditional architecture, a backdoor required a rogue engineer or compromised EDA tool to intentionally alter the netlist. In AI-driven architecture, a generator trained on unvetted, scraped open-source RTL can inadvertently memorize and reproduce buried trojans. An adversary could also poison the foundation model's training data, teaching the agent to subtly weaken cryptographic isolation boundaries or insert data-leaking side-channels under specific, rare workload triggers.
+While fast deterministic checks can filter out malformed candidates, generative AI also introduces structural security risks that standard functional checks easily miss: the hallucinated vulnerability and the maliciously injected hardware trojan. In traditional architecture, a backdoor required a rogue engineer or compromised EDA tool to intentionally alter the netlist. In AI-driven architecture, a generator trained on unvetted, scraped open-source RTL can inadvertently memorize and reproduce buried trojans. An adversary could also poison the foundation model's training data, teaching the agent to subtly weaken cryptographic isolation boundaries or insert data-leaking side-channels under specific, rare workload triggers.
 
 Because these malicious structures, such as a finite state machine that bypasses a privilege check after a specific sequence of branch mispredicts, are structurally valid and functionally silent during standard regressions, they can evade traditional code coverage metrics. To defend against these poisoned models, the architect must orchestrate verification beyond checking that the generated RTL meets the design specification, employing formal path-sensitization and information flow tracking (IFT) to prove the absence of undocumented state transitions and data-exfiltration paths.
 
 ## Protected Evidence and Public Claims {#sec-protected-evidence-and-public-claims}
 
-A technically appropriate independent check may rely on workloads, flows, or results that cannot be released. Confidentiality changes who can inspect evidence and what can be released; it does not erase the need to state the claim, scope, method, uncertainty, reviewer, and bounded conclusion.
+Whether employing advanced formal security proofs or standard performance regressions, a technically appropriate independent check may rely on workloads, flows, or results that cannot be released. Confidentiality changes who can inspect evidence and what can be released; it does not erase the need to state the claim, scope, method, uncertainty, reviewer, and bounded conclusion.
 
 Internal protected evidence may support an internal decision when an authorized reviewer can inspect it. A public claim must remain within what the public record or a credible protected audit can establish. Missing public information is not proof that internal evidence did not exist, while a production report is not an independently replayable comparison.
 
@@ -311,7 +307,7 @@ State which evidence is restricted, which AI tools may access it, and who can in
 
 ## Weighing Evidence Cost vs. Consequence {#sec-evidence-cost-and-consequence}
 
-Cost limits which observations an architect can obtain; it does not assign confidence or evidentiary strength. A cheap legality check may decisively reject an invalid candidate. An expensive post-route result may still be irrelevant to a security claim. The useful next check is one whose plausible outcomes could change the claim disposition, candidate ordering, scope, or proposed action enough to justify its computational and human cost.
+Just as confidentiality limits who can inspect an observation, computational and human cost limits which observations an architect can obtain in the first place. However, cost does not assign confidence or evidentiary strength. A cheap legality check may decisively reject an invalid candidate. An expensive post-route result may still be irrelevant to a security claim. The useful next check is one whose plausible outcomes could change the claim disposition, candidate ordering, scope, or proposed action enough to justify its expense.
 
 Verification schedule and review bandwidth are constrained resources (@sec-design-loop-no-longer-scales details the high schedule share of verification in ASIC projects). Available capacity limits both compute and expert attention. This is not just API rate limits, but the reality of 3-day VCS RTL simulation times and contention for slots on Palladium emulation boxes. A feedback budget must record latency, execution cost, fidelity, uncertainty, failure budget, interpretation time, and review cost.
 
@@ -330,11 +326,11 @@ Returning to the illustrative RISC-V XR subsystem prototype, a cheap structural 
 
 ## Dispute Resolution {#sec-disputes-waivers-and-reopening}
 
-A finite evidence plan can still produce disagreement or leave a failed condition that someone proposes to accept. A dispute should first determine whether the parties are testing the same claim under aligned workloads, baselines, budgets, implementations, versions, metrics, and tool paths. A review then records supported, unsupported, or unresolved within the declared scope.
+Even with a clear mapping of check cost to decision job, a finite evidence plan can still produce disagreement or leave a failed condition that someone proposes to accept. A dispute should first determine whether the parties are testing the same claim under aligned workloads, baselines, budgets, implementations, versions, metrics, and tool paths. A review then records supported, unsupported, or unresolved within the declared scope.
 
-A waiver does not turn a failed check into a pass. It accepts a bounded exception and residual risk for a named action and period. For the illustrative 3\ W RISC-V XR subsystem, waiving a 5% area bloat for a local prototype does not establish tape-out readiness. A waiver requires stating the exact scope, compensating check, expiration, and residual uncertainty.
+A waiver does not turn a failed check into a pass. It accepts a bounded exception and residual risk for a named action and period. For example, waiving a 5% area bloat for a local prototype does not establish tape-out readiness. A waiver requires stating the exact scope, compensating check, expiration, and residual uncertainty.
 
-Reopening is required when new evidence or changed conditions make the old evidence bear on a different claim. For the 3\ W RISC-V XR subsystem, a revised target, targeting tape-out, stronger flow, or shared-interface transition reopens the review. (@sec-loop-patterns-across-stack discusses reopening caused by software evolution, workload drift, and deployment telemetry.)
+Reopening is required when new evidence or changed conditions make the old evidence bear on a different claim. A revised target, a shift from prototyping to tape-out, a stronger verification flow, or a shared-interface transition reopens the review. (@sec-loop-patterns-across-stack discusses reopening caused by software evolution, workload drift, and deployment telemetry.)
 
 The design-loop card acts as the compact index for the disputed claim, review result, bounded waiver, and reopening condition. The technical record relies on nine review questions (@tbl-trust-checklist).
 
@@ -354,7 +350,7 @@ The design-loop card acts as the compact index for the disputed claim, review re
 
 ## Open Research Questions
 
-As agents get better at maximizing proxy metrics, they get better at exploiting the blind spots of the environments that score them. Trustworthy AI-generated silicon needs oracles that resist that exploitation, generators that emit their own verification collateral, and equivalence checks that scale to unfamiliar topologies. Three themes stand out.
+While the review checklist formalizes how human architects manage evidence today, automating these epistemic bounds remains an active challenge. As agents get better at maximizing proxy metrics, they get better at exploiting the blind spots of the environments that score them. Trustworthy AI-generated silicon needs oracles that resist that exploitation, generators that emit their own verification collateral, and equivalence checks that scale to unfamiliar topologies. Three themes stand out.
 
 **Theme 1: Adversarial Resilience of Oracles.** A proxy an optimizer can exploit is not a check. Hardening one without making it so conservative that it rejects good designs remains unsolved.
 

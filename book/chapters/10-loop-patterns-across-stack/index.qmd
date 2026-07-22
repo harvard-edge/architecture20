@@ -29,15 +29,13 @@ After reading this chapter, you can:
 
 ## Classifying Operating Conditions
 
+Start with the next architecture decision rather than the AI method. The artifact name does not determine risk or authority. Instead, the decision must be classified by its operating conditions.
+
 > **Operating condition.** An operating condition describes one property of the next decision, such as feedback latency, reversibility, interface span, consequence, or check independence. The architect uses the conditions that apply together to decide what an AI method may do, which evidence and checks are needed, how the AI's internal representation must be updated, and whether the result can advance. An operating condition is not a stack layer, a maturity score, or a property of an AI model.
 
-Four recurring combinations of operating conditions organize the cases considered here, which are detailed in @tbl-loop-patterns. These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate.
+Four recurring combinations of operating conditions organize the cases considered here. These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate.
 
-## The Next Architecture Decision
-
-Start with the next architecture decision rather than the AI method. The artifact name does not determine risk or authority. The next decision must be classified by feedback latency, reversibility, interface span, consequence, and check independence. When several conditions apply, the stricter requirements accumulate.
-
-@tbl-loop-patterns compares four recurring combinations. The columns describe conditions, not fixed ranks. Fast feedback does not make the next decision low risk, and silicon-facing work does not forbid useful automation.
+@tbl-loop-patterns compares these four recurring combinations. The columns describe conditions, not fixed ranks. Fast feedback does not make the next decision low risk, and silicon-facing work does not forbid useful automation.
 
 | **Operating condition** | **Feedback and reversibility** | **Interface span and check independence** | **Evidence requirements and representation updates** |
 | --- | --- | --- | --- |
@@ -90,7 +88,7 @@ An AI-generated kernel that wins on one input size may regress another. An AI-pr
 
 ## Proxies and Simulators
 
-When a simulator returns a delayed thermal trace or IPC penalty, the agent does not just see a float. Following the mechanics described in @sec-data-representations-world-models, this telemetry is translated into a 1D tokenized sequence or a structured JSON response. If the trace is truncated to fit the context window, the agent loses the temporal data needed to optimize thermal throttling. The proxy's fidelity is therefore bounded by the agent's encoding capacity. A failure mode absent from the textual serialization is one the agent cannot observe.
+As the evaluation moves from fast executable software checks to hardware abstractions, the feedback loop relies on proxies and simulators. When a simulator returns a delayed thermal trace or IPC penalty, the agent does not just see a float. Following the mechanics described in @sec-data-representations-world-models, this telemetry is translated into a 1D tokenized sequence or a structured JSON response. If the trace is truncated to fit the context window, the agent loses the temporal data needed to optimize thermal throttling. The proxy's fidelity is therefore bounded by the agent's encoding capacity. A failure mode absent from the textual serialization is one the agent cannot observe.
 
 Architecture exploration often evaluates candidate parameters that are cheap to propose, but feedback comes from simulators and staged tools. Feedback here is slow and unreliable in kind. An AI optimizer mediating architecture encounters 3-day RTL simulation times, toolchain crashes, out-of-memory errors, and silent simulation corruptions. Actions can violate physical constraints, and a proxy can fail outside its calibrated region, invalidating the optimizer's assumptions.
 
@@ -326,9 +324,7 @@ Deployment-facing work evaluates real systems but produces noisy, confounded fee
 
 [^fn-canary-release-c10]: **Canary release**: The deployment practice of exposing a change to a small live cohort before the full fleet, named for the coal-mine canary, so a fault surfaces while its blast radius is still small.
 
-Because this delayed deployment telemetry is confounded, carrying noise from silent data corruptions and thermal throttling, it cannot be fed directly into a fast-tuning AI loop. Instead, it must be appended to the execution history and updated in the retrieval corpus to inform the next silicon generation.
-
-Google's warehouse-scale migration from x86 to Arm illustrates cross-interface conditions [@ChristopherEtAl2025ISAMigration]. The migration involved more than 38,000 commits. A fine-tuned language model classified the commits, revealing that repository activity concentrated in build, deployment, infrastructure, monitoring, and rollback rather than low-level code translation (@fig-isa-migration-effort). Those categories are owned by different teams, so the dominant cost was coordination across team and interface boundaries, not the code translation itself.
+Google's warehouse-scale migration from x86 to Arm illustrates these cross-interface deployment conditions in practice [@ChristopherEtAl2025ISAMigration]. The migration involved more than 38,000 commits. A fine-tuned language model classified the commits, revealing that repository activity concentrated in build, deployment, infrastructure, monitoring, and rollback rather than low-level code translation (@fig-isa-migration-effort). Those categories are owned by different teams, so the dominant cost was coordination across team and interface boundaries, not the code translation itself.
 
 ```{python}
 #| label: fig-isa-migration-effort
@@ -427,11 +423,11 @@ Deployment is where a change finally meets the live system. When an AI method ca
 **The lesson.** The firm lost about \$440 million net in roughly 45 minutes. Guarded progressive exposure would have surfaced the divergent server before it reached full volume, and a kill switch would have stopped the accrual once it began. At machine speed, the halt has to be built in before a change ships, not improvised after it fails.
 :::
 
-Deployment feedback includes operational state, SLOs, resource contention, and rollback triggers, and those triggers are what arm the automatic halt. Rollback can reduce risk but does not erase harm already incurred during a canary or deployment.
+Deployment feedback includes operational state, SLOs, resource contention, and rollback triggers, and those triggers are what arm the automatic halt. While software deployments rely on rollback to mitigate risk, hardware commitment eliminates that safety net entirely.
 
 ## RTL and Physical Design
 
-High-consequence work includes RTL changes, physical design, timing closure, power analysis, and formal signoff. Feedback is delayed and reversal is slow and expensive. A committed silicon tapeout is a large capital expense on a multi-year horizon. AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.[^fn-differentiability-c10]
+As the design loop descends into RTL and physical design, it enters the domain of high-consequence work—including timing closure, power analysis, and formal signoff. Feedback is delayed, and because a committed silicon tapeout is a large capital expense on a multi-year horizon, reversal is slow and prohibitively expensive. AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.[^fn-differentiability-c10]
 
 [^fn-differentiability-c10]: **Differentiability**: A signal is differentiable when small input changes produce smooth, computable gradients, which is what lets ML optimizers follow a slope toward better designs. Physical-design feedback offers no such gradient, so gradient-based methods give way to slower black-box search.
 
@@ -439,7 +435,7 @@ Because you cannot `git revert` a tapeout, AI-assisted hardware changes require 
 
 The cost of getting this wrong is not hypothetical. In 2011 Intel shipped its 6-series "Cougar Point" chipset with a design fault in the SATA ports that would degrade over time, a defect no firmware update could reach; the company halted shipments, recalled parts, and absorbed about \$700 million to respin the silicon [@Intel2011CougarPoint]. Where Knight Capital lost its \$440 million to software in forty-five minutes, a silicon escape is undone only by months and a new mask set, which is why the escape hatches and independent signoff above have to be in place before commitment rather than after.
 
-AI assistance can narrow search, critique, organize evidence, repair bounded artifacts, or generate tests. A passing early check, however, cannot waive later verification or authorize commitment. Independent checks and named roles retain rejection, waiver, recommendation, and authorization rights.
+AI assistance can narrow search, critique, organize evidence, repair bounded artifacts, or generate tests. However, independent checks and named roles must retain rejection, waiver, recommendation, and authorization rights.
 
 This progression down the stack requires *action space adaptation*. For example, moving the @sec-running-the-loop candidate toward implementation shifts the required checks from logical simulation to physical constraints. During microarchitecture exploration, search evaluates parameter spaces like buffer sizes or array geometries while holding logic fixed. During logic generation, synthesis targets a discrete domain of Boolean functions and state transitions guided by functional simulation. Physical design, however, imposes continuous and tightly coupled spatial constraints. The required evidence shifts from RTL syntax to STA reports and routing congestion that drive floorplanning, cell placement, and wire routing.
 
@@ -522,7 +518,7 @@ These observations describe different system states and bear on different decisi
 
 ## Delayed Feedback
 
-Feeding delayed, noisy field telemetry directly into a high-frequency AI optimizer makes it overcorrect and thrash, because the telemetry arrives too late to guide rapid tuning. The fix is to run the two at different speeds, nesting a fast tuning loop inside a slow review loop (@fig-cascade-control).
+Because in-field evidence arrives on these slower clocks, it requires different handling. Feeding delayed, noisy field telemetry directly into a high-frequency AI optimizer makes it overcorrect and thrash, because the telemetry arrives too late to guide rapid tuning. The fix is to run the two at different speeds, nesting a fast tuning loop inside a slow review loop (@fig-cascade-control).
 
 ![**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing.](images/F9-cascade-control){#fig-cascade-control fig-alt="**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing."}
 
@@ -573,11 +569,11 @@ Only after competing explanations are recorded can a separate decision admit the
 | Model parameters | Does a separately approved training or adaptation study show benefit without unacceptable regression? | Fine-tune, update, or replace parameters under a versioned training and evaluation plan. | Never update an LLM automatically from field telemetry; require held-out evaluation, rollback, provenance, and authorization. |
 | No durable update | Is the observation too confounded, private, unsupported, or out of scope? | Preserve it only in the audit or incident record, or discard it under policy. | "No update" is a valid reviewed result. |
 
-A silent-core event can update the project's fault taxonomy and future test plan, but it does not automatically become a performance-surrogate label. A paired same-hardware H100 benchmark result can update an enablement trajectory and motivate a new software hypothesis, but it does not rewrite the hardware's design-time performance model or trigger automatic fine-tuning.
+A silent-core event can update the project's fault taxonomy and future test plan, but it does not automatically become a performance-surrogate label. A paired same-hardware H100 benchmark result can update an enablement trajectory and motivate a new software hypothesis, but it does not rewrite the hardware's design-time performance model or trigger automatic fine-tuning. Each new operating condition demands its own checks.
 
 ## Evidence Revalidation
 
-Study structure can transfer; evidence validity, check coverage, rollback, and permissions do not. The architect must retest the claim's support, the cheaper check's settlement behavior, the AI role and authorization, and the capacity of the trusted review path.
+When moving a method or candidate across these decision boundaries, study structure can transfer, but evidence validity, check coverage, rollback, and permissions do not. The architect must retest the claim's support, the cheaper check's settlement behavior, the AI role and authorization, and the capacity of the trusted review path.
 
 ### Transfer Tests
 

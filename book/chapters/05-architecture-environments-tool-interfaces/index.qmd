@@ -29,12 +29,6 @@ After this chapter, you can:
 - Distill massive tool logs into dense, semantic summaries without discarding critical failure data.
 :::
 
-## Balancing Architecture Environments
-
-An architecture environment constantly weighs fidelity against execution cost, and determinism against the flakiness of real tools. This trade-off forms a fidelity ladder that agents must navigate. A fast analytical cache model at the top of the ladder returns an estimate in seconds but only approximates timing, making it cheap but physically unconstrained. Conversely, a physical simulator or cycle-accurate RTL run at the bottom of the ladder guarantees true physical constraints, but costs hours of compute and can still vary from one attempt to the next because of tool heuristics and host state.
-
-An AI expects fast, deterministic APIs, but hardware design relies on slow, stateful, and expensive legacy software. The environment sits between them. It gives the AI enough autonomy to explore the design space at scale while enforcing strict rules through permissions, budgets, and interface schemas. These rules ensure the agent does not propose physically impossible designs or waste compute time on broken Electronic Design Automation (EDA) runs.
-
 ## The Human–API Mismatch
 
 In modern machine learning, an agent interacts with an environment such as an OpenAI Gym[^fn-openai-gym-c05] simulation through a clean, synchronous loop. It takes an action, and the environment returns a new state and a dense scalar reward.
@@ -54,6 +48,10 @@ Recall the **Lighthouse prompt** introduced in @sec-moonshot. The prompt asks to
 A compiler must successfully emit the right memory mapping for the tensor instructions. The hardware configuration must instantiate the block. The RTL generator must pass simulation. Finally, the EDA flow must synthesize the design to check for routing congestion in the 3 nm layout. Each tool call can return exit code 0 while the Lighthouse architecture proposal itself remains unevaluated or logically broken.
 
 Tool meaning depends on fixed context, legal actions, software and hardware specifications, tool versions, permissions, execution conditions, and explicitly defined failure behaviors. Two studies can call the exact same Ramulator instance while operating in different environments because their actions, workloads, constraints, and observation meanings differ. A computational method cannot infer these context dependencies via intuition. It requires the environment to explicitly expose what actions are permitted, what the tool returns, which states are invalid, and which runs can be repeated. Basic tool permissions are not enough, and the tools themselves compound the problem.
+
+An AI expects fast, deterministic APIs, but hardware design relies on slow, stateful, and expensive legacy software. The environment sits between them. It gives the AI enough autonomy to explore the design space at scale while enforcing strict rules through permissions, budgets, and interface schemas. These rules ensure the agent does not propose physically impossible designs or waste compute time on broken Electronic Design Automation (EDA) runs.
+
+## Balancing Architecture Environments
 
 Hardware design is bound by tight time and compute constraints. Unlike software environments that can execute thousands of iterations per second, architecture tools are locked behind expensive licenses and days-long job queues. The compute required for a single physical design run is orders of magnitude slower and more expensive than an AI model's inference pass. As fidelity increases toward silicon, the sample budget shrinks exponentially from millions of cheap functional checks to handfuls of expensive layout runs.
 
@@ -143,9 +141,7 @@ Like drug discovery, finding a high-performance design is often easier than pass
 
 ![**The "Silicon ADMET" funnel.** Drawing a parallel between the phased, rigorous filtering of drug discovery and the physical signoff funnel in computer architecture, both disciplines must weed out high-scoring "decoys" early using increasingly expensive and faithful evaluations.](images/F5-silicon-admet-funnel.svg){#fig-silicon-admet-funnel fig-alt="The Silicon ADMET Funnel"}
 
-Different tools therefore return different things, and we cannot afford to blur them together. The three-path interface is shared, but its types are tool-specific.
-
-Physical-design environments make this staged interface particularly clear. Logic synthesis, placement, routing, and signoff expose different observations and failure modes. The interface must state the stage, raw output, and tool-level status for each return. We detail this progression in @tbl-eda-stage-interface.
+Different tools therefore return different observations, and the environment cannot afford to blur them together. Physical-design tools make this staged feedback particularly clear. Logic synthesis, placement, routing, and signoff expose different observations and failure modes. The interface must state the stage, raw output, and tool-level status for each return. We detail this progression in @tbl-eda-stage-interface.
 
 ::: {.callout-war-story title="Ariane 5 and the reused alignment module"}
 **The claim.** Ariane 5 reused the inertial-reference alignment software from Ariane 4 for its maiden flight [@LionsAriane1996]. The code was flight-proven, so the team carried it over as already validated.
@@ -174,7 +170,7 @@ However, ensuring data provenance and reproducibility is impossible if the agent
 
 ## Beyond the Synchronous `env.step()` Loop
 
-In pedagogical AI tutorials, agents often interact with simulated games using a synchronous `env.step()` function. The agent takes a discrete action, the simulation instantly steps forward in time, and the function returns the new state and a reward. However, because of the physical and economic constraints of real hardware design, this standard synchronous wrapper is the wrong abstraction. The Simulator Tax shows up here in practice. An agent waiting for a synchronous `env.step()` could wait 8 hours for a physical routing failure in an EDA tool, compared to the 10 milliseconds it takes to receive a Python syntax error in a software environment. A physical synthesis flow cannot be driven through a blocking `env.step()` call, which will time out or hang when a placement job takes 40 hours, or waits three days for an EDA license checkout.
+As noted earlier, the standard machine learning loop assumes a synchronous `env.step()` function: the agent takes a discrete action, and the simulation instantly returns the new state and a reward. Because of the physical and economic constraints of real hardware design, this blocking wrapper is the wrong abstraction. The Simulator Tax shows up here in practice. An agent waiting for a synchronous `env.step()` could wait 8 hours for a physical routing failure in an EDA tool, compared to the 10 milliseconds it takes to receive a Python syntax error in a software environment. A physical synthesis flow cannot be driven through a blocking call, which will time out or hang when a placement job takes 40 hours or waits three days for an EDA license checkout.
 
 Synchrony is only the most visible assumption this tutorial abstraction imports. Gym also assumes a cheap reset, yet an architecture environment has none; branching from a pristine snapshot is the closest equivalent, and every branch still pays real build and simulation cost. It assumes a Markov[^fn-markov-property-c05] step whose outcome depends only on the action, but EDA tools carry hidden cross-call state in caches, working directories, and license servers, which breaks the Markov assumption. It also expects a dense scalar reward after every step, whereas architectural feedback is sparse, arriving only at the end of a long chain of builds and checks, which leaves a poor final result hard to attribute to any single upstream action.
 
@@ -209,7 +205,7 @@ The machine learning community has long warned of *reward hacking* [@AmodeiEtAl2
 
 [^fn-goodharts-law-c05]: **Goodhart's Law**: The observation, originally from monetary economics, that when a measure becomes an optimization target it stops being a good measure. An optimizer rewarded on a proxy metric maximizes the proxy, not the goal the proxy once tracked.
 
-Constraint inversion makes physical ground truth our only defense. Physical design limits (power, thermals, area) dictate architectural choices bottom-up, and ground truth from traditional EDA tools remains indispensable for enforcing laws like timing closure and power limits, preventing these AI exploits.
+Because physical design limits dictate architectural choices bottom-up, ground truth from traditional EDA tools is our only defense against these AI exploits. It remains indispensable for enforcing laws like timing closure and power limits.
 
 To make this data usable, the environment establishes three distinct paths:
 

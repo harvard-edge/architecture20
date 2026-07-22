@@ -37,11 +37,9 @@ Historically, benchmarks have served as the foundational bedrock for both comput
 
 Because building a physical chip costs millions of dollars and takes years [@Shilov2023IBSDesignCost], we measure these properties early and often using simulators and analytical models such as the Roofline model [@Roofline] or McPAT [@McPAT]. The goal of traditional architectural measurement is risk reduction. We measure to gain confidence that a design point will meet its physical requirements before we commit it to silicon.
 
-When an AI agent enters the design loop, the object of measurement shifts. We are no longer only evaluating the *artifact*, the generated chip. We must now also evaluate the *agent*, the generative system driving the loop, because an agent can reach a correct architecture through incorrect and unscalable means.
+When an AI agent enters the loop, the object of measurement shifts. As established, evaluating the artifact alone hides whether the agent reached the design through methodical reasoning or brute force. This distinction matters because an unreasoned search does not *transfer*. An agent that finds a five percent gain by luck cannot explain which change caused it, cannot reproduce the result on the next workload, and cannot be trusted to know when to stop.
 
-The reason this matters is not aesthetic. A cheap search that stumbles onto a good design is perfectly acceptable; brute force is not a sin when it is affordable. The problem is that an expensive, unreasoned search does not *transfer*. An agent that found a five percent gain by luck cannot tell you which change caused it, cannot reproduce the result on the next workload, and cannot be trusted to know when to stop.
-
-In hardware, this is expensive in a way software is not. In software, a stochastic search that eventually types a working script wastes ten milliseconds per try. In architecture, a search that burns ten thousand hours of EDA tool licenses and compute node limits to find a five percent gain destroys tape-out schedules and budgets. So we measure the *process* of design as a proxy for two things a single final score hides: whether a result will survive physical synthesis, and whether the agent can safely be given more autonomy. @tbl-eval-shift summarizes the shift from traditional Non-Recurring Engineering (NRE)[^fn-nre-c09] costs to the iterative Simulator Tax.
+In hardware, this lack of causality carries a steep penalty. In software, a stochastic search that eventually types a working script wastes ten milliseconds per try. In architecture, a search that burns ten thousand hours of EDA tool licenses and compute node limits to find a gain destroys tape-out schedules. So we measure the *process* of design as a proxy for two things a single final score hides: whether a result will survive physical synthesis, and whether the agent can safely be given more autonomy. @tbl-eval-shift summarizes the shift from traditional Non-Recurring Engineering (NRE)[^fn-nre-c09] costs to the iterative Simulator Tax.
 
 | **Dimension** | **Evaluating the Artifact (Traditional)** | **Evaluating the Agent (Architecture 2.0)** |
 | --- | --- | --- |
@@ -71,7 +69,7 @@ ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agen
 
 ## Measuring the Search
 
-If we cannot rely on software benchmarks, what exactly should we measure? Evaluating the process of design means tracking metrics across three distinct roles: **generation** (creating the design candidate), **prediction** (estimating its physical value), and **optimization** (methodically searching the tradeoff space). As illustrated in @fig-ch9-pipeline, a rigorous evaluation pipeline must wrap the agent's interaction with the simulator sandbox inside a trajectory logger. This logger intercepts every proposal and prediction to accurately measure the Simulator Tax and track the agent's reasoning before forwarding the actions to the environment.
+While frameworks like ArchEval define the environment, they leave open the question of what specific metrics to record during system-level exploration. Evaluating the process of design means tracking metrics across three distinct roles: **generation** (creating the design candidate), **prediction** (estimating its physical value), and **optimization** (methodically searching the tradeoff space). As illustrated in @fig-ch9-pipeline, a rigorous evaluation pipeline must wrap the agent's interaction with the simulator sandbox inside a trajectory logger. This logger intercepts every proposal and prediction to accurately measure the Simulator Tax and track the agent's reasoning before forwarding the actions to the environment.
 
 ![**The Evaluation Pipeline.** The structural interaction between the agent, the trajectory logger, and the simulator sandbox. The logger intercepts every proposal to accurately measure the Simulator Tax before forwarding it to the sandbox.](images/F9-pipeline.svg){#fig-ch9-pipeline width="100%" fig-alt="A workflow-card diagram showing the interaction between the Generation Agent Architect, the Prediction Trajectory Logger, and the Optimization Simulator Sandbox."}
 
@@ -135,7 +133,7 @@ The evaluation must therefore measure the secure isolation of the Simulator Sand
 
 ## Measurement Validation
 
-A metric is only as trustworthy as the benchmark that produces it. Four failures make a good-looking score a lie: the tasks were contaminated, the number was noise, there was nothing to compare it against, or the metric was never shown to predict the capability it stands in for.
+Even if an evaluation successfully isolates the sandbox and records a comprehensive set of metrics, those metrics are only as trustworthy as the underlying benchmark data. Four failures make a good-looking score a lie: the tasks were contaminated, the number was noise, there was nothing to compare it against, or the metric was never shown to predict the capability it stands in for.
 
 When researchers discuss "benchmarks," they frequently conflate two distinct components: the **evaluation harness** (the scripts, EDA tools, and metrics used to grade an agent) and the **benchmarking data** (the physical constraints, RTL topologies, and task specifications the agent operates on). In machine learning, the ascendancy of "data-centric AI" [@Ng2021DataCentric] proved that the quality of the dataset often drives capability more than the architecture of the model itself. In software and computer vision, benchmarking data is abundant. ImageNet contains millions of images, and GitHub provides millions of repositories for SWE-bench.
 
@@ -161,15 +159,13 @@ To combat this, a rigorous evaluation must control variance by reporting the num
 
 A benchmark score means little in a vacuum, so we compare baselines at equal budgets. The evaluation needs a floor, typically a human-expert baseline, to show the agent provides real engineering value, and a ceiling, an exhaustive or brute-force search where possible, to show how far the agent is from optimal.
 
-More critically, agents of different computational costs must be compared at an explicitly equal simulator-call budget. The steep cost of the EDA Simulator Tax means that allowing a weak agent to run ten thousand simulator calls to beat a strong agent that was only permitted ten calls does not prove the weak agent is algorithmically superior; it proves it had a larger budget. Evaluations must explicitly control for compute to measure true search efficiency rather than brute-force spending limits.
+More critically, evaluations must compare agents at an explicitly equal simulator-call budget. Because the EDA Simulator Tax dominates the cost of search, allowing a weak agent more tool calls than a strong agent measures spending limits rather than true algorithmic efficiency.
 
-Finally, evaluations must ensure metrics predict physical quality. A common omission in modern architectural benchmarks is the failure to verify whether a high suite score predicts a viable outcome on physical hardware. An agent might achieve a perfect score on a simplified, logic-focused benchmark while generating designs that are unroutable in physical layout.
-
-If the benchmark metric cannot reliably correlate with ground-truth physical synthesis outcomes, such as routing congestion, timing closure under strict clocks, or thermal density constraints, then the agent is climbing the scoreboard while producing physically useless architectures. A valid evaluation must tie its scoring function to these physical realities.
+Finally, a valid evaluation must ensure its metrics reliably correlate with physical synthesis outcomes, such as routing congestion and timing closure. If an agent can achieve a perfect score on a logic-focused benchmark while generating unroutable designs, the metric has fallen prey to the Proxy Mirage, allowing the agent to climb the scoreboard while producing physically useless architectures.
 
 ## Scoring and Decisions
 
-An evaluation exists to change what an architect does next. Answering it requires reading the scores through reliability and cost, not peak capability.
+Assuming the benchmark is valid and free of the Proxy Mirage, the resulting evaluation exists to change what an architect does next. Applying it requires reading the scores through reliability and cost, not just peak capability.
 
 Pass@k rewards at least one success in $k$ tries.[^fn-pass-at-k-c09] Deployment usually needs the opposite property, that the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
 
