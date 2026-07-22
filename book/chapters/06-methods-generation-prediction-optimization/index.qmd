@@ -129,7 +129,7 @@ All of those outputs go through evidence review on the right. Before comparing t
 2. **Predictive Roles (Estimates):** Prediction returns estimates and optimization chooses what to evaluate next. They guide the search, but are not evidence.
 3. **Evaluative Roles (Evidence):** Verification checks a stated property against an independent ground-truth oracle, such as a cycle-accurate simulator, and returns a reproducible result the architect can rely on. Critique shares that evaluative intent but not that standing. It returns a testable finding rather than a verdict, and a critic can name a weakness that no independent check confirms, so critique becomes evidence only once such a check tests the flaw it named. Verification is the one role that produces evidence directly.
 
-With this hierarchy in mind, the reviewer records whether the claim is supported, unsupported, or needs a stronger
+The reviewer then records whether the claim is supported, unsupported, or needs a stronger
 check. The assigned decision owner then authorizes the next transition; a
 method output cannot take either step on its own. The roles in
 @tbl-method-role-limits differ in the state or artifact they work on, the result
@@ -211,7 +211,7 @@ The method that fills a role spans a wide range. Simple, low-cost Support Vector
 
 [^fn-ml-diffusion-c06]: **Diffusion model**: A generative model trained to reverse a gradual noising process, so it produces a sample by starting from noise and denoising step by step. Because it natively generates 2D spatial data such as images, it fits floorplan and placement artifacts better than a token-at-a-time language model.
 
-When the artifact is spatial, such as macro placement or floorplanning, architects use **Diffusion Models**. While the math under the hood differs, their reliability is the same. Both produce guesses, not evidence.
+When the artifact is spatial, such as macro placement or floorplanning, architects use **Diffusion Models**. While the underlying mathematics differs, their reliability is the same. Both produce guesses, not evidence.
 
 Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. It causes 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled compute clusters. Generating RTL requires more than syntactic correctness. A generated module might compile perfectly but fail logic equivalence checking or create impossible combinational paths violating setup and hold times.
 
@@ -662,7 +662,7 @@ Architecture often has a few high-fidelity runs, more medium-fidelity simulation
 
 A single accelerator mapping space can exceed $10^{18}$ legal configurations before mapping-factor choices, orders of magnitude more candidates than any real evaluation budget can reach. AI inference is itself a design budget, so we balance the compute cost of the AI against the compute cost of the simulator.
 
-Running an LLM agent in a loop might be cheap, but if it hallucinates and triggers 1,000 invalid RTL synthesis runs, it will bankrupt the project's compute budget. The architect must constrain the agent's actions to prevent this waste. @fig-evidence-gap places representative candidate counts and affordable feedback counts on one logarithmic axis.
+Running an LLM agent in a loop might be cheap, but if it hallucinates and triggers 1,000 invalid RTL synthesis runs, it will exhaust the project's compute budget. The architect must constrain the agent's actions to prevent this waste. @fig-evidence-gap places representative candidate counts and affordable feedback counts on one logarithmic axis.
 ```{python}
 #| label: fig-evidence-gap
 #| fig-cap: |
@@ -795,7 +795,7 @@ Explanation uses recorded state, tool results, and rejected alternatives to conn
 
 Coordination routes state, tasks, and artifacts when work crosses several tools or roles. Rather than viewing the coordinator as a simple shell script, architects should treat it as an automated routing engine managing dependencies, version skew, and tool dispatch. The coordinator does not need to understand the internal weights of a GNN or the prompt structure of the RTL generator; it only needs to interface with their *contracts*, their stated support regions, uncertainties, and resource costs. For the human acting as the auditor of evidence, this intersection requires **mixed-initiative interfaces** [@Horvitz1999MixedInitiative], where the human specifies intent and bounds, and the tools execute.
 
-When acting as an API gateway or load balancer, the coordinator routes tasks based on the economic principle of the *value of information*. It dynamically decides whether to send a candidate to a cheap, cached surrogate or to allocate a precious Slurm queue slot for an expensive backend EDA tool, spending high-fidelity evaluations only when the resulting information could change the architect's final decision. A coordinator might send a failed synthesis result to a repair method, request a rerun, and return the new report to the reviewer. It needs versioned shared state, stated permissions, and stop conditions to do that work. Routing does not merge the authority of the generator, repair method, tool, and reviewer, nor does it turn their outputs into evidence by itself.
+When acting as an API gateway or load balancer, the coordinator routes tasks based on the economic principle of the *value of information*. It dynamically decides whether to send a candidate to a cheap, cached surrogate or to allocate a scarce Slurm queue slot for an expensive backend EDA tool, spending high-fidelity evaluations only when the resulting information could change the architect's final decision. A coordinator might send a failed synthesis result to a repair method, request a rerun, and return the new report to the reviewer. It needs versioned shared state, stated permissions, and stop conditions to do that work. Routing does not merge the authority of the generator, repair method, tool, and reviewer, nor does it turn their outputs into evidence by itself.
 
 A handoff contract manages this routing. It should specify the artifact identifier, source role, requested work, permitted action, current assumptions, unresolved failures, return destination, timeout, and recovery path.
 
@@ -813,7 +813,7 @@ Using one large model for the whole study is rarely the right choice, for three 
 
 The second reason is physical reality. Increasing IPC is easier than closing timing, preventing voltage drop (IR drop), and meeting power limits, and these constraints interact. A single model asked to satisfy all of them at once tends to report success on one while violating another. Taping out a chip requires breaking the problem into specialized, independent tools that each enforce their own constraint.
 
-The third reason is inference speed. Where a model sits in the loop determines how fast it must respond. A massive model suits outer-loop tasks such as proposing ideas or explaining an unexpected simulation result, where a query happens perhaps once an hour. An inner-loop optimizer that scores 10,000 cache configurations cannot wait seconds per query without stalling the search. Tight, high-volume loops need small, fast models.
+The third reason is inference speed. Where a model sits in the loop determines how fast it must respond. A large model suits outer-loop tasks such as proposing ideas or explaining an unexpected simulation result, where a query happens perhaps once an hour. An inner-loop optimizer that scores 10,000 cache configurations cannot wait seconds per query without stalling the search. Tight, high-volume loops need small, fast models.
 
 A scaling optimist will object that a sufficiently capable model with tool access absorbs these roles as capability grows, leaving decomposition a temporary artifact of today's weaker models. Two of the three reasons are indeed capability-contingent. A faster, more capable model erodes the inference-speed argument, and a stronger model that reasons about interacting constraints erodes the physical-reality argument.
 
