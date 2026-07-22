@@ -53,7 +53,7 @@ That loop is worth making precise, because the rest of this chapter traces where
 validation, verification, and signoff. Textbooks and industrial practice both
 follow this basic pattern.
 
-Consider a traditional SPEC CPU  study. An architect selects workloads, proposes
+Consider a traditional SPEC CPU study. An architect selects workloads, proposes
 a cache-hierarchy or branch-predictor change, runs a simulator or performance
 model, and inspects instructions per cycle (IPC), miss rates,
 branch-misprediction rates, and area and power estimates. Candidates that help
@@ -63,7 +63,7 @@ decision that a candidate deserves deeper analysis.
 
 SPEC CPU 2017 provides an industry-standard suite for compute-intensive
 performance across processor, memory-system, and compiler behavior
-. What matters here is how the comparison is bounded. It
+[@SPEC2017CPU]. What matters here is how the comparison is bounded. It
 uses a stated workload set, model, and metrics and rejects weak candidates
 explicitly. The architect still decides whether the resulting evidence is
 sufficient.
@@ -103,7 +103,7 @@ across machines, and RISC shows why a hardware claim must include the workload,
 compiler, and implementation cost. In each case, progress depended on making
 more of the design work visible to other people and tools.
 
-Release strategy offers an illustrative example of managing the risk of attempting too many major changes at once. An organization might move a known microarchitecture to a new process in one release and introduce a new microarchitecture on a more mature process in the next. Separating the two limits the number of major changes attempted at once. When node transitions lengthen, the schedule can shift to keep a node in use longer. The schedule changes because the earlier division of technical risk no longer fits the work.
+Release strategy shows what it looks like to make such a rule explicit rather than leave it to judgment. Intel's tick-tock model stated one publicly. A known microarchitecture moved to a new process in one release, and a new microarchitecture followed on the now-proven process in the next, so no release attempted both at once. The rule held only while the process cadence did. As node transitions lengthened, Intel retired the two-step model and stated that it would keep each process technology in use longer, adding an optimization step to the sequence [@Intel2016Form10K]. The schedule changed because the earlier division of technical risk no longer fit the work, which is the useful part of the example. An explicit rule can be checked against the conditions that justified it, and revised in public when those conditions move.
 
 These changes did not eliminate iteration. They made the design's information,
 choices, measurements, and decisions explicit enough for other people and tools
@@ -181,7 +181,9 @@ exploration to begin.
 
 Start with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance, and each adds corner cases a fair comparison must cover. A prefetcher that helps one access pattern can pollute a cache under another. A speculation policy that raises throughput can raise energy, and the same speculative machinery later proved able to leak data across protection boundaries, as Spectre and Meltdown showed [@KocherEtAl2019Spectre; @LippEtAl2018Meltdown]. A gain measured on one workload can carry a cost that surfaces only under another.
 
-These costs are not hypothetical. Intel's Pentium 4, built on the NetBurst microarchitecture, pushed pipeline depth hard to chase clock frequency, reaching 31 pipeline stages in its 90\ nm Prescott generation on a roadmap that had projected clocks approaching 10\ GHz. The bet was internally coherent and wrong for the machine it produced. A pipeline that deep made every branch misprediction expensive to refill, and at 90\ nm the rising power density stalled frequency far short of the projected targets, leaving a part that ran hot and retired fewer instructions per clock than shorter-pipeline contemporaries. Intel abandoned the frequency-first design and moved to shorter pipelines and multiple cores.
+That these levers have intrinsic limits is not a recent discovery. Palacharla, Jouppi, and Smith showed that the wakeup, selection, and bypass logic of a wide issue window scales badly enough to bound the clock it can support [@PalacharlaEtAl1997ComplexityEffective]. Agarwal and colleagues then projected that wire delay and clock scaling together would end the frequency-first road for conventional microarchitectures [@AgarwalEtAl2000ClockRateVersusIPC].
+
+These costs are not hypothetical. Intel's Pentium 4, built on the NetBurst microarchitecture, pushed pipeline depth hard to chase clock frequency, reaching 31 pipeline stages in its 90\ nm Prescott generation [@BoggsEtAl2004Pentium4NinetyNm] on a roadmap that had projected clocks approaching 10\ GHz. The bet was internally coherent and wrong for the machine it produced. A pipeline that deep made every branch misprediction expensive to refill, and at 90\ nm the rising power density stalled frequency far short of the projected targets, leaving a part that ran hot and retired fewer instructions per clock than shorter-pipeline contemporaries. Intel abandoned the frequency-first design and moved to shorter pipelines and multiple cores. The direction of that reversal had been argued in the literature before the part shipped. The analysis existed, and the cost of the bet was still paid in silicon.
 
 That turn to multiple cores added a further layer. Coherence protocols, memory-ordering rules, synchronization costs, and workload partitioning all shape how a candidate behaves under a real workload, and none of them shows up in a single-thread proxy. Even here, before any specialized block is added, the information a comparison must carry has already outgrown a single number.
 
@@ -319,7 +321,7 @@ interfaces, package constraints, software path, and tools needed to evaluate
 it. A compiler or runtime choice can likewise make a hardware configuration
 feasible or unusable. Representing that coupled state, so another method or reviewer can see which choices depend on which, is the problem @sec-data-representations-world-models takes up.
 
-A modern SoC integrates dozens to hundreds of heterogeneous IP blocks (CPU clusters, GPUs, NPUs, memory controllers, Network-on-Chip interconnects), often sourced from different vendors with different interface standards and incomplete documentation. Coherence-protocol mismatches, unstated timing constraints, and system-level deadlocks surface only when the full SoC is assembled, so a method that optimizes one accelerator block but cannot synthesize correct glue logic or verify cross-domain coherence leaves the integration work untouched. Each added block narrows the set of valid designs and adds validation the search must account for.
+A modern SoC integrates dozens to hundreds of heterogeneous IP blocks (CPU clusters, GPUs, NPUs, memory controllers, Network-on-Chip interconnects), often sourced from different vendors with different interface standards and incomplete documentation. Hill and Reddi name this regime accelerator-level parallelism, where the unit of design is no longer a core but a collection of specialized blocks that must be composed and managed together [@HillReddi2021AcceleratorLevelParallelism]. Coherence-protocol mismatches, unstated timing constraints, and system-level deadlocks surface only when the full SoC is assembled, so a method that optimizes one accelerator block but cannot synthesize correct glue logic or verify cross-domain coherence leaves the integration work untouched. Each added block narrows the set of valid designs and adds validation the search must account for.
 
 The search can fail in two opposite ways. If its choices are broad but poorly
 constrained, it spends evaluations on combinations that cannot be implemented.
@@ -329,7 +331,7 @@ needs to state which transformations are permitted, which interfaces are
 fixed, what makes a combination valid, and how much reliable evaluation is
 available. Candidate count alone answers none of those questions.
 
-Even a narrow comparison can contain many combinations, and the following arithmetic is illustrative rather than measured. Suppose an architect explores an accelerator and memory subsystem for one XRBench workload family  and considers five compute organizations, four vector or accelerator interface choices, six memory hierarchy choices, four interconnect choices, three voltage/frequency policies, and three compiler/runtime policies. The product is
+Even a narrow comparison can contain many combinations, and the following arithmetic is illustrative rather than measured. Suppose an architect explores an accelerator and memory subsystem for one XRBench workload family and considers five compute organizations, four vector or accelerator interface choices, six memory hierarchy choices, four interconnect choices, three voltage/frequency policies, and three compiler/runtime policies. The product is
 
 ```{python}
 #| echo: false
@@ -463,9 +465,9 @@ also remains provisional until the software can use the design.
 
 The binding limit often becomes the finite capacity of high-fidelity simulators and human experts needed to check the many candidate designs that AI can generate. AI's most defensible role here is triage, screening weak candidates with cheap proxies and reserving expensive cycle-accurate simulation for designs that might change the final decision.
 
-### Physical and Integration Constraints
+Composition multiplies the physical and economic constraints a candidate must satisfy, and each one adds evaluation the search cannot skip. Software bring-up runs trillions of cycles, past the reach of software simulation, so it falls to hardware emulation and FPGA prototyping, which compile in days and give far less debug visibility than a simulator. Chiplet stacking adds a manufacturing constraint. In 2.5D and 3D integration such as TSMC CoWoS [@TSMCCoWoS] or Intel Foveros [@IntelFoveros], a defective die found only after packaging ruins the whole assembly, including the silicon interposer and the High Bandwidth Memory stacks, so a proposed partition is valid only if it preserves pre-bond test access to every die, the Known-Good-Die constraint.[^fn-known-good-die-c02] Reliability narrows the space again. Soft errors, silicon aging such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and process variation [@Borkar2005ReliableSystems] decide viability in domains such as automotive systems under ISO 26262 [@ISO2018Iso26262], and they are measured by statistical fault injection and aging simulation rather than deterministic cycle counts.
 
-Composition multiplies the physical and economic constraints a candidate must satisfy, and each one adds evaluation the search cannot skip. Software bring-up runs trillions of cycles, past the reach of software simulation, so it falls to hardware emulation and FPGA prototyping, which compile in days and give far less debug visibility than a simulator. Chiplet stacking adds a manufacturing constraint. In 2.5D and 3D integration such as TSMC CoWoS [@TSMCCoWoS] or Intel Foveros [@IntelFoveros], a defective die found only after packaging ruins the whole assembly, including the silicon interposer and the High Bandwidth Memory stacks, so a proposed partition is valid only if it preserves pre-bond test access to every die, the Known-Good-Die constraint. Reliability narrows the space again. Soft errors, silicon aging such as Negative Bias Temperature Instability (NBTI) and Hot Carrier Injection (HCI), and process variation decide viability in domains such as automotive systems under ISO 26262 [@ISO2018Iso26262], and they are measured by statistical fault injection and aging simulation rather than deterministic cycle counts.
+[^fn-known-good-die-c02]: **Known-Good-Die (KGD)**: A bare die that has been tested to full quality before it is packaged. Single-die parts can be tested after packaging, so the term rarely comes up; multi-die assembly turns it into a hard constraint, because one bad die is discovered only after bonding and takes the whole package with it.
 
 The remaining constraints work the same way. Sharing speculative-state buffers or execution units across secure and non-secure domains can save power while opening side channels, so security must be checked by formal methods or penetration testing that performance proxies cannot stand in for. Pushing hundreds of amps through a dense package produces IR drop and localized hotspots, so a Power Delivery Network (PDN) and thermomechanical model, not an aggregate-power proxy, decides whether a layout passes signoff. Much of the SoC is opaque as well. Third-party blocks such as ARM cores, PCIe PHYs, and DDR controllers arrive as datasheets and black-box models rather than executable RTL, which forces integration-level testing across interfaces the search cannot see inside. Every one of these constraints removes designs from the valid set and adds a check the search must pay for before silicon.
 
@@ -765,7 +767,7 @@ abstractions could safely hide.
 
 Benchmarks provide one way to keep changing workloads comparable. MLPerf
 defines shared tasks and reporting rules for machine-learning systems
-. Its inference benchmark
+[@MattsonEtAl2020MLPerf]. Its inference benchmark
 addressed a field with more than 100 organizations building ML inference chips
 and systems spanning at least three orders of magnitude in power and five in
 performance. The first submission round produced more than 600 reproducible
@@ -783,7 +785,7 @@ question.
 For the mobile XR subsystem example, "XR" is too broad to define a workload. The workload
 is a moving bundle of sensing, perception, graphics, display, interaction, latency,
 quality-of-experience, and energy constraints. Even with XRBench
-, the architect must still decide which traces, model
+[@KwonEtAl2023XRBench], the architect must still decide which traces, model
 versions, deadlines, input distributions, and quality
 targets matter. If the software stack changes faster than the hardware schedule
 can absorb, the design may optimize yesterday's workload.
@@ -905,7 +907,7 @@ the two.
 
 Architecture research already uses predictive models to reduce the number of
 detailed simulations needed to explore a design space
-. Multifidelity methods use the same basic strategy
+[@IpekEtAl2006PredictiveDSE; @LeeBrooks2006RegressionModeling]. Multifidelity methods use the same basic strategy
 across engineering optimization. They combine many inexpensive estimates with
 selected high-fidelity evaluations and retain the stronger model to check
 accuracy [@PeherstorferWillcoxGunzburger2018Multifidelity]. Physical constraints
@@ -1184,15 +1186,13 @@ slowing architecture work, not to judge learned placement. Faster placement
 demonstrates candidate-production speed. It does not establish that reviewer
 capacity is the bottleneck or identify which part of the project limits progress.
 
-The technical disagreement remains open, and the full evidence dispute belongs to @sec-proxy-mismatch-metric-gaming-and-calibration. The diagnostic point is that a fair
+The technical disagreement remains open, and the full evidence dispute belongs to @sec-feedback-verification-trust. The diagnostic point is that a fair
 comparison must align cases, implementations, proposal and simulator budgets,
 downstream checks, and the evidence required for the architectural claim. A
 bottleneck claim additionally needs measurements of candidate arrival,
 evaluation, review, and rejection. Matching the task, proposal count, and tool
 budget can make the comparison more informative, although model inference,
 human setup, prior knowledge, and total engineering work may still differ.
-
-### Targeting AI at the Architecture Bottleneck
 
 Viewed together, the five problems in
 @tbl-loop-bottleneck-diagnostic show why there is no generic place to insert AI.
