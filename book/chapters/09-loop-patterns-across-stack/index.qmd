@@ -48,6 +48,8 @@ Four recurring combinations of operating conditions organize the cases considere
 
 : **Recurring operating conditions.** Feedback latency, reversibility, consequence, interface span, and check independence determine the required evidence and how the AI's internal representation is updated. The rows overlap and are not a maturity ladder. {#tbl-loop-patterns tbl-colwidths="[18,25,27,22]"}
 
+[^fn-surrogate-c09]: **Surrogate model**: A fast, learned approximation of a slow, high-fidelity simulator (like RTL or SPICE) used to rapidly evaluate candidates during an AI-driven search.
+
 ```{=latex}
 \Needspace{11\baselineskip}
 ```
@@ -308,7 +310,7 @@ When a decision spans hardware, software, runtime, operations, or organizational
 
 ### Cross-Layer Co-Design
 
-A single-layer optimization can be locally correct and still make the complete system worse. For example, the first-generation TPU's 8-bit datapath was a cross-layer decision co-designed with quantization software, and its serving objective included a 99th-percentile latency bound [@JouppiEtAl2017TPU]. A throughput improvement that violated the latency target was unacceptable.
+A single-layer optimization can be locally correct and still make the complete system worse. For example, the first-generation TPU's 8-bit datapath was a cross-layer decision co-designed with quantization software, and its serving objective included a 99th-percentile latency bound [@JouppiEtAl2017TPU]. When an AI method tunes architectural parameters for ML workloads, it must co-optimize hardware datapath precision alongside software quantization schedules; treating either as a fixed baseline artificially truncates the Pareto frontier. A throughput improvement that violated the latency target was unacceptable.
 
 ::: {.callout-architect-checkpoint title="Cross-Layer Ownership"}
 Before an optimizer acts, record which layer it may change, which other layer supplies independent feedback, what automation may execute or recommend, and who may approve the cross-layer tradeoff.
@@ -316,7 +318,7 @@ Before an optimizer acts, record which layer it may change, which other layer su
 
 Software feedback supports an architectural claim only when the run record ties each code path to the hardware snapshot it targeted. Because software tuning is rapid and reversible while silicon tapeouts are slow and fixed, the two optimization loops run on different timescales. If a fast software-tuning loop is accidentally granted the authority to alter a hardware interface without independent checks, it can silently introduce fatal hardware flaws.
 
-This mismatch in timescales also dictates the choice of AI method. Fast, reversible software loops use low-latency search methods, like heuristics or rapid surrogate models, to evaluate thousands of candidates quickly. In contrast, slow, high-consequence hardware decisions justify the latency and cost of thorough formal checks and capable reasoning models. The architect's methodology must align the AI's allowed authority with the physical cost of the decision.
+This mismatch in timescales also dictates the choice of AI method. Fast, reversible software loops use low-latency search methods, like heuristics or rapid surrogate[^fn-surrogate-c09] models, to evaluate thousands of candidates quickly. In contrast, slow, high-consequence hardware decisions justify the latency and cost of thorough formal checks and capable reasoning models. The architect's methodology must align the AI's allowed authority with the physical cost of the decision.
 
 @fig-hardware-software-coevolution illustrates how these two different timescales must remain joined by one shared study record without bypassing the hardware layer's slower, more rigorous checks.
 
@@ -437,7 +439,7 @@ As the design loop descends into RTL and physical design, it enters the domain o
 
 AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.[^fn-differentiability-c10]
 
-[^fn-differentiability-c10]: **Differentiability**: A signal is differentiable when small input changes produce smooth, computable gradients, which is what lets ML optimizers follow a slope toward better designs. Physical-design feedback offers no such gradient, so gradient-based methods give way to slower black-box search.
+[^fn-differentiability-c10]: **Differentiability**: A signal is differentiable when small input changes produce smooth, computable gradients, which is what lets ML optimizers follow a slope toward better designs. Physical-design feedback offers no such gradient, so gradient-based methods give way to slower black-box search. Recent EDA research attempts to bridge this gap by training differentiable surrogate models of STA and placement, allowing gradient-based optimizers to approximate physical-design search.
 
 Because you cannot `git revert` a tapeout, AI-assisted hardware changes require built-in escape hatches, such as microcode patches, fuses, or degraded fallback modes, to compensate for unexpected failures once they reach silicon. A passing early check in a proxy or simulator can never authorize a difficult-to-reverse physical transition.
 
@@ -449,7 +451,7 @@ AI assistance can narrow search, critique, organize evidence, repair bounded art
 
 This progression down the stack requires *action space adaptation*. For example, moving the @sec-running-the-loop candidate toward implementation shifts the required checks from logical simulation to physical constraints. During microarchitecture exploration, search evaluates parameter spaces like buffer sizes or array geometries while holding logic fixed. During logic generation, synthesis targets a discrete domain of Boolean functions and state transitions guided by functional simulation. Physical design, however, imposes continuous and tightly coupled spatial constraints. The required evidence shifts from RTL syntax to STA reports and routing congestion that drive floorplanning, cell placement, and wire routing.
 
-Consequently, each layer's checks must enforce its physical reality. RTL checks reject functional errors, synthesis rejects timing or area violations, and physical design rejects congestion, power integrity, or thermal failures. When delayed checks return a failure, that telemetry must translate into negative constraints within the explicit design state. A Design Rule Check (DRC) failure or a post-route STA timing violation must become a forbidden region, preventing automated proposals from repeating similar unroutable topologies.
+Consequently, each layer's checks must enforce its physical reality. RTL checks reject functional errors, synthesis rejects timing or area violations, and physical design rejects congestion, power integrity, or thermal failures. When delayed checks return a failure, that telemetry must translate into negative constraints within the explicit design state. A Design Rule Check (DRC) failure or a post-route STA timing violation must be mapped back to the representation space—not just as a spatial forbidden region, but as a topological penalty that prevents the agent from repeating logic structures that lead to routing congestion.
 
 Functional verification is itself a feedback loop, and its central check is a proxy. Coverage metrics, whether functional, code, or formal, record how much of the intended behavior the tests exercised, not whether the design is correct. A passing coverage target cannot bound the failure classes that were never stimulated, so a clean run never means the space is covered, only that the observed cases held. This is the earlier limit again, that a check can reject only the failures it can observe. AI can generate constrained random tests, read formal counter-examples, close coverage holes, and triage failing runs, but whether signoff coverage is sufficient is a judgment that stays with the named roles that own it.
 
@@ -550,11 +552,11 @@ When telemetry is captured and isolated into calibration datasets, post-silicon 
 
 ![**Telemetry compounds across silicon generations.** Post-silicon telemetry from Generation N recalibrates the AI surrogates used to design Generation N+1, so each surrogate reflects the bottlenecks the previous generation actually encountered.](images/F9-hw-flywheel){#fig-hw-flywheel width="100%" fig-alt="Six-stage cycle showing post-silicon telemetry from one hardware generation recalibrating the AI surrogate models used to design the next generation."}
 
-In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon telemetry from Generation $N$ is fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself.
+In traditional design, telemetry is often used only for debugging or triggering warranty returns. Here, post-silicon hardware performance counters (e.g., PMU traces and thermal sensor logs) from Generation $N$ are fed back into the surrogate models as ground-truth calibration data. Because the retrained surrogate for Generation $N+1$ reflects the thermal, routing, and workload bottlenecks that limited Generation $N$, it estimates those quantities more accurately within the regions the telemetry covers. The durable advantage is the proprietary fleet data itself.
 
 An organization with more GPU compute but no comparable deployment telemetry cannot recalibrate its surrogates the same way. A first tapeout or a new team starts without any prior-generation telemetry at all, so the flywheel is an advantage that accrues over generations rather than a precondition for the first design. Before the fleet exists, surrogates are calibrated from foundry process design kit data and published baselines, and conservative escape hatches such as fuses and microcode patches absorb the residual uncertainty.
 
-Run naively, the flywheel can also lock in the past. Because telemetry records only the workloads Generation $N$ actually served, a surrogate recalibrated on it sharpens on yesterday's traffic and goes blind to workloads that have not yet appeared, reinforcing the design distribution it was trained on and steering Generation $N+1$ toward the previous generation's bottlenecks [@SculleyEtAl2015Hidden]. This is the algorithm evolution treadmill seen from the design side, and that advantage lasts only while the fleet keeps sampling the workloads the next generation will run.
+Run naively, the flywheel can also lock in the past. Because telemetry records only the workloads Generation $N$ actually served, a surrogate recalibrated on it sharpens on yesterday's traffic and goes blind to workloads that have not yet appeared, reinforcing the design distribution it was trained on and steering Generation $N+1$ toward the previous generation's bottlenecks [@SculleyEtAl2015Hidden]. This is the algorithm evolution treadmill seen from the design side, and that advantage lasts only while the fleet keeps sampling the workloads the next generation will run. Continually fine-tuning on a narrow, delayed stream of field telemetry risks catastrophic forgetting, where the surrogate overrides the broader design-space physics it learned during pre-silicon training.
 
 ### Guarding the Model Update
 

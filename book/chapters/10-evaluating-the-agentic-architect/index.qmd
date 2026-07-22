@@ -23,10 +23,7 @@ This chapter shifts the evaluation burden from the artifact to the agent. It ans
 ::: {.callout-learning-objectives}
 After reading this chapter, you can:
 
-- Evaluate an AI agent's search efficiency rather than just verifying its final output.
-- Demand calibration of AI surrogate models against cycle-accurate simulators before trusting their screening decisions.
-- Mitigate benchmark contamination and ensure fair comparisons between different AI agents.
-- Assess the trade-off between the computational cost of an agent and the reliability of its results.
+- When evaluating an agent, the total cost of search is as important as the final score. An agent that finds an optimal 3 W RISC-V core after consuming 10,000 core-hours of cycle-accurate simulation is not 'better' than a fixed heuristic that finds a 3.1 W core in 10 minutes. Frontier agents can intentionally scale test-time compute to improve search quality, explicitly trading increased Transformer inference for a reduced EDA Simulator Tax. To prevent reporting illusions, evaluations must fix a **simulation budget** (e.g., maximum clock cycles or wall-clock time) and plot the cost-quality U-curve: the trade-off between the AI's inference cost (API tokens) and the environment's execution cost (simulation hours).
 :::
 
 ## Measurement Shifts
@@ -63,9 +60,9 @@ In software, running five hundred unit tests takes seconds. In architecture, exp
 
 Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. VerilogEval [@VerilogEval] and RTLLM [@RTLLM] evaluate the basic structural correctness of RTL generation, assessing whether models can produce compilable, functional hardware modules. However, they often fall short of capturing system-level design space exploration.
 
-ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.[^fn-archeval-constraints-c09]
+ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.[^fn-archeval-bounds-c10]
 
-[^fn-archeval-constraints-c09]: **ArchEval task (example)**: A task might fix the memory hierarchy (L1 size, associativity) as inviolable while giving the agent parameterizable Verilog templates and a cycle-accurate simulator. The agent must find the best pipeline depth without touching the fixed memory configuration.
+[^fn-archeval-bounds-c10]: **Fixed vs. tunable bounds (example)**: ArchEval expects the evaluated agent to solve a bounded problem within a fixed environment. The agent must find the optimal pipeline depth and prefetcher aggressiveness without touching the fixed memory configuration or violating SoC memory bandwidth limits. An agent that 'solves' the pipeline depth by arbitrarily doubling the L1 cache size fails the constraint check.
 
 ## Measuring the Search
 
@@ -79,7 +76,7 @@ To do that, we fix the unit of evaluation. A *task* is a bounded physical design
 
 | **Metric** | **AI Role** | **What It Measures** | **Failure Mode Exposed** |
 | --- | --- | --- | --- |
-| **Pass-Rate ($Pass@k$)** | Generation | The fraction of proposals that clear validation without errors. | Detects reward hacking, catching illegal topologies before they score. |
+| **Pass-Rate ($Pass@k$)** | Generation | The fraction of proposals that clear validation without errors. | Detects reward hacking, catching illegal topologies or interconnect protocol deadlocks before they score. |
 | **Proxy Calibration** | Prediction | Rank fidelity between the fast proxy and the slow simulator. | Exposes the Proxy Mirage, where a surrogate misranks the physical frontier. |
 | **Trajectory Efficiency (AUC)** | Optimization | Reward quality as a function of environment interactions spent. | Quantifies the Simulator Tax; shows whether the search is causal or random. |
 | **Self-Correction (SCR)** | Generation & Optimization | Probability the agent resolves a failing STA/formal report on the next try. | Isolates the agent's ability to use causal failure logs over brute force. |
@@ -121,7 +118,7 @@ When an architecture environment returns an error, such as a setup-time violatio
 
 The *Self-Correction Rate (SCR)* measures the probability that the agent resolves a failing trace on its next attempt. A failing STA trace pinpoints the exact critical path. A strong agent parses the timing report, identifies the bottleneck, and fixes the logic depth or the congested route.[^fn-sta-correction-c09] A weak agent treats the timing log as random noise and guesses a new configuration. The SCR isolates the agent's capacity for causal physical reasoning rather than brute-forcing the simulator.
 
-[^fn-sta-correction-c09]: **Self-correction (example)**: An agent that routed a 128-bit bus across the die and drew a large setup violation from STA demonstrates recovery when its next proposal inserts pipeline registers to break the failing path.
+[^fn-sta-correction-c09]: **Self-correction (example)**: An agent that routed a 128-bit bus across the die and drew a large setup violation from STA demonstrates recovery when its next proposal swaps for lower-Vt cells, eases localized placement density, or inserts pipeline registers to break the failing path.
 
 Modern agents act by calling tools: invoking a synthesis script, querying a timing path, or plotting a power map. But hardware loops suffer from a *credit assignment problem*.[^fn-credit-assignment-c09] Physical feedback is both delayed and non-linear. An agent might make a dozen microarchitectural tweaks, wait hours for physical synthesis, and receive a single failing routing congestion score. Which of the twelve edits caused the macro to become unroutable?
 
@@ -139,7 +136,7 @@ To verify that an agent retains this context, we measure its performance on long
 
 Because agentic evaluation requires executing untrusted, LLM-generated code and tool commands, the infrastructure itself becomes a critical surface. The benchmark must differentiate between an agent uncovering a genuine microarchitectural bug and one that emits a malformed payload that crashes the EDA tool pipeline.
 
-The evaluation must therefore measure the secure isolation of the Simulator Sandbox alongside the pass rate of formal proofs, logging whether the sandbox contained file-system escapes. Without that isolation, an agent optimizing for a high score can overwrite the benchmark's trajectory logger or test scripts. And without Logic Equivalence Checking (LEC) and Formal Verification [@Kropf1999FormalVerification] as hard gates, there is no way to show whether an agent's aggressive optimization preserves functional correctness. Simulation traces alone leave the pipeline vulnerable; an agent cannot bluff its way past a formal LEC proof.
+The evaluation must therefore measure the secure isolation of the Simulator Sandbox alongside the pass rate of formal proofs, logging whether the sandbox contained file-system escapes. Without that isolation, an agent optimizing for a high score can overwrite the benchmark's trajectory logger or test scripts. And without Logic Equivalence Checking (LEC) for synthesis integrity and SystemVerilog Assertions (SVA) for bounded model checking as hard gates, there is no way to show whether an agent's aggressive optimization preserves functional correctness. Simulation traces alone leave the pipeline vulnerable; an agent cannot bluff its way past a formal LEC proof.
 
 ## Measurement Validation
 
@@ -153,7 +150,7 @@ In hardware design, however, proprietary IP walls mean that high-quality, physic
 
 ### Mitigating Data Contamination
 
-The public corpus of open-source hardware, such as RISC-V cores like BOOM [@BOOM] or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of **data contamination**,[^fn-data-contamination-c09] where the benchmark's test data leaks into the model's training corpus, is very high for standard hardware tasks [@Balloccu2024Leakage]. When this leakage occurs, a high pass-rate measures **memorization** (data retrieval of existing RTL) rather than **generalization** (the capability to reason about novel microarchitectural trade-offs).
+The public corpus of open-source hardware, such as RISC-V cores like BOOM [@BOOM] or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of **data contamination**,[^fn-data-contamination-c09] where the benchmark's test data leaks into the model's training corpus, is very high for standard hardware tasks [@Balloccu2024Leakage]. Standard ML mitigations, such as n-gram overlap filtering and embedding-based decontamination of the pre-training corpus, are necessary but insufficient because RTL semantics can vary wildly with small syntactic changes. When this leakage occurs, a high pass-rate measures **memorization** (data retrieval of existing RTL) rather than **generalization** (the capability to reason about novel microarchitectural trade-offs).
 
 [^fn-data-contamination-c09]: **Data Contamination**: When the answers to a benchmark are inadvertently included in an AI's pre-training data. If an agent has already "read" the solution to a specific RISC-V challenge, a high score measures rote memorization rather than actual architectural reasoning.
 
