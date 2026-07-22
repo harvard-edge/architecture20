@@ -217,7 +217,7 @@ When the artifact is spatial, such as macro placement or floorplanning, architec
 
 ### Grounding Candidates in Physical Reality
 
-Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. It causes 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled compute clusters. Generating RTL requires more than syntactic correctness. A generated module might compile perfectly but fail logic equivalence checking or create impossible combinational paths violating setup and hold times.
+Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. It causes formal equivalence checking (LEC) to stall on impossible combinational loops, or triggers overnight place-and-route (P&R) crashes due to severe routing congestion hotspots. Generating RTL requires more than syntactic correctness. A generated module might compile perfectly but fail logic equivalence checking or create impossible combinational paths violating setup and hold times.
 
 To catch these errors early, the architect pairs the generator with fast, local checks. These checks ground the AI's output in strict physical constraints like PPA, routing, and timing limits before authorization.
 
@@ -369,7 +369,7 @@ behavior, vector width, or technology assumptions, and which higher-fidelity
 result can test the estimate. Those details show whether the prediction is an
 interpolation inside known support or an extrapolation that needs escalation.
 
-A fast predictive model acts as an initial filter. It can flag anomalies, bound uncertainty, and rule out obviously bad configurations. However, it cannot guarantee physical performance. The cycle-accurate simulator or RTL synthesis tool acts as the final arbiter, providing the ground truth necessary to authorize a major design commitment. This separation of powers protects the design loop from the *sim-to-silicon gap*, the danger of optimizing so aggressively for a cheap proxy's score that the resulting hardware becomes fragile to physical variation.
+A fast predictive model acts as an initial filter. It can flag anomalies, bound uncertainty, and rule out obviously bad configurations. However, it cannot guarantee physical performance. The cycle-accurate simulator or RTL synthesis tool acts as the final arbiter, providing the ground truth necessary to authorize a major design commitment. This separation of powers protects the design loop from the surrogate-to-simulator gap, though closing the true sim-to-silicon gap still requires post-silicon validation feedback.
 
 ### Conformal Prediction and Drift Detection
 
@@ -492,7 +492,7 @@ plt.show()
 plt.close(fig)
 ```
 
-Nothing in the surrogate's own report changes at the shift boundary in @fig-ch06-conformal-coverage. The band keeps its width and its nominal 90 percent claim; only the observed points climbing out of it reveal that empirical coverage has collapsed. When an optimizer pushes a surrogate into a novel design space, it is highly vulnerable to Out-of-Distribution (OOD) failures where the model returns inaccurate proxy scores with no signal that it has left its support region.
+Nothing in the surrogate's own report changes at the shift boundary in @fig-ch06-conformal-coverage. The band keeps its width and its nominal 90 percent claim; only the observed points climbing out of it reveal that empirical coverage has collapsed. When an optimizer pushes a surrogate into a novel design space, it induces a severe covariate shift—a form of Out-of-Distribution (OOD) failure where the model returns inaccurate proxy scores with no signal that it has left its support region.
 
 When observations begin to fall outside the interval, drift detection has fired and the surrogate should not be trusted in that region. The human architect must intervene to issue an **active-learning** query, choosing the high-fidelity evaluation (such as a cycle-accurate simulation) that is most informative for that region. The architect then folds the new ground-truth observation back into the surrogate to *retrain and update* it, grounding the model back in physical realities. Whether that new observation supports the architectural claim remains a separate question.
 
@@ -637,11 +637,9 @@ One auditable acquisition rule is GP-UCB[^fn-ml-gp-ucb-c06]. The logged acquisit
 Reinforcement learning can fit sequential problems such as placement, scheduling, adaptive control, or multi-stage design flows. Because an RL agent optimizes exactly the reward it is given, the reward function decides what the agent learns to do, and a poorly chosen reward can be satisfied in ways the architect never intended.
 
 ::: {.callout-war-story title="The wirelength trap in macro floorplanning"}
-**The claim.** Reinforcement learning agents can achieve superhuman macro placement by optimizing for wirelength metrics faster than simulated annealing.
+If a reinforcement learning agent is trained to optimize macro floorplans with a reward function based solely on half-perimeter wirelength (HPWL)—a cheap, fast proxy for total wirelength—it will often produce layouts that look mathematically optimal but are physically unroutable.
 
-**The gap.** A placement agent rewarded strictly for half-perimeter wirelength and macro non-overlap learns to pack macros into a dense central cluster. That minimizes the proxy metric while producing a placement with unacceptable routing congestion and thermal density. The proxy metric disconnects from the physical reality of routing limits, a failure mode reported repeatedly in learned-placement evaluations.
-
-**The lesson.** An optimizer will exploit any physical constraint omitted from its environment. This is the reinforcement learning form of Goodhart's law, under which a measure optimized hard enough stops tracking the goal it once stood for. The reward function must explicitly include routing congestion and physical density penalties, or the resulting configuration is a theoretical artifact rather than a buildable chip. The dependable defense is a reward grounded in a real tool result rather than a hand-tuned proxy.
+The agent learns to stack all the macros in a dense cluster in the center of the die, minimizing the straight-line distance between them. It ignores routing congestion, pin access limits, and thermal hotspots, because those physical realities are absent from its reward function. When this floorplan is handed to a physical routing tool, it fails catastrophically. The proxy was maximized, but the architecture was broken. This echoes the debate over RL-based placement (e.g., Mirhoseini et al., 2021), where proxy metrics were heavily scrutinized against standard simulated annealing baselines when accounting for physical routability (Cheng et al., 2023).
 :::
 
 PrefixRL, a hardware-aware RL framework, shows what a tightly defined design space makes possible. It casts parallel-prefix arithmetic circuits, such as adders, as a reinforcement-learning problem with logic synthesis in the evaluation path [@RoyEtAl2021PrefixRL]. Each candidate comes from a declared circuit space and receives a score from an actual synthesis run rather than a hand-built proxy. A synthesis run can reject candidates because the action space is restricted and the output is synthesizable. That environment does not remove the need for a baseline. A learned optimizer must still be compared with a well-tuned simpler method under the same action space, tool flow, and evaluation budget.
@@ -768,7 +766,7 @@ An architect who already has hundreds of candidates and inconsistent run logs do
 
 A critic can inspect a design-space report, simulator log, configuration file, benchmark description, or paper draft. It can ask whether the workload matches the claim, whether the metric represents the intended objective, whether rejected candidates are missing, or whether a table proves less than the prose claims. The useful output is not a general score. It is a finding tied to an artifact, assumption, tool result, or missing comparison that another check or qualified reviewer can examine.
 
-In the context of the XR Lighthouse prompt, a critique agent might review a proposed 3\ W RISC-V compute subsystem and notice that while the Bayesian optimizer achieved the target thermal envelope, it did so by aggressively shrinking the L2 cache, which in turn degrades performance on the critical spatial tracking workloads. The critique does not generate a new design; it raises a falsifiable claim ("The L2 shrink degrades spatial tracking performance by 15%") that the cycle-level simulator can then test.
+In the context of the XR Lighthouse prompt, a critique agent might review a proposed 3\ W RISC-V compute subsystem and notice that while the Bayesian optimizer achieved the target thermal envelope, it did so by aggressively shrinking the L2 cache. The L2 cache shrink increases off-chip memory traffic by 40%, degrading spatial tracking latency by 15%. The critique does not generate a new design; it raises a falsifiable claim ("The L2 shrink degrades spatial tracking performance by 15%") that the cycle-level simulator can then test.
 
 Question-answering resources such as QuArch, a benchmark for evaluating LLMs on computer architecture, make published architecture knowledge accessible to automated methods. Critique also needs the project records that papers often omit, including tool settings, failed runs, rejected alternatives, and review decisions. Adjacent code-review research found that model-written critiques could help people find inserted bugs, while models acting alone also invented problems [@McAleeseEtAl2024CriticGPT]. That result motivates a testable architecture critique role. It does not establish that code-review performance transfers to architecture studies.
 
@@ -776,7 +774,7 @@ Question-answering resources such as QuArch, a benchmark for evaluating LLMs on 
 
 Repair begins from a known failure. It may correct a malformed configuration, fix tool syntax, patch a test bench, or revise an RTL fragment after simulation. The output should identify what changed, preserve the diff, rerun the check that found the failure, and report what remains unresolved. In the Chip-Chat flow described earlier, simulator and synthesis failures can prompt another Verilog revision, but the model does not get to declare its own revision correct.
 
-For example, if the generated RTL for the RISC-V decoder fails to synthesize on an asynchronous reset violation, the synthesis tool's error log becomes the prompt for the repair agent, which is constrained to edit only the reset logic of the failing module rather than rewriting the entire core.
+For example, if the generated RTL for the RISC-V decoder fails to synthesize on an asynchronous reset violation, the synthesis tool's error log becomes the prompt for the repair agent, which is constrained to perform an automated Engineering Change Order (ECO), editing only the reset logic of the failing module to avoid perturbing the already-closed timing paths of the surrounding core.
 
 ::: {.callout-architect-checkpoint title="Constraint waivers"}
 An automated method may repair malformed artifacts, but the repair role does not include authority to relax a design constraint. The architect must record the violation and obtain a waiver from the person authorized to accept that risk before proceeding.
