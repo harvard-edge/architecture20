@@ -40,7 +40,7 @@ Because building a physical chip costs millions of dollars and takes years [@Shi
 
 When an AI agent enters the loop, the object of measurement shifts. As established, evaluating the artifact alone hides whether the agent reached the design through methodical reasoning or brute force. This distinction matters because an unreasoned search does not *transfer*. An agent that finds a five percent gain by luck cannot explain which change caused it, cannot reproduce the result on the next workload, and cannot be trusted to know when to stop.
 
-In hardware, this lack of causality carries a steep penalty. In software, a stochastic search that eventually types a working script wastes ten milliseconds per try. In architecture, a search that burns ten thousand hours of EDA tool licenses and compute node limits to find a gain destroys tape-out schedules. So we measure the *process* of design as a proxy for two things a single final score hides. First, whether a result will survive physical synthesis, and whether the agent can safely be given more autonomy. @tbl-eval-shift summarizes the shift from traditional Non-Recurring Engineering (NRE)[^fn-nre-c09] costs to the iterative Simulator Tax.
+In hardware, this lack of causality carries a steep penalty. In software, a stochastic search that eventually types a working script wastes ten milliseconds per try. In architecture, a search that burns ten thousand hours of EDA tool licenses and compute node limits to find a gain destroys tape-out schedules. So we measure the *process* of design as a proxy for two things a single final score hides. First, whether a result will survive physical synthesis, and whether the agent can safely be given more autonomy. @tbl-eval-shift summarizes the shift from traditional Non-Recurring Engineering (NRE)[^fn-nre-c10] costs to the iterative Simulator Tax.
 
 | **Dimension** | **Evaluating the Artifact (Traditional)** | **Evaluating the Agent (Architecture 2.0)** |
 | --- | --- | --- |
@@ -52,13 +52,13 @@ In hardware, this lack of causality carries a steep penalty. In software, a stoc
 
 : **From measuring the chip to measuring the agent.** Evaluating an AI architect requires a different set of metrics than evaluating the chip it produces. {#tbl-eval-shift tbl-colwidths="[20,40,40]"}
 
-[^fn-nre-c09]: **Non-Recurring Engineering (NRE)**: The one-time cost to research, develop, design, and test a new product. In hardware, NRE covers the immense upfront cost of mask sets and physical verification before a single chip is manufactured.
+[^fn-nre-c10]: **Non-Recurring Engineering (NRE)**: The one-time cost to research, develop, design, and test a new product. In hardware, NRE covers the immense upfront cost of mask sets and physical verification before a single chip is manufactured.
 
 ## The Limits of Software Analogies
 
-To establish how to benchmark agents, the immediate temptation is to look to software engineering. However, trivial software benchmarks like HumanEval [@HumanEval] or LeetCode [@LeetCode], and even complex repository-level evaluations like SWE-bench [@Jimenez2024SWEbench],[^fn-swebench-c09] measure whether an agent can emit syntax that passes a hidden, purely logical test suite. While these highlight the importance of execution-based evaluation, software analogies fail in architecture because they are decoupled from physics and indifferent to *execution cost*.
+To establish how to benchmark agents, the immediate temptation is to look to software engineering. However, trivial software benchmarks like HumanEval [@HumanEval] or LeetCode [@LeetCode], and even complex repository-level evaluations like SWE-bench [@Jimenez2024SWEbench],[^fn-swebench-c10] measure whether an agent can emit syntax that passes a hidden, purely logical test suite. While these highlight the importance of execution-based evaluation, software analogies fail in architecture because they are decoupled from physics and indifferent to *execution cost*.
 
-[^fn-swebench-c09]: **SWE-bench**: A standard software engineering benchmark that asks an AI agent to resolve real-world GitHub issues by submitting pull requests. While rigorous for software, it only tests logical syntax, not physical realization constraints.
+[^fn-swebench-c10]: **SWE-bench**: A standard software engineering benchmark that asks an AI agent to resolve real-world GitHub issues by submitting pull requests. While rigorous for software, it only tests logical syntax, not physical realization constraints.
 
 In software, running five hundred unit tests takes seconds. In architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources. Because of this steep cost, the field requires standardized, physics-bound benchmarks to mature. We must discard software-only analogies and instead measure true engineering value, meaning an agent's ability to navigate power analysis, timing closure, and unroutable congestion.
 
@@ -70,9 +70,9 @@ ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agen
 
 ## Measuring the Search
 
-While frameworks like ArchEval define the environment, they leave open the question of what specific metrics to record during system-level exploration. Evaluating the process of design means tracking metrics across three distinct roles: *generation* (creating the design candidate), *prediction* (estimating its physical value), and *optimization* (methodically searching the tradeoff space). As illustrated in @fig-ch9-pipeline, a rigorous evaluation pipeline must wrap the agent's interaction with the simulator sandbox inside a trajectory logger. This logger intercepts every proposal and prediction to accurately measure the Simulator Tax and track the agent's reasoning before forwarding the actions to the environment.
+While frameworks like ArchEval define the environment, they leave open the question of what specific metrics to record during system-level exploration. Evaluating the process of design means tracking metrics across three distinct roles: *generation* (creating the design candidate), *prediction* (estimating its physical value), and *optimization* (methodically searching the tradeoff space). As illustrated in @fig-ch10-pipeline, a rigorous evaluation pipeline must wrap the agent's interaction with the simulator sandbox inside a trajectory logger. This logger intercepts every proposal and prediction to accurately measure the Simulator Tax and track the agent's reasoning before forwarding the actions to the environment.
 
-![**The Evaluation Pipeline.** The structural interaction between the agent, the trajectory logger, and the simulator sandbox. The logger intercepts every proposal to accurately measure the Simulator Tax before forwarding it to the sandbox.](images/F9-pipeline.svg){#fig-ch9-pipeline width="100%" fig-alt="A workflow-card diagram showing the interaction between the Generation Agent Architect, the Prediction Trajectory Logger, and the Optimization Simulator Sandbox."}
+![**The Evaluation Pipeline.** The structural interaction between the agent, the trajectory logger, and the simulator sandbox. The logger intercepts every proposal to accurately measure the Simulator Tax before forwarding it to the sandbox.](images/F10-pipeline){#fig-ch10-pipeline width="100%" fig-alt="A workflow-card diagram showing the interaction between the Generation Agent Architect, the Prediction Trajectory Logger, and the Optimization Simulator Sandbox."}
 
 A benchmark is not a leaderboard. Its job is to separate genuine architectural reasoning from the statistical noise of lucky guesses, brute force, and memorization, so a score reflects capability rather than chance.
 
@@ -94,19 +94,19 @@ The following sections take each metric in turn and ground it in the failure mod
 
 The most basic evaluation of an agent is whether it produces a physically valid proposal at all. In an unconstrained topological search, generative models frequently propose illegal configurations. An agent might route a memory bus through a hard macro, request an L2 cache that exceeds the SRAM area budget, or emit Verilog that cannot compile.
 
-If we reward an agent solely for maximizing IPC, we invite Goodhart’s Law.[^fn-goodharts-law-c09] The agent will learn to "reward hack" the simulator. For instance, it might exploit a known boundary bug in a McPAT power model to artificially deflate estimated energy usage by gating clocks that are structurally required to remain active.
+If we reward an agent solely for maximizing IPC, we invite Goodhart’s Law.[^fn-goodharts-law-c10] The agent will learn to "reward hack" the simulator. For instance, it might exploit a known boundary bug in a McPAT power model to artificially deflate estimated energy usage by gating clocks that are structurally required to remain active.
 
 To detect this, we measure the *zero-shot pass rate* (success on the first try) against the *$k$-shot pass rate*. A high zero-shot pass rate indicates the agent relies on internalized, physics-bound reasoning, whereas a high k-shot pass rate might merely indicate the agent iteratively probed the simulator until it found an exploitable blind spot. Measuring bounds adherence and topological legality, such as clearing a `verilator --lint-only` compile, shows the agent is engineering within physical reality rather than exploiting the abstractions of the simulator.
 
-[^fn-goodharts-law-c09]: **Goodhart's Law**: When a measure becomes a target, it ceases to be a good measure [@Strathern1997Improving]. If an agent is evaluated solely on IPC, it will optimize strictly for that metric, even if it requires emitting physically impossible structures.
+[^fn-goodharts-law-c10]: **Goodhart's Law**: When a measure becomes a target, it ceases to be a good measure [@Strathern1997Improving]. If an agent is evaluated solely on IPC, it will optimize strictly for that metric, even if it requires emitting physically impossible structures.
 
 ### Proxy Calibration and the Mirage
 
 Before an agent queries a slow EDA tool, it typically queries a fast surrogate model to predict the outcome. Evaluating the agent's predictive capability means measuring how much that proxy can be trusted. The risk is the *Proxy Mirage*: a poorly calibrated proxy sends the optimizer confidently toward a region where it predicts large performance gains but where physical synthesis returns poor timing or routing results.
 
-We expose the mirage by measuring rank fidelity where the search concentrates, rather than relying on global correlation.[^fn-rank-fidelity-c09] Using rank correlation metrics like Kendall’s $\tau$ [@Kendall1938NewMeasure] on the Pareto frontier, we measure the top-$k$ rank agreement between the proxy’s predictions and the slow, physics-bound simulator’s ground truth. If the agent overfits to the proxy, this metric collapses, warning the architect that the agent's "discoveries" are physically meaningless.
+We expose the mirage by measuring rank fidelity where the search concentrates, rather than relying on global correlation.[^fn-rank-fidelity-c10] Using rank correlation metrics like Kendall’s $\tau$ [@Kendall1938NewMeasure] on the Pareto frontier, we measure the top-$k$ rank agreement between the proxy’s predictions and the slow, physics-bound simulator’s ground truth. If the agent overfits to the proxy, this metric collapses, warning the architect that the agent's "discoveries" are physically meaningless.
 
-[^fn-rank-fidelity-c09]: **Rank fidelity vs. Absolute error**: An optimizer does not need the proxy to predict the exact cycle count (absolute error); it only needs the proxy to correctly order which of two designs is better (rank fidelity).
+[^fn-rank-fidelity-c10]: **Rank fidelity vs. Absolute error**: An optimizer does not need the proxy to predict the exact cycle count (absolute error); it only needs the proxy to correctly order which of two designs is better (rank fidelity).
 
 ### Trajectory Efficiency and Simulator Tax
 
@@ -120,17 +120,17 @@ To formalize this tax, we measure the area under the curve (AUC) [@Fawcett2006AU
 
 When an architecture environment returns an error, such as a setup-time violation from Static Timing Analysis (STA) or a failure in formal equivalence checking, the agent must parse that output and adjust its next proposal.
 
-The *Self-Correction Rate (SCR)* measures the probability that the agent resolves a failing trace on its next attempt. A failing STA trace pinpoints the exact critical path. A strong agent parses the timing report, identifies the bottleneck, and fixes the logic depth or the congested route.[^fn-sta-correction-c09] A weak agent treats the timing log as random noise and guesses a new configuration. The SCR isolates the agent's capacity for causal physical reasoning rather than brute-forcing the simulator.
+The *Self-Correction Rate (SCR)* measures the probability that the agent resolves a failing trace on its next attempt. A failing STA trace pinpoints the exact critical path. A strong agent parses the timing report, identifies the bottleneck, and fixes the logic depth or the congested route.[^fn-sta-correction-c10] A weak agent treats the timing log as random noise and guesses a new configuration. The SCR isolates the agent's capacity for causal physical reasoning rather than brute-forcing the simulator.
 
-[^fn-sta-correction-c09]: **Self-correction (example)**: An agent that routed a 128-bit bus across the die and drew a large setup violation from STA demonstrates recovery when its next proposal swaps for lower-Vt cells, eases localized placement density, or inserts pipeline registers to break the failing path.
+[^fn-sta-correction-c10]: **Self-correction (example)**: An agent that routed a 128-bit bus across the die and drew a large setup violation from STA demonstrates recovery when its next proposal swaps for lower-Vt cells, eases localized placement density, or inserts pipeline registers to break the failing path.
 
-Modern agents act by calling tools, such as invoking a synthesis script, querying a timing path, or plotting a power map. But hardware loops suffer from a *credit assignment problem*.[^fn-credit-assignment-c09] Physical feedback is both delayed and non-linear. An agent might make a dozen microarchitectural tweaks, wait hours for physical synthesis, and receive a single failing routing congestion score. Which of the twelve edits caused the macro to become unroutable?
+Modern agents act by calling tools, such as invoking a synthesis script, querying a timing path, or plotting a power map. But hardware loops suffer from a *credit assignment problem*.[^fn-credit-assignment-c10] Physical feedback is both delayed and non-linear. An agent might make a dozen microarchitectural tweaks, wait hours for physical synthesis, and receive a single failing routing congestion score. Which of the twelve edits caused the macro to become unroutable?
 
 Unlike software tests that fail immediately on a specific line of code, EDA toolchain outputs conflate the physical consequences of multiple earlier decisions. An agent's capacity to isolate causality in these long hardware loops, by running incremental checks or logically bisecting its changes, is what separates rigorous reinforcement learning [@Sutton1998Reinforcement] from an unguided random walk.
 
 We measure this with the hallucinated-tool-call rate and the parameter-error rate. When an agent gathers evidence in order, for example by querying the critical path with STA *before* touching the ALU, it shows it can assign credit correctly. The evaluation checks the agent's stated rationale against its logged trajectory, ensuring it is not inventing post-hoc explanations for lucky design changes.
 
-[^fn-credit-assignment-c09]: **Credit assignment**: The reinforcement learning problem of determining which earlier action caused a later outcome. An agent that queries the critical path before editing shows it can attribute a timing gain to the change that produced it.
+[^fn-credit-assignment-c10]: **Credit assignment**: The reinforcement learning problem of determining which earlier action caused a later outcome. An agent that queries the critical path before editing shows it can attribute a timing gain to the change that produced it.
 
 ### Context Retention and Sandbox Security
 
@@ -154,9 +154,9 @@ In hardware design, however, proprietary IP walls mean that high-quality, physic
 
 ### Mitigating Data Contamination
 
-The public corpus of open-source hardware, such as RISC-V cores like BOOM [@BOOM] or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of *data contamination*,[^fn-data-contamination-c09] where the benchmark's test data leaks into the model's training corpus, is very high for standard hardware tasks [@Balloccu2024Leakage]. Standard ML mitigations, such as n-gram overlap filtering and embedding-based decontamination of the pre-training corpus, are necessary but insufficient because RTL semantics can vary wildly with small syntactic changes. When this leakage occurs, a high pass-rate measures *memorization* (data retrieval of existing RTL) rather than *generalization* (the capability to reason about novel microarchitectural trade-offs).
+The public corpus of open-source hardware, such as RISC-V cores like BOOM [@BOOM] or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of *data contamination*,[^fn-data-contamination-c10] where the benchmark's test data leaks into the model's training corpus, is very high for standard hardware tasks [@Balloccu2024Leakage]. Standard ML mitigations, such as n-gram overlap filtering and embedding-based decontamination of the pre-training corpus, are necessary but insufficient because RTL semantics can vary wildly with small syntactic changes. When this leakage occurs, a high pass-rate measures *memorization* (data retrieval of existing RTL) rather than *generalization* (the capability to reason about novel microarchitectural trade-offs).
 
-[^fn-data-contamination-c09]: **Data Contamination**: When the answers to a benchmark are inadvertently included in an AI's pre-training data. If an agent has already "read" the solution to a specific RISC-V challenge, a high score measures rote memorization rather than actual architectural reasoning.
+[^fn-data-contamination-c10]: **Data Contamination**: When the answers to a benchmark are inadvertently included in an AI's pre-training data. If an agent has already "read" the solution to a specific RISC-V challenge, a high score measures rote memorization rather than actual architectural reasoning.
 
 To guarantee generalization, we must measure whether the score survives contact with purely synthetic, zero-day tasks the model could not have possibly seen. If the performance collapses when an open-source task is swapped for a novel, procedurally generated microarchitectural challenge, the benchmark was measuring memory. Frameworks like ArchEval mitigate test leakage by parameterizing the environment. Rather than asking the agent to implement a static specification (which might be memorized), they dynamically synthesize the constraints, such as randomized but physically valid memory hierarchies, and measure the agent's real-time trajectory to optimize around them. This creates a pass/fail criterion that is far harder to game, because success requires generalizing physics-bound logic rather than regurgitating leaked training data.
 
@@ -186,9 +186,9 @@ Assuming the benchmark is valid and free of the Proxy Mirage, the resulting eval
 
 ### Reliability Over Optimism
 
-Pass@k rewards at least one success in $k$ tries.[^fn-pass-at-k-c09] Deployment usually needs the opposite property, that the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
+Pass@k rewards at least one success in $k$ tries.[^fn-pass-at-k-c10] Deployment usually needs the opposite property, that the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
 
-[^fn-pass-at-k-c09]: **Pass@k**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass@1 reliability.
+[^fn-pass-at-k-c10]: **Pass@k**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass@1 reliability.
 
 Therefore, we must measure a reliability figure and report it alongside the optimistic ones. This includes the worst-case outcome across runs, or the fraction of runs that finish with no constraint violations.
 
@@ -196,13 +196,13 @@ Therefore, we must measure a reliability figure and report it alongside the opti
 
 Because agents differ in both quality and cost, the comparison is a cost-quality plane. @fig-agent-pareto places candidate agents by total evaluation compute against the best design quality they reach.
 
-![**Comparing agents on a cost-quality plane.** Each agent is a point: total evaluation compute against the best design quality it reaches.](images/F9-agent-pareto.svg){#fig-agent-pareto width="80%" fig-alt="A scatter plot of agents on axes of total evaluation compute versus design quality, with a Pareto frontier of non-dominated agents."}
+![**Comparing agents on a cost-quality plane.** Each agent is a point: total evaluation compute against the best design quality it reaches.](images/F10-agent-pareto){#fig-agent-pareto width="80%" fig-alt="A scatter plot of agents on axes of total evaluation compute versus design quality, with a Pareto frontier of non-dominated agents."}
 
-@fig-compute-economics shows why the cost axis cannot be waved away. Total evaluation compute is the sum of a *falling* EDA tool simulation cost and a *rising* Transformer inference cost. A weak agent queries the simulator thousands of times; a frontier agent[^fn-frontier-model-c09] reasons more but pays a large inference cost.
+@fig-compute-economics shows why the cost axis cannot be waved away. Total evaluation compute is the sum of a *falling* EDA tool simulation cost and a *rising* Transformer inference cost. A weak agent queries the simulator thousands of times; a frontier agent[^fn-frontier-model-c10] reasons more but pays a large inference cost.
 
-[^fn-frontier-model-c09]: **Frontier model**: Industry shorthand for the most capable current generation of large models, which spend heavily on inference per step. The term is unrelated to the Pareto frontier on the cost-quality plane.
+[^fn-frontier-model-c10]: **Frontier model**: Industry shorthand for the most capable current generation of large models, which spend heavily on inference per step. The term is unrelated to the Pareto frontier on the cost-quality plane.
 
-![**The economics of agentic evaluation.** The total computational cost forms a U-shaped curve. Weak agents incur a large EDA Simulator Tax through brute-force interaction. Frontier agents minimize simulation but incur a high Transformer inference cost.](images/F9-compute-economics.svg){#fig-compute-economics fig-alt="A U-shaped curve showing that total evaluation compute is a trade-off between inference cost and simulation cost." width=80%}
+![**The economics of agentic evaluation.** The total computational cost forms a U-shaped curve. Weak agents incur a large EDA Simulator Tax through brute-force interaction. Frontier agents minimize simulation but incur a high Transformer inference cost.](images/F10-compute-economics){#fig-compute-economics fig-alt="A U-shaped curve showing that total evaluation compute is a trade-off between inference cost and simulation cost." width=80%}
 
 ### Calibrating Agent Autonomy
 
