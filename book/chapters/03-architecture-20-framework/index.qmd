@@ -25,7 +25,7 @@ As shown in @fig-ontology-loop, this chapter maps the familiar architecture desi
 
 To address the challenge of bounded AI participation, we must formally define the iterative process where these decisions unfold.
 
-> **Architecture design loop.** An architecture design loop is the repeated process of examining the current design, making an allowed change, running the relevant architectural tools, interpreting the result, and deciding whether to revise, reject, or continue. Each iteration retains enough information for another architect to see what led to the next step.
+> **Architecture design loop.** An architecture design loop is the repeated process of examining the current design, making an allowed change, running the relevant architectural tools, interpreting the result, and deciding whether to revise, reject, or continue. Building on established Agile Hardware Development cycles (e.g., the Chisel ecosystem [@Izraelevitz2017Chisel]), each iteration retains enough information for another architect to see what led to the next step.
 
 The design loop is the execution mechanism inside a bounded architecture study, which the next sections define as the unit of work it serves.
 
@@ -173,7 +173,16 @@ The terms inside the middle layer refer to different things. The bounded
 architecture study is the unit of work, and it may produce understanding,
 artifacts, findings, or decisions. An artifact is an implementation or proposal
 produced by that work. The architectural claim is what another architect
-evaluates.
+evaluates. To be machine-actionable, this claim must be explicitly encoded. For instance, an XRBench evaluation claim can be serialized as:
+```yaml
+claim:
+  target: "L1D_cache_size"
+  change: "increase_to_64KB"
+  expected_outcome:
+    metric: "IPC"
+    condition: "> 5%"
+    constraint: {metric: "power", condition: "< 2%"}
+```
 
 When the work iterates, the process used to execute and analyze it is
 a design loop. The design-loop card introduced near the end provides an index
@@ -506,7 +515,7 @@ The challenge arises when an agent optimizing against a fast proxy encounters a 
 
 This transition policy guides how an agent allocates a limited computational budget. Because RTL simulations and physical design runs are expensive, the agent cannot afford to evaluate every candidate at maximum fidelity. Instead, it must map the design space broadly using cheap approximations and reserve expensive runs for the most promising candidates or the most uncertain boundary regions.
 
-> **Multi-fidelity escalation.** A defined policy that states the conditions under which an agent must transition from a fast proxy to a high-fidelity tool. It specifies the budget for high-fidelity runs and the checks required before escalation.
+> **Multi-fidelity escalation.** A defined policy that states the conditions under which an agent must transition from a fast proxy to a high-fidelity tool. Building on foundational multi-fidelity Bayesian Optimization literature [@KandasamyEtAl2017MultiFidelityBO], it specifies the budget for high-fidelity runs and the checks required before escalation.
 
 Recording these transitions in the design loop keeps the AI's proxy-driven search anchored to physical reality. When a proxy win disappears at higher fidelity, the agent updates its cost model, and the architect reviews the discrepancy. This continuous recalibration across fidelity levels is what allows an agent to explore efficiently without drifting into physically impossible design states.
 
@@ -522,6 +531,7 @@ To operate effectively, an agent needs clear tool interfaces that expose not jus
 | Undocumented tool crashes | Log the failure, mark the configuration as invalid, and pivot to a nearby state. |
 | Silent output corruptions | Use secondary validation checks (e.g., area estimates) to flag anomalous results. |
 | Parsing and format errors | Fall back to robust parsers and escalate unreadable logs to the architect. |
+| Non-deterministic tool variance | Run multiple seed evaluations to establish statistical confidence intervals before claiming a PPA improvement. |
 
 A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash, it logs the failure as negative evidence. The architect can then review the execution record to determine whether the toolchain requires repair or the agent explored an unsupported corner of the design space. Planning for tool failures in advance lets the AI continue searching the viable portions of the design space.
 
@@ -564,7 +574,7 @@ Without demanding a mechanism, the architect risks accepting a "Clever Hans" res
 
 The explanation stage mitigates this risk by isolating the causal mechanism. It does this by orchestrating targeted ablations, counterfactual simulations, or specific workload contrasts.
 
-For example, if an AI agent claims an accelerator is faster because of a new tiling strategy, the explanation stage must ablate the tiling strategy while keeping all other parameters constant to isolate the performance delta. Advanced AI approaches use techniques like SHapley Additive exPlanations (SHAP) or causal graphs to attribute performance and power gains to specific microarchitectural features. A fluent text description generated by a language model is merely a hypothesis; the explanation stage proves it against the simulator's telemetry, ensuring the team understands the system's behavior before a design review.
+For example, if an AI agent claims an accelerator is faster because of a new tiling strategy, the explanation stage must ablate the tiling strategy while keeping all other parameters constant to isolate the performance delta. Crucially, while AI techniques like SHapley Additive exPlanations (SHAP) or causal graphs explain the *AI's surrogate model (proxy)* predictions, this must be explicitly contrasted with ground-truth simulator ablation, which requires parameter-toggling or a full Design of Experiments (DoE) in the actual simulator. A fluent text description generated by a language model is merely a hypothesis; the explanation stage proves it against the simulator's telemetry, ensuring the team understands the system's behavior before a design review.
 
 ## Defend: Action, Authority, and Review
 
@@ -716,6 +726,7 @@ The framework gives an AI agent real initiative inside the loop while keeping th
 **Theme 1: The Sign-Off Firewall.** The framework lets an agent call the checks that verify its work but not see or alter them, and holding that wall once the loop is automated is unsolved.
 
 - What programmatic wrappers standardize the interaction between an LLM proposer and a deterministic EDA evaluator, so the proposer can call the checks but cannot see or alter them?
+- How can AI agents reliably interface with rigorous EDA validation frameworks like Constrained-Random Verification (UVM) or Formal Equivalence Checking, without circumventing the actual constraints?
 - How is isolation enforced between the agent that generates RTL and the agent that writes its testbenches, so neither can tune itself to pass the other?
 - What detectors flag when an agent has learned to satisfy a parser or rule deck syntactically, the "Clever Hans" effect [@LapuschkinEtAl2019CleverHans], rather than the hardware constraint the check stands for?
 
