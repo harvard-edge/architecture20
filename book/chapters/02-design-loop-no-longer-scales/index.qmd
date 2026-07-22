@@ -33,7 +33,7 @@ measurements, and reviews before it can support a decision.
 
 AI can accelerate parts of that work, but strictly as an explorer and searcher. An agent might collect design information, propose alternatives, or predict PPA (Power, Performance, Area) costs, yet it cannot make final architectural commitments. A system working from incomplete context may strengthen the wrong comparison, while faster generation may flood the pipeline with weak candidates.
 
-The human architect remains the final judge, orchestrating the evaluation harness to validate these proposals against physical silicon constraints like STA and DRC. The first task is to identify what is actually slowing the work, delegating rapid search to the AI.
+The human architect remains the final judge because architectural commitments are fundamentally exercises in risk buy-down; an AI can optimize a surrogate model, but the human underwrites the financial and schedule risk of the physical silicon. The architect orchestrates the evaluation harness to validate these proposals against physical silicon constraints like STA and DRC. The first task is to identify what is actually slowing the work, delegating rapid search to the AI.
 
 ::: {.callout-learning-objectives}
 After this chapter, you can:
@@ -359,7 +359,7 @@ measurements will preserve its ranking. The practical limit is not how many
 configurations a project can enumerate. It is how many it can evaluate well
 enough to support the next decision.
 
-This distinction becomes sharper as search moves from tuning predefined numerical knobs, such as cache sizes and queue depths, to generative methods that re-wire topology or inject new IP blocks. Traditional design-space exploration is fast but bounded by the existing architecture, since it only adjusts parameters within a fixed structure. Generative search can propose new connectivity or additional blocks, which is more powerful but produces a far larger space of illegal, unverifiable RTL. The burden then shifts from generating novel designs to constraining generation so that it proposes only valid, verifiable topologies.
+This distinction becomes sharper as search moves from tuning predefined numerical knobs, such as cache sizes and queue depths, to generative methods that re-wire topology or inject new IP blocks. Traditional design-space exploration is fast but bounded by the existing architecture, since it only adjusts parameters within a fixed structure. Generative search using Graph Neural Networks (GNNs) or diffusion models can propose entirely new topological connectivity or additional IP blocks, which is more powerful but produces a far larger space of illegal, unverifiable RTL. The burden then shifts from generating novel designs to constraining generation so that it proposes only valid, verifiable topologies.
 
 Other architecture tasks create similar problems in different ways
 (@tbl-design-loop-scale-anchors). Mapping, design-space exploration (DSE),
@@ -869,7 +869,7 @@ E_{\mathrm{compute}} + E_{\mathrm{memory}} +
 E_{\mathrm{interconnect}} + E_{\mathrm{control}} +
 E_{\mathrm{leakage}} .
 $$
-This decomposition is not a circuit-level energy model. It helps an architect
+This decomposition reflects Amdahl's Law applied to energy: optimizing the compute fraction yields diminishing system-level returns if the unoptimized data movement and leakage terms dominate the power budget. This decomposition is not a circuit-level energy model. It helps an architect
 check whether the comparison includes every major source of energy that could
 change the decision. A candidate that reduces arithmetic but increases memory
 movement, interconnect traffic, control overhead, or leakage may make the
@@ -965,9 +965,9 @@ verification, IP, tools, and engineering labor.
 
 Beyond the initial design costs, physical and manufacturing limiters have become first-class constraints. Modern systems are increasingly bottlenecked not by logic density, but by power delivery networks (PDN), thermal dissipation ceilings, and the complex yield curves of 2.5D and 3D packaging. A chiplet-based architecture might look optimal on a spreadsheet, but if the interposer yields at 50% or the concentrated logic creates uncoolable "hot spots," the design will fail economically or physically in the real world.
 
-In a traditional design loop, these physical constraints are often verified late in the process during physical signoff. Discovering a fatal thermal hotspot or a severe IR drop after the microarchitecture has been frozen forces massive, expensive rework that can derail an entire product schedule.
+In a traditional design loop, these physical constraints are often verified late in the process during physical signoff. Discovering a fatal thermal hotspot or a severe IR drop after the microarchitecture has been frozen forces massive, expensive rework that can derail an entire product schedule. Furthermore, evaluating these physical constraints requires bridging the semantic gap between high-level architectural proposals and the legacy EDA formats (e.g., LEF/DEF, Liberty timing files) that AI agents cannot yet reliably generate or parse.
 
-These physical constraints must therefore be elevated into the AI's early evaluation loops. An AI agent proposing architectures cannot treat "physical design" as an afterthought; it must maintain surrogate models of thermal behavior, package-level IR drop, and manufacturing yield. The true power of an AI surrogate model here isn't just cycle-accurate precision, it is *shifting left*—pulling these physical failure modes forward into the very first hours of exploration so the architect never wastes time on an uncoolable design.
+These physical constraints must therefore be elevated into the AI's early evaluation loops. An AI agent proposing architectures cannot treat "physical design" as an afterthought; it must maintain surrogate models of thermal behavior, package-level IR drop, and manufacturing yield. The true power of an AI surrogate model here—often driven by Bayesian Optimization or active learning to selectively sample the most uncertain regions of the physical design space—isn't just cycle-accurate precision, it is *shifting left*—pulling these physical failure modes forward into the very first hours of exploration so the architect never wastes time on an uncoolable design.
 
 ### The Verification Bottleneck
 
@@ -975,7 +975,7 @@ The driver of verification cost creates a similar, exponential bottleneck. When 
 
 This means AI agents must optimize for more than just Power, Performance, and Area (PPA)—they must also optimize for *verifiability*. An architect might propose a highly aggressive, speculative cache coherence protocol that yields a 5% performance boost. However, if that protocol creates so many un-testable edge cases that the verification team will spend a year trying to prove it safe, it is ultimately a bad architecture.
 
-Formal verification and simulation currently struggle to cover this explosion, turning verification into the single largest bottleneck in modern hardware development. This theoretical explosion has severe practical consequences on engineering teams, making the human cost of the design loop highly visible.
+Formal verification and simulation currently struggle to cover this explosion, turning verification into the single largest bottleneck in modern hardware development. This state-space explosion fundamentally limits Bounded Model Checking (BMC) and formal equivalence verification, forcing teams to rely heavily on constrained-random simulation instead [@Clarke2018ModelChecking]. This theoretical explosion has severe practical consequences on engineering teams, making the human cost of the design loop highly visible.
 
 Foster's summary of the 2022 Wilson Research Group functional-verification study reports that demand for IC/ASIC verification engineers grew nearly three times as much as demand for design engineers from 2007 to 2022, about 146 percent versus 50 percent (@fig-verification-demand-scissors). Mean peak staffing was roughly one verification engineer per design engineer across most market segments, processor projects reached ratios as high as five to one, and design engineers spent 49 percent of their time on verification in 2022 [@Foster2022WilsonVerificationStudy]. Every invalid candidate that reaches these stages consumes compute and scarce engineering time. Generated candidates are cheap only until they require tools, verification, and expert review.
 
