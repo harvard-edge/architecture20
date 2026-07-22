@@ -207,11 +207,15 @@ RTL fragment, produce a test bench, suggest a memory hierarchy, or enumerate
 hypotheses about a workload. Fluent artifacts make this role easy to
 demonstrate and easy to overtrust.
 
+### The Limits of Generative Models
+
 The method that fills a role spans a wide range. Simple, low-cost Support Vector Machines (SVMs) and decision trees handle basic classification, Small Language Models (SLMs) handle local code generation, and frontier Large Language Models (LLMs) and diffusion models[^fn-ml-diffusion-c06] handle complex reasoning or spatial layout. For generation, the choice depends on the type of artifact. For texts like RTL, C++ models, or compiler scripts, LLMs are the obvious choice.
 
 [^fn-ml-diffusion-c06]: **Diffusion model**: A generative model trained to reverse a gradual noising process, so it produces a sample by starting from noise and denoising step by step. Because it natively generates 2D spatial data such as images, it fits floorplan and placement artifacts better than a token-at-a-time language model.
 
 When the artifact is spatial, such as macro placement or floorplanning, architects use **Diffusion Models**. While the underlying mathematics differs, their reliability is the same. Both produce guesses, not evidence.
+
+### Grounding Candidates in Physical Reality
 
 Passing unchecked AI-generated RTL or a malformed configuration to a multi-day cycle-accurate simulation wastes the project's most expensive resource. It causes 72-hour formal equivalence timeouts, overnight place-and-route crashes, or stalled compute clusters. Generating RTL requires more than syntactic correctness. A generated module might compile perfectly but fail logic equivalence checking or create impossible combinational paths violating setup and hold times.
 
@@ -340,6 +344,8 @@ this lineage.
 
 [^fn-ml-foundation-models-c06]: **Foundation model**: A large model pretrained on broad data and adapted to many downstream tasks, the class that includes today's LLMs. Foundation models changed expectations about prediction, but architecture's regression models and learned surrogates predate them, and AI-assisted studies should preserve those calibration practices.
 
+### Surrogates and Graph Models
+
 Unlike generative brainstorming, prediction requires models that can be calibrated against real data. Large Language Models are poor fits here. Instead, to predict routing congestion or critical path delays from a netlist, architects have turned to **Graph Neural Networks (GNNs)**. Because chips are physical graphs, GNNs pass messages over the circuit's wiring graph and align with its structure. The architect integrates these GNNs to catch routing hotspots before an expensive 72-hour place-and-route run, grounding the model in silicon realities.
 
 For power and thermal estimation, **Physics-Informed Neural Networks** penalize violations of physical laws during training. These networks bias the model away from thermodynamically impossible predictions, keeping estimates within thermal and power limits [@RaissiEtAl2019PINNs].
@@ -364,6 +370,8 @@ result can test the estimate. Those details show whether the prediction is an
 interpolation inside known support or an extrapolation that needs escalation.
 
 A fast predictive model acts as an initial filter. It can flag anomalies, bound uncertainty, and rule out obviously bad configurations. However, it cannot guarantee physical performance. The cycle-accurate simulator or RTL synthesis tool acts as the final arbiter, providing the ground truth necessary to authorize a major design commitment. This separation of powers protects the design loop from the *sim-to-silicon gap*, the danger of optimizing so aggressively for a cheap proxy's score that the resulting hardware becomes fragile to physical variation.
+
+### Conformal Prediction and Drift Detection
 
 Conformal prediction[^fn-stats-conformal-prediction-c06] provides one rigorous way
 to formalize this triage step by attaching a calibrated interval to a surrogate when its assumptions apply. The
@@ -496,6 +504,8 @@ For example, if the surrogate missed a routing congestion bottleneck, the archit
 
 Even with a well-calibrated surrogate, deciding *which* candidate to evaluate next requires balancing exploration against exploitation. Optimization allocates a scarce evaluation budget, and Bayesian optimization is the standard way to spend it under expensive feedback. It fits a surrogate model to the results seen so far, reads where that surrogate is most uncertain, and uses an acquisition rule to pick the next evaluation most likely to improve the objective. The architect sets the physical constraints and PPA goals that shape the acquisition rule.
 
+### Balancing Exploration and Exploitation
+
 ```{python}
 #| label: fig-bayesian-optimization
 #| fig-cap: |
@@ -573,9 +583,13 @@ That single method fills two of the eight roles at once, since its surrogate is 
 
 The right method depends on whether the problem is expensive and black-box, discrete and combinatorial, sequential with delayed consequences, smooth enough for a surrogate, parallelizable, or small enough for enumeration and simple heuristics. In all cases, the human architect must supervise the optimizer, ensuring the search is anchored to hard physical limits like timing and area.
 
+### Selecting the Right Search Method
+
 To spend our simulation budget efficiently, we use algorithms built to handle uncertainty. We apply **Bayesian Optimization** when tuning continuous parameters or hyperparameters, such as sizing caches or out-of-order window dimensions under the 3\ W XR thermal constraints. When Bayesian optimization hits a nonlinear physical constraint, such as an unroutable configuration where the simulator crashes, the model stalls unless the constraint boundary is mapped.
 
-We apply **Reinforcement Learning (RL)** for combinatorial, sequential tasks like macro floorplanning. In these sequential tasks, the architect must tightly control the reward function, tying it directly to physical metrics such as routing congestion and thermal hotspots. These methods are resource managers orchestrated by the architect. They do not invent the design; they choose *where* to spend the next simulation run.
+For discrete search spaces that require looking ahead, **Monte Carlo Tree Search (MCTS)** and **Tree-of-Thoughts** allow an agent to plan multiple steps into the future, simulating rollouts of potential architecture configurations before committing to an expensive evaluation. By treating the design space as a game tree, these methods explore promising branches while pruning unviable configurations, ensuring the search doesn't waste runs on dead-ends.
+
+We apply **Reinforcement Learning (RL)** for combinatorial, sequential tasks like macro floorplanning. In these sequential tasks, the architect must tightly control the reward function, tying it directly to physical metrics such as routing congestion and thermal hotspots, often employing strict **penalty functions** for DRC (Design Rule Check) violations to ensure the agent learns to avoid physically impossible layouts. These methods are resource managers orchestrated by the architect. They do not invent the design; they choose *where* to spend the next simulation run.
 
 The useful outcome may be a Pareto region,[^fn-math-pareto-region-c06] a constraint boundary, a sensitivity, a ruled-out class of candidates, or a decision about which expensive experiment to run next. Hardware design spaces are often discrete, non-differentiable, and highly constrained, so an optimizer must work with sparse feedback and reject illegal actions rather than assume a smooth search space.
 

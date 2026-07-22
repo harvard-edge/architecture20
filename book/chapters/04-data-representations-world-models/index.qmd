@@ -31,6 +31,12 @@ After reading this chapter, you can:
 - Separate rapid AI estimations from the authoritative EDA tool results that verify them.
 :::
 
+## Cost Models vs. World Models
+
+Before exploring how an AI represents hardware, we must clarify what the AI is building with these representations. In current AI-assisted architecture, systems rely heavily on **Cost Models** (surrogates). A cost model takes a proposed design state and predicts its physical consequence (e.g., predicting that an expanded cache will consume 3 W of power).
+
+This is fundamentally different from a true **World Model**. In artificial intelligence, a world model predicts the *next state* of an environment, allowing an agent to plan several steps ahead without querying a simulator. Because hardware environments are deterministic once a mutation is chosen, true architecture world models are rarely needed. Instead, the field relies on highly accurate, multi-fidelity cost models. We introduce this distinction now to set baseline expectations: current agents do not hallucinate entire physical worlds; they search structural representations guided by learned cost proxies.
+
 ## Architectural Knowledge
 
 Before exploring where architectural knowledge comes from, we must define what it is. Architectural knowledge in this setting is the ability to do architectural research: constructing baselines, orchestrating the right tools, and interpreting the fidelity and limits of those tools. Along the transparency gradient introduced in @sec-architecture-20-ontology, this knowledge grows harder to codify as design moves from explicit software code down to the tacit judgments of physical design. To design something new, an AI method must make those tacit constraints explicit enough for a tool to check. It draws on two classes of information: learned architectural knowledge and the current project state.
@@ -149,6 +155,10 @@ When transitioning from abstract reasoning to concrete execution, what does the 
 
 To bridge this gap, agents increasingly rely on Intermediate Representations (IRs) like CIRCT [@CIRCT] and FIRRTL. These IRs shift the verification burden from slow, late-stage simulation to fast, upfront compilation. Instead of waiting hours for an EDA tool to fail on a mismatched bit-width or an unassigned wire, a typed, composable IR acts as a safe-by-construction API that catches illegal mutations instantly. Constraining the AI to emit structurally valid IR rather than raw text bounds the agent's action space, so expensive compute cycles go to meaningful semantic tradeoffs rather than debugging trivial syntax hallucinations.
 
+Beyond static IRs, real architects explore design spaces using **Parameterized Generators** (such as Chisel, Python frameworks, or SystemVerilog parameters). A useful AI representation must encode these generator boundaries and configuration schemas, allowing the agent to tune parameters rather than rewrite static graphs from scratch.
+
+Furthermore, real systems architecture is dominated by data movement, not isolated compute blocks. An AI's representation must structurally encode system-level topologies like Network-on-Chip (NoC), memory hierarchies, and bandwidth constraints (e.g., CXL). Finally, generating RTL without a testbench is useless. The AI must also represent verification intent and coverage models (such as UVM). We will cover the mechanics of verification and testbench representations deeply in @sec-feedback-verification-trust.
+
 The representation problem extends beyond logic to physical realization. Power and timing bounds are codified in syntax-heavy constraints like UPF (Unified Power Format) and SDC (Synopsys Design Constraints). An agent must parse and generate these formats to operate within a realistic physical envelope, transforming an abstract concept into a manufacturable netlist (@tbl-representation-formats).
 
 | **Format** | **Generative Brittleness** | **Verification Burden** |
@@ -218,23 +228,21 @@ Consider compiler regression tests. When a compiler bug is discovered, it is cod
 
 An old failure does not automatically rule out a new candidate. The workload, tool version, or surrounding design may have changed. The AI method can surface the earlier record, and the architect determines whether the conditions that caused the failure still apply.
 
-### Legacy Compatibility
-
-When an AI explores the combinatorial space of architectural mutations, it drifts toward the structures that are most efficient in isolation. A mathematically optimal design is still useless if it breaks the software ecosystem it has to run inside. The world model has to carry backward compatibility as an explicit part of the environment it reasons about.
-
-Design does not happen in a vacuum. It sits beneath billions of lines of existing code. A generative model might propose a memory interleaving scheme that improves average-case latency by 15%, yet if the scheme quietly violates the memory consistency models that legacy software assumes, it breaks every multithreaded operating-system kernel running on it. A non-standard interrupt controller might save area while violating POSIX contracts, forcing rewrites across millions of lines of legacy OS drivers.
-
-These boundaries are hard architectural constraints, not suggestions. A useful world model cannot optimize for IPC (Instructions Per Cycle) or PPA (Power, Performance, Area) alone. It has to stay bounded by the backward-compatibility contracts, ISA semantics, and memory consistency models that define the environment the chip will inhabit. Strip those constraints out of the representation and the AI will propose optimized but unbootable silicon.
-
 ## Consequence Prediction
 
 Once a representation properly bounds the AI to legal, bootable changes, the system still must select which valid mutation to pursue. To choose the next change, an AI method needs an estimate of what that change may do. Predictive design-space exploration has long used analytical models, learned surrogates, and regression modeling to predict configuration performance without running full simulations [@LeeBrooks2006RegressionModeling]. More recent learned cost models predict throughput or performance directly from a structural representation of the program, as in AutoTVM's learned tensor-program cost model and the Halide learned autoscheduler. What these predictors consume is a learned graph or structural representation of the design, the same move that later lets the AlphaChip placement agent operate on a chip graph.
 
-> **Performance model or simulator:** Estimates what a proposed change may do or evaluates it against a declared constraint. It may be a simulator, learned surrogate, analytical predictor, rule system, or constraint model. A fast, low-fidelity version used to screen many candidates before an expensive run is a *cost model* or *surrogate*.
->
-> **Architecture world model:** In artificial intelligence, a world model predicts the next *state* of an environment so an agent can roll out and plan several steps without acting in the real environment. Architecture design-space exploration rarely needs that full generality. Once the architect fixes a mutation, the next design state is applied deterministically, so the uncertain quantity is the *consequence* of the change, not the state that follows it. The object in routine use is therefore a learned cost model or surrogate. A genuine architecture world model, one that predicts a next design state well enough to plan a multi-step sequence of changes, is a stronger and far less developed target that this chapter marks but does not assume.
+### Legacy Compatibility as a Boundary Condition
 
-Whether the predictor is a cost model or something closer to a world model, what matters next is what it has actually learned. A common flaw in many early predictive surrogates is that they fall into the correlative trap. A black-box surrogate might learn a correlation (for example, that higher chip area often equals higher power) through curve-fitting on its training data, without understanding the underlying physics or capacitance equations.
+When an AI predicts the consequences of an architectural mutation, it often drifts toward structures that are most efficient in isolation. A mathematically optimal design is still useless if it breaks the software ecosystem it has to run inside. The cost model has to carry backward compatibility as an explicit part of the environment it reasons about.
+
+Design does not happen in a vacuum. It sits beneath billions of lines of existing code. A generative model might propose a memory interleaving scheme that improves average-case latency by 15%, yet if the scheme quietly violates the memory consistency models that legacy software assumes, it breaks every multithreaded operating-system kernel running on it. A non-standard interrupt controller might save area while violating POSIX contracts, forcing rewrites across millions of lines of legacy OS drivers.
+
+These boundaries are hard architectural constraints, not suggestions. A useful cost model cannot optimize for IPC (Instructions Per Cycle) or PPA (Power, Performance, Area) alone. It has to stay bounded by the backward-compatibility contracts, ISA semantics, and memory consistency models that define the environment the chip will inhabit. Strip those constraints out of the representation and the AI will propose optimized but unbootable silicon.
+
+### The Role of the Predictor
+
+Whether the predictor is a fast analytical proxy or a deep learned surrogate, what matters next is what it has actually learned. A common flaw in many early predictive surrogates is that they fall into the correlative trap. A black-box surrogate might learn a correlation (for example, that higher chip area often equals higher power) through curve-fitting on its training data, without understanding the underlying physics or capacitance equations.
 
 To overcome this, an AI requires a mechanistic or causal world model. Such a model explicitly encodes structural causality; it knows that adding a cache level forces an increase in access latency due to wire physics and multiplexing, not just because the two variables co-occurred in a dataset.
 

@@ -271,7 +271,7 @@ workload or memory organization matters and expand the work. When the question
 changes, the architect must update the recorded scope rather than quietly treat
 evidence from the original comparison as if it covered the larger question.
 
-## Formulating Claims and Design Spaces
+### Formulating Claims and Design Spaces
 
 The bounded study identifies the work. Its architectural claim states what the
 comparison is meant to show, while its design space states which alternatives
@@ -280,7 +280,7 @@ A claim without a legal design space hides the alternatives behind the result.
 A design space without a claim gives the search no architecture question to
 answer.
 
-### Claim Review Scope
+#### Claim Review Scope
 
 In @fig-structured-layer-above-rtl and @fig-ontology-chain, the bounded scope
 leads to an architectural claim. The bounded study acts as the container, while the claim is the specific statement under review. Asking only whether an AI agent
@@ -341,7 +341,7 @@ evidence and states which next decision the current evidence can support.
 Without that context, a generated design may be technically plausible without
 answering the architecture question.
 
-### Bounding the Design Space
+#### Bounding the Design Space
 
 An architectural claim is meaningful only relative to a design space. A system
 that reports a single best candidate without exposing the alternatives, invalid
@@ -384,6 +384,12 @@ through the work. That path connects the state available to the method, the
 actions exposed by tools, the consequences those tools or models return, and
 the review that determines what happens next. Keeping those connections
 explicit makes an iterative architecture study inspectable.
+
+### Generating Initial Candidates
+
+Before navigating a multi-fidelity search space, an AI agent must seed the exploration with initial candidates. The choice of generator depends heavily on the constraints established in the Formulate stage. For highly constrained, domain-specific problems, architects might use parameterized templates where an agent only tunes numerical values (e.g., buffer sizes or bus widths).
+
+For more open-ended exploration, Large Language Models (LLMs) can generate structural topologies or initial RTL blocks by interpreting natural language requirements. However, LLMs are prone to generating invalid configurations. To mitigate this, the generation step often employs constructive heuristics or grammar-based constraints that ensure every proposed candidate is at least syntactically valid and compliant with basic design rules before it ever reaches a simulator.
 
 ### State Representation in Search
 
@@ -519,64 +525,46 @@ To operate effectively, an agent needs clear tool interfaces that expose not jus
 
 A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash, it logs the failure as negative evidence. The architect can then review the execution record to determine whether the toolchain requires repair or the agent explored an unsupported corner of the design space. Planning for tool failures in advance lets the AI continue searching the viable portions of the design space.
 
-## Evaluate: Converting Results to Evidence
+## Evaluate: Producing Reviewable Evidence
 
-Even a robust execution loop that gracefully handles tool failures does not determine what its results mean or who may
-act on them. The study must distinguish tool feedback from reviewed evidence,
-then assign authority for the possible next actions.
+Even a robust execution loop that gracefully handles tool failures does not determine what its results mean or who may act on them. The study must distinguish raw tool feedback from reviewable architectural evidence.
 
-### Converting Results to Evidence
+### Distinguishing Feedback from Evidence
 
-In @fig-structured-layer-above-rtl, tool measurements feed into evidence and
-review. When an AI agent changes an allowed parameter and a tool completes the
-run, the result is feedback. It becomes evidence only when it is tied to the
-claim and the run record identifies the conditions and provenance under which
-it was produced. The reviewer must still judge what the result means for the
-comparison.
+In @fig-structured-layer-above-rtl, tool measurements feed into evidence and review. When an AI agent changes an allowed parameter and a tool completes the run, the result is *feedback*. It becomes *evidence* only when it is tied to the architectural claim and the run record identifies the conditions, constraints, and provenance under which it was produced.
 
-The strength of the check must match the next decision. A proxy may be enough
-to keep a candidate in the search, while starting RTL work or making a product
-decision requires stronger evidence from tools closer to the implemented
-system.
+The strength of the check must match the next decision. A proxy may be enough to keep a candidate in the search, while starting RTL work or making a product decision requires stronger evidence from tools closer to the implemented system.
 
 ::: {.callout-lighthouse title="A 3 W claim needs evidence, not a number"}
-**Context.** A reported power result is feedback. It becomes evidence only when
-the run record provides enough information for a reviewer to judge what the
-number means.
+**Context.** A reported power result is feedback. It becomes evidence only when the run record provides enough information for a reviewer to judge what the number means.
 
-**In the cache comparison.** A statement that one cache configuration remains
-inside the modeled 3\ W envelope needs the named XRBench traces, RISC-V
-baseline, cache parameters, simulator and power-model versions, relevant
-software assumptions, uncertainty, and the check that would rule the
-configuration out.
-
-The same power number supports different decisions depending
-on whether it came from a proxy, cycle-level simulation, synthesis, a
-post-layout estimate, or silicon. A proxy may be enough to keep a candidate in
-consideration. Stronger implementation or deployment decisions require evidence
-closer to the final system.
-
-The design-space report must say what decision the current evidence supports and
-which later decisions still require stronger evidence.
+**In the cache comparison.** A statement that one cache configuration remains inside the modeled 3\ W envelope needs the named XRBench traces, RISC-V baseline, cache parameters, simulator and power-model versions, relevant software assumptions, uncertainty, and the check that would rule the configuration out.
 :::
 
-Recording the provenance and tool parameters is what lets another architect verify a reported number. Results that count against a candidate deserve the same care.
+The same power number supports different decisions depending on whether it came from a proxy, cycle-level simulation, synthesis, a post-layout estimate, or silicon. The design-space report must say what decision the current evidence supports and which later decisions still require stronger evidence. Recording the provenance and tool parameters is what lets another architect verify a reported number.
 
-Negative results can also serve as evidence. Rejected candidates, failed
-simulator runs, invalid configurations, proxy wins that disappear at higher
-fidelity, and abandoned assumptions help map the design space. Preserving them
-shows what was explored, what could overturn the claim, and which failed paths
-should not be repeated without new information. @sec-feedback-verification-trust
-develops the validation and evidence practices needed to support such claims.
+### The Value of Negative Results
+
+In an AI-driven exploration, negative results are just as critical as successful candidates. Rejected candidates, failed simulator runs, un-routable floorplans, and proxy wins that disappear at higher fidelity all help mathematically map the valid design space.
+
+An AI agent shouldn't simply discard these failures. It must preserve them as negative evidence, showing what was explored, what physical constraints overturned the claim, and which failed paths should not be repeated without new information. This failure map prevents future agents from wasting expensive tool runs on known dead ends. @sec-feedback-verification-trust develops the validation and evidence practices needed to support such claims.
 
 
 ## Explain: Mechanism and Interpretation
 
-While evaluation provides the evidence for a claim, the claim remains incomplete without a mechanism-level explanation. A fast proxy score or a high-fidelity simulation result tells the architect *what* happened, but the explanation stage tells them *why*.
+While evaluation provides the hard evidence for a claim, the claim remains incomplete without a mechanism-level explanation. A fast proxy score or a high-fidelity simulation result tells the architect *what* happened, but the explanation stage tells them *why*.
 
-When an AI agent proposes a design change, such as expanding a cache or altering a dataflow, and a simulator confirms it runs faster, the agent must provide a falsifiable architectural mechanism. Did the cache reduce conflict misses? Did the dataflow improve spatial reuse?
+### The "Clever Hans" Risk
 
-This stage isolates the causal mechanism by running targeted ablations or specific workload contrasts. A fluent text generation from a language model is merely a hypothesis; the explanation stage proves it against the simulator's telemetry, ensuring that the team understands the behavior of the system they are about to build.
+When an AI agent proposes a design change—such as expanding a cache or altering a dataflow—and a simulator confirms it runs faster, the agent must provide a falsifiable architectural mechanism. Did the cache actually reduce conflict misses, or did the AI simply find a way to skip a mandatory initialization routine?
+
+Without demanding a mechanism, the architect risks accepting a "Clever Hans" result, where the AI exploits a simulator bug, an edge case, or a broken script rather than discovering a genuine architectural improvement.
+
+### Causal Ablation and Attribution
+
+The explanation stage mitigates this risk by isolating the causal mechanism. It does this by orchestrating targeted ablations, counterfactual simulations, or specific workload contrasts.
+
+For example, if an AI agent claims an accelerator is faster because of a new tiling strategy, the explanation stage must ablate the tiling strategy while keeping all other parameters constant to isolate the performance delta. Advanced AI approaches use techniques like SHapley Additive exPlanations (SHAP) or causal graphs to attribute performance and power gains to specific microarchitectural features. A fluent text description generated by a language model is merely a hypothesis; the explanation stage proves it against the simulator's telemetry, ensuring the team understands the system's behavior before a design review.
 
 ## Defend: Action, Authority, and Review
 

@@ -190,6 +190,8 @@ The role separation in @tbl-practitioner-path matters because while the model an
 
 With the roles and constraints fixed, the architect invokes the model. It received the architecture question, legal dimension set, processing-element budget, workload matrix dimensions, fixed environment assumptions, mandatory baseline, output schema, scoring definition, and evidence boundary, but it did not receive the fixed heuristic's candidates or simulator results. The model then proposed a design mutation by naming three candidates, predicting qualitative behavior, stating an anticipated failure mode, and offering a directional mechanism with a testable failure condition. The architect evaluates this output as a candidate, not a final decision.
 
+### Handling Toolchain Errors
+
 The first attempt to invoke the runtime never reached inference. The response-format service rejected the request's JSON Schema before any tokens were generated.[^fn-json-schema-c08] Following the tool interface principles from @sec-architecture-environments-tool-interfaces, this schema error is classified as an infrastructure failure, which can be repaired cheaply, rather than a valid architectural constraint violation like an unroutable netlist. Toolchain failures must be isolated from architectural evaluations.
 
 [^fn-json-schema-c08]: **JSON Schema rejection (detail)**: Two constant-string properties in the schema lacked explicit types, so no model output or usage was produced. The schema-only correction and both hashes were added as a preregistration amendment before inference.
@@ -203,6 +205,8 @@ While this schema error was simple API friction, real hardware environments invo
 
 **The lesson.** Bounded studies must record all inference attempts, repairs, and environment failures. The true cost of a candidate includes the discarded prompts and failed runs that led to it.
 :::
+
+### Capturing Call Provenance
 
 The subsequent call returned a schema-valid response. Since semantic validation found three unique legal candidates, no repair call was made. The complete response is retained, not only the candidate coordinates or a prose summary. The runtime exposed only part of the provenance needed to identify the call, so @tbl-model-provenance records the supplied values and marks the rest as unavailable instead of inferring them.
 
@@ -220,6 +224,8 @@ The subsequent call returned a schema-valid response. Since semantic validation 
 : **Recorded and unavailable model settings.** The record reports values supplied by the runtime and marks the remaining settings as unavailable. {#tbl-model-provenance tbl-colwidths="[27,63]"}
 
 Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Second, the requested alias is not a pinned model identity. The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
+
+### Interpreting Proposal Overlap
 
 The model proposed 16 by 64, 8 by 128, and 32 by 16. The fixed aspect-ratio
 heuristic ranked legal shapes by processing-element count, then by closeness to
@@ -411,6 +417,9 @@ search from the architecture action that the named decision owner may approve.
 The retained replay package contains the frozen context, complete model
 response, public-safe provenance, exact simulator inputs, raw summary reports,
 parsed results, hashes, tests, and replay code. This study carries no proprietary PDK data or RTL, so making the package public-safe required only removing local pathnames. In a production setting, the same step would also strip confidential inputs before release, so a reviewer can check provenance without exposing protected material. The package is pinned to a single recorded commit rather than a mutable branch.
+
+### Mapping Artifacts to Review Questions
+
 @tbl-study-archive maps each retained artifact to the review question it can
 answer.
 
@@ -425,6 +434,8 @@ answer.
 
 : **Files and commands available for review.** These artifacts do not establish that the simulator is accurate or the workload representative. They preserve the declared run so that reviewers can examine those assumptions. {#tbl-study-archive tbl-colwidths="[26,64]"}
 
+### Three Levels of Verification
+
 These artifacts support verification across three distinct levels of scrutiny, as categorized in @tbl-verification-levels.
 
 | **Verification Level** | **Action** | **What It Establishes** |
@@ -434,6 +445,8 @@ These artifacts support verification across three distinct levels of scrutiny, a
 | Independent validation | A different team building a different model or testbench to evaluate the same architectural claim in RTL. | Establishes that the architectural mechanism holds in physical reality, using independent oracles. |
 
 : **Three levels of verification.** True architectural trust requires independent validation, while replay guarantees only that the study faithfully executed its own declared loop. {#tbl-verification-levels tbl-colwidths="[22,38,40]"}
+
+### Verifying the Replay
 
 The preregistration and model artifacts show what was fixed before inference.
 The raw reports and parsed results show what SCALE-Sim returned. The manifest

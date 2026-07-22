@@ -250,6 +250,12 @@ reasons.
 - **Author or reviewer:** Ask what would reject the claim, why the measured
   mechanism supports it, and which decision it can justify.
 
+## The AI Methods Landscape {#sec-ai-methods-landscape}
+
+Before examining how these methods change the architect's role, it is important to recognize that Architecture 2.0 does not rely on a single "silver bullet" algorithm. Hardware constraints force a composite approach. A complete AI-assisted workflow rarely relies on just one technique; it might use generative language models to parse specifications and draft RTL, structural networks to predict physical congestion, and reinforcement learning or Bayesian methods to optimize the search against a slow, high-fidelity simulator.
+
+We will detail the mechanics of each of these methods—and how to compose them—in @sec-methods-generation-prediction-optimization. For now, the focus is on how this ecosystem of AI assistants changes the human architect's fundamental responsibilities.
+
 ## Transitioning from Architecture 1.0 to 2.0 {#sec-from-architecture-10-to-architecture-20}
 
 These review questions apply whether people orchestrate every step or AI participates in part of the work. Architecture 1.0 is shorthand for familiar, human-orchestrated design where the architect defines the problem, chooses models, uses tools, interprets feedback, and decides what to build. The Architecture 2.0 vision retains that accountable practice while allowing AI to shoulder more of the execution burden [@ReddiYazdanbakhsh2025Architecture20], asserting that the architect's value lies in orchestration rather than manual implementation, as summarized in @tbl-arch1-vs-arch2.
@@ -332,6 +338,14 @@ To apply that ambition to the Lighthouse prompt, we must clearly define *archite
 > **Architecture.** Architecture is the hardware and software contract and system organization turning workload intent and technology constraints into a defensible system design. It includes the instruction set architecture (ISA), microarchitecture, memory, interconnects, accelerators, chiplets, compiler interfaces, physical-design constraints, verification plans, deployment models, and the evidence used to justify choices.
 
 > **Architect.** The architect is the owner of the decision. They frame the problem, choose abstractions, set the evidence standard, define what disqualifies a candidate, and remain answerable for the committed design. While one person may hold this role or a team may divide the work, the division must explicitly state who holds decision and approval authority. Methods can contribute candidates and analysis, but the architect remains responsible for synthesizing the results into a recommendation and defending the ultimate architectural claim.
+
+### Early Ideation and Requirement Translation
+
+One of the most profound shifts in Architecture 2.0 is applying AI to the very first steps of the design loop: early ideation and requirement translation. Historically, translating a product requirement ("we need a low-power AR headset") into a formal architectural specification ("3 W TDP, 64-bit RISC-V, 128-bit vector extensions, 4 MB shared L2") required weeks of manual profiling, spreadsheet modeling, and expert intuition.
+
+AI assists in this translation by rapidly bridging the gap between natural language intent and formal constraints. An LLM can ingest product requirements, cross-reference them against historical designs and public benchmarks, and propose a parameterized design space. More importantly, it can help the architect formalize ambiguity. When a prompt asks for a "real-time" workload, an AI agent can query the architect to bound that term: *Does real-time mean a strict 16 millisecond frame deadline, or 99th-percentile tail latency?*
+
+This early assistance shifts the architect's focus from writing boilerplate specifications to critiquing the proposed bounds. By formalizing the constraints early, the AI ensures that downstream generation and evaluation tools are searching a mathematically well-defined space, rather than one built on unstated assumptions.
 
 ## Unpacking Lighthouse Architecture Questions {#sec-why-the-prompt-spans-the-stack}
 
@@ -543,7 +557,11 @@ SPEC-style benchmarks made performance claims more comparable by specifying work
 
 ### Data Scarcity
 
-Software and hardware diverge on the data axis. A model can observe millions of open-source pull requests and unit tests; hardware IP, process design kits (PDKs), and high-fidelity design data are proprietary and closely held. With little open RTL, cycle-accurate traces, or floorplans to learn from, a model cannot acquire power-delivery routing or 3 nm timing limits during pretraining. It learns them interactively instead, running each candidate through the toolchain, orders of magnitude slower than a software unit test. This is why the open ecosystems the Lighthouse prompt names, RISC-V and OpenROAD, matter. They are the accessible bootstrap data for hardware tasks, and without them open AI efforts stay outside the synthesis and physical-design loops Architecture 2.0 must demonstrate.
+Software and hardware diverge sharply on the data axis. A coding agent can observe millions of open-source pull requests, Stack Overflow discussions, and unit tests to learn idiomatic Python or C++. In contrast, high-fidelity hardware IP, process design kits (PDKs), and production silicon design data are proprietary, closely held, and rarely published.
+
+With little open RTL, cycle-accurate memory traces, or production floorplans available in its pretraining corpus, a foundation model cannot magically acquire an understanding of power-delivery routing or 3 nm timing constraints. When it attempts to generate hardware structures zero-shot, it relies on superficial textual patterns rather than physical invariants, often proposing designs that look correct but are fundamentally unroutable or physically impossible to cool.
+
+Because the model lacks this latent knowledge, it must learn these constraints interactively during the design loop. It submits a candidate to a toolchain, encounters a DRC error or timing violation, and attempts to revise the design. However, this feedback loop is orders of magnitude slower than a software unit test. This structural data deficit explains why open hardware ecosystems like RISC-V and OpenROAD are so critical. They provide the accessible bootstrap data needed to train architecture models, serving as the only viable bridge into the synthesis and physical-design loops that Architecture 2.0 must demonstrate.
 
 ### The Verification Load
 

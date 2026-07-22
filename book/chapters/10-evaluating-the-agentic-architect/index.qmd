@@ -89,6 +89,8 @@ To do that, we fix the unit of evaluation. A *task* is a bounded physical design
 
 The following sections take each metric in turn and ground it in the failure mode it is designed to detect.
 
+### Pass-Rate and Reward Hacking
+
 The most basic evaluation of an agent is whether it produces a physically valid proposal at all. In an unconstrained topological search, generative models frequently propose illegal configurations. An agent might route a memory bus through a hard macro, request an L2 cache that exceeds the SRAM area budget, or emit Verilog that cannot compile.
 
 If we reward an agent solely for maximizing IPC, we invite Goodhart’s Law.[^fn-goodharts-law-c09] The agent will learn to "reward hack" the simulator. For instance, it might exploit a known boundary bug in a McPAT power model to artificially deflate estimated energy usage by gating clocks that are structurally required to remain active.
@@ -97,17 +99,23 @@ To detect this, we measure the *zero-shot pass rate* (success on the first try) 
 
 [^fn-goodharts-law-c09]: **Goodhart's Law**: When a measure becomes a target, it ceases to be a good measure [@Strathern1997Improving]. If an agent is evaluated solely on IPC, it will optimize strictly for that metric, even if it requires emitting physically impossible structures.
 
+### Proxy Calibration and the Mirage
+
 Before an agent queries a slow EDA tool, it typically queries a fast surrogate model to predict the outcome. Evaluating the agent's predictive capability means measuring how much that proxy can be trusted. The risk is the *Proxy Mirage*: a poorly calibrated proxy sends the optimizer confidently toward a region where it predicts large performance gains but where physical synthesis returns poor timing or routing results.
 
 We expose the mirage by measuring rank fidelity where the search concentrates, rather than relying on global correlation.[^fn-rank-fidelity-c09] Using rank correlation metrics like Kendall’s $\tau$ [@Kendall1938NewMeasure] on the Pareto frontier, we measure the top-$k$ rank agreement between the proxy’s predictions and the slow, physics-bound simulator’s ground truth. If the agent overfits to the proxy, this metric collapses, warning the architect that the agent's "discoveries" are physically meaningless.
 
 [^fn-rank-fidelity-c09]: **Rank fidelity vs. Absolute error**: An optimizer does not need the proxy to predict the exact cycle count (absolute error); it only needs the proxy to correctly order which of two designs is better (rank fidelity).
 
+### Trajectory Efficiency and Simulator Tax
+
 An agent’s practical value is set by its trajectory efficiency, how quickly it converges on a strong design instead of wandering through the tradeoff space.
 
 Architecture imposes a steep Simulator Tax [@Kahng2018Machine]. Every unreasoned guess spends scarce EDA tool license hours and saturates compute node limits. If Agent A finds a five percent improvement in ten simulator calls, and Agent B finds six percent but burns a thousand calls, Agent A is economically viable while Agent B is not.
 
 To formalize this tax, we measure the area under the curve (AUC) [@Fawcett2006AUC] of the agent's trajectory, plotting cumulative simulator calls against the best reward seen so far. That translates raw simulator round-trips into a measurement of methodical search. An evaluation must charge this Simulator Tax to reflect real engineering economics.
+
+### Self-Correction and Credit Assignment
 
 When an architecture environment returns an error, such as a setup-time violation from Static Timing Analysis (STA) or a failure in formal equivalence checking, the agent must parse that output and adjust its next proposal.
 
@@ -123,6 +131,8 @@ We measure this with the hallucinated-tool-call rate and the parameter-error rat
 
 [^fn-credit-assignment-c09]: **Credit assignment**: The reinforcement learning problem of determining which earlier action caused a later outcome. An agent that queries the critical path before editing shows it can attribute a timing gain to the change that produced it.
 
+### Context Retention and Sandbox Security
+
 Hardware design is a multi-week, stateful project. An agent might learn a constraint on the memory subsystem's latency on day one that it must apply when fixing a pipeline deadlock on day fourteen.
 
 To verify that an agent retains this context, we measure its performance on long-horizon tasks that inject a constraint early, such as a 10 mW power limit on the ALU, and check whether the agent violates it many turns later. This matters because generative models still drop earlier physical constraints as the RTL and run log expand [@Liu2024LostInTheMiddle]. Architecture benchmarks must test constraint-state retention so the agent does not regress on problems it already solved.
@@ -135,9 +145,13 @@ The evaluation must therefore measure the secure isolation of the Simulator Sand
 
 Even if an evaluation successfully isolates the sandbox and records a comprehensive set of metrics, those metrics are only as trustworthy as the underlying benchmark data. Four failures make a good-looking score a lie: the tasks were contaminated, the number was noise, there was nothing to compare it against, or the metric was never shown to predict the capability it stands in for.
 
+### Distinguishing Harness from Data
+
 When researchers discuss "benchmarks," they frequently conflate two distinct components: the **evaluation harness** (the scripts, EDA tools, and metrics used to grade an agent) and the **benchmarking data** (the physical constraints, RTL topologies, and task specifications the agent operates on). In machine learning, the ascendancy of "data-centric AI" [@Ng2021DataCentric] proved that the quality of the dataset often drives capability more than the architecture of the model itself. In software and computer vision, benchmarking data is abundant. ImageNet contains millions of images, and GitHub provides millions of repositories for SWE-bench.
 
 In hardware design, however, proprietary IP walls mean that high-quality, physically realizable benchmarking data is tightly restricted. Consequently, creating an architectural benchmark is largely a problem of *data synthesis* and *curation*, not just evaluation logic. Frameworks like ArchGym [@KrishnanEtAl2023ArchGym] and RTLLM [@RTLLM] highlight that without diverse, representative benchmarking data, an agent's capability cannot be rigorously measured, regardless of how sophisticated the evaluation harness is.
+
+### Mitigating Data Contamination
 
 The public corpus of open-source hardware, such as RISC-V cores like BOOM [@BOOM] or Rocket, is exceedingly small compared to software repositories. Because modern LLMs aggressively scrape GitHub and open-source codebases during pre-training, the probability of **data contamination**,[^fn-data-contamination-c09] where the benchmark's test data leaks into the model's training corpus, is very high for standard hardware tasks [@Balloccu2024Leakage]. When this leakage occurs, a high pass-rate measures **memorization** (data retrieval of existing RTL) rather than **generalization** (the capability to reason about novel microarchitectural trade-offs).
 
@@ -153,6 +167,8 @@ To guarantee generalization, we must measure whether the score survives contact 
 **The lesson.** An RL agent optimizing for a fast analytical proxy will push into regions where that proxy's assumptions break down. An architectural benchmark's credibility depends on evaluating agents against the hard walls of physical reality (timing, power, and detailed routing), not just the soft estimates of an analytical proxy.
 :::
 
+### Controlling Variance and Budgets
+
 Because agents are stochastic, a single run is an anecdote, not a measurement. Both deep reinforcement learning and language model generation have high variance; a lucky random seed can outperform an unlucky one, creating the illusion of an algorithmic breakthrough when the result is statistical noise [@Henderson2018DeepRL].
 
 To combat this, a rigorous evaluation must control variance by reporting the number of seeds, the sample size per task, and the spread of results (e.g., standard deviation or interquartile range). Furthermore, true scientific reproducibility demands that evaluations pin the model version and a response digest, fix the seeds and the compute budget *before* the run, and archive the complete trajectory. Only when a trajectory is fully archived can another team replay the exact sequence of tool calls and verify the claimed outcome.
@@ -167,11 +183,15 @@ Finally, a valid evaluation must ensure its metrics reliably correlate with phys
 
 Assuming the benchmark is valid and free of the Proxy Mirage, the resulting evaluation exists to change what an architect does next. Applying it requires reading the scores through reliability and cost, not just peak capability.
 
+### Reliability Over Optimism
+
 Pass@k rewards at least one success in $k$ tries.[^fn-pass-at-k-c09] Deployment usually needs the opposite property, that the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
 
 [^fn-pass-at-k-c09]: **Pass@k**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass@1 reliability.
 
 Therefore, we must measure a reliability figure and report it alongside the optimistic ones: the worst-case outcome across runs, or the fraction of runs that finish with no constraint violations.
+
+### The Cost-Quality Trade-Off
 
 Because agents differ in both quality and cost, the comparison is a cost-quality plane. @fig-agent-pareto places candidate agents by total evaluation compute against the best design quality they reach.
 
@@ -182,6 +202,8 @@ Because agents differ in both quality and cost, the comparison is a cost-quality
 [^fn-frontier-model-c09]: **Frontier model**: Industry shorthand for the most capable current generation of large models, which spend heavily on inference per step. The term is unrelated to the Pareto frontier on the cost-quality plane.
 
 ![**The economics of agentic evaluation.** The total computational cost forms a U-shaped curve. Weak agents incur a large EDA Simulator Tax through brute-force interaction. Frontier agents minimize simulation but incur a high Transformer inference cost.](images/F9-compute-economics.svg){#fig-compute-economics fig-alt="A U-shaped curve showing that total evaluation compute is a trade-off between inference cost and simulation cost." width=80%}
+
+### Calibrating Agent Autonomy
 
 How much of the initial search can run with lightweight supervision requires a formal Autonomy Calibration framework [@ParasuramanRiley1997HumansAutomation], keyed directly to the agent's position on the cost-quality frontier. Agents operating in a low-cost, high-reliability regime, such as a steady agent proposing a parameterizable cache sweep, can be granted fully autonomous batch execution. Conversely, as an agent moves up the cost curve to propose complex, irreversible RTL changes, the framework mandates stage-gated human sign-off, ensuring the architect remains an active decision-maker rather than a liability shield [@Elish2019MoralCrumpleZones]. Ultimately, no agent is permitted to make final architectural decisions or approve an RTL freeze without the human architect serving as the final judge (@tbl-eval-checklist).
 

@@ -33,6 +33,8 @@ Start with the next architecture decision rather than the AI method. The artifac
 
 > **Operating condition.** An operating condition describes one property of the next decision, such as feedback latency, reversibility, interface span, consequence, or check independence. The architect uses the conditions that apply together to decide what an AI method may do, which evidence and checks are needed, how the AI's internal representation must be updated, and whether the result can advance. An operating condition is not a stack layer, a maturity score, or a property of an AI model.
 
+### The Four Operating Quadrants
+
 Four recurring combinations of operating conditions organize the cases considered here. These conditions overlap and accumulate. A kernel schedule may have fast feedback during tuning, cross an interface contract when deployed, and become difficult to reverse when hardware is frozen around it. A chiplet study can simultaneously be model-mediated, cross-interface, and high consequence. When several conditions apply, the stricter requirements of each accumulate.
 
 @tbl-loop-patterns compares these four recurring combinations. The columns describe conditions, not fixed ranks. Fast feedback does not make the next decision low risk, and silicon-facing work does not forbid useful automation.
@@ -51,6 +53,8 @@ Four recurring combinations of operating conditions organize the cases considere
 ```
 
 The contrast is clearest at the endpoints. A local software change can often be executed and rolled back under close tests, while a silicon-facing change needs independent checks, a named waiver holder, and a decision owner before it advances.
+
+### Three Questions for Classification
 
 The cases that follow should be read through three questions:
 
@@ -427,7 +431,11 @@ Deployment feedback includes operational state, SLOs, resource contention, and r
 
 ## RTL and Physical Design
 
-As the design loop descends into RTL and physical design, it enters the domain of high-consequence work—including timing closure, power analysis, and formal signoff. Feedback is delayed, and because a committed silicon tapeout is a large capital expense on a multi-year horizon, reversal is slow and prohibitively expensive. AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.[^fn-differentiability-c10]
+As the design loop descends into RTL and physical design, it enters the domain of high-consequence work—including timing closure, power analysis, and formal signoff. Feedback is delayed, and because a committed silicon tapeout is a large capital expense on a multi-year horizon, reversal is slow and prohibitively expensive.
+
+### The Cost of Silicon Commitment
+
+AI heuristics that work well in software often break down against the physical realities of multi-day placement and routing runs, Design Rule Check (DRC) violations, and non-linear timing-closure loops where physical-design feedback is noisy and non-differentiable.[^fn-differentiability-c10]
 
 [^fn-differentiability-c10]: **Differentiability**: A signal is differentiable when small input changes produce smooth, computable gradients, which is what lets ML optimizers follow a slope toward better designs. Physical-design feedback offers no such gradient, so gradient-based methods give way to slower black-box search.
 
@@ -436,6 +444,8 @@ Because you cannot `git revert` a tapeout, AI-assisted hardware changes require 
 The cost of getting this wrong is not hypothetical. In 2011 Intel shipped its 6-series "Cougar Point" chipset with a design fault in the SATA ports that would degrade over time, a defect no firmware update could reach; the company halted shipments, recalled parts, and absorbed about \$700 million to respin the silicon [@Intel2011CougarPoint]. Where Knight Capital lost its \$440 million to software in forty-five minutes, a silicon escape is undone only by months and a new mask set, which is why the escape hatches and independent signoff above have to be in place before commitment rather than after.
 
 AI assistance can narrow search, critique, organize evidence, repair bounded artifacts, or generate tests. However, independent checks and named roles must retain rejection, waiver, recommendation, and authorization rights.
+
+### Action Space Adaptation
 
 This progression down the stack requires *action space adaptation*. For example, moving the @sec-running-the-loop candidate toward implementation shifts the required checks from logical simulation to physical constraints. During microarchitecture exploration, search evaluates parameter spaces like buffer sizes or array geometries while holding logic fixed. During logic generation, synthesis targets a discrete domain of Boolean functions and state transitions guided by functional simulation. Physical design, however, imposes continuous and tightly coupled spatial constraints. The required evidence shifts from RTL syntax to STA reports and routing congestion that drive floorplanning, cell placement, and wire routing.
 
@@ -449,7 +459,11 @@ Post-silicon bring-up and validation represent a controlled implementation retur
 
 ## The Three Feedback Clocks
 
-The operating conditions classified the next decision before it was made, setting what an AI method may do to it. The feedback clocks classify something different, what a result can be claimed after evidence arrives. The two connect through timing. The clock that can confirm a decision often runs far slower than the clock on which the decision was committed, so the stricter operating conditions, high consequence and model-mediated, are the ones whose confirming evidence arrives latest.
+The operating conditions classified the next decision before it was made, setting what an AI method may do to it. The feedback clocks classify something different, what a result can be claimed after evidence arrives. The two connect through timing.
+
+### Clocks Versus Operating Conditions
+
+The clock that can confirm a decision often runs far slower than the clock on which the decision was committed, so the stricter operating conditions, high consequence and model-mediated, are the ones whose confirming evidence arrives latest.
 
 Design-time evaluation, in-field evidence, and continuing enablement each answer a different question about the system (@fig-feedback-clocks).
 
@@ -510,6 +524,8 @@ These observations describe different system states and bear on different decisi
 
 : **Three feedback paths with different clocks.** {#tbl-feedback-clocks tbl-colwidths="[18,25,30,20]"}
 
+### Three Modes of Observation
+
 **Design-time evaluation** estimates behavior. The SCALE-Sim observations from @sec-running-the-loop evaluated candidates tied to frozen workload and software assumptions.
 
 **In-field evidence** tests the deployment context. Google and Meta discovered "mercurial" cores that silently returned wrong results after passing manufacturing tests [@HochschildEtAl2021Cores; @DixitEtAl2021SDC]. This observation rejected the sufficiency of earlier test regimes under fleet-scale operation. It showed that deployment can expose failure classes missed by prior checks. In-field evidence also reveals the algorithm evolution treadmill. When a specialized accelerator is fabricated and deployed, the neural network architectures it was originally optimized for have often been superseded by new models.
@@ -518,11 +534,17 @@ These observations describe different system states and bear on different decisi
 
 ## Delayed Feedback
 
-Because in-field evidence arrives on these slower clocks, it requires different handling. Feeding delayed, noisy field telemetry directly into a high-frequency AI optimizer makes it overcorrect and thrash, because the telemetry arrives too late to guide rapid tuning. The fix is to run the two at different speeds, nesting a fast tuning loop inside a slow review loop (@fig-cascade-control).
+Because in-field evidence arrives on these slower clocks, it requires different handling. Feeding delayed, noisy field telemetry directly into a high-frequency AI optimizer makes it overcorrect and thrash, because the telemetry arrives too late to guide rapid tuning.
+
+### Nested Control Loops
+
+The fix is to run the two at different speeds, nesting a fast tuning loop inside a slow review loop (@fig-cascade-control).
 
 ![**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing.](images/F9-cascade-control){#fig-cascade-control fig-alt="**Handling delayed telemetry.** Nested feedback loops ensure that delayed field telemetry is reviewed rather than fed directly into fast, automated tuning loops, preventing the optimizer from thrashing."}
 
 Fast inner loops handle local software tuning and immediate stabilization using close tests and proxies. Slow outer loops review the delayed field telemetry, updating the architectural assumptions and test targets. The fast tuning loop must only tune against immediate proxies. It should never act directly on delayed telemetry.
+
+### The Hardware Telemetry Flywheel
 
 When telemetry is captured and isolated into calibration datasets, post-silicon results from one generation can recalibrate the surrogate models used to design the next (@fig-hw-flywheel).
 
@@ -533,6 +555,8 @@ In traditional design, telemetry is often used only for debugging or triggering 
 An organization with more GPU compute but no comparable deployment telemetry cannot recalibrate its surrogates the same way. A first tapeout or a new team starts without any prior-generation telemetry at all, so the flywheel is an advantage that accrues over generations rather than a precondition for the first design. Before the fleet exists, surrogates are calibrated from foundry process design kit data and published baselines, and conservative escape hatches such as fuses and microcode patches absorb the residual uncertainty.
 
 Run naively, the flywheel can also lock in the past. Because telemetry records only the workloads Generation $N$ actually served, a surrogate recalibrated on it sharpens on yesterday's traffic and goes blind to workloads that have not yet appeared, reinforcing the design distribution it was trained on and steering Generation $N+1$ toward the previous generation's bottlenecks [@SculleyEtAl2015Hidden]. This is the algorithm evolution treadmill seen from the design side, and that advantage lasts only while the fleet keeps sampling the workloads the next generation will run.
+
+### Guarding the Model Update
 
 A common failure mode in AI-assisted architecture is treating surrogate models such as power or timing predictors as static artifacts that are trained once and deployed forever. Models decay. As the underlying software compiler is updated, or as the process node shrinks from 5nm to 3nm, the training distribution drifts. Borrowing the practice from MLOps,[^fn-mlops-c10] the architecture loop must recalibrate its surrogates on a schedule rather than treat them as fixed. Every time a candidate reaches true RTL or silicon, that ground-truth data returns to retrain the faster surrogate models used earlier in the funnel, and drift detection becomes a tracked metric in the environment.
 
