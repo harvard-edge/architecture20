@@ -31,7 +31,7 @@ After reading this chapter, you can:
 
 ## The Epistemic Trust Boundary {#sec-epistemic-trust-boundary}
 
-At the core of AI-assisted architecture is a strict epistemic boundary between *probabilistic generation* and *deterministic validation*. Large Language Models and Reinforcement Learning agents operate in continuous, probabilistic latent spaces;[^fn-latent-space-c07] they optimize likelihoods and expected returns rather than absolute physical truths. An AI does not know that a pipeline stage is correct in the Boolean sense; it only predicts that the token sequence representing that stage is highly probable given the prompt context.
+At the core of AI-assisted architecture is a strict epistemic boundary between *probabilistic generation* and *deterministic validation*. Large Language Models and Reinforcement Learning agents operate in continuous, probabilistic latent spaces;[^fn-latent-space-c07] they optimize likelihoods and expected returns rather than absolute physical truths. An AI does not know that a pipeline stage is correct in the Boolean sense; a base LLM only predicts that the token sequence is highly probable, while an RL agent actively exploits its proxy reward function, bypassing physical correctness if the reward surface permits it.
 
 [^fn-latent-space-c07]: **Latent space**: The continuous internal vector space in which a neural network represents its inputs and predictions. Distances there encode statistical similarity, not logical truth, so proximity to a correct design is not correctness.
 
@@ -45,7 +45,7 @@ Once the RTL is proven, Logical Equivalence Checking (LEC) ensures the elaborate
 
 ### Dynamic Simulation and Coverage
 
-While formal methods (BPC/EC) prove specific assertions, full-system functional validation requires robust dynamic simulation environments. Generating constrained-random stimuli in a **UVM (Universal Verification Methodology)** testbench forces the AI-generated RTL through corner cases it never explicitly trained on. To measure the completeness of these tests, architects rely on rigorous **coverage models** (such as statement, branch, toggle, and functional coverage). A coverage model quantifies exactly what parts of the design space the testbench actually reached. If an AI generates both the RTL and the testbench, the coverage model provides the independent metric proving the testbench didn't just vacuously pass by avoiding complex state transitions.
+While formal methods (BPC/EC) prove specific assertions, full-system functional validation requires robust dynamic simulation environments. Generating constrained-random stimuli in a **UVM (Universal Verification Methodology)** testbench forces the AI-generated RTL through corner cases it never explicitly trained on. To measure the completeness of these tests, architects rely on rigorous **coverage models** (such as statement, branch, toggle, and functional coverage). A coverage model quantifies exactly what parts of the design space the testbench actually reached. If an AI generates both the RTL and the testbench, the coverage model provides the independent metric proving the testbench didn't just vacuously pass by avoiding complex state transitions. Furthermore, AI-generated RTL is highly susceptible to X-propagation bugs—where uninitialized states simulate favorably as deterministic 0s or 1s but synthesize to unpredictable hardware—requiring explicit X-optimism and X-pessimism EDA checks.
 
 ## Observation, Evidence, and Decision {#sec-from-feedback-to-decision}
 
@@ -84,7 +84,7 @@ While the design-loop card tracks the overall flow, the evidence record itself h
 
 ![**The compact claim frame.** The diagram visualizes the relational graph linking the artifact candidate to its measurement metrics and environmental constraints.](images/F7-claim-frame.svg){#fig-claim-frame width="100%" fig-alt="The Compact Claim Frame diagram visualizes the relational graph linking the artifact candidate to its measurement metrics and environmental constraints."}
 
-A compact claim frame reads: candidate and comparator; property and metric; workload and design state; tool path and assumptions; validity region and uncertainty; proposed action and nonclaims.
+A compact claim frame reads: candidate and comparator; property and metric; workload and design state; tool path, **system software assumptions, and HW/SW contracts**; validity region and uncertainty; proposed action and nonclaims.
 
 This traceable link among claim, assumption, evidence, and challenge mirrors the Goal Structuring Notation (GSN) used in safety-critical engineering [@Kelly2004GSN], without implying that every architecture experiment is safety critical. In the quantitative architecture tradition, measurement and abstraction serve bounded comparisons rather than universal conclusions.
 
@@ -97,7 +97,7 @@ For the 3\ W RISC-V XR subsystem, a structural check can reject a malformed cust
 | Syntax and interface | Parsers, type checks, API checks, ISA or ABI conformance, schema validation | Artifacts that cannot legally enter the tool flow. |
 | Functional | Unit tests, reference outputs, assertions, formal equivalence, regressions | Candidates that compute the wrong behavior before performance matters. |
 | Model and workload | Baseline replay, sensitivity studies, calibration, coverage, drift tests | Proxy wins outside the represented workload or calibrated support. |
-| Implementation | Synthesis constraints, timing closure, power envelopes, area budgets, GLS, DRC | Architecture candidates that violate physical limits or pre-silicon validation. |
+| Implementation | CDC/RDC (Clock/Reset Domain Crossing) analysis, structural linting, Synthesis constraints, timing closure, power envelopes, area budgets, GLS, DRC | Architecture candidates that violate physical limits or pre-silicon validation. |
 | Operational | SLOs, canary rollouts, rollback, telemetry, reliability, security, incident review | Claims that do not survive deployment conditions or policy boundaries. |
 | Expert review | Design review, waived-warning review, evidence-adequacy, residual-risk review | Results whose evidence is too weak for the proposed transition. |
 
@@ -159,13 +159,13 @@ The curve shows this failure directly. Up to the calibration boundary, the proxy
 
 : **Diagnostics for weak evidence.** Each check is tied to a specific failure it can expose. {#tbl-proxy-diagnostics tbl-colwidths="[18,41,41]"}
 
-For the illustrative 3\ W RISC-V XR subsystem, an early fast Python ISA simulator acts as a surrogate biomarker,[^fn-biomarker-proxy-c07] estimating performance improvements for a new instruction extension. However, the Phase III trial (physical placement and routing closure) might reverse the apparent preference due to timing degradation. Or, if the performance check omits thermal considerations, the new instruction implementation might create a thermal hotspot that violates the 3\ W limit.
+For the illustrative 3\ W RISC-V XR subsystem, an early fast Python ISA simulator acts as a surrogate biomarker,[^fn-biomarker-proxy-c07] estimating performance improvements for a new instruction extension. However, the Phase III trial (physical placement and routing closure) might reverse the apparent preference due to timing degradation. Or, if the performance check omits thermal considerations, the new instruction implementation might create a thermal hotspot that violates the 3\ W limit. Before reaching RTL, an AI proposing an SoC topology might game a high-level Transaction-Level Model (TLM) by saturating a bus without modeling protocol arbitration overhead, requiring ESL calibration before committing to RTL generation.
 
 [^fn-biomarker-proxy-c07]: **Surrogate biomarker**: In clinical trials, an early measurable signal (tumor shrinkage, cholesterol level) used to predict the outcome that matters (survival), with Phase III denoting the definitive large-scale trial. A fast proxy plays the same role for physical results and can mislead the same way.
 
 Calibration checks whether a proxy tracks a decision-relevant measurement in the region where it is used. Architecture predictors must be validated against held-out data[^fn-held-out-c07] or stronger evaluations.
 
-[^fn-held-out-c07]: **Held-out data**: Data deliberately excluded from training or search and reserved for evaluation. Because the optimizer never saw it, performance there estimates generalization rather than the quality of the fit.
+[^fn-held-out-c07]: **Held-out data**: Data deliberately excluded from training or search and reserved for evaluation. Because the optimizer never saw it, performance there estimates generalization rather than the quality of the fit. In generative design or RL, this also requires Out-Of-Distribution (OOD) evaluation—measuring whether an agent's policy generalizes to physical constraints or environment states it did not encounter during training, rather than just memorizing a verified layout.
 
 ::: {.callout-architect-checkpoint title="The Calibration Check"}
 Has the architect stated when a candidate falls outside the range where the generator's proxy was validated? A proxy win supports a claim only within that range. Outside it, the architect must seek a decision-relevant or independent check rather than treat the prediction as evidence.
