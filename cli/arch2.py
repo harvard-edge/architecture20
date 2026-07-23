@@ -2603,11 +2603,12 @@ def normalize_epub_xhtml(epub_path: Path = EPUB_PATH) -> int:
                 del element.attrib[attribute]
                 changed += 1
                 document_changed = True
-        for wrapper in root.iter(f"{{{xhtml_namespace}}}div"):
-            if "alt" in wrapper.attrib:
-                del wrapper.attrib["alt"]
-                changed += 1
-                document_changed = True
+        for wrapper in root.iter():
+            if wrapper.tag.endswith("}div") or wrapper.tag == "div":
+                if "alt" in wrapper.attrib:
+                    del wrapper.attrib["alt"]
+                    changed += 1
+                    document_changed = True
         if document_changed:
             payload = ET.tostring(
                 root,
