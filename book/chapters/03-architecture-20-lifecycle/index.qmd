@@ -70,11 +70,11 @@ To ground these abstract concepts in a practical reality, we use the XR subsyste
 
 ![**How an iterative architecture study proceeds.** An architect or AI method reads the recorded design state, makes an allowed change, runs a tool, and submits the result for review. The reviewer records what the evidence supports, and the decision owner determines what happens next.](images/F3-design-loop){#fig-design-loop width="85%" fig-alt="A design loop within a scoped architecture study. Represented state, permitted action, tool feedback, and evidence lead to claim review."}
 
-1. **Read Represented State:** The AI agent queries the current design state, observing the 2 MB baseline cache, the XRBench trace, and the remaining 1 W dynamic power budget.
+1. **Read Represented State:** The AI agent queries the current design state, observing the 2 MB baseline cache, the XRBench trace, and the remaining 1 W total power budget (dynamic + leakage).
 2. **Make Allowed Change:** The agent proposes expanding the cache to 3 MB. The ontology validates that this action is within the allowed design space.
-3. **Execute Tool (Feedback):** The proposed 3 MB configuration is dispatched to the cycle-accurate simulator (e.g., gem5) and the analytical power model (e.g., McPAT). The tools return raw feedback: a 12% reduction in conflict misses, but a 0.8 W increase in dynamic power.
+3. **Execute Tool (Feedback):** The proposed 3 MB configuration is dispatched to the cycle-accurate simulator (e.g., gem5) and the analytical power model (e.g., McPAT). The tools return raw feedback: a 12% reduction in capacity misses, resulting in decreased dynamic power (fewer DRAM accesses), but a 40 mW increase in leakage power and a 0.2 mm^2 increase in area.
 4. **Compile Evidence:** The raw feedback is packaged with its provenance (simulator version, trace name, time of execution) into an immutable evidence record.
-5. **Claim Review:** A deterministic check evaluates the evidence against the original bounded claim. Because 0.8 W is within the remaining 1 W budget, the check passes, and the 3 MB configuration becomes the new baseline state for the next iteration.
+5. **Claim Review:** A deterministic check evaluates the evidence against the original bounded claim. Because the 40 mW leakage increase keeps the system well within the remaining 1 W total power budget, and the area fits the floorplan constraint, the check passes. The 3 MB configuration becomes the new baseline state for the next iteration.
 
 This formalized loop ensures that every AI-driven change is mechanically verified against physical constraints before it is accepted. The rest of this chapter walks through the six stages of this lifecycle, detailing the unique challenges an agent faces at each step.
 
@@ -101,7 +101,7 @@ A bounded study anchors everything to an architectural claim: a falsifiable stat
 The claim tells the AI agent what to optimize and tells the human reviewer what to scrutinize. Contrast a vague human prompt with a properly bounded machine claim:
 
 *   **Vague Prompt:** "Optimize the cache for the XR workload."
-*   **Bounded Claim:** "Evaluate L2 capacity up to 4 MB to reduce XRBench conflict misses, constrained to a 3 W TDP (dynamic + leakage) and a 0.5 mm^2^ SRAM macro area footprint, requiring timing closure at 2 GHz."
+*   **Bounded Claim:** "Evaluate L2 capacity up to 4 MB to reduce XRBench capacity misses, constrained to a 3 W TDP (dynamic + leakage) and a 0.5 mm^2^ SRAM macro area footprint, requiring timing closure at 2 GHz."
 
 Without a bounded claim, an agent might endlessly tune parameters without a stopping condition, or it might propose a massive cache that maximizes Instructions Per Cycle (IPC) but physically melts the chip.
 
@@ -121,11 +121,11 @@ With the problem formulated, the next stage is Explore. In this stage, an AI age
 
 However, an agent cannot explore a space it cannot see or understand. For the search to be effective, we must explicitly provide the agent with a machine-readable view of the architecture and a way to quickly predict the consequences of its choices before running expensive simulations.
 
+An AI agent can act only on the information we make available to it. For human architects, design intent lives scattered across natural-language specifications, ISA manuals, spreadsheet models, and tacit knowledge locked in engineers' heads. An agent requires this unstructured intent to be translated into an explicit, machine-readable represented state.
+
 ### Topological State and the Curse of the Action Space
 
-An AI agent can act only on the information we make available to it. For human architects, design knowledge lives in natural-language specifications, ISA manuals, spreadsheet models, and meeting notes. An agent requires this tacit knowledge to be translated into explicit, represented state.
-
-However, translating architecture into a machine-readable state exposes a brutal ML-systems challenge: **the curse of the action space**. An SoC is not a flat list of independent variables; it is a complex, topological graph of queues, arbiters, and pipeline stages. Mapping categorical, continuous, and graph-based constraints into an action space that an agent can safely navigate is remarkably difficult. If an AI agent only receives the cache miss rates but remains blind to the area floorplan and the NoC topology, it may propose a massive cache that maximizes IPC but cannot physically fit on the die. When an agent proposes an impossible design, the root cause is often this missing topological state.
+However, translating architecture into a machine-readable state exposes a brutal ML-systems challenge: **the curse of the action space**. An SoC is not a flat list of independent variables; it is a complex, topological graph of queues, arbiters, and pipeline stages. Mapping categorical, continuous, and graph-based constraints into an action space that an agent can safely navigate is remarkably difficult. To solve this, the topological state must be concretely serialized—for example, as a formal constraint graph, a Hardware Construction Language (e.g., Chisel) Intermediate Representation (IR), or a Graph Neural Network (GNN) node representation. If an AI agent only receives the cache miss rates but remains blind to the area floorplan encoded in the GNN, it may propose a massive cache that maximizes IPC but cannot physically fit on the die. When an agent proposes an impossible design, the root cause is often this missing topological state.
 
 ### The Modality Mismatch
 
@@ -137,7 +137,7 @@ Once an agent proposes a valid candidate, it relies on prediction models (fast p
 
 As the agent explores deeper into the design space, or as engineers update baseline parameters, the environment becomes non-stationary, causing a **distribution shift**. The offline data used to train the proxies quickly becomes stale. An agent aggressively optimizing against a stale fast proxy will inevitably push the inputs **Out-of-Distribution (OOD)**, leading to **Reward Hacking** (Goodhart's Law) where the agent actively exploits extrapolation errors to endorse impossible results.
 
-To survive, exploration must include active learning loops and **Uncertainty Quantification (UQ)**. The agent must *know when it is guessing*, balancing exploration with pessimistic value estimation to avoid escalating unroutable designs to expensive simulation.
+To survive, exploration must include active learning loops and **Uncertainty Quantification (UQ)**. The agent must *know when it is guessing*. It relies on acquisition functions (such as Expected Improvement or Upper Confidence Bound in Bayesian Optimization) that mathematically determine when the proxy is too uncertain and an expensive high-fidelity simulation run must be triggered. Furthermore, the system must maintain these surrogates on the fly, managing replay buffers and telemetry dataset versioning to avoid catastrophic forgetting as the design topology shifts.
 
 ## Implementing: Toolchain Friction and Escalation
 
@@ -145,17 +145,23 @@ Moving to the Implement stage (@fig-ontology-loop), once the agent proposes a ca
 
 ### Navigating Toolchain Friction
 
-Unlike software environments where code compiles in milliseconds and tests run deterministically, architecture tools are often fragile, slow, and prone to silent failures. Commercial EDA tools are particularly hostile to automated agents because they are driven by decades-old, deeply stateful Tcl scripts. An AI interacting with these tools will not just encounter crashes; it will face "dirty state" (leftover constraints from a previous run in the same workspace) and the nightmare of parsing semantic meaning out of multi-gigabyte Static Timing Analysis (STA) reports.
+Unlike software environments where code compiles in milliseconds and tests run deterministically, architecture tools are often fragile, slow, and prone to silent failures. Commercial EDA tools are particularly hostile to automated agents because they are driven by decades-old, deeply stateful Tcl scripts. An AI interacting with these tools will not just encounter crashes; it will face "dirty state" (leftover constraints from a previous run in the same workspace) and the nightmare of parsing semantic meaning out of multi-gigabyte Static Timing Analysis (STA) reports. Furthermore, an AI agent does not just emit RTL; it must synthesize compatible EDA collateral—like SDC for timing constraints and UPF for power intent—across fragmented vendor silos.
+
+From an ML-Sys perspective, vectorizing these incredibly slow, stateful EDA tools for batched RL inference while handling variable-length action spaces when hardware topologies change dynamically is a massive infrastructure challenge.
 
 To operate effectively, an agent needs clear tool interfaces (like the ArchGym API [@KrishnanEtAl2023ArchGym]) that expose the failure modes and recovery actions. Beyond avoiding crashes, navigating toolchain friction requires rigorous **provenance data engineering**. To train reliable ML proxies offline, an agent cannot simply log a failed IPC score. It must capture the exact environment state—tool versions, random seeds, intermediate Tcl state, and DRC markers—as an immutable record.
+
+Importantly, we must remind ourselves that we are now deep inside the **fast automated inner loop** (Explore ↔ Implement ↔ Evaluate), spinning thousands of times at machine speed, completely decoupled from the slow human-gated outer loop.
 
 | **Toolchain friction type** | **Agent recovery strategy** |
 | --- | --- |
 | FlexLM license hangs or timeouts | Implement exponential backoff, strict resource timeouts to prevent thread deadlocks, or query a lower-fidelity tool. |
-| Stateful Tcl & "Dirty State" | Enforce ephemeral, containerized workspaces and mandatory state teardowns between synthesis runs. |
+| Stateful Tcl & "Dirty State" | Since full state teardowns take hours for tapeout-scale blocks (e.g., in Innovus/ICC2), agents must learn to safely navigate and modify incremental design states via snapshots. |
+| Logical/Physical Abstract Mismatch | Scaling SRAMs or custom IP requires perfect pin/timing alignment between logical (LIB/Verilog) and physical (LEF/DEF) abstracts. Validate alignments before invoking place-and-route. |
+| CDC/RDC & DFT Violations | AI-generated RTL may pass functional simulation but fail structural CDC/RDC linting or break scan chain insertion (DFT). Enforce strict synchronous boundary and testability constraints upstream. |
 | Undocumented tool crashes | Log the failure, mark the configuration as invalid, and pivot to a nearby state. |
 | Silent output corruptions | Use secondary validation checks (e.g., verifying the netlist isn't empty) to flag anomalous results. |
-| Zero-exit-code parsing errors | Do not trust a `0` exit status. Validate physical outputs directly and escalate multi-gigabyte STA logs to the architect. |
+| Zero-exit-code parsing errors | Do not trust a `0` exit status. Validate physical outputs directly and cluster massive STA/DRC logs before ML ingestion. |
 
 A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash or a dirty Tcl state, it logs the failure as negative evidence and pivots. Planning for tool failures in advance lets the AI continue searching the viable portions of the design space.
 
@@ -167,7 +173,7 @@ Bounded architecture studies span multiple levels of abstraction, from fast anal
 
 Escalation is governed by a massive temporal cost asymmetry: querying a proxy takes milliseconds, a cycle-accurate simulator takes minutes, but RTL synthesis can take days. The AI must be constrained by an explicit budget to justify invoking synthesis.
 
-Furthermore, there is a massive chasm within "synthesis" itself. An agent might propose a design that passes *logical synthesis* (idealized timing and gate counts) but fails horribly at *physical synthesis* (parasitic extraction, actual wire delays, clock tree synthesis). For example, if an AI proposes a massive 128-way associative cache, the fast proxy might show an incredible boost in IPC (reward hacking). But in silicon, expanding a cache increases physical access distance. When the agent escalates this "perfect" design to physical synthesis, it will fail **timing closure** because the true wire delay breaks the target clock frequency.
+Furthermore, there is a massive chasm within "synthesis" itself. An agent might propose a design that passes *logical synthesis* (idealized timing and gate counts) but fails horribly at *physical synthesis* (parasitic extraction, actual wire delays, clock tree synthesis). For example, if an AI proposes a massive 128-way associative cache, the fast proxy might show an incredible boost in IPC (reward hacking). But in silicon, increasing associativity requires massive tag comparison logic and extreme fan-in/fan-out on 128-to-1 multiplexers. When the agent escalates this "perfect" design to physical synthesis, it will fail **timing closure** because the heavy mux logic and routing congestion break the target clock frequency.
 
 To bridge this gap without bankrupting the computation budget, the escalation path often requires **hardware emulation** (e.g., Palladium or ZeBu) as a necessary middle ground for workloads that are too slow for pure RTL simulation but require more physical accuracy than gem5.
 
@@ -184,7 +190,7 @@ In the Evaluate stage, we assess the results. The study must distinguish raw too
 Acquiring physical evidence forces an agent to confront three distinct bottlenecks that fundamentally limit how often it can evaluate a candidate:
 
 * **The Simulation Time-Wall:** We casually refer to running "XRBench traces," but executing a single real-time second of an XR workload requires billions of cycles. Cycle-accurate simulators run at a few hundred KIPS, and RTL drops to hundreds of cycles per second. This forces the agent to rely on workload sampling (e.g., SimPoint) and to rigorously quantify the statistical confidence of its samples.
-* **Physical & Functional Verification:** Physical design enforces binary, non-negotiable walls—Functional Verification (UVM testbenches), Formal Verification (LEC), and DRC/LVS sign-off. An agent must be equipped to ingest these hard coverage holes and DRC markers as reviewable negative evidence rather than mere tool crashes.
+* **Physical & Functional Verification:** Physical design enforces binary, non-negotiable walls—Functional Verification (UVM testbenches), Formal Verification (LEC), and DRC/LVS sign-off. When failures occur here, a single architectural mistake (like a bad SRAM macro placement) can spawn millions of cascading, highly correlated DRC/LVS violations. The agent must cluster and root-cause these physical errors before ingesting them as reviewable negative evidence, otherwise it will instantly overwhelm any AI context window. Furthermore, the lifecycle must distinguish between localized physical iteration—surgical Engineering Change Orders (ECOs) like gate sizing or buffer insertion—and global architectural resets that kick the agent all the way back to the *Explore* stage.
 * **The Software Co-Adaptation Bottleneck:** If an AI agent invents a novel hardware feature (e.g., a custom vector instruction), the existing compiler will not know how to use it. Evaluating novel hardware often requires an AI capable of simultaneously adapting the software stack just to exercise its own design.
 
 ### Formatting Evidence
@@ -223,9 +229,9 @@ Without demanding a mechanism, the architect risks accepting a "Clever Hans" res
 
 The architecture lifecycle poses a severe Reinforcement Learning challenge known as **credit assignment**. If an agent makes 50 distinct micro-architectural tweaks and a 12-hour simulation returns a single aggregated IPC score, how does it learn *which* tweak was responsible? Solving this sparse, delayed reward problem requires extracting dense intermediate telemetry.
 
-The explanation stage mitigates the Clever Hans risk by isolating these causal mechanisms. However, modern CPUs are deeply pipelined and highly speculative, creating a "fog" where effects are decoupled from root causes. If an AI proposes our 3 MB XR cache and simulation shows a spike in L2 misses, the true cause might be a branch predictor aliasing bug 100 cycles earlier.
+The explanation stage mitigates the Clever Hans risk by isolating these causal mechanisms. However, modern CPUs are deeply pipelined and highly speculative, creating a "fog" where effects are decoupled from root causes. If an AI proposes our 3 MB XR cache and simulation shows a drop in IPC, the true cause might not be the miss rate (which improved), but the larger cache increasing hit latency, thereby stalling the deeply pipelined out-of-order execution engine.
 
-While techniques like SHAP explain the *surrogate proxy*, they provide *zero physical proof*. True explanation requires **Automated Counterfactual Generation**—agents orchestrating their own ground-truth simulator ablations to pierce the speculative fog and prove, for example, that the 3 MB cache directly reduced XRBench conflict misses. A fluent LLM description is merely a hypothesis; the explanation stage proves it against physical telemetry.
+While techniques like SHAP explain the *surrogate proxy*, they provide *zero physical proof*. True explanation requires **Automated Counterfactual Generation**—agents orchestrating their own ground-truth simulator ablations to pierce the speculative fog. For example, an agent proves its hypothesis by locking specific cache ways or synthesizing micro-benchmarks to observe the isolated impact on capacity misses. A fluent LLM description is merely a hypothesis; the explanation stage proves it against physical telemetry.
 
 ## Defending: Authority and the Design-Loop Card
 
