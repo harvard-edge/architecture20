@@ -158,7 +158,9 @@ must decide which workloads, interfaces, and implementation constraints could
 change the claim and whether the available information is complete enough for
 exploration to begin.
 
-## Microarchitecture Complexity
+## Scaling the Hardware
+
+### Microarchitecture Complexity
 
 Start with the levers already in every architect's toolkit. A deeper pipeline, a more aggressive branch predictor, a speculative scheduler, or a larger cache hierarchy each recovers performance. That is the material of microarchitecture.
 
@@ -172,7 +174,7 @@ That turn to multiple cores added a further layer. Coherence protocols, memory-o
 
 AI can help tame this complexity by rapidly screening the vast space of microarchitectural configurations. While cheap proxies might hide coherence traffic or speculative-energy costs, an automated optimizer can use surrogate models trained on high-fidelity data to accurately estimate multicore interactions. This makes it possible to rank thousands of candidates for reasons that hold true in silicon, ensuring the architect only reviews designs that are viable. We must think about how to train these AI surrogates on the right corner cases so they can reliably flag microarchitectural risks early in the design loop.
 
-## The Specialization Explosion
+### The Specialization Explosion
 
 Specialization is the next layer, and it changes what a comparison must weigh. Where microarchitecture and multicore mechanisms tune a general-purpose machine, specialization tailors the hardware to a particular workload, which changes both the metrics that matter and the number of choices the architect must evaluate. A battery- and thermally limited mobile part and a warehouse-scale system bounded by power delivery and total cost of ownership (TCO) demand different measures of efficiency, and a specialized block is only worth judging against one such target.
 
@@ -268,7 +270,7 @@ AI methods are highly effective at navigating this specialized explosion. A gene
 
 [^fn-slam-c02]: **Simultaneous Localization and Mapping (SLAM)**: The robotics workload that builds a map of an unknown environment while tracking the sensor's own position within it. In mobile XR it runs continuously for head tracking, which is why its kernels anchor the subsystem's real-time compute demand.
 
-## SoC and Chiplet Composition
+### SoC and Chiplet Composition
 
 Specialized blocks rarely ship alone. Architects compose them into a system-on-chip and, increasingly, across multiple chiplets. Chiplets make it possible to mix process technologies, IP blocks, and memory, improving yield and letting mature nodes host blocks that do not need the leading edge. Open standards such as UCIe stabilize the interface while leaving partitioning and implementation to architects [@UCIeConsortium2026Spec].
 
@@ -416,23 +418,29 @@ Composition multiplies the physical and economic constraints a candidate must sa
 
 [^fn-known-good-die-c02]: **Known-Good-Die (KGD)**: A bare die that has been tested to full quality before it is packaged. Single-die parts can be tested after packaging, so the term rarely comes up; multi-die assembly turns it into a hard constraint, because one bad die is discovered only after bonding and takes the whole package with it.
 
-The remaining constraints work the same way. Sharing speculative-state buffers or execution units across secure and non-secure domains can save power while opening side channels, so security must be checked by formal methods or penetration testing that performance proxies cannot stand in for. Pushing hundreds of amps through a dense package produces IR drop and localized hotspots, so a Power Delivery Network (PDN) and thermomechanical model, not an aggregate-power proxy, decides whether a layout passes signoff. Much of the SoC is opaque as well. Third-party blocks such as ARM cores, PCIe PHYs, and DDR controllers arrive as datasheets and black-box models rather than executable RTL, which forces integration-level testing across interfaces the search cannot see inside. Every one of these constraints removes designs from the valid set and adds a check the search must pay for before silicon.
+The remaining constraints work the same way. Sharing speculative-state buffers or execution units across secure and non-secure domains can save power while opening side channels, so security must be checked by formal methods or penetration testing that performance proxies cannot stand in for. Pushing hundreds of amps through a dense package produces IR drop and localized hotspots, so a Power Delivery Network (PDN) and thermomechanical model, not an aggregate-power proxy, decides whether a layout passes signoff. Much of the SoC is opaque as well. Third-party blocks such as ARM cores, PCIe PHYs, and DDR controllers arrive as datasheets and black-box models rather than executable RTL, which forces integration-level testing across interfaces the search cannot see inside.
 
-## Distributed Systems and Scale-Out Architecture
+Furthermore, as we scale to the data center, physical walls expand to the facility level. It is no longer just about chip-level IR drop; architects must design within megawatt power provisioning caps, stranded data-center power limits, and the thermal constraints of rack-level liquid cooling. Every one of these constraints removes designs from the valid set and adds a check the search must pay for before deployment.
 
-As architectures expand beyond the boundaries of a single chip or package, they form complex distributed systems. Modern data centers and supercomputers rely on scale-out fabrics, distributed memory pooling (such as CXL), and cluster-level scheduling to handle massive, data-parallel workloads.
+### Warehouse-Scale Computing and Distributed Systems
 
-The challenge is that the boundary of the computer is no longer the chip; it is the entire network. Simulating an entire data-center fabric accurately is nearly impossible, and unpredictable network tail-latencies frequently break traditional single-node assumptions. A design that looks highly efficient in isolation may become completely bottle-necked by network congestion or distributed coherence overhead when deployed at scale.
+As architectures expand beyond the boundaries of a single package, the boundary of the computer ceases to be the chip and instead becomes the entire data center. Modern infrastructure relies on scale-out fabrics, distributed memory pooling (like CXL), and massive optical networks to handle data-parallel workloads. At this scale, we enter the domain of Warehouse-Scale Computing (WSC) [@BarrosoHolzleRanganathan2019DatacenterAsComputer]. The architectural problem expands to encompass thousands of heterogeneous servers, shared cooling infrastructure, megawatts of provisioned power, and cluster-level scheduling.
 
-AI can manage this vast scale-out complexity by optimizing both the network topology and the workload mapping. Generative methods can synthesize novel routing topologies, while learned models can accurately predict tail-latency bottlenecks across the cluster without requiring cycle-accurate simulations of thousands of nodes. This allows architects to treat the entire distributed system as a single co-designed target.
+The challenge of navigating this space is that component failure is a continuous reality, and simulating the system accurately is nearly impossible. Cycle-accurate simulation of 100,000 nodes is out of the question, while trace-driven modeling often misses the dynamic network congestion that creates severe "tail at scale" latency bottlenecks [@DeanBarroso2013TailAtScale]. A node design that appears highly efficient in isolation may become completely paralyzed by network stragglers or distributed coherence overhead when deployed across a cluster. Because standard deterministic simulators cannot scale, architects are often forced to rely on overly simplified analytical models or wait for silicon deployment to discover system-level deadlocks.
 
-## Executable Software Paths
+AI can manage this vast scale-out complexity by optimizing both the physical network topology and the dynamic workload mapping. Generative methods can synthesize novel routing topologies for massive AI training clusters, such as the AI-driven optical circuit switches used to reconfigure TPU v4 supercomputers on the fly [@JouppiEtAl2023TPUv4]. Simultaneously, deep reinforcement learning can navigate the massive state space of cluster scheduling to optimize resource management (e.g., DeepRM) without requiring rigid heuristic models [@MaoEtAl2016DeepRM]. By treating the entire warehouse-scale computer as a single co-designed target, AI allows architects to evaluate and optimize massive distributed architectures before a single server is racked.
+
+## The Software Contract
+
+### Executable Software Paths
 
 Even when a hardware candidate clears physical constraints and evaluation budgets, software must still be able to use it. This is the executable software path: the programmers, compilers, runtimes, libraries, and deployment systems needed to use a hardware mechanism without losing its benefit to data movement or overhead. Historical shifts like RISC and CUDA succeeded because they provided the necessary compiler support and programming models to make the hardware accessible.
 
 The challenge is that hardware proposals are incomplete if architects cannot inspect and test the software path needed to use them. Modern tensor programs add a massive software search problem. Frameworks like Halide and MLIR make scheduling, lowering, and intermediate representations part of the performance comparison [@RaganKelleyEtAl2017HalideCACM; @LattnerEtAl2020MLIR]. A hardware optimizer might select a mechanism that the compiler cannot target, or whose software overhead erases the predicted gain. A credible comparison must cover an executable hardware-software path, not a hardware block in isolation.
 
 AI enables true hardware-software co-design by searching both spaces simultaneously. In principle, a joint search can vary compiler schedules alongside hardware parameters, using a shared data schema—such as a unified MLIR dialect—to co-generate the intermediate representation and the hardware RTL. By leveraging AI to propose the hardware organization, compiler schedule, and runtime configuration together, we can discover highly efficient combinations that would be missed if the two domains were tuned in isolation. Frameworks like AutoTVM have shown that machine learning can optimize schedules across billions of possible tensor program implementations [@ChenEtAl2018AutoTVM], proving that AI can navigate these massive software search spaces.
+
+At the distributed scale, this software path becomes even more complex. It is not enough to compile code for a single node; the software path must include distributed communication primitives (like MPI or NCCL) and cluster-aware compilers (like Alpa or Megatron) that can map tensor operations across thousands of GPUs over optical networks.
 
 For the mobile XR subsystem example, the "64-bit RISC-V" constraint brings ABI, memory-model,
 toolchain, and executable-test obligations into the architecture claim. The
@@ -465,7 +473,7 @@ version. Establishing one executable path does not freeze it for the life of
 the hardware. The software path can also change while the hardware is still
 being designed.
 
-## Software Co-Evolution {#sec-software-changes-faster-than-silicon}
+### Software Co-Evolution {#sec-software-changes-faster-than-silicon}
 
 Software moves faster than the hardware built to run it. New models, precision formats, and software stacks appear within the span of a single silicon program, while a chip design cycle still runs for years. Apple's release intervals have compressed from about 19 to 7 months, while NVIDIA's datacenter GPUs hold a steady two-year cycle (@fig-apple-silicon-cadence). Even the faster pace still trails the software the hardware must run.
 
@@ -723,7 +731,9 @@ and runtime assumptions, and tool results allow reviewers to see whether the
 hardware claim still applies. The project also needs a trigger for repeating the
 comparison when one of those inputs changes.
 
-## The Physical Wall {#sec-physical-constraints-move-into-architecture}
+## The Hard Limits
+
+### The Physical Wall {#sec-physical-constraints-move-into-architecture}
 
 The layers so far—microarchitecture, specialization, composition, and the software contract—each add to what a comparison must represent. All the things we have seen, which are coming about as a result of demanding workload needs, mean that we have to do more simulations and we cannot run every candidate through high-fidelity tools.
 
@@ -852,7 +862,9 @@ work a real program does.
 **The lesson.** Rank a candidate on the metric its workload rewards, not the number that is easiest to count. In silicon that gap is expensive to discover, because it appears only after the design has shipped. Restoring competitive per-thread performance took a clean-sheet microarchitecture, Zen [@AMDZen], several years later.
 :::
 
-## The Evaluation Budget {#sec-stronger-evaluation-expensive}
+These massive physical constraints and reliability concerns represent an enormous search space. AI provides the solution through early physical prediction. For example, machine learning models have proven highly effective at predicting performance and power accurately from early design stages [@LeeBrooks2006RegressionModeling]. Surrogate models can pull physical failure modes—like thermal hotspots or IR drop—forward into the first hours of exploration, saving weeks of engineering effort.
+
+### The Evaluation Budget {#sec-stronger-evaluation-expensive}
 
 Architects cannot run every candidate through every available tool.
 Simulation, synthesis, physical design, emulation, verification, and expert
