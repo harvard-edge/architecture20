@@ -5195,6 +5195,95 @@ def build(
 
 
 @app.command()
+def preview(
+    chapter: str = typer.Argument(
+        ..., help="Chapter name (e.g. 01-moonshot) or path to preview."
+    ),
+    html: bool = typer.Option(False, "--html", help="Build HTML."),
+    pdf: bool = typer.Option(False, "--pdf", help="Build PDF."),
+    epub: bool = typer.Option(False, "--epub", help="Build EPUB."),
+) -> None:
+    """Render a single chapter for quick preview by commenting out others in _quarto.yml."""
+    if not any([html, pdf, epub]):
+        html = True  # Default to HTML preview if no format specified
+
+    path = Path(chapter)
+    if not path.exists():
+        candidate = ROOT / "book" / "chapters" / chapter / "index.qmd"
+        if candidate.exists():
+            path = candidate
+        else:
+            candidate = ROOT / "book" / "chapters" / chapter
+            if candidate.exists() and candidate.is_file():
+                path = candidate
+            else:
+                console.print(f"[red]Could not find chapter or file:[/red] {chapter}")
+                raise typer.Exit(1)
+
+    chosen = [t for t, on in (("html", html), ("pdf", pdf), ("epub", epub)) if on]
+    if len(chosen) > 1:
+        console.print(
+            "[yellow]Warning: Quarto preview only supports one format at a time well. Using the first one.[/yellow]"
+        )
+
+    fmt = chosen[0]
+
+    quarto_yml = BOOK_DIR / "_quarto.yml"
+    backup_yml = BOOK_DIR / "_quarto.yml.bak"
+
+    if not quarto_yml.exists():
+        console.print("[red]Could not find _quarto.yml[/red]")
+        raise typer.Exit(1)
+
+    target_match = path.parent.name if path.name == "index.qmd" else path.name
+
+    try:
+        import shutil
+        import re
+
+        shutil.copy2(quarto_yml, backup_yml)
+
+        with open(quarto_yml, "r") as f:
+            content = f.read()
+
+        # Replace chapters section
+        # Finds '  chapters:\n' up to '\n  appendices:'
+        chapters_replacement = (
+            f"\n  chapters:\n    - index.qmd\n    - chapters/{target_match}/index.qmd"
+        )
+        content = re.sub(
+            r"\n\s*chapters:\n(?:.*?)(?=\n\s*appendices:)",
+            chapters_replacement,
+            content,
+            flags=re.DOTALL,
+        )
+
+        # Replace appendices section
+        # Finds '\n  appendices:' up to '\nwebsite:'
+        appendices_replacement = "\n  appendices: []"
+        content = re.sub(
+            r"\n\s*appendices:\n(?:.*?)(?=\nwebsite:)",
+            appendices_replacement,
+            content,
+            flags=re.DOTALL,
+        )
+
+        with open(quarto_yml, "w") as f:
+            f.write(content)
+
+        render_cmd = ["quarto", "render", str(BOOK_DIR), "--to", fmt]
+        console.print(f"[cyan]preview[/cyan] rendering {target_match} to {fmt}...")
+        _run(render_cmd, cwd=ROOT)
+        console.print(f"[green]Done.[/green]")
+
+    finally:
+        if backup_yml.exists():
+            import shutil
+
+            shutil.move(backup_yml, quarto_yml)
+
+
+@app.command()
 def clean(
     scratch_only: bool = typer.Option(
         False, "--scratch-only", help="Only remove LaTeX scratch files; keep _build."
