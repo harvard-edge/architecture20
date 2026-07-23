@@ -54,7 +54,7 @@ The design loop is the execution mechanism inside a bounded architecture study, 
 
 ## Formulating: Bounding the Study and the Claim
 
-The first step in the lifecycle is Formulate. To ensure that machine-generated proposals do not drift away from the problem they were asked to solve, we require what we call a **bounded architecture study**.
+The first step in the lifecycle (@fig-ontology-loop) is Formulate. To ensure that machine-generated proposals do not drift away from the problem they were asked to solve, we require what we call a **bounded architecture study**.
 
 AI assistance becomes reviewable when the architecture question, executed work, evidence, and next decision remain connected. We must bound the task, state the claim under review, identify the legal design choices, expose the relevant design state, name the architectural tools and checks, and assign authority for the next action. Those elements keep the AI method, tool path, reviewer, and decision owner focused on the same comparison. Assigning authority per action keeps the loop agentic rather than autonomous: an AI agent holds initiative to propose, execute, and reject candidates, while the rights to waive a check or commit resources stay with us.
 
@@ -72,7 +72,7 @@ We already manage complexity by making important relationships inspectable. We u
 
 ### Supplying Tacit Architecture Context
 
-As experienced architects, we carry project knowledge from one analysis step to the next. A cache spreadsheet may omit that capacity is per core, a trace name may stand in for a specific software build, and a familiar configuration may be absent because it failed timing in an earlier study. We fill in these gaps from design reviews, past experiments, and product knowledge. An AI system cannot safely infer this project-specific context from the artifacts alone.
+Every experienced architect carries project knowledge from one analysis step to the next. A cache spreadsheet may omit that capacity is per core, a trace name may stand in for a specific software build, and a familiar configuration may be absent because it failed timing in an earlier study. We fill in these gaps from design reviews, past experiments, and product knowledge. An AI system cannot safely infer this project-specific context from the artifacts alone.
 
 This project knowledge operates along a transparency gradient across the computing stack. At the top of the stack for software and compilers, knowledge is explicit and captured in source code and repositories. As we move down the stack to microarchitecture and physical design, knowledge becomes increasingly tacit because we understand these constraints without needing to write them down. The gap closes only when we force the tacit constraints into explicit models that a tool can check.
 
@@ -109,32 +109,15 @@ An AI-assisted architecture study needs a common structure connecting the stages
 
 Read @fig-structured-layer-above-rtl from top to bottom.
 
-First, the upper layer contains the system intent, architecture models, requirements, and rationale that shape our question. For the RISC-V XR subsystem, this includes the high-level goal of improving mobile XR efficiency and the initial models of the target workload.
-
-Next, the middle layer turns that intent into a bounded comparison. Its scope names the specific question and intended decision, such as deciding whether a particular cache configuration merits RTL evaluation. The architectural claim says what will be reviewed, execution and analysis produce results, and a reviewer judges what the recorded evidence supports.
-
-Finally, the lower layer is the executable tool path. Simulators and analytic models, compilers and runtimes, RTL generators, and EDA flows carry out different parts of the comparison. For our cache study, the cycle-level simulator and power models return measurements that enter the evidence record. A reviewer assesses whether they support the claim, and the named decision owner may accept a finding limited to the stated scope, authorize the next step, or send the work back to revise the claim or scope. We may hold both roles, but reviewing the evidence and authorizing action are separate rights.
-
-The middle layer is not another architecture tool. It connects design intent to tool execution, then connects tool results to the next architectural decision.
+First, the upper layer contains the system intent, architecture models, requirements, and rationale that shape our question. For the RISC-V XR subsystem, this includes the high-level goal of improving mobile XR efficiency and the initial models of the target workload. Next, the middle layer turns that intent into a bounded comparison. Its scope names the specific question and intended decision, such as deciding whether a particular cache configuration merits RTL evaluation. The architectural claim says what will be reviewed, execution and analysis produce results, and a reviewer judges what the recorded evidence supports. Finally, the lower layer is the executable tool path. Simulators and analytic models, compilers and runtimes, RTL generators, and EDA flows carry out different parts of the comparison. For our cache study, the cycle-level simulator and power models return measurements that enter the evidence record. A reviewer assesses whether they support the claim, and the named decision owner may accept a finding limited to the stated scope, authorize the next step, or send the work back to revise the claim or scope. We may hold both roles, but reviewing the evidence and authorizing action are separate rights. The middle layer is not another architecture tool. It connects design intent to tool execution, then connects tool results to the next architectural decision.
 
 Before looking at how this operates in architecture, we can look at examples of how other domains do this to see what lessons we can learn. Coding-agent systems provide a familiar example of a similar connection. A repository-level coding agent receives a bounded issue, a known repository state, permitted editing and command-line actions, executable checks, and a patch that another developer can review. The model works inside that structure rather than deciding for itself what software problem should be solved.
 
 SWE-bench turns repository-level coding into a bounded task. Each problem starts with an issue description and a fixed repository state. An agent edits the repository, and hidden tests check whether the issue was fixed without breaking existing behavior. This is more useful than testing code generation in isolation because it connects an issue, working state, allowed changes, executable checks, and a reviewable result.
 
-SWE-agent and OpenHands, two agentic coding frameworks, make the interface around the model explicit. They let
-an agent inspect files, edit code, use a command line, and run programs inside a
-controlled environment [@YangEtAl2024SWEAgent; @WangEtAl2024OpenHands]. The
-model is only one part of the system. Its state, actions, and feedback also
-shape the result.
+SWE-agent [@YangEtAl2024SWEAgent] and OpenHands [@WangEtAl2024OpenHands], two agentic coding frameworks, make the interface around the model explicit. They let an agent inspect files, edit code, use a command line, and run programs inside a controlled environment. The model is only one part of the system. Its state, actions, and feedback also shape the result.
 
-The evaluations also show why the surrounding structure needs review, as
-SWE-bench Verified used expert human review to filter underspecified tasks,
-faulty tests, and environment-dependent failures. Even so, a later audit
-still found flawed tests and training exposure that weakened the score as a
-measure of current coding capability [@OpenAI2026SWEBenchLimits].
-Terminal-Bench 2.0 uses the same general pattern for terminal tasks by pairing
-each task with an environment, a human-written solution, and verification tests
-[@MerrillEtAl2026TerminalBench].
+The evaluations also show why the surrounding structure needs review, as SWE-bench Verified [@OpenAI2026SWEBenchLimits] used expert human review to filter underspecified tasks, faulty tests, and environment-dependent failures. Even so, a later audit still found flawed tests and training exposure that weakened the score as a measure of current coding capability. Terminal-Bench 2.0 [@MerrillEtAl2026TerminalBench] uses the same general pattern for terminal tasks by pairing each task with an environment, a human-written solution, and verification tests.
 
 While architecture needs the same explicit connections seen in software-agent evaluations, the domains remain distinct. Hardware benchmarking is harder than software benchmarking. In software, a pull request can be evaluated with immediate, deterministic unit tests. In architecture, a design change suffers from specification ambiguity and delayed feedback loops, where AI's predictive capabilities must contend with the physical silicon constraints of PPA, STA, DRC rules, and thermal budgets that only appear after days of physical synthesis.
 A software issue can often end with tests of the final state, whereas no single architecture test usually settles performance, power, physical feasibility, software support, and product risk. Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study also requires a bounded architectural claim, evidence at the right fidelity, and a named person who owns the final decision. @fig-structured-layer-above-rtl connects that recorded task and working state to the tool path, evidence, and the next decision.
@@ -298,7 +281,7 @@ Architects usually have to weigh several objectives at once. For the 64-bit RISC
 
 ## Exploring: State Representation and Multi-Fidelity Search
 
-Once the comparison is defined, an AI agent still needs an executable path
+With the problem formulated, the next stage of the lifecycle (@fig-ontology-loop) is Explore. Once the comparison is defined, an AI agent still needs an executable path
 through the work. That path connects the state available to the method, the
 actions exposed by tools, the consequences those tools or models return, and
 the review that determines what happens next. Keeping those connections
@@ -337,7 +320,7 @@ AI agents often use these predictive surrogates to model how represented state m
 
 ## Implementing: Tool Execution and Friction
 
-Once the agent proposes a candidate architecture, the next step is executing the simulation and compilation tools to gather physical evidence. This transition from abstract prediction models to actual tool execution introduces significant friction, as tools often crash, time out, or produce cryptic errors when fed invalid configurations. The implementation stage provides the interface and resilience needed for the agent to recover from these failures and extract meaningful observations.
+Moving to the Implement stage (@fig-ontology-loop), once the agent proposes a candidate architecture, the next step is executing the simulation and compilation tools to gather physical evidence. This transition from abstract prediction models to actual tool execution introduces significant friction, as tools often crash, time out, or produce cryptic errors when fed invalid configurations. The implementation stage provides the interface and resilience needed for the agent to recover from these failures and extract meaningful observations.
 
 ### Safe Tool Execution
 
@@ -442,7 +425,7 @@ A bounded study turns toolchain friction from a fatal obstacle into a recorded c
 
 ## Evaluating: Producing Reviewable Evidence
 
-Even a robust execution loop that gracefully handles tool failures does not determine what its results mean or who may act on them. The study must distinguish raw tool feedback from reviewable architectural evidence.
+In the Evaluate stage (@fig-ontology-loop), we assess the results. Even a robust execution loop that gracefully handles tool failures does not determine what its results mean or who may act on them. The study must distinguish raw tool feedback from reviewable architectural evidence.
 
 ### Distinguishing Feedback from Evidence
 
@@ -467,7 +450,7 @@ An AI agent shouldn't simply discard these failures. It must preserve them as ne
 
 ## Explaining: Mechanism and Interpretation
 
-While evaluation provides the hard evidence for a claim, the claim remains incomplete without a mechanism-level explanation. A fast proxy score or a high-fidelity simulation result tells us *what* happened, but the explanation stage tells us *why*.
+In the Explain stage (@fig-ontology-loop), we provide a mechanistic account of the results. While evaluation provides the hard evidence for a claim, the claim remains incomplete without a mechanism-level explanation. A fast proxy score or a high-fidelity simulation result tells us *what* happened, but the explanation stage tells us *why*.
 
 ### The "Clever Hans" Risk
 
@@ -483,7 +466,7 @@ For example, if an AI agent claims an accelerator is faster because of a new til
 
 ## Defending: Action, Authority, and Review
 
-No single stage operates in a vacuum—eventually, the evidence produced by the architecture design loop must face human scrutiny. The defending stage forces the loop to surface its claims, its evidence, and its mechanistic explanations for explicit sign-off. It is here that the system distinguishes between the agent's autonomous execution and the architect's non-delegable authority over the design.
+No single stage operates in a vacuum—eventually, the evidence produced by the architecture design loop must face human scrutiny. The Defend stage (@fig-ontology-loop) forces the loop to surface its claims, its evidence, and its mechanistic explanations for explicit sign-off. It is here that the system distinguishes between the agent's autonomous execution and the architect's non-delegable authority over the design.
 
 ### Action and Authority
 
