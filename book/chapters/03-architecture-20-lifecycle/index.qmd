@@ -236,98 +236,21 @@ Together, state representation, prediction models, and candidate generation form
 
 ## Implementing: Tool Execution and Friction
 
-Moving to the Implement stage (@fig-ontology-loop), once the agent proposes a candidate architecture, the next step is executing the simulation and compilation tools to gather physical evidence. This transition from abstract prediction models to actual tool execution introduces significant friction, as tools often crash, time out, or produce cryptic errors when fed invalid configurations. The implementation stage provides the interface and resilience needed for the agent to recover from these failures and extract meaningful observations.
+Moving to the Implement stage (@fig-ontology-loop), once the agent proposes a candidate architecture, the next step is executing the simulation and compilation tools to gather physical evidence. This transition from abstract prediction models to actual tool execution introduces significant friction.
 
-### Safe Tool Execution
+### Executing the Design Loop
 
-Representing the relevant information is not enough. Tool interfaces must make
-the permitted actions and returned observations clear. A model prediction estimates a consequence, while a tool observation records what a declared execution returned. For the cache study, an
-interface might allow changes to cache capacity, associativity, and replacement
-policy, then return cycles, misses, estimated power, run time, provenance, and
-failure messages. Unsupported values should fail explicitly rather than enter
-the comparison as if they were valid candidates.
-
-Reinforcement-learning research long lacked a common interface until the OpenAI Gym Environment API [@BrockmanEtAl2016OpenAIGym] standardized how agents interact with simulated environments through a common `step(action) -> state, reward, done` loop. Unlike a software game that resets in milliseconds, an architectural step such as RTL synthesis or cycle-accurate simulation can take days, consume large compute budgets, and fail on obscure EDA licensing or TCL scripting errors. A standard interface is a prerequisite for progress, but the architecture version must handle extreme latency, asynchronous feedback, and high-cost toolchain friction.
-
-ArchGym brings that idea to architecture, making the connection between search procedures and simulators explicit [@KrishnanEtAl2023ArchGym]. The interface must expose legal actions, feedback cost and fidelity, comparable baselines, provenance, and failure behavior. A revision to the wrapper can change the effective experiment even when the underlying simulator remains the same. @sec-architecture-environments-tool-interfaces develops the tool-side requirements and implementation patterns.
-
-### Iteration Tracking
-
-The execution-and-analysis box in @fig-structured-layer-above-rtl and
-@fig-ontology-chain shows where an AI agent acts on the recorded comparison.
-We already move between a design, a tool result, and the next change. That loop is not new. What changes is that an AI agent cannot reliably recover the assumptions we carry from one tool or meeting to the next. It
-needs the current design state, permitted changes, tool interfaces, stopping
-rules, and review points to be recorded alongside the work.
-
-The coding-agent example gives this loop a familiar shape. Repository files and
-version history provide visible state. Editing and command-line tools define
-available actions. Tests, compilers, and program output return feedback. The
-proposed change remains available for review. An architecture loop needs the
-same connections, but its state crosses more kinds of artifacts and its checks
-do not reduce to one pass-or-fail test suite.
-
-The difficult part is keeping the comparison intact as work crosses tools. A
-simulator may report fewer cycles while a power model reports that the same
-candidate exceeds the power limit. That result may trigger an automated
-rejection rule or lead the architect to reject the candidate. A compiler change
-may improve one workload and invalidate another. The AI system must receive both
-results without silently changing the workload, baseline, or constraints. The
-record must also preserve who or what made each change and why the next action
-followed.
-
-Return to the bounded cache comparison. One iteration begins with the baseline
-cache configuration, the allowed changes, and the named XRBench traces. An AI
-method proposes a legal configuration, and the simulator measures its
-performance. The power model may then show that the candidate exceeds the 3\ W
-envelope.
-
-If so, an automated check may remove it from consideration under the recorded rejection rule. If it survives, interpretation or diagnosis connects the observation, such as a miss pattern or power increase, to the proposed mechanism. We record the result and decide whether another configuration is worth trying or whether the evidence is ready for review. Detailed representation and observation mechanics are covered in @sec-data-representations-world-models and @sec-architecture-environments-tool-interfaces.
-
-@fig-design-loop expands the execution-and-analysis box into one iteration. An
-architect or AI method reads the recorded state, makes an allowed change, and
-runs the relevant tool. An automated check may reject or escalate a candidate
-when a declared check fails. A reviewer assesses the evidence and records what
-it supports. The decision owner then decides whether to accept or narrow the
-claim, reject the candidate, or request another iteration. Objectives and
-constraints limit the work, while stopping and escalation rules determine
-whether another iteration is worthwhile.
+The interaction between the agent's proposed candidates and the underlying tools forms a continuous execution cycle. @fig-design-loop expands this process into one iteration. An architect or AI method reads the recorded state, makes an allowed change, and runs the relevant tool. An automated check may reject or escalate a candidate when a declared check fails.
 
 ![**How an iterative architecture study proceeds.** An architect or AI method reads the recorded design state, makes an allowed change, runs a tool, and submits the result for review. The reviewer records what the evidence supports, and the decision owner determines what happens next. A higher-fidelity result does not by itself authorize a more consequential decision.](images/F3-design-loop){#fig-design-loop width="85%" fig-alt="A design loop within a scoped architecture study. Represented state, permitted action, tool feedback, and evidence lead to claim review. A scoped finding or decision can leave the loop, while revision updates the recorded state for another turn."}
 
-The bounded scope tells architects and AI agents what work is in bounds. The
-claim tells reviewers which conclusion to assess, and the design-loop record
-shows how the candidates and evidence developed. Inside the loop, an AI agent
-may generate candidates, predict outcomes, select the next experiment,
-critique assumptions, or coordinate tool calls. The label attached to the
-system matters less than what information each method received, what it
-changed, and how its output was checked.
-
-For the cache comparison, one method might generate legal configurations,
-another might screen them with performance and power estimates, and a search
-procedure might choose which candidate to simulate next. The tools and declared
-checks determine whether a candidate remains under consideration. The roles do
-not grant decision authority. @sec-methods-generation-prediction-optimization
-examines how to assign these jobs and compose the methods that perform them.
-
-### Multi-Fidelity Transitions
-
-We rarely rely on a single level of simulation fidelity. Bounded architecture studies span multiple levels of abstraction, from fast analytical proxies to cycle-accurate simulators and slow RTL synthesis. An AI explorer must navigate these multi-fidelity transitions without losing the thread of the original architectural claim.
-
-While the ML capability to process fast, low-fidelity proxies provides the rapid feedback needed to search large design spaces, any proposed candidate must still satisfy physical silicon constraints such as PPA targets and STA. High-fidelity models provide the concrete evidence required for the architect's final commitment.
-
-The challenge arises when an agent optimizing against a fast proxy encounters a boundary condition where the proxy's assumptions break down. If the agent quietly trusts the low-fidelity result without validating it against a higher-fidelity tool, it risks generating configurations that fail physical or timing constraints. The architect must therefore explicitly define when an agent should escalate from a low-fidelity proxy to a high-fidelity simulator, creating a structured transition policy rather than a fixed pipeline.
-
-This transition policy guides how an agent allocates a limited computational budget. Because RTL simulations and physical design runs are expensive, the agent cannot afford to evaluate every candidate at maximum fidelity. Instead, it must map the design space broadly using cheap approximations and reserve expensive runs for the most promising candidates or the most uncertain boundary regions.
-
-> **Multi-fidelity escalation.** A defined policy that states the conditions under which an agent must transition from a fast proxy to a high-fidelity tool. Building on foundational multi-fidelity Bayesian Optimization literature [@KandasamyEtAl2017MultiFidelityBO], it specifies the budget for high-fidelity runs and the checks required before escalation.
-
-Recording these transitions in the design loop keeps the AI's proxy-driven search anchored to physical reality. When a proxy win disappears at higher fidelity, the agent updates its cost model, and the architect reviews the discrepancy. This continuous recalibration across fidelity levels is what allows an agent to explore efficiently without drifting into physically impossible design states.
+For the cache comparison, one method might generate legal configurations, another might screen them with performance and power estimates, and a search procedure might choose which candidate to simulate next. The tools and declared checks determine whether a candidate remains under consideration.
 
 ### Navigating Toolchain Friction
 
-Toolchain friction is a defining reality of hardware design. Unlike software environments where code compiles in milliseconds and tests run deterministically, architecture tools are often fragile, slow, and prone to silent failures. An AI or agent interacting with these tools will encounter undocumented configuration flags, licensing timeouts, parsing errors, and out-of-memory crashes. If unconstrained, agents often exhibit a "Clever Hans" effect, a spurious correlation in which the model learns superficial syntactic tricks to pass the parser rather than mastering semantic hardware rules [@LapuschkinEtAl2019CleverHans]. The lifecycle must account for this friction to prevent an agent from stalling on trivial tool errors or hallucinating successful tool completions based on spurious log patterns.
+Toolchain friction is a defining reality of hardware design. Unlike software environments where code compiles in milliseconds and tests run deterministically, architecture tools are often fragile, slow, and prone to silent failures. An AI interacting with these tools will encounter undocumented configuration flags, licensing timeouts, parsing errors, and out-of-memory crashes. If unconstrained, agents often exhibit a "Clever Hans" effect, a spurious correlation in which the model learns superficial syntactic tricks to pass the parser rather than mastering semantic hardware rules [@LapuschkinEtAl2019CleverHans].
 
-To operate effectively, an agent needs clear tool interfaces that expose not just the success path, but also the failure modes and recovery actions. We must provide the agent with explicit boundaries on how many times to retry a failed simulation, what fallback mechanisms to employ, and when to abandon a broken toolchain path. Without these guardrails, an agent might burn its entire compute budget attempting to parse a corrupted RTL synthesis log.
+To operate effectively, an agent needs clear tool interfaces (like the ArchGym API [@KrishnanEtAl2023ArchGym]) that expose not just the success path, but also the failure modes and recovery actions. We must provide the agent with explicit boundaries on how many times to retry a failed simulation, what fallback mechanisms to employ, and when to abandon a broken toolchain path.
 
 | **Toolchain friction type** | **Agent recovery strategy** |
 | --- | --- |
@@ -335,9 +258,21 @@ To operate effectively, an agent needs clear tool interfaces that expose not jus
 | Undocumented tool crashes | Log the failure, mark the configuration as invalid, and pivot to a nearby state. |
 | Silent output corruptions | Use secondary validation checks (e.g., area estimates) to flag anomalous results. |
 | Parsing and format errors | Fall back to robust parsers and escalate unreadable logs to the architect. |
-| Non-deterministic tool variance | Run multiple seed evaluations to establish statistical confidence intervals before claiming a PPA improvement. |
+| Non-deterministic variance | Run multiple seed evaluations to establish statistical confidence intervals. |
 
-A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash, it logs the failure as negative evidence. We can then review the execution record to determine whether the toolchain requires repair or the agent explored an unsupported corner of the design space. Planning for tool failures in advance lets the AI continue searching the viable portions of the design space.
+A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash, it logs the failure as negative evidence. Planning for tool failures in advance lets the AI continue searching the viable portions of the design space.
+
+### Multi-Fidelity Transitions
+
+We rarely rely on a single level of simulation fidelity. Bounded architecture studies span multiple levels of abstraction, from fast analytical proxies to cycle-accurate simulators and slow RTL synthesis. An AI explorer must navigate these multi-fidelity transitions without losing the thread of the original architectural claim.
+
+While the ML capability to process fast, low-fidelity proxies provides the rapid feedback needed to search large design spaces, any proposed candidate must still satisfy physical silicon constraints. High-fidelity models provide the concrete evidence required for the architect's final commitment.
+
+The challenge arises when an agent optimizing against a fast proxy encounters a boundary condition where the proxy's assumptions break down. If the agent quietly trusts the low-fidelity result without validating it against a higher-fidelity tool, it risks generating configurations that fail physical or timing constraints. The architect must therefore explicitly define when an agent should escalate from a low-fidelity proxy to a high-fidelity simulator.
+
+> **Multi-fidelity escalation.** A defined policy that states the conditions under which an agent must transition from a fast proxy to a high-fidelity tool. Building on foundational multi-fidelity Bayesian Optimization literature [@KandasamyEtAl2017MultiFidelityBO], it specifies the budget for high-fidelity runs and the checks required before escalation.
+
+Recording these transitions in the design loop keeps the AI's proxy-driven search anchored to physical reality. When a proxy win disappears at higher fidelity, the agent updates its cost model, and the architect reviews the discrepancy. This continuous recalibration across fidelity levels is what allows an agent to explore efficiently without drifting into physically impossible design states.
 
 ## Evaluating: Producing Reviewable Evidence
 
