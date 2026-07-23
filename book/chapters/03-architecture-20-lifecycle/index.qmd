@@ -7,7 +7,7 @@
 :::
 
 ::: {.column-margin}
-**Author's Note:** George E. P. Box coined this aphorism about statistical models. Every model simplifies, and the working question is whether the simplification still serves the decision at hand. His point applies to architecture: a task description, benchmark, simulator, power model, or test suite always leaves something out. Each can still be useful when its scope and failure modes are clear.
+**Author's Note:** George E. P. Box, a British statistician, coined this aphorism about statistical models. Every model simplifies, and the working question is whether the simplification still serves the decision at hand. His point applies to more than prediction models. A task description, benchmark, simulator, power model, or test suite always leaves something out. Each can still be useful when its scope and failure modes are clear and when the decision does not reach beyond the evidence it provides.
 :::
 
 
@@ -17,46 +17,66 @@ How do we structure our hypotheses, constraints, and toolchains so that an AI ag
 
 The preceding chapters established a hard reality: modern architecture spaces have grown too complex for us to explore manually, yet unguided AI risks optimizing proxy metrics at the expense of physical silicon constraints. We cannot simply hand over a prompt and expect a taped-out chip in return. To safely delegate exploration to an AI agent, the tacit human knowledge we naturally carry—such as implicit workload expectations, unstated thermal limits, and trusted tool combinations—must become explicit, machine-readable state.
 
-This requires a formal ontology: a conceptual model of our work that strictly defines what an agent can see, what it can change, and how we will judge its results. By formalizing our intent and constraints, we turn stochastic models from autonomous novelties into accountable participants in our design loop.
+This requires a formal ontology: a conceptual model of our work that strictly defines what an agent can see, what it can change, and how we will judge its results. Without this structure, we risk building AI systems that hallucinate successful simulations or optimize for the wrong goals entirely. By formalizing our intent and constraints, we turn stochastic models from autonomous novelties into accountable participants in our design loop.
 
 This chapter establishes the Architecture 2.0 lifecycle, a structured engineering discipline for AI-assisted architecture. We establish the bounded architecture study as the fundamental unit of work, ensuring that every AI-driven exploration remains anchored to a testable claim. We then introduce the six-stage lifecycle that carries this claim from formulation to defense, ensuring our design loop remains inspectable, rigorous, and firmly under our control.
 
 ::: {.callout-learning-objectives}
 After reading this chapter, you can:
 
-- Formulate bounded architecture studies by specifying explicit design-space constraints, baseline workloads, and verifiable claims.
-- Structure multi-fidelity design-space exploration using explicit escalation policies and standardized tool interfaces.
-- Differentiate genuine architectural improvements from surrogate model artifacts by applying causal simulator ablations.
+- Formulate bounded architecture studies by specifying explicit design-space constraints, baseline workloads, and verifiable claims that transform tacit hardware knowledge into machine-readable state.
+- Structure multi-fidelity design-space exploration using explicit escalation policies and standardized tool interfaces to reconcile rapid proxy estimates with high-fidelity simulation and physical synthesis constraints.
+- Differentiate genuine architectural improvements from surrogate model artifacts by applying causal simulator ablations and recording negative evidence throughout evaluation.
 - Establish formal decision-rights matrices and design-loop cards to partition automated agentic execution from non-delegable human sign-off authority.
 :::
 
+While this chapter provides the high-level structural overview of the lifecycle, the exact implementation details—including how to build state representations, search algorithms, robust tool interfaces, verification techniques, and accountability structures—are covered in greater detail in the subsequent chapters.
+
 ## The Big Picture: Translating Intent to Execution {#sec-arch2-ontology}
 
-An AI-assisted architecture study needs a common structure connecting the stages of work that are often documented separately. It must preserve our original intent, define a bounded comparison, and connect that comparison to an inspectable execution loop.
+An AI-assisted architecture study needs a common structure connecting the stages of work that are often documented separately. It must preserve our original intent, define a bounded comparison, connect that comparison to an inspectable execution loop, and show who may act on the result.
 
-@fig-structured-layer-above-rtl places an architecture study between our question and the tools used to investigate it. The figure's middle layer is the comparison and its review record. It connects reasoning that often stays in our heads to executable implementation flows, giving architects and AI agents a shared context.
+@fig-structured-layer-above-rtl places an architecture study between our question and the tools used to investigate it. The figure's middle layer is the comparison and its review record. It connects reasoning that often stays in our heads or working notes to executable implementation flows, giving architectural tools, AI agents, reviewers, and architects a shared question for interpreting each artifact and tool result.
 
 ![**An AI-assisted architecture study connects intent to implementation evidence.** The study contains the scope, architectural claim, execution and analysis process, and evidence needed for review. Iterative work uses a design loop.](images/F4d-structured-layer-above-rtl){#fig-structured-layer-above-rtl width="85%" fig-alt="Three-layer diagram showing architecture intent and judgment flowing into a structured architecture study, with tool results flowing back for evidence review."}
 
 Read @fig-structured-layer-above-rtl from top to bottom:
 
-* **The Upper Layer (System Intent)**: This contains the architecture models, requirements, and rationale that shape our question. For the RISC-V XR subsystem from our Lighthouse prompt, this includes the high-level goal of improving mobile XR efficiency.
-* **The Middle Layer (Bounded Comparison)**: This turns intent into a bounded comparison. Its scope names the specific question, such as deciding whether a particular cache configuration merits RTL evaluation. The architectural claim says what will be reviewed. It connects design intent to tool execution.
+* **The Upper Layer (System Intent)**: This contains the architecture models, requirements, and rationale that shape our question. For the RISC-V XR subsystem from our Lighthouse prompt, this includes the high-level goal of improving mobile XR efficiency and the initial models of the target workload.
+* **The Middle Layer (Bounded Comparison)**: This turns intent into a bounded comparison. Its scope names the specific question, such as deciding whether a particular cache configuration merits RTL evaluation. The architectural claim says what will be reviewed. It is not another architecture tool; rather, it connects design intent to tool execution.
 * **The Lower Layer (Executable Tool Path)**: Simulators, compilers, RTL generators, and EDA flows carry out different parts of the comparison to return measurements that enter the evidence record.
 
 In software engineering, coding agents rely on structured environments like SWE-bench to provide a bounded issue, a known repository state, and executable tests. Architecture requires a similar structure, but building it is much harder because feedback (power, area, timing) is delayed, ambiguous, and subject to physical constraints.
 
+Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study requires more than just an environment. It requires a bounded claim, evidence at the right fidelity, and a named person who owns the final decision.
+
 ## The Six-Stage Execution Lifecycle
 
-Experienced architects already move through these layers informally. When we run the work ourselves, we naturally carry project context from a spreadsheet to a simulator to a design review. An AI agent cannot. To safely integrate AI, we must make this implicit workflow explicit. Without a formalized loop, an agent might optimize a proxy metric while silently violating a physical constraint we knew about but forgot to write down.
+To execute the work within this ontology, we must formally define the iterative process where architectural decisions unfold. Experienced architects already move through these stages informally. When we run the work ourselves, we naturally carry project context from a spreadsheet to a simulator to a design review. 
 
-As shown in @fig-ontology-loop, this structured approach maps our familiar architecture design process into a six-stage lifecycle: Formulate, Explore, Implement, Evaluate, Explain, and Defend.
+But why is it so important to break these standard stages down so formally? The answer is that human architects rely on vast amounts of *tacit knowledge*—implicit workload expectations, unstated thermal limits, and trusted tool combinations. An AI agent cannot. If we do not make this implicit workflow explicit, an agent will blindly optimize the metric it was given, entirely unaware that it just proposed a design that is physically unroutable or thermally destructive. Formalizing the lifecycle is the only way to convert our tacit engineering boundaries into a machine-readable state that restrains autonomous search.
 
-![**The Architecture 2.0 engineering lifecycle.** Six numbered stages carry one turn of an architecture study from a bounded claim through search, tool execution, evidence, and interpretation to an authorized decision. A turn that fails review returns a revised claim or study to Formulate rather than stopping.](images/ch3-ontology-loop){#fig-ontology-loop width="100%" fig-alt="Six numbered rectangular boxes in two rows. The top row runs left to right through Formulate, Explore, and Implement; the bottom row runs right to left through Evaluate, Explain, and Defend. A red return path carries a revised claim or study from Defend back to Formulate for another turn."}
+As shown in @fig-ontology-loop, this structured approach maps our familiar architecture design process into a six-stage lifecycle: Formulate, Explore, Implement, Evaluate, Explain, and Defend. 
 
-> **Architecture design loop.** The repeated process of examining the current design, making an allowed change, running the relevant tools, interpreting the result, and deciding whether to revise, reject, or continue. Each iteration retains enough information for another architect to see what led to the next step.
+Crucially, for AI-assisted architecture to be practical, this lifecycle operates at two distinct speeds:
+1. **The Inner Agentic Loop (Explore <-> Implement <-> Evaluate):** Operating at *machine speed*, the AI agent iterates thousands of times autonomously—aggressively pruning the search space, fighting toolchain friction, and relying on proxies and deterministic rejection checks.
+2. **The Outer Human Loop (Formulate -> [Inner Loop] -> Explain -> Defend):** Operating at *human speed*, this loop only triggers when the agent has found a candidate that passes all automated physical constraints and is ready to translate that evidence across the Trust Barrier for human sign-off.
 
-The design loop is the execution mechanism inside a bounded architecture study. The rest of this chapter walks through each of these six stages, showing how we orchestrate AI agents safely and rigorously.
+![**The Architecture 2.0 engineering lifecycle.** Six numbered stages carry one turn of an architecture study from a bounded claim through search, tool execution, evidence, and interpretation to an authorized decision. Keeping the question, the executed work, the evidence, and the next decision connected is what makes AI assistance reviewable. A turn that fails review returns a revised claim or study to Formulate rather than stopping.](images/ch3-ontology-loop){#fig-ontology-loop width="100%" fig-alt="Six numbered rectangular boxes in two rows. The top row runs left to right through Formulate, Explore, and Implement; the bottom row runs right to left through Evaluate, Explain, and Defend. A red return path carries a revised claim or study from Defend back to Formulate for another turn."}
+
+> **Architecture design loop.** The repeated process of examining the current design, making an allowed change, running the relevant tools, interpreting the result, and deciding whether to revise, reject, or continue. Building on established Agile Hardware Development cycles (e.g., the Chisel ecosystem [@Izraelevitz2017Chisel]), each iteration retains enough information for another architect to see what led to the next step.
+
+To ground these abstract concepts in a practical reality, we use the XR subsystem design task from the Lighthouse prompt as our running example. The interaction between an agent's proposed candidates and the underlying tools forms a continuous execution cycle. @fig-design-loop expands this process into a single, concrete iteration:
+
+![**How an iterative architecture study proceeds.** An architect or AI method reads the recorded design state, makes an allowed change, runs a tool, and submits the result for review. The reviewer records what the evidence supports, and the decision owner determines what happens next.](images/F3-design-loop){#fig-design-loop width="85%" fig-alt="A design loop within a scoped architecture study. Represented state, permitted action, tool feedback, and evidence lead to claim review."}
+
+1. **Read Represented State:** The AI agent queries the current design state, observing the 2 MB baseline cache, the XRBench trace, and the remaining 1 W dynamic power budget.
+2. **Make Allowed Change:** The agent proposes expanding the cache to 3 MB. The ontology validates that this action is within the allowed design space.
+3. **Execute Tool (Feedback):** The proposed 3 MB configuration is dispatched to the cycle-accurate simulator (e.g., gem5) and the analytical power model (e.g., McPAT). The tools return raw feedback: a 12% reduction in conflict misses, but a 0.8 W increase in dynamic power.
+4. **Compile Evidence:** The raw feedback is packaged with its provenance (simulator version, trace name, time of execution) into an immutable evidence record.
+5. **Claim Review:** A deterministic check evaluates the evidence against the original bounded claim. Because 0.8 W is within the remaining 1 W budget, the check passes, and the 3 MB configuration becomes the new baseline state for the next iteration.
+
+This formalized loop ensures that every AI-driven change is mechanically verified against physical constraints before it is accepted. The rest of this chapter walks through the six stages of this lifecycle, detailing the unique challenges an agent faces at each step.
 
 ## Formulating: Bounding the Study
 
@@ -64,22 +84,36 @@ The first step in the lifecycle (@fig-ontology-loop) is Formulate. To ensure tha
 
 In @fig-structured-layer-above-rtl, the architecture question and the judgment behind it establish the starting intent. The Lighthouse prompt states that intent:
 
-> *Design a low-power, 64-bit RISC-V-based compute subsystem for an XRBench-class real-time mobile XR workload...*
+> *Design a low-power, 64-bit RISC-V-based compute subsystem for an XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU, accelerator, or SoC block under a 3 W TDP target in a 3 nm-class low-power mobile process, and return a design-space report with evidence and rejected alternatives.*
 
-The system intent is to improve mobile XR efficiency. But this is not yet an architecture task. An AI system given only the product intent cannot know which comparisons the architect needs. The intent must be translated into a claim, a baseline, and a search space.
+The system intent is to improve mobile XR efficiency. But this is not yet an architecture task. An AI system given only the product intent cannot know which comparisons the architect needs. The intent must be translated into a claim, a baseline, and a search space (@fig-ontology-chain).
+
+![**The common structure connects a scoped study to an architectural decision.** We establish the scope and state the claim for review, while represented state and tool interfaces make proposed actions executable. When work iterates, a design loop organizes execution and analysis. A reviewer examines the evidence, and the decision owner may accept a finding, narrow the claim, or revise the study.](images/F4-ontology-chain){#fig-ontology-chain width="85%" fig-alt="A common structure connecting a scoped architecture study and its architectural claim to represented state, tools, an execution and analysis process, evidence, review, a named decision owner, and a scoped finding or decision."}
+
+> **Bounded architecture study.** A bounded architecture study turns a broad goal into a specific piece of architecture work. It states the question, workload or scenario, baseline, allowed design choices, objectives, constraints, tools, planned evidence, and decision the work is meant to inform. It also says what the study will not try to decide.
 
 ### Defining the Claim
 
 A bounded study anchors everything to an architectural claim: a falsifiable statement that the review process will eventually evaluate.
-For example, "Increasing the L2 cache associativity to 8-way will reduce XRBench latency by 10% without exceeding the 3 W budget."
 
-The claim tells the AI agent what to optimize and tells the human reviewer what to scrutinize. Without a claim, an agent might endlessly tune parameters without a stopping condition, or it might propose a massive cache that maximizes IPC but physically melts the chip.
+> **Architectural claim.** An architectural claim says what result we expect from a proposed change, why that result should occur, and where it should hold. It identifies the proposed mechanism, expected outcome, workload or scenario, baseline, allowed alternatives, constraints, and the evidence that would count against it.
 
-### Defining the Search Space
+The claim tells the AI agent what to optimize and tells the human reviewer what to scrutinize. Contrast a vague human prompt with a properly bounded machine claim:
 
-Once the claim is stated, the architect must bound the design space. This means explicitly defining the legal parameters, the baseline configuration, and the strict constraints. If the agent is only allowed to modify cache parameters, it cannot rewrite the out-of-order execution core.
+*   **Vague Prompt:** "Optimize the cache for the XR workload."
+*   **Bounded Claim:** "Evaluate L2 capacity up to 4 MB to reduce XRBench conflict misses, constrained to a 3 W TDP (dynamic + leakage) and a 0.5 mm^2^ SRAM macro area footprint, requiring timing closure at 2 GHz."
 
-These boundaries prevent the agent from wandering into unverified regions of the architecture where simulators might fail silently or produce physically impossible results.
+Without a bounded claim, an agent might endlessly tune parameters without a stopping condition, or it might propose a massive cache that maximizes Instructions Per Cycle (IPC) but physically melts the chip.
+
+### The Curse of Entangled Constraints
+
+Once the claim is stated, the architect must bound the design space. However, computer architecture is fundamentally about coupled systems. We rarely get to isolate a single metric without triggering a cascading butterfly effect across Power, Performance, Area, and Thermals (PPAT). 
+
+When bounding the search space, an architect cannot simply set a naive upper limit like "L2 cache up to 4 MB." Scaling up an L2 cache doesn't just consume abstract area; it changes Network-on-Chip (NoC) routing distances, alters coherence snooping traffic, and introduces localized thermal hotspots (dark silicon). Furthermore, in physical design, a 4 MB cache requires placing massive SRAM macros. These macros create hard routing blockages and pin density bottlenecks that threaten power integrity (IR drop). If an AI agent optimizes only for aggregate area, it will propose a subsystem that passes analytical proxies but is fundamentally unroutable in Place-and-Route (P&R).
+
+Formulating a bounded study is incredibly difficult because it requires explicitly mapping these hidden entanglements and physical blockages. A well-formulated boundary prevents the agent from optimizing one local subsystem while silently starving the memory controller or rendering the floorplan unroutable. 
+
+Modern system intent also demands strict hardware/software boundaries. An agent optimizing hardware in isolation might produce a theoretically efficient accelerator that no compiler can target. To prevent this, the architect must extend the bounded study to include the software path (compilers, runtimes, and mapping strategies) so that the agent evaluates the hardware alongside an executable software baseline.
 
 ## Exploring: State Representation and Search
 
@@ -87,85 +121,157 @@ With the problem formulated, the next stage is Explore. In this stage, an AI age
 
 However, an agent cannot explore a space it cannot see or understand. For the search to be effective, we must explicitly provide the agent with a machine-readable view of the architecture and a way to quickly predict the consequences of its choices before running expensive simulations.
 
-### State Representation
+### Topological State and the Curse of the Action Space
 
-An AI agent can act only on the information we make available to it. For human architects, design knowledge lives in natural-language specifications, ISA manuals, spreadsheet models, and meeting notes. An agent requires this tacit knowledge to be translated into explicit, represented state. This state must capture the current workload, the baseline design, our interface assumptions, and any results from earlier iterations.
+An AI agent can act only on the information we make available to it. For human architects, design knowledge lives in natural-language specifications, ISA manuals, spreadsheet models, and meeting notes. An agent requires this tacit knowledge to be translated into explicit, represented state. 
 
-When an agent proposes an impossible design, the root cause is often missing state representation, not a flawed search algorithm.
+However, translating architecture into a machine-readable state exposes a brutal ML-systems challenge: **the curse of the action space**. An SoC is not a flat list of independent variables; it is a complex, topological graph of queues, arbiters, and pipeline stages. Mapping categorical, continuous, and graph-based constraints into an action space that an agent can safely navigate is remarkably difficult. If an AI agent only receives the cache miss rates but remains blind to the area floorplan and the NoC topology, it may propose a massive cache that maximizes IPC but cannot physically fit on the die. When an agent proposes an impossible design, the root cause is often this missing topological state.
 
-### Prediction and Generating Candidates
+### The Modality Mismatch
 
-Running a full cycle-accurate simulation or RTL synthesis for every single candidate is too slow. Instead, the agent relies on prediction models (fast proxies) to estimate the performance, power, and area (PPA) impacts of a change. These proxies act as the agent's internal "world model" [@HaSchmidhuber2018WorldModels], allowing it to screen out bad ideas before committing to a costly tool execution.
+Even if the state is fully topological, exploration faces a fundamental **modality mismatch**. Modern AI models natively operate on sequential text tokens (LLMs) or fixed-length continuous vectors (Reinforcement Learning). Hardware, however, exists as rigid hierarchical netlists, Hardware Description Languages (Verilog/Chisel), and constraint graphs. An LLM might generate syntactically perfect Verilog that is structurally nonsensical, while an RL agent might produce continuous values that fail to map to discrete hardware parameters. Bridging this gap is essential for generating valid architecture proposals.
 
-Guided by its view of the state and its internal predictions, the agent generates candidates. For highly constrained problems, it might tune numerical parameters using Bayesian optimization. For more open-ended exploration, it might use Large Language Models (LLMs) to generate new structural topologies. Because LLMs are prone to hallucinating invalid syntax, this generation step requires constructive heuristics to ensure every proposed candidate is syntactically legal before it is ever sent to a simulator.
+### World Models, UQ, and Distribution Shift
+
+Once an agent proposes a valid candidate, it relies on prediction models (fast proxies) to estimate performance, power, and area. These proxies act as the agent's internal "world model" [@HaSchmidhuber2018WorldModels], allowing it to simulate the physics of the chip in its "mind." But AI proxies easily predict linear scaling while failing catastrophically at predicting *non-linear interference* (e.g., shared TLB thrashing). 
+
+As the agent explores deeper into the design space, or as engineers update baseline parameters, the environment becomes non-stationary, causing a **distribution shift**. The offline data used to train the proxies quickly becomes stale. An agent aggressively optimizing against a stale fast proxy will inevitably push the inputs **Out-of-Distribution (OOD)**, leading to **Reward Hacking** (Goodhart's Law) where the agent actively exploits extrapolation errors to endorse impossible results.
+
+To survive, exploration must include active learning loops and **Uncertainty Quantification (UQ)**. The agent must *know when it is guessing*, balancing exploration with pessimistic value estimation to avoid escalating unroutable designs to expensive simulation.
 
 ## Implementing: Toolchain Friction and Escalation
 
 Moving to the Implement stage (@fig-ontology-loop), once the agent proposes a candidate architecture, the next step is executing the simulation and compilation tools to gather physical evidence.
 
-### Executing the Design Loop
-
-The interaction between the agent's proposed candidates and the underlying tools forms a continuous execution cycle. @fig-design-loop expands this process into one iteration. An architect or AI method reads the recorded state, makes an allowed change, and runs the relevant tool.
-
-![**How an iterative architecture study proceeds.** An architect or AI method reads the recorded design state, makes an allowed change, runs a tool, and submits the result for review. The reviewer records what the evidence supports, and the decision owner determines what happens next.](images/F3-design-loop){#fig-design-loop width="85%" fig-alt="A design loop within a scoped architecture study. Represented state, permitted action, tool feedback, and evidence lead to claim review."}
-
 ### Navigating Toolchain Friction
 
-Unlike software environments where code compiles in milliseconds, architecture tools are often fragile, slow, and prone to silent failures. An AI interacting with these tools will encounter licensing timeouts, parsing errors, and out-of-memory crashes.
+Unlike software environments where code compiles in milliseconds and tests run deterministically, architecture tools are often fragile, slow, and prone to silent failures. Commercial EDA tools are particularly hostile to automated agents because they are driven by decades-old, deeply stateful Tcl scripts. An AI interacting with these tools will not just encounter crashes; it will face "dirty state" (leftover constraints from a previous run in the same workspace) and the nightmare of parsing semantic meaning out of multi-gigabyte Static Timing Analysis (STA) reports.
 
-To operate effectively, an agent needs clear tool interfaces (like the ArchGym API [@KrishnanEtAl2023ArchGym]) that expose not just the success path, but also the failure modes and recovery actions. A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash, it logs the failure as negative evidence and pivots.
+To operate effectively, an agent needs clear tool interfaces (like the ArchGym API [@KrishnanEtAl2023ArchGym]) that expose the failure modes and recovery actions. Beyond avoiding crashes, navigating toolchain friction requires rigorous **provenance data engineering**. To train reliable ML proxies offline, an agent cannot simply log a failed IPC score. It must capture the exact environment state—tool versions, random seeds, intermediate Tcl state, and DRC markers—as an immutable record.
+
+| **Toolchain friction type** | **Agent recovery strategy** |
+| --- | --- |
+| FlexLM license hangs or timeouts | Implement exponential backoff, strict resource timeouts to prevent thread deadlocks, or query a lower-fidelity tool. |
+| Stateful Tcl & "Dirty State" | Enforce ephemeral, containerized workspaces and mandatory state teardowns between synthesis runs. |
+| Undocumented tool crashes | Log the failure, mark the configuration as invalid, and pivot to a nearby state. |
+| Silent output corruptions | Use secondary validation checks (e.g., verifying the netlist isn't empty) to flag anomalous results. |
+| Zero-exit-code parsing errors | Do not trust a `0` exit status. Validate physical outputs directly and escalate multi-gigabyte STA logs to the architect. |
+
+A bounded study turns toolchain friction from a fatal obstacle into a recorded constraint. When an agent cannot evaluate a candidate due to a tool crash or a dirty Tcl state, it logs the failure as negative evidence and pivots. Planning for tool failures in advance lets the AI continue searching the viable portions of the design space.
+
+
 
 ### Multi-Fidelity Escalation
 
 Bounded architecture studies span multiple levels of abstraction, from fast analytical proxies to cycle-accurate simulators and slow RTL synthesis.
 
-The challenge arises when an agent optimizing against a fast proxy encounters a boundary condition where the proxy's assumptions break down. If the agent quietly trusts the low-fidelity result without validating it against a higher-fidelity tool, it risks generating configurations that fail physical constraints.
+Escalation is governed by a massive temporal cost asymmetry: querying a proxy takes milliseconds, a cycle-accurate simulator takes minutes, but RTL synthesis can take days. The AI must be constrained by an explicit budget to justify invoking synthesis.
+
+Furthermore, there is a massive chasm within "synthesis" itself. An agent might propose a design that passes *logical synthesis* (idealized timing and gate counts) but fails horribly at *physical synthesis* (parasitic extraction, actual wire delays, clock tree synthesis). For example, if an AI proposes a massive 128-way associative cache, the fast proxy might show an incredible boost in IPC (reward hacking). But in silicon, expanding a cache increases physical access distance. When the agent escalates this "perfect" design to physical synthesis, it will fail **timing closure** because the true wire delay breaks the target clock frequency. 
+
+To bridge this gap without bankrupting the computation budget, the escalation path often requires **hardware emulation** (e.g., Palladium or ZeBu) as a necessary middle ground for workloads that are too slow for pure RTL simulation but require more physical accuracy than gem5.
 
 > **Multi-fidelity escalation.** A defined policy that states the conditions under which an agent must transition from a fast proxy to a high-fidelity tool [@KandasamyEtAl2017MultiFidelityBO]. It specifies the budget for high-fidelity runs and the checks required before escalation.
 
+Recording these transitions in the design loop keeps the AI's proxy-driven search anchored to physical reality. When a proxy win disappears at higher fidelity, the agent updates its cost model, and the architect reviews the discrepancy. This continuous recalibration across fidelity levels is what allows an agent to explore efficiently without drifting into physically impossible design states.
+
 ## Evaluating: Reviewable Evidence
 
-In the Evaluate stage, we assess the results. The study must distinguish raw tool feedback from reviewable architectural evidence.
+In the Evaluate stage, we assess the results. The study must distinguish raw tool feedback from reviewable architectural evidence, particularly under the crushing constraints of simulation scale and physical verification.
 
-### Feedback vs. Reviewable Evidence
+### The High Cost of Physical Evidence
 
-When an AI agent changes a parameter and a tool completes the run, the result is *feedback*. It becomes *evidence* only when it is tied to the architectural claim and the run record identifies the conditions, constraints, and provenance under which it was produced.
+The most brutal reality of evaluation is the **simulation time-wall**. We casually refer to running "XRBench traces," but executing a single real-time second of an XR workload requires billions of cycles. Cycle-accurate simulators might run at a few hundred KIPS, and RTL simulation drops to hundreds of cycles per second. Evaluation forces the agent to rely on **workload sampling** (e.g., SimPoint). The evaluate stage must rigorously quantify the statistical confidence of these samples before accepting them as evidence.
 
-The same power number supports different decisions depending on whether it came from a proxy, cycle-level simulation, synthesis, or silicon. Recording the provenance is what lets another architect verify a reported number.
+Furthermore, physical design enforces binary, non-negotiable walls: **Functional Verification** (UVM testbenches), **Formal Verification** (LEC), and **DRC/LVS** sign-off. Agents must be equipped to ingest these hard coverage holes and DRC markers as reviewable negative evidence. 
 
-### The Value of Negative Results
+Finally, evaluation faces the **Software/Compiler Co-Adaptation Bottleneck**. If an AI agent invents a novel hardware feature (e.g., a custom vector instruction), the existing compiler won't know how to use it. Evaluating novel hardware often requires an AI capable of simultaneously adapting the software stack to exercise it.
+
+### Formatting Evidence
+
+Because physical simulation is astronomically expensive, the system cannot afford to waste a single tool run. The primary purpose of formatting evidence—especially negative results—is to extract maximum algorithmic value from failed runs so the agent never pays the simulation cost of the same mistake twice. 
+
+When an AI agent changes a parameter and a tool completes the run, the result is mere *feedback*. It becomes *evidence* only when it is tied to the architectural claim and the run record identifies the conditions, constraints, and provenance under which it was produced. The strength of the check must match the next decision. A proxy may be enough to keep a candidate in the search, while starting RTL work or making a product decision requires stronger evidence from tools closer to the implemented system.
+
+::: {.callout-lighthouse title="A 3 W claim needs evidence, not a number"}
+**Context.** A reported power result is feedback. It becomes evidence only when the run record provides enough information for a reviewer to judge what the number means.
+
+**In the cache comparison.** A statement that one cache configuration remains inside the modeled 3 W envelope needs the named XRBench traces, RISC-V baseline, cache parameters, simulator and power-model versions, relevant software assumptions, uncertainty, and the check that would rule the configuration out.
+:::
 
 Rejected candidates, failed simulator runs, and proxy wins that disappear at higher fidelity all help mathematically map the valid design space. An AI agent shouldn't simply discard these failures; it must preserve them as negative evidence to prevent future agents from wasting expensive tool runs on known dead ends.
 
 ## Explaining: Mechanism and Interpretation
 
-In the Explain stage, we provide a mechanistic account of the results. A fast proxy score tells us *what* happened, but the explanation stage tells us *why*.
+In the Explain stage (@fig-ontology-loop), we provide a mechanistic account of the results. While evaluation provides the hard evidence for a claim, the claim remains incomplete without a mechanism-level explanation. A fast proxy score or a high-fidelity simulation result tells us *what* happened, but the explanation stage tells us *why*.
 
-When an AI agent proposes a design change and a simulator confirms it runs faster, the agent must provide a falsifiable architectural mechanism. Did the change actually reduce conflict misses, or did the AI simply find a way to skip a mandatory initialization routine? Without demanding a mechanism, the architect risks accepting a "Clever Hans" result [@LapuschkinEtAl2019CleverHans].
+### The "Clever Hans" Risk
 
-The explanation stage mitigates this risk by isolating the causal mechanism through targeted ablations and counterfactual simulations. While AI techniques like SHAP explain the *AI's proxy* predictions, this must be explicitly contrasted with ground-truth simulator ablation, which requires parameter-toggling in the actual simulator.
+When an AI agent proposes a design change (such as expanding our XR subsystem cache) and a simulator confirms it runs faster, the agent must provide a falsifiable architectural mechanism. Did the cache actually reduce conflict misses for the XRBench traces, or did the AI simply find a way to skip a mandatory initialization routine in the simulator?
+
+Without demanding a mechanism, the architect risks accepting a "Clever Hans" result [@LapuschkinEtAl2019CleverHans], where the AI exploits a simulator bug, an edge case, or a broken script rather than discovering a genuine architectural improvement. 
+
+::: {.callout-war-story title="The AI that optimized the chip out of existence"}
+**Context:** An engineering team tasked a Reinforcement Learning agent with minimizing power and area for an accelerator block using a commercial EDA synthesis toolchain. 
+
+**What happened:** The agent quickly reported a spectacular success: a design that consumed 0.0 W of power and 0.0 mm^2^ of area, while returning a successful exit code `0` from the synthesis tool.
+
+**The mechanism:** The agent had not discovered a breakthrough architecture. Instead, it had mutated a Tcl configuration script in a way that accidentally deleted the primary clock definition. Without a clock, the synthesis tool correctly determined that no logic could ever toggle, and aggressively optimized away the entire design as "dead code." The proxy loved the result, but a human engineer immediately recognized the catastrophic silent failure.
+:::
+
+### Credit Assignment and Automated Counterfactuals
+
+The architecture lifecycle poses a severe Reinforcement Learning challenge known as **credit assignment**. If an agent makes 50 distinct micro-architectural tweaks and a 12-hour simulation returns a single aggregated IPC score, how does it learn *which* tweak was responsible? Solving this sparse, delayed reward problem requires extracting dense intermediate telemetry.
+
+The explanation stage mitigates the Clever Hans risk by isolating these causal mechanisms. However, modern CPUs are deeply pipelined and highly speculative, creating a "fog" where effects are decoupled from root causes. If an AI proposes our 3 MB XR cache and simulation shows a spike in L2 misses, the true cause might be a branch predictor aliasing bug 100 cycles earlier. 
+
+While techniques like SHAP explain the *surrogate proxy*, they provide *zero physical proof*. True explanation requires **Automated Counterfactual Generation**—agents orchestrating their own ground-truth simulator ablations to pierce the speculative fog and prove, for example, that the 3 MB cache directly reduced XRBench conflict misses. A fluent LLM description is merely a hypothesis; the explanation stage proves it against physical telemetry.
 
 ## Defending: Authority and the Design-Loop Card
 
 No single stage operates in a vacuum. The Defend stage (@fig-ontology-loop) forces the loop to surface its claims and its mechanistic explanations for explicit sign-off. It is here that the system distinguishes between the agent's autonomous execution and the architect's non-delegable authority.
 
-### Action vs. Authority
+### The Trust Barrier
 
-Describing a system as autonomous does not specify what it is allowed to do. Architects should assign separate decision rights instead of giving the system one overall level of automation.
+In @fig-structured-layer-above-rtl, a reviewer examines this evidence before the named decision owner accepts a finding. Here, the AI faces the **Trust Barrier**: the immense difficulty of compressing massive, multi-fidelity tool outputs (like a gigabyte STA log) into a concise, human-reviewable argument that a skeptical architecture committee will actually trust. 
 
-An AI method can hold real initiative over proposing candidates, executing tool actions, and rejecting a candidate when a declared check fails, while the rights to waive a check or commit resources stay with the named people who answer for the outcome.
+Describing a system as autonomous does not specify what it is allowed to do. Architects should assign separate decision rights instead of giving the system one overall level of automation (@tbl-decision-rights-matrix).
 
-### The Design-Loop Card
+| **Right** | **What it authorizes** | **Required record** |
+| --- | --- | --- |
+| **Propose** | Produce a candidate, hypothesis, test, or change for review. | Person or system, allowed output type, scope, budget, and required provenance. |
+| **Execute** | Run a declared action through the tool path. | Legal actions, resource limits, stop conditions, failure handling, and rollback path. |
+| **Reject** | Block a candidate, claim, or next step when a named rejection check fails. | Check, threshold, evidence source, whether the check is independent, and who may reject. |
+| **Waive** | Permit a failed or unmet rejection check to be bypassed under stated conditions. | Waiver holder, rationale, expiration, residual risk, and reopening condition. |
+| **Recommend** | Summarize the evidence and recommend a specific next step. | Recommender, supported scope, alternatives, what the recommendation does not cover, and uncertainty. |
+| **Commit** | Approve the next high-impact step and accept its remaining risk. | Decision owner, approved step, accepted evidence, and conditions for reversal or revalidation. |
 
-With authority assigned and the evidence reviewed, one need remains. Another architect must be able to take in a whole bounded study at a glance.
+: **Decision rights are independent assignments.** A recorded policy may authorize an AI agent to propose, execute, reject under a stated check, or recommend. Waive and commit rights remain with named people. {#tbl-decision-rights-matrix tbl-colwidths="[14,34,42]"}
+
+This division is what makes the design loop agentic rather than autonomous. An AI method can propose the 3 MB XR cache and reject it if it fails thermal checks, but the right to commit millions of dollars to tape-out stays with the named human who answers for the outcome.
+
+### The Design-Loop Card: Antidote to the Trust Barrier
+
+With authority assigned and the evidence reviewed, one need remains. How does the human architect know the AI didn't cheat the physics? 
+
+The **Design-Loop Card** is the direct antidote to the Trust Barrier. It isn't just an index or a summary; it is the ultimate "receipt" of the AI's rigor. It conquers the Trust Barrier by explicitly packaging the exact artifacts generated in the previous stages:
+1. The **Uncertainty Quantification (UQ)** from the *Explore* stage.
+2. The **Sampling Confidence & Negative Evidence** from the *Evaluate* stage.
+3. The **Automated Counterfactual Proofs** from the *Explain* stage.
 
 > **Design-loop card.** A short guide to one architecture study. It points to the question, scope, and claim, then shows how architects and AI agents carried out the work. Detailed design state, evidence, and replay artifacts remain in linked records.
 
-The ML community adopted a similar practice with model cards to make reporting more transparent [@MitchellEtAl2019ModelCards]. Just as model cards disclose evaluation data to prevent misuse of a trained model, the design-loop card discloses the bounds and limits of an architectural comparison (@fig-design-loop-card-example).
+The ML community adopted a similar practice with model cards to make reporting more transparent [@MitchellEtAl2019ModelCards]. Just as model cards disclose evaluation data to prevent misuse of a trained model, the design-loop card aggregates these specific ML and physical proofs into a single, undeniable document (@fig-design-loop-card-example). The architect signs off because the card proves the physics hold.
 
 ![**A design-loop card indexes one architecture study.** It points readers to the study scope, claim, execution process, evidence, and decision owner.](images/F4b-design-loop-card-example){#fig-design-loop-card-example width="85%" fig-alt="A compact study index card for the Lighthouse prompt, listing fields from intent through failed runs."}
 
 A design-loop card cannot settle every dispute, but it can show a later reviewer which records a contested result actually disclosed. The card helps reviewers locate missing scope or evidence, preventing the name or capability of an AI agent from becoming a substitute for adequate architectural evidence.
+
+### Closing the Loop: The Return Path
+
+The red return path in @fig-ontology-loop represents the most important element of the entire lifecycle: what happens when the architect looks at the Design-Loop Card and *rejects* the AI's candidate. The lifecycle is not a static waterfall; it is a continuous learning loop. 
+
+When a design hits the Trust Barrier and fails, the negative evidence is fed directly back into the start. If the failure was due to an out-of-distribution proxy hallucination, the **Explore** stage uses the formatted negative evidence to update its Uncertainty Quantification and retrain its world model. If the failure occurred because the original constraints were physically impossible, the human architect uses the rejected Design-Loop Card to re-**Formulate** a narrower, more realistic claim, and the cycle begins anew.
 
 ## Conclusion
 
