@@ -279,44 +279,31 @@ When an AI searcher encounters conflicting requirements, it must engage in expli
 
 Architects usually have to weigh several objectives at once. For the 64-bit RISC-V XR subsystem from our Lighthouse prompt, these include strict real-time latency for XRBench frames, the 3 W power envelope, silicon area in a 3 nm-class process, and software programmability. A design-space exploration (DSE) run over this space must do more than name a single winning compute element. As specifically requested by the Lighthouse prompt, the final design-space report must document the alternatives explored (for example, varying vector lengths versus adding dedicated matrix engines), the tradeoffs observed, the candidates rejected due to exceeding thermal limits, and the decisions that remain for the RTL implementation phase.
 
-## Exploring: State Representation and Multi-Fidelity Search
+## Exploring: State Representation and Search
 
-With the problem formulated, the next stage of the lifecycle (@fig-ontology-loop) is Explore. Once the comparison is defined, an AI agent still needs an executable path
-through the work. That path connects the state available to the method, the
-actions exposed by tools, the consequences those tools or models return, and
-the review that determines what happens next. Keeping those connections
-explicit makes an iterative architecture study inspectable.
+With the problem formulated, the next stage of the lifecycle (@fig-ontology-loop) is Explore. In this stage, an AI agent searches the bounded design space to find promising architecture candidates.
 
-### Generating Initial Candidates
+However, an agent cannot explore a space it cannot see or understand. For the search to be effective, we must explicitly provide the agent with a machine-readable view of the architecture and a way to quickly predict the consequences of its choices before running expensive simulations.
 
-Before navigating a multi-fidelity search space, an AI agent must seed the exploration with initial candidates. The choice of generator depends heavily on the constraints established in the Formulate stage. For highly constrained, domain-specific problems, architects might use parameterized templates where an agent only tunes numerical values (e.g., buffer sizes or bus widths).
+### State Representation
 
-For more open-ended exploration, Large Language Models (LLMs) can generate structural topologies or initial RTL blocks by interpreting natural language requirements. However, LLMs are prone to generating invalid configurations. To mitigate this, the generation step often employs constructive heuristics or grammar-based constraints that ensure every proposed candidate is at least syntactically valid and compliant with basic design rules before it ever reaches a simulator.
+An AI agent can act only on the information we make available to it. For human architects, design knowledge lives in natural-language specifications, ISA manuals, spreadsheet models, and meeting notes. An agent requires this tacit knowledge to be translated into explicit, represented state. This state must capture the current workload, the baseline design, our interface assumptions, and any results from earlier iterations.
 
-### State Representation in Search
+Consider our ongoing cache comparison. The represented state must include the baseline cache configuration, the legal parameter ranges, the XRBench execution traces, and the strict 3 W thermal limit. If an AI agent only receives the cache miss rates but remains blind to the 3 W constraint, it may propose a massive cache that maximizes IPC but physically melts the chip. When an agent proposes an impossible design, the root cause is often missing state representation, not a flawed search algorithm.
 
-AI agents and the tools in @fig-structured-layer-above-rtl can act only on
-information architects make available. Architecture knowledge lives in
-natural-language specifications, ISA documents, traces, graphs, simulator
-configurations, RTL, compiler IR, EDA reports, benchmark metadata, scripts, and
-review notes. The represented state for a study identifies which of those
-artifacts describe the current workload, design, assumptions, tool versions,
-and earlier results.
+### Prediction and World Models
 
-For the cache comparison, that state includes the baseline configuration,
-legal cache parameters, XRBench traces, simulator and power-model versions,
-constraints, and results from earlier runs. If an AI agent sees miss rates but
-not the 3\ W constraint, it may propose a configuration that looks faster but
-cannot satisfy the stated power requirement. The missing design information,
-rather than the search method, is then the immediate problem.
+Once an agent can observe the state, it needs a way to evaluate potential changes. Running a full cycle-accurate simulation or RTL synthesis for every single candidate is too slow. Instead, the agent relies on prediction models to estimate the performance, power, and area (PPA) impacts of a change.
 
-A prediction model estimates the relevant consequences of an allowed change. For example, it might estimate how greater cache associativity affects misses, cycles, and power before we run a costly full simulation. The estimate may come from a lightweight simulator, a learned surrogate model, a calibrated analytical equation, or a simple design rule.
+These fast proxies—whether they are lightweight simulators, learned surrogate models, or calibrated analytical equations—act as the agent's internal "world model" [@HaSchmidhuber2018WorldModels]. They allow the agent to simulate the physics of the chip in its "mind" to quickly screen out bad ideas before committing to a costly tool execution. However, these estimates are only trustworthy within the specific workloads and design ranges we have explicitly validated. If the agent wanders into an unmapped corner of the design space, the proxy can fail silently and endorse a physically impossible result.
 
-Crucially, this estimate remains useful only within the workloads, design ranges, and tool conditions for which we have explicitly checked it. Outside those conditions, a model can fail silently, producing confident but physically impossible results.
+### Generating Candidates
 
-AI agents often use these predictive surrogates to model how represented state may change after an action without invoking an expensive simulator—a concept known as a "world model" in reinforcement learning [@HaSchmidhuber2018WorldModels].
+Guided by its view of the state and its internal predictions, the agent generates the next set of candidates. The way it generates these proposals depends on the boundaries we set in the Formulate stage.
 
-@sec-data-representations-world-models examines how we build these representations and prediction models, including the datasets, abstractions, and validation they require.
+For highly constrained problems, the agent might simply tune numerical parameters (e.g., adjusting buffer sizes) using Bayesian optimization. For more open-ended exploration, we might use Large Language Models (LLMs) to generate new structural topologies or initial RTL blocks from natural language requirements. Because LLMs are prone to hallucinating invalid syntax, this generation step often requires constructive heuristics or grammar-based guardrails to ensure every proposed candidate is syntactically legal before it is ever sent to a simulator.
+
+Together, state representation, prediction models, and candidate generation form the engine of the Explore stage. @sec-data-representations-world-models will dive deeper into how we build and validate these representations and world models.
 
 ## Implementing: Tool Execution and Friction
 
