@@ -160,9 +160,9 @@ To bridge this gap, agents increasingly rely on Intermediate Representations (IR
 
 Beyond static IRs, real architects explore design spaces using *Parameterized Generators* (such as Chisel, Python frameworks, or SystemVerilog parameters). A useful AI representation must encode these generator boundaries and configuration schemas, allowing the agent to tune parameters rather than rewrite static graphs from scratch.
 
-Real systems architecture is dominated by data movement, not isolated compute blocks. An AI's representation must structurally encode system-level topologies like Network-on-Chip (NoC), memory hierarchies, and bandwidth constraints. However, NoCs are fundamentally different from single-block dataflow; they involve distributed state, flow control, and dynamic protocol abstractions (e.g., virtual channels) that require complex state-machine encodings to avoid deadlock. Furthermore, an AI must understand the "meta-graph" of Clock Domain Crossing (CDC)[^fn-cdc] and reset trees. An AI that mutates a pipeline without explicitly representing asynchronous boundaries will confidently generate untraceable metastability failures. Finally, generating RTL without a testbench is useless. The AI must also represent verification intent and coverage models (such as Universal Verification Methodology, or UVM). @sec-feedback-verification-trust deeply covers the mechanics of verification and testbench representations.
+Real systems architecture is dominated by data movement, not isolated compute blocks. An AI's representation must structurally encode system-level topologies like Network-on-Chip (NoC), memory hierarchies, and bandwidth constraints. However, NoCs are fundamentally different from single-block dataflow; they involve distributed state, flow control, and dynamic protocol abstractions (e.g., virtual channels) that require complex state-machine encodings to avoid deadlock. Furthermore, an AI must understand the "meta-graph" of Clock Domain Crossing (CDC)[^fn-cdc-c04] and reset trees. An AI that mutates a pipeline without explicitly representing asynchronous boundaries will confidently generate untraceable metastability failures. Finally, generating RTL without a testbench is useless. The AI must also represent verification intent and coverage models (such as Universal Verification Methodology, or UVM). @sec-feedback-verification-trust deeply covers the mechanics of verification and testbench representations.
 
-[^fn-cdc]: **Clock Domain Crossing (CDC)**: When signals pass between logic blocks operating on different clock frequencies. Without proper synchronization logic (like FIFOs or double-flops), the destination registers can become metastable, settling on unpredictable voltage levels and corrupting data.
+[^fn-cdc-c04]: **Clock Domain Crossing (CDC)**: When signals pass between logic blocks operating on different clock frequencies. Without proper synchronization logic (like FIFOs or double-flops), the destination registers can become metastable, settling on unpredictable voltage levels and corrupting data.
 
 The representation problem extends beyond logic to physical realization. Power and timing bounds are codified in side-channel constraints like UPF (Unified Power Format) and SDC (Synopsys Design Constraints). These constraints govern power domains and timing boundaries alongside the RTL. For AI models, they are uniquely hostile because of *topological coupling*. SDC and UPF rely on exact hierarchical paths and pin names (specific string references to internal RTL signals). Any structural mutation by the AI—such as flattening a hierarchy or renaming a buffer to improve performance—requires a synchronized co-mutation of the constraint files, otherwise the EDA tool will instantly fail with "path not found" errors. An agent must co-generate these formats to operate within a realistic physical envelope, transforming an abstract concept into a manufacturable netlist (@tbl-representation-formats).
 
@@ -210,9 +210,9 @@ Because architecture is a co-design problem, static RTL code is not enough. The 
 
 ### State Mutation and Tradeoffs
 
-An explicit design state must distinguish the fields that an AI method may mutate from the invariants and constraints that remain fixed to preserve system intent. Crucially, "Project State" in physical design is not a single environment, but a Multi-Corner Multi-Mode (MCMM)[^fn-mcmm] matrix. An AI's proposed structural mutation must be evaluated against dozens of concurrent physical scenarios—improving setup timing in a typical corner might instantly violate hold timing in a fast-corner/cold-temperature mode. This severely multiplies the cost of the tool observation loop.
+An explicit design state must distinguish the fields that an AI method may mutate from the invariants and constraints that remain fixed to preserve system intent. Crucially, "Project State" in physical design is not a single environment, but a Multi-Corner Multi-Mode (MCMM)[^fn-mcmm-c04] matrix. An AI's proposed structural mutation must be evaluated against dozens of concurrent physical scenarios—improving setup timing in a typical corner might instantly violate hold timing in a fast-corner/cold-temperature mode. This severely multiplies the cost of the tool observation loop.
 
-[^fn-mcmm]: **Multi-Corner Multi-Mode (MCMM)**: The practice of verifying a physical design across a matrix of different operating modes (e.g., test, sleep, active) and physical corners (variations in manufacturing process, voltage, and temperature).
+[^fn-mcmm-c04]: **Multi-Corner Multi-Mode (MCMM)**: The practice of verifying a physical design across a matrix of different operating modes (e.g., test, sleep, active) and physical corners (variations in manufacturing process, voltage, and temperature).
 
 If an AI method is tasked with optimizing against a Lighthouse comparison, the representation might declare that the SRAM capacity and MAC array dimensions are mutable. The peak power limit and the target workload mix are fixed constraints. If these boundaries are not explicit, an AI method might propose a candidate that achieves high performance by silently violating a power constraint or altering the workload mix, invalidating the comparison.
 
@@ -226,9 +226,9 @@ Because search spaces are vast and evaluations are expensive, the representation
 
 Consider compiler regression tests. When a compiler bug is discovered, it is codified into a regression test. Architecture projects should preserve rejected candidates for the same reason. If a proposed pipeline configuration is rejected because it introduces unacceptable area overhead, that failure should leave a design trace identifying the candidate, the area condition it violated, and the context (tool version, physical constraints).
 
-@tbl-negative-traces gives examples of negative knowledge, including manual waivers for physical constraints like Static Timing Analysis (STA)[^fn-sta].
+@tbl-negative-traces gives examples of negative knowledge, including manual waivers for physical constraints like Static Timing Analysis (STA)[^fn-sta-c04].
 
-[^fn-sta]: **Static Timing Analysis (STA)**: A method of computing the expected timing of a digital circuit without requiring simulation, ensuring that data arrives at registers within the required setup and hold windows.
+[^fn-sta-c04]: **Static Timing Analysis (STA)**: A method of computing the expected timing of a digital circuit without requiring simulation, ensuring that data arrives at registers within the required setup and hold windows.
 
 | **Failed Run or Rejected Alternative** | **What It Records** | **How It Changes Later Work** |
 | --- | --- | --- |
@@ -244,6 +244,12 @@ Consider compiler regression tests. When a compiler bug is discovered, it is cod
 
 An old failure does not automatically rule out a new candidate. The workload, tool version, or surrounding design may have changed. The AI method can surface the earlier record, and the architect determines whether the conditions that caused the failure still apply.
 
+## Cost Models vs. World Models
+
+Before predicting consequences, we must clarify what the AI is building with these representations. In current AI-assisted architecture, systems rely heavily on *Cost Models* (surrogates). A cost model takes a proposed design state and predicts its physical consequence (e.g., predicting that an expanded cache will consume 3 W of power).
+
+This is fundamentally different from a true *World Model*. In artificial intelligence, a world model predicts the *next state* of an environment, allowing an agent to plan several steps ahead without querying a simulator. Because hardware environments are deterministic once a mutation is chosen, true architecture world models are rarely needed. Instead, the field relies on highly accurate, multi-fidelity cost models. We introduce this distinction here to set baseline expectations. The distinction between generative models (producing candidate designs) and predictive models (estimating PPA) must be crystal clear. Current agents do not hallucinate entire physical worlds; they search structural representations guided by learned cost proxies, with physical synthesis (PPA) serving as the ultimate arbiter for these predictive models.
+
 ## Consequence Prediction
 
 Once a representation properly bounds the AI to legal, bootable changes, the system still must select which valid mutation to pursue. To choose the next change, an AI method needs an estimate of what that change may do. Predictive design-space exploration has long used analytical models, learned surrogates, and regression modeling to predict configuration performance without running full simulations [@LeeBrooks2006RegressionModeling]. More recent learned cost models predict throughput or performance directly from a structural representation of the program, as in AutoTVM's learned tensor-program cost model and the Halide learned autoscheduler. What these predictors consume is a learned graph or structural representation of the design, the same move that later lets the AlphaChip placement agent operate on a chip graph.
@@ -252,7 +258,7 @@ Once a representation properly bounds the AI to legal, bootable changes, the sys
 
 When an AI predicts the consequences of an architectural mutation, it often drifts toward structures that are most efficient in isolation. A mathematically optimal design is still useless if it breaks the software ecosystem it has to run inside. The cost model has to carry backward compatibility as an explicit part of the environment it reasons about.
 
-Design does not happen in a vacuum. It sits beneath billions of lines of existing code. A generative model might propose a memory interleaving scheme that improves average-case latency by 15%, yet if the scheme quietly violates the memory consistency models that legacy software assumes, it breaks every multithreaded operating-system kernel running on it. A non-standard interrupt controller might save area while violating POSIX contracts, forcing rewrites across millions of lines of legacy OS drivers.
+Design does not happen in a vacuum. It sits beneath billions of lines of existing code. A generative model might propose a memory interleaving scheme that improves average-case latency by 15%, yet if the scheme quietly violates the memory consistency models that legacy software assumes, it breaks every multithreaded operating-system kernel running on it. A non-standard interrupt controller might save area while violating platform architecture specifications (e.g., ARM SBSA) or OS Hardware Abstraction Layer (HAL) assumptions, forcing rewrites across millions of lines of legacy OS drivers.
 
 These boundaries are hard architectural constraints, not suggestions. A useful cost model cannot optimize for IPC (Instructions Per Cycle) or PPA (Power, Performance, Area) alone. It has to stay bounded by the backward-compatibility contracts, ISA semantics, and memory consistency models that define the environment the chip will inhabit. Strip those constraints out of the representation and the AI will propose optimized but unbootable silicon.
 
@@ -260,7 +266,7 @@ These boundaries are hard architectural constraints, not suggestions. A useful c
 
 Whether the predictor is a fast analytical proxy or a deep learned surrogate, what matters next is what it has actually learned. A common flaw in many early predictive surrogates is that they fall into the correlative trap. A black-box surrogate might learn a correlation (for example, that higher chip area often equals higher power) through curve-fitting on its training data, without understanding the underlying physics or capacitance equations.
 
-To overcome this, an AI requires a mechanistic or causal world model. Such a model explicitly encodes structural causality; it knows that adding a cache level forces an increase in access latency due to wire physics and multiplexing, not just because the two variables co-occurred in a dataset.
+To overcome this, an AI requires a mechanistic or causal cost model (or causal surrogate). Such a model explicitly encodes structural causality; it knows that adding a cache level forces an increase in access latency due to wire physics and multiplexing, not just because the two variables co-occurred in a dataset.
 
 Causal structure is what lets a model generalize more credibly to novel, unsimulated architectures. Correlative models tend to collapse outside their training distribution when the optimizer pushes them into Out-of-Distribution (OOD) spaces, generating confident but physically impossible predictions.
 
@@ -282,11 +288,11 @@ A later simulator execution tests the prediction and returns a high-fidelity obs
 **The lesson.** A surrogate is trustworthy only in the region and under the conditions it was calibrated on, and a system that keeps acting on it can move those conditions itself. A learned cost model carries the same exposure. Its predicted consequence is an estimate, and an optimizer searching for the best-scoring candidate pushes it toward the untested corners where that estimate is least reliable. The safeguard is to keep the prediction distinct from the tool observation that later tests it, and to detect when a candidate has left the calibrated region before an automated loop commits to it.
 :::
 
-@fig-architecture-world-model separates the model prediction from the tool observation. The proposal records an anticipated effect. The represented state and action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation with its cost, fidelity, and provenance.
+@fig-architecture-cost-model separates the model prediction from the tool observation. The proposal records an anticipated effect. The represented state and action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation with its cost, fidelity, and provenance.
 
-![**Prediction and observation follow different paths.** The represented state and proposed action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation. The execution history keeps the state, action, prediction, observation, failures, and decision connected.](images/F5-architecture-world-model){#fig-architecture-world-model width="85%" fig-alt="Diagram showing represented state and a proposed action feeding a performance model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a simulation log that retains provenance, failures, and the decision."}
+![**Prediction and observation follow different paths.** The represented state and proposed action feed a performance model or simulator that returns a prediction; the same state and action feed a declared tool path that returns an observation. The execution history keeps the state, action, prediction, observation, failures, and decision connected.](images/F5-architecture-world-model){#fig-architecture-cost-model width="85%" fig-alt="Diagram showing represented state and a proposed action feeding a performance model and a separate declared tool path. The model returns a prediction, the tool path returns an observation, and both enter a simulation log that retains provenance, failures, and the decision."}
 
-For example, a cost model fit to earlier cycle-accurate results maps a represented workload trace and a proposed pipeline configuration to a predicted performance metric far faster than rerunning the simulator. @tbl-executed-study-world-model shows exactly what such a predictor consumes and what its predictions leave out.
+For example, a cost model fit to earlier cycle-accurate results maps a represented workload trace and a proposed pipeline configuration to a predicted performance metric far faster than rerunning the simulator. @tbl-executed-study-cost-model shows exactly what such a predictor consumes and what its predictions leave out.
 
 | **Cost-Model Field** | **Illustrative Prediction** |
 | --- | --- |
@@ -297,7 +303,7 @@ For example, a cost model fit to earlier cycle-accurate results maps a represent
 | **Scope and limits** | One simulator version, static memory configuration, and specific workload slice. |
 | **Unsupported consequence** | Full-chip energy, timing paths, compiler effects, RTL feasibility, physical design, and performance outside the frozen trace. |
 
-: **An illustrative cost model predicts the effect of a proposed action.** It maps the represented workload and proposed pipeline configuration to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-world-model tbl-colwidths="[24,66]"}
+: **An illustrative cost model predicts the effect of a proposed action.** It maps the represented workload and proposed pipeline configuration to performance predictions, while the record states which consequences remain outside its scope. {#tbl-executed-study-cost-model tbl-colwidths="[24,66]"}
 
 @tbl-synthetic-data-costs weighed the cost of generating training data at each fidelity. @tbl-sample-cost-regimes turns to the other side of that trade, what a single observation from each feedback source reveals and what a later method or reviewer must record to reuse it. Read each row from the time and resources an observation takes, through what it can reveal, to the record needed for reuse.
 
@@ -360,12 +366,6 @@ To move from knowledge to execution, an AI system must construct a minimum seman
 3. **Bounded predicted consequence:** The cost model's prediction, its validity scope, and its uncertainty.
 
 The package is deliberately minimal. Anything less leaves the tool environment guessing at state it cannot see, and anything more buries the one action and prediction a reviewer must evaluate. Every knowledge object this chapter has examined, from statistical priors to negative traces, matters only insofar as it sharpens what this triad carries into the next tool call.
-
-## Cost Models vs. World Models
-
-Before evaluating consequences across tools, we must clarify what the AI is building with these representations. In current AI-assisted architecture, systems rely heavily on *Cost Models* (surrogates). A cost model takes a proposed design state and predicts its physical consequence (e.g., predicting that an expanded cache will consume 3 W of power).
-
-This is fundamentally different from a true *World Model*. In artificial intelligence, a world model predicts the *next state* of an environment, allowing an agent to plan several steps ahead without querying a simulator. Because hardware environments are deterministic once a mutation is chosen, true architecture world models are rarely needed. Instead, the field relies on highly accurate, multi-fidelity cost models. We emphasize this distinction to set baseline expectations. The distinction between generative models (producing candidate designs) and predictive models (estimating PPA) must be crystal clear. Current agents do not hallucinate entire physical worlds; they search structural representations guided by learned cost proxies, with physical synthesis (PPA) serving as the ultimate arbiter for these predictive models.
 
 ## Open Research Questions
 
