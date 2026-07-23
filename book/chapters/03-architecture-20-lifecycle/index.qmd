@@ -38,11 +38,35 @@ After reading this chapter, you can:
 
 :::
 
+## The Architecture 2.0 Ontology {#sec-arch2-ontology}
+
+An AI-assisted architecture study needs a common structure connecting the stages of work that are often documented separately. It must preserve our original intent, define a bounded comparison, connect that comparison to an inspectable execution loop, and show who may act on the result.
+
+@fig-structured-layer-above-rtl places an architecture study between our question and the tools used to investigate it. The figure's middle layer is the comparison and its review record. It connects reasoning that often stays in our heads or working notes to executable implementation flows, giving architectural tools, AI agents, reviewers, and architects a shared question for interpreting each artifact and tool result.
+
+![**An AI-assisted architecture study connects intent to implementation evidence.** The study contains the scope, architectural claim, execution and analysis process, and evidence needed for review. Iterative work uses a design loop.](images/F4d-structured-layer-above-rtl){#fig-structured-layer-above-rtl width="85%" fig-alt="Three-layer diagram showing architecture intent and judgment flowing into a structured architecture study, with tool results flowing back for evidence review."}
+
+Read @fig-structured-layer-above-rtl from top to bottom:
+
+* **The Upper Layer (System Intent)**: This contains the architecture models, requirements, and rationale that shape our question. For the RISC-V XR subsystem from our Lighthouse prompt, this includes the high-level goal of improving mobile XR efficiency and the initial models of the target workload.
+* **The Middle Layer (Bounded Comparison)**: This turns intent into a bounded comparison. Its scope names the specific question, such as deciding whether a particular cache configuration merits RTL evaluation. The architectural claim says what will be reviewed. It is not another architecture tool; rather, it connects design intent to tool execution.
+* **The Lower Layer (Executable Tool Path)**: Simulators, compilers, RTL generators, and EDA flows carry out different parts of the comparison to return measurements that enter the evidence record.
+
+In software engineering, coding agents rely on structured environments like SWE-bench to provide a bounded issue, a known repository state, and executable tests. Architecture requires a similar structure, but building it is much harder because feedback (power, area, timing) is delayed, ambiguous, and subject to physical constraints.
+
+Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study requires more than just an environment. It requires a bounded claim, evidence at the right fidelity, and a named person who owns the final decision.
+
+@fig-ontology-chain formalizes this structure. It traces the work from a scoped question to the next decision. The recorded scope and claim specify the comparison. The represented state and tool interfaces show architects and AI agents which actions are available. A reviewer examines the recorded results against the stated checks, and the named decision owner judges what conclusion the evidence supports.
+
+![**The common structure connects a scoped study to an architectural decision.** We establish the scope and state the claim for review, while represented state and tool interfaces make proposed actions executable. When work iterates, a design loop organizes execution and analysis. A reviewer examines the evidence, and the decision owner may accept a finding, narrow the claim, or revise the study.](images/F4-ontology-chain){#fig-ontology-chain width="85%" fig-alt="A common structure connecting a scoped architecture study and its architectural claim to represented state, tools, an execution and analysis process, evidence, review, a named decision owner, and a scoped finding or decision."}
+
+The structure does not establish that a design is sound. Instead, it makes the work available for another architect to inspect and challenge.
+
 ## Formalizing the Design Loop
 
-To address the challenge of bounded AI participation, we must formally define the iterative process where architectural decisions unfold.
+To execute the work within this ontology, we must formally define the iterative process where architectural decisions unfold.
 
-You might wonder: *Isn't this just what we already do?* Yes, experienced architects already move through these stages informally. The difference is that we can no longer leave the connections between these stages unstated. When we run the work ourselves, we naturally carry project context from a spreadsheet to a simulator to a design review. An AI agent cannot. To safely integrate AI, we must make this implicit workflow explicit. Without this formalized ontology, an agent might optimize a proxy metric while silently violating a physical constraint that we knew about but forgot to write down.
+Experienced architects already move through these stages informally. When we run the work ourselves, we naturally carry project context from a spreadsheet to a simulator to a design review. An AI agent cannot. To safely integrate AI, we must make this implicit workflow explicit. Without a formalized loop, an agent might optimize a proxy metric while silently violating a physical constraint we knew about but forgot to write down.
 
 As shown in @fig-ontology-loop, this structured approach maps our familiar architecture design process into a six-stage lifecycle: Formulate, Explore, Implement, Evaluate, Explain, and Defend.
 
@@ -50,116 +74,17 @@ As shown in @fig-ontology-loop, this structured approach maps our familiar archi
 
 > **Architecture design loop.** An architecture design loop is the repeated process of examining the current design, making an allowed change, running the relevant architectural tools, interpreting the result, and deciding whether to revise, reject, or continue. Building on established Agile Hardware Development cycles (e.g., the Chisel ecosystem [@Izraelevitz2017Chisel]), each iteration retains enough information for another architect to see what led to the next step.
 
-The design loop is the execution mechanism inside a bounded architecture study, which the next sections define as the unit of work it serves.
+The design loop is the execution mechanism inside a bounded architecture study. The rest of this chapter walks through each of these six stages, showing how we orchestrate AI agents safely and rigorously.
 
 ## Formulating: Bounding the Study and the Claim
 
-The first step in the lifecycle (@fig-ontology-loop) is Formulate. To ensure that machine-generated proposals do not drift away from the problem they were asked to solve, we require what we call a **bounded architecture study**.
-
-AI assistance becomes reviewable when the architecture question, executed work, evidence, and next decision remain connected. We must bound the task, state the claim under review, identify the legal design choices, expose the relevant design state, name the architectural tools and checks, and assign authority for the next action. Those elements keep the AI method, tool path, reviewer, and decision owner focused on the same comparison. Assigning authority per action keeps the loop agentic rather than autonomous: an AI agent holds initiative to propose, execute, and reject candidates, while the rights to waive a check or commit resources stay with us.
-
-No one would tape out a chip based on a single raw test score. Just as aerospace safety engineering uses standards like DO-178C [@RTCA2011DO178C] to build an explicit *Assurance Case*[^fn-assurance-case-c03] [@Kelly2004GSN], architecture requires a clear link between the goal, context, strategy, and evidence. This shifts our role from manual designer to orchestrator. Framing the architecture loop this way grounds the AI's role, establishing us as the certifying orchestrator of automated workflows, while treating the AI as an agentic tool that generates candidates and evidence.
-
-[^fn-assurance-case-c03]: **Assurance case**: A structured argument, standard in safety-critical engineering, that connects a top-level claim to its supporting evidence through explicit goals, context, and strategy. The architecture study and its review record play the same role for an architectural claim.
-
-Once we define a bounded architecture study, we will simply refer to it as an **architecture study** hereafter, with the understanding that its boundaries are now formally declared.
-
-If we give an AI agent only a broad system goal, it may suggest plausible cache, vector, or accelerator ideas. It cannot reliably know which comparison we intend or which decision the results should support. If our immediate task is to compare cache configurations, the system needs the baseline, the workload representation (what software proxy represents the ground truth), allowed cache choices, performance and power limits, simulator settings, and evaluation budget. Workload selection is the very first epistemic boundary we draw. Formulating the claim must explicitly define the software proxy (for example, a 100M instruction trace versus a full OS boot) because optimizing against the wrong software proxy means optimizing for a ghost. We must also state what would rule out a candidate and who may act on the results.
-
-We already manage complexity by making important relationships inspectable. We use models, simulators, workload characterizations, cost estimates, design rules, and reviews to reason about large design spaces. The Architecture 2.0 lifecycle organizes this familiar work into clear dependencies and revision paths instead of a rigid pipeline. An AI system cannot reliably recover the assumptions connecting those artifacts from a prompt or scalar score. Model choice therefore comes after the architecture task and comparison are clear.
-
-
-
-### Supplying Tacit Architecture Context
-
-Every experienced architect carries project knowledge from one analysis step to the next. A cache spreadsheet may omit that capacity is per core, a trace name may stand in for a specific software build, and a familiar configuration may be absent because it failed timing in an earlier study. We fill in these gaps from design reviews, past experiments, and product knowledge. An AI system cannot safely infer this project-specific context from the artifacts alone.
-
-This project knowledge operates along a transparency gradient across the computing stack. At the top of the stack for software and compilers, knowledge is explicit and captured in source code and repositories. As we move down the stack to microarchitecture and physical design, knowledge becomes increasingly tacit because we understand these constraints without needing to write them down. The gap closes only when we force the tacit constraints into explicit models that a tool can check.
-
-Architecture work also lacks several convenient conditions found in many benchmarked AI tasks. Measurements may be proprietary or expensive. Workloads, compilers, and deployment conditions change. Generated configurations can be illegal, unsupported by the available tools, or incompatible with software and physical constraints. A proxy can rank candidates without establishing that the ranking survives simulation, synthesis, or implementation. Failed runs and rejected alternatives often describe the boundary of the useful design space rather than disposable errors.
-
-These conditions differ by project. A compiler-schedule study may have many measurements but many invalid schedules, whereas a chiplet study may offer few examples alongside coupled interfaces and expensive physical feedback. Tacit context also constrains structural change. When optimizing the RISC-V XR subsystem from the Lighthouse prompt, a seemingly valid AI-generated accelerator offload may be unavailable because an unstated real-time latency contract for head-tracking dictates where that operation must run. In practice, this tacit context must be formalized into machine-readable manifests or configuration files that explicitly declare the interfaces, baselines, and constraints before the AI is invoked.
-
-We must state which information is available, which choices are legal, and which measurements we can afford to ensure AI explorations meet Static Timing Analysis (STA) and Design Rule Checking (DRC) limits. Otherwise, an AI agent acting as a blind explorer can complete a coherent study that answers the wrong question, such as optimizing average throughput when the mobile XR workload requires worst-case tail-latency guarantees under a strict thermal budget. A single unstated interface assumption can produce exactly this kind of coherent but wrong result. A well-known spacecraft loss outside architecture shows how costly that can be.
-
-::: {.callout-war-story title="Two correct programs, one lost spacecraft"}
-**The claim.** NASA's Mars Climate Orbiter flew on two programs that each ran correctly and returned plausible numbers, navigation software written at JPL and ground software written at Lockheed Martin that computed thruster impulse for the same maneuvers [@MCOMishapBoard1999].
-
-**The gap.** The ground "Small Forces" file reported thruster impulse in pound-force-seconds while the navigation software expected newton-seconds, a factor of about 4.45, and the interface contract for that shared number was never stated or checked. Because both computations stayed internally coherent, neither program had any reason to flag the mismatch.
-
-**The lesson.** The trajectory drifted, the orbiter entered near 57 km instead of the intended 140 km or more, and it was lost on 23 September 1999. An AI method carries the same exposure whenever an interface assumption goes unrecorded, whether the baseline, the workload, the power envelope, or the units of a reported number. A coherent study can still answer a different question than the architect intended.
-:::
-
-Above RTL, the information needed to make those judgments often remains
-scattered across whiteboards, spreadsheets, scripts, slides, meeting notes,
-and natural-language specifications. From RTL down, design flows already use
-artifacts that tools can parse, transform, reject, and sign off. High-level
-synthesis, modeling languages, compiler IRs, and EDA frameworks structure parts
-of the path to implementation. The missing connection is a shared account of
-why those artifacts and tool results belong to the same architecture
-comparison.
-
-### The Architecture 2.0 Ontology {#sec-arch2-ontology}
-
-An AI-assisted architecture study needs a common structure connecting the stages of work that are often documented separately. It must preserve our original intent, define a bounded comparison, connect that comparison to an inspectable execution loop, and show who may act on the result. While the scope defines the boundaries of the sandbox (what actions and choices are allowed), the claim defines the specific hypothesis we are testing within it. The structure does not establish that the design or evidence is sound. It makes the work available for another architect to inspect and challenge.
-
-@fig-structured-layer-above-rtl places an architecture study between our question and the tools used to investigate it. The figure's middle layer is the comparison and its review record. It connects reasoning that often stays in our heads or working notes to executable implementation flows, giving architectural tools, AI agents, reviewers, and architects a shared question for interpreting each artifact and tool result.
-
-![**An AI-assisted architecture study connects intent to implementation evidence.** The study contains the scope, architectural claim, execution and analysis process, and evidence needed for review. Iterative work uses a design loop.](images/F4d-structured-layer-above-rtl){#fig-structured-layer-above-rtl width="85%" fig-alt="Three-layer diagram showing architecture intent and judgment flowing into a structured architecture study, with tool results flowing back for evidence review."}
-
-Read @fig-structured-layer-above-rtl from top to bottom.
-
-* **The Upper Layer (System Intent)**: This contains the architecture models, requirements, and rationale that shape our question. For the RISC-V XR subsystem, this includes the high-level goal of improving mobile XR efficiency and the initial models of the target workload.
-* **The Middle Layer (Bounded Comparison)**: This turns that intent into a bounded comparison. Its scope names the specific question and intended decision, such as deciding whether a particular cache configuration merits RTL evaluation. The architectural claim says what will be reviewed, execution and analysis produce results, and a reviewer judges what the recorded evidence supports. It is not another architecture tool; rather, it connects design intent to tool execution, and then connects tool results to the next architectural decision.
-* **The Lower Layer (Executable Tool Path)**: Simulators and analytic models, compilers and runtimes, RTL generators, and EDA flows carry out different parts of the comparison. For our cache study, the cycle-level simulator and power models return measurements that enter the evidence record.
-
-Once evidence is gathered, a reviewer assesses whether it supports the claim. The named decision owner may then accept a finding limited to the stated scope, authorize the next step, or send the work back to revise the claim or scope. While one person may hold both roles, reviewing the evidence and authorizing action are separate rights.
-
-Before looking at how this operates in architecture, we can look at examples of how other domains do this to see what lessons we can learn. Coding-agent systems provide a familiar example of a similar connection. A repository-level coding agent receives a bounded issue, a known repository state, permitted editing and command-line actions, executable checks, and a patch that another developer can review. The model works inside that structure rather than deciding for itself what software problem should be solved.
-
-SWE-bench turns repository-level coding into a bounded task. Each problem starts with an issue description and a fixed repository state. An agent edits the repository, and hidden tests check whether the issue was fixed without breaking existing behavior. This is more useful than testing code generation in isolation because it connects an issue, working state, allowed changes, executable checks, and a reviewable result.
-
-SWE-agent [@YangEtAl2024SWEAgent] and OpenHands [@WangEtAl2024OpenHands], two agentic coding frameworks, make the interface around the model explicit. They let an agent inspect files, edit code, use a command line, and run programs inside a controlled environment. The model is only one part of the system. Its state, actions, and feedback also shape the result.
-
-The evaluations also show why the surrounding structure needs review, as SWE-bench Verified [@OpenAI2026SWEBenchLimits] used expert human review to filter underspecified tasks, faulty tests, and environment-dependent failures. Even so, a later audit still found flawed tests and training exposure that weakened the score as a measure of current coding capability. Terminal-Bench 2.0 [@MerrillEtAl2026TerminalBench] uses the same general pattern for terminal tasks by pairing each task with an environment, a human-written solution, and verification tests.
-
-While architecture needs the same explicit connections seen in software-agent evaluations, the domains remain distinct. Hardware benchmarking is harder than software benchmarking. In software, a pull request can be evaluated with immediate, deterministic unit tests. In architecture, a design change suffers from specification ambiguity and delayed feedback loops, where AI's predictive capabilities must contend with the physical silicon constraints of PPA, STA, DRC rules, and thermal budgets that only appear after days of physical synthesis.
-A software issue can often end with tests of the final state, whereas no single architecture test usually settles performance, power, physical feasibility, software support, and product risk. Because architecture state is scattered and tool feedback carries different costs and fidelity, an AI-assisted architecture study also requires a bounded architectural claim, evidence at the right fidelity, and a named person who owns the final decision. @fig-structured-layer-above-rtl connects that recorded task and working state to the tool path, evidence, and the next decision.
-
-The terms inside the middle layer refer to different things. The bounded
-architecture study is the unit of work, and it may produce understanding,
-artifacts, findings, or decisions. An artifact is an implementation or proposal
-produced by that work. The architectural claim is what another architect
-evaluates. To be machine-actionable, this claim must be explicitly encoded. For instance, an XRBench evaluation claim can be serialized as:
-```yaml
-claim:
-  target: "L1D_cache_size"
-  change: "increase_to_64KB"
-  expected_outcome:
-    metric: "IPC"
-    condition: "> 5%"
-    constraint: {metric: "power", condition: "< 2%"}
-```
-
-When the work iterates, the process used to execute and analyze it is
-a design loop. The design-loop card introduced near the end provides an index
-into the underlying records. @sec-data-representations-world-models through @sec-feedback-verification-trust explain how the represented state, tool paths, method roles, and evidence checks are built and challenged; this chapter establishes why the links among them must be visible.
-
-@fig-ontology-chain shows the parts inside the study introduced in @fig-structured-layer-above-rtl. It traces that work from a scoped question to the next decision. The recorded scope and claim specify the comparison. The represented state and tool interfaces show architects and AI agents which actions are available. A reviewer examines the recorded results against the stated checks, and the named decision owner judges what conclusion the evidence supports and who may act next.
-
-![**The common structure connects a scoped study to an architectural decision.** We establish the scope and state the claim for review, while represented state and tool interfaces make proposed actions executable. When work iterates, a design loop organizes execution and analysis. A reviewer examines the evidence, and the decision owner may accept a finding, narrow the claim, or revise the study.](images/F4-ontology-chain){#fig-ontology-chain width="85%" fig-alt="A common structure connecting a scoped architecture study and its architectural claim to represented state, tools, an execution and analysis process, evidence, review, a named decision owner, and a scoped finding or decision."}
-
-@fig-structured-layer-above-rtl locates the study between architectural judgment and the tool path. @fig-ontology-chain opens that middle layer. We state the comparison and intended decision in the scope, then frame the statement that another architect must review as a claim. Representations, tools, and the allowed design space limit what we and the AI agents can execute.
-
-The execution record shows which AI role was performed, which tool produced each result, and how the result was checked. A reviewer examines the resulting evidence against the claim, and the named decision owner decides whether to accept a finding or authorize the next step. The red return path shows that a failed check may require more than another candidate. It may expose a problem in the claim or the original scope.
-
-The boxes in @fig-ontology-chain formalize the informal process we already follow. We do not need a new architecture process. We just need our existing process to expose enough explicit information for the AI method to act on the intended comparison and for a reviewer to check the work. The method needs access to the scope, constraints, prior decisions, and relevant results. Tool interfaces must expose legal actions and observations, and we must name who may reject a candidate or authorize the next step.
+The first step in the lifecycle (@fig-ontology-loop) is Formulate. To ensure that machine-generated proposals do not drift away from the problem they were asked to solve, we require a **bounded architecture study**.
 
 ### Translating Intent into a Study
 
 In @fig-structured-layer-above-rtl, the architecture question and the judgment
 behind it establish the starting intent. The Lighthouse prompt states that
-intent.
+intent:
 
 > *Design a low-power, 64-bit RISC-V-based compute subsystem for an
 > XRBench-class real-time mobile XR workload. Realize it as a vector-capable CPU,
