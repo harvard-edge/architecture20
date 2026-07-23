@@ -264,7 +264,7 @@ This explosion in specialization implies that the traditional "general purpose" 
 
 For an automated optimizer attempting to navigate this space, the challenge is proposing a complete hardware-software co-design that a real compiler can actually target. If a search generates a custom MAC array with irregular register strides that no existing LLVM backend can map to, the proposed hardware is effectively useless. Furthermore, specialization ties a candidate's worth to one workload's efficiency measure. For the XR subsystem, a vector unit sized for the throughput of one SLAM[^fn-slam-c02] [@DurrantWhyteBailey2006SLAM] matrix-multiplication kernel might post the best performance per watt but still be the wrong block if it misses the fixed per-frame display deadline.
 
-AI methods are highly effective at navigating this specialized explosion. A generative method can enumerate and score specialized options rapidly, synthesizing hardware configurations that hit narrow performance per watt targets. We need to structure the constraints explicitly so the AI optimizes for the metrics the deployment actually rewards, ensuring the generated candidates are both viable and perfectly tuned to the target workload.
+AI methods are highly effective at navigating this specialized explosion. A generative method can enumerate and score specialized options rapidly, synthesizing hardware configurations that hit narrow performance per watt targets. For instance, design-space exploration frameworks like Apollo have demonstrated that AI can transfer learned heuristics across workloads to navigate massive accelerator search spaces effectively [@yazdanbakhsh2021apollo]. We need to structure the constraints explicitly so the AI optimizes for the metrics the deployment actually rewards, ensuring the generated candidates are both viable and perfectly tuned to the target workload.
 
 [^fn-slam-c02]: **Simultaneous Localization and Mapping (SLAM)**: The robotics workload that builds a map of an unknown environment while tracking the sensor's own position within it. In mobile XR it runs continuously for head tracking, which is why its kernels anchor the subsystem's real-time compute demand.
 
@@ -276,7 +276,7 @@ The challenge is that composition adds a dense layer of coupled choices. A chipl
 
 [^fn-soc-deadlocks-c02]: **System-level deadlocks:** These often occur when independently verified IP blocks are composed and their flow-control mechanisms (like credit counters or memory consistency assumptions) create unresolvable cyclic dependencies that were invisible during block-level testing.
 
-AI methods can navigate these complex integration boundaries. When a coupled design space is too large to explore manually, automated optimizers can propose partitions, tune configurations, and direct expensive evaluation tools toward the most promising candidates. Advanced generative search methods can synthesize entirely new topological connectivity or inject new IP blocks. We can apply AI to generate structurally valid, verifiable topologies from the start, making SoC and chiplet composition a fast, automated exploration rather than a manual integration bottleneck.
+AI methods can navigate these complex integration boundaries. When a coupled design space is too large to explore manually, automated optimizers can propose partitions, tune configurations, and direct expensive evaluation tools toward the most promising candidates. Advanced generative search methods can synthesize entirely new topological connectivity or inject new IP blocks. Groundbreaking work like AlphaChip has already shown that AI can reduce months of human floorplanning effort to hours [@MirhoseiniEtAl2021GraphPlacement]. We can apply AI to generate structurally valid, verifiable topologies from the start, making SoC and chiplet composition a fast, automated exploration rather than a manual integration bottleneck.
 
 The search can fail in two opposite ways. If its choices are broad but poorly
 constrained, it spends evaluations on combinations that cannot be implemented.
@@ -418,13 +418,21 @@ Composition multiplies the physical and economic constraints a candidate must sa
 
 The remaining constraints work the same way. Sharing speculative-state buffers or execution units across secure and non-secure domains can save power while opening side channels, so security must be checked by formal methods or penetration testing that performance proxies cannot stand in for. Pushing hundreds of amps through a dense package produces IR drop and localized hotspots, so a Power Delivery Network (PDN) and thermomechanical model, not an aggregate-power proxy, decides whether a layout passes signoff. Much of the SoC is opaque as well. Third-party blocks such as ARM cores, PCIe PHYs, and DDR controllers arrive as datasheets and black-box models rather than executable RTL, which forces integration-level testing across interfaces the search cannot see inside. Every one of these constraints removes designs from the valid set and adds a check the search must pay for before silicon.
 
+## Distributed Systems and Scale-Out Architecture
+
+As architectures expand beyond the boundaries of a single chip or package, they form complex distributed systems. Modern data centers and supercomputers rely on scale-out fabrics, distributed memory pooling (such as CXL), and cluster-level scheduling to handle massive, data-parallel workloads.
+
+The challenge is that the boundary of the computer is no longer the chip; it is the entire network. Simulating an entire data-center fabric accurately is nearly impossible, and unpredictable network tail-latencies frequently break traditional single-node assumptions. A design that looks highly efficient in isolation may become completely bottle-necked by network congestion or distributed coherence overhead when deployed at scale.
+
+AI can manage this vast scale-out complexity by optimizing both the network topology and the workload mapping. Generative methods can synthesize novel routing topologies, while learned models can accurately predict tail-latency bottlenecks across the cluster without requiring cycle-accurate simulations of thousands of nodes. This allows architects to treat the entire distributed system as a single co-designed target.
+
 ## Executable Software Paths
 
 Even when a hardware candidate clears physical constraints and evaluation budgets, software must still be able to use it. This is the executable software path: the programmers, compilers, runtimes, libraries, and deployment systems needed to use a hardware mechanism without losing its benefit to data movement or overhead. Historical shifts like RISC and CUDA succeeded because they provided the necessary compiler support and programming models to make the hardware accessible.
 
 The challenge is that hardware proposals are incomplete if architects cannot inspect and test the software path needed to use them. Modern tensor programs add a massive software search problem. Frameworks like Halide and MLIR make scheduling, lowering, and intermediate representations part of the performance comparison [@RaganKelleyEtAl2017HalideCACM; @LattnerEtAl2020MLIR]. A hardware optimizer might select a mechanism that the compiler cannot target, or whose software overhead erases the predicted gain. A credible comparison must cover an executable hardware-software path, not a hardware block in isolation.
 
-AI enables true hardware-software co-design by searching both spaces simultaneously. In principle, a joint search can vary compiler schedules alongside hardware parameters, using a shared data schema—such as a unified MLIR dialect—to co-generate the intermediate representation and the hardware RTL. By leveraging AI to propose the hardware organization, compiler schedule, and runtime configuration together, we can discover highly efficient combinations that would be missed if the two domains were tuned in isolation.
+AI enables true hardware-software co-design by searching both spaces simultaneously. In principle, a joint search can vary compiler schedules alongside hardware parameters, using a shared data schema—such as a unified MLIR dialect—to co-generate the intermediate representation and the hardware RTL. By leveraging AI to propose the hardware organization, compiler schedule, and runtime configuration together, we can discover highly efficient combinations that would be missed if the two domains were tuned in isolation. Frameworks like AutoTVM have shown that machine learning can optimize schedules across billions of possible tensor program implementations [@ChenEtAl2018AutoTVM], proving that AI can navigate these massive software search spaces.
 
 For the mobile XR subsystem example, the "64-bit RISC-V" constraint brings ABI, memory-model,
 toolchain, and executable-test obligations into the architecture claim. The
@@ -715,7 +723,7 @@ and runtime assumptions, and tool results allow reviewers to see whether the
 hardware claim still applies. The project also needs a trigger for repeating the
 comparison when one of those inputs changes.
 
-## The Physical and Evaluation Bottlenecks {#sec-physical-constraints-move-into-architecture}
+## The Physical Wall {#sec-physical-constraints-move-into-architecture}
 
 The layers so far—microarchitecture, specialization, composition, and the software contract—each add to what a comparison must represent. All the things we have seen, which are coming about as a result of demanding workload needs, mean that we have to do more simulations and we cannot run every candidate through high-fidelity tools.
 
@@ -844,7 +852,7 @@ work a real program does.
 **The lesson.** Rank a candidate on the metric its workload rewards, not the number that is easiest to count. In silicon that gap is expensive to discover, because it appears only after the design has shipped. Restoring competitive per-thread performance took a clean-sheet microarchitecture, Zen [@AMDZen], several years later.
 :::
 
-### Evaluation Budgeting {#sec-stronger-evaluation-expensive}
+## The Evaluation Budget {#sec-stronger-evaluation-expensive}
 
 Architects cannot run every candidate through every available tool.
 Simulation, synthesis, physical design, emulation, verification, and expert
@@ -852,7 +860,7 @@ review consume different mixtures of compute, licenses, schedule, and human
 attention. Feedback becomes scarce when the project requires more of that work
 than the available people and tools can provide.
 
-AI provides the solution through intelligent triage and early physical prediction. By measuring model uncertainty, intelligent active learning methods can recommend expensive EDA runs only for designs that push the Pareto frontier. Additionally, AI surrogate models can pull physical failure modes forward into the first hours of exploration. We can use AI to safely reject uncoolable or unroutable designs early, saving massive amounts of compute and engineering attention for the candidates that truly matter.
+AI provides the solution through intelligent triage and early physical prediction. By measuring model uncertainty, intelligent active learning methods can recommend expensive EDA runs only for designs that push the Pareto frontier. Additionally, AI surrogate models can pull physical failure modes forward into the first hours of exploration. For example, research into surrogate models has shown that predicting hardware costs early can dramatically accelerate architectural search spaces [@KrishnanEtAl2023ArchGym]. We can use AI to safely reject uncoolable or unroutable designs early, saving massive amounts of compute and engineering attention for the candidates that truly matter.
 
 The allocation decision is itself difficult. Generating or scoring another
 candidate may be cheap, but an inaccurate screen can discard a useful design or
