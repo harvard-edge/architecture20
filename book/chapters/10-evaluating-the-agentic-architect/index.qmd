@@ -59,7 +59,7 @@ To establish how to benchmark agents, the immediate temptation is to look to sof
 
 [^fn-swebench-c10]: **SWE-bench**: A standard software engineering benchmark that asks an AI agent to resolve real-world GitHub issues by submitting pull requests. While rigorous for software, it only tests logical syntax, not physical realization constraints.
 
-In software, running five hundred unit tests takes seconds. In architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources. Because of this steep cost, the field requires standardized, physics-bound benchmarks to mature. Before MLPerf, the machine learning hardware industry suffered a reproducibility crisis; vendors reported performance using fragmented, incompatible metrics. AI-assisted hardware design is in a similar "Wild West" today. A claim of a "10% area reduction" is meaningless if we don't know the EDA tool settings, the baseline RTL, or the Simulator Tax paid to achieve it [@Kahng2018MachineLearningEDA].
+In software, running five hundred unit tests takes seconds. In architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources. Because of this steep cost, the field requires standardized, physics-bound benchmarks to mature. Before MLPerf, the machine learning hardware industry suffered a reproducibility crisis; vendors reported performance using fragmented, incompatible metrics. AI-assisted hardware design is in a similar "Wild West" today. A claim of a "10% area reduction" is meaningless if we don't know the EDA tool settings, the baseline RTL, or the Simulator Tax paid to achieve it .
 
 Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.[^fn-archeval-bounds-c10]
 
@@ -73,7 +73,7 @@ Evaluating the process of design means tracking metrics across three distinct ro
 
 ### Mitigating Data Contamination
 
-The open-source RTL corpus (e.g., GitHub, The Stack) is tiny compared to software datasets [@Liu2023VerilogEval; @Lu2023RTLLM]. If we evaluate an agent on optimizing an OpenTitan core, did it actually reason through the architecture, or did it just regurgitate the optimal configuration it memorized during pre-training? In addition to standard ML-Sys n-gram overlap checking (e.g., MinHash) against the pre-training corpus, evaluators must build strict operational safeguards against memorization:
+The open-source RTL corpus (e.g., GitHub, The Stack) is tiny compared to software datasets [; ]. If we evaluate an agent on optimizing an OpenTitan core, did it actually reason through the architecture, or did it just regurgitate the optimal configuration it memorized during pre-training? In addition to standard ML-Sys n-gram overlap checking (e.g., MinHash) against the pre-training corpus, evaluators must build strict operational safeguards against memorization:
 *   **Canary Strings and AST Obfuscation:** Inject unique cryptographic hashes (UUID-based canary tokens) into benchmark source files. Furthermore, evaluators should use AST-level rewriting to de-identify standard naming conventions (masking `clk` or `axi_wdata` with randomized aliases), ensuring the agent isn't coasting on semantic priors.
 *   **Zero-Day Sandboxes:** Introduce held-out, non-standard ISAs or custom accelerators that post-date the model's knowledge cutoff. Evaluation must measure zero-shot synthesis from raw, unseen specifications rather than standard RISC-V cores.
 *   **Semantic Equivalence vs. Exact Match:** Shift from BLEU/ROUGE-style surface metrics to Formal Equivalence Checking (e.g., using SymbiYosys or JasperGold) to ensure the model isn't just reciting code but generating functionally correct, novel logic.
@@ -102,7 +102,7 @@ An agent evaluated strictly on maximizing performance will aggressively exploit 
 
 | **Metric** | **AI Role** | **What It Measures** | **Failure Mode Exposed** |
 | --- | --- | --- | --- |
-| **Pass@k & Sequential Success** | Generation | Parallel zero-shot viability versus iterative probing viability. | Detects reward hacking, separating robust internalized logic from random probing. |
+| **Pass & Sequential Success** | Generation | Parallel zero-shot viability versus iterative probing viability. | Detects reward hacking, separating robust internalized logic from random probing. |
 | **Proxy Calibration** | Prediction | Rank fidelity between the fast proxy and the slow simulator. | Exposes the Proxy Mirage, where a surrogate misranks physical reality. |
 | **Trajectory Efficiency (AUC)** | Optimization | Reward quality as a function of environment interactions spent. | Quantifies the Simulator Tax; shows whether the search is causal or random. |
 | **Self-Correction (SCR)** | Generation & Optimization | Probability the agent resolves a failing STA/formal report on the next try. | Isolates the agent's ability to use causal failure logs over brute force. |
@@ -164,7 +164,7 @@ iterations = np.arange(21)
 capable = 50 * np.exp(-0.25 * iterations)
 capable = [max(0, int(val)) for val in capable]
 
-naive = []
+naive =
 for i in iterations:
     if i < 5:
         naive.append(int(50 * np.exp(-0.2 * i)))
@@ -204,7 +204,7 @@ Often, the correct response to an error is not to rewrite the RTL, but to exerci
 
 ### Reward Hacking
 
-If we reward an agent solely for maximizing IPC and minimizing Area, we invite Goodhart’s Law [@Lehman2020SurprisingCreativity].[^fn-goodharts-law-c10] The most effective "reward hack" is for the agent to quietly strip out essential but un-rewarded features.
+If we reward an agent solely for maximizing IPC and minimizing Area, we invite Goodhart’s Law .[^fn-goodharts-law-c10] The most effective "reward hack" is for the agent to quietly strip out essential but un-rewarded features.
 
 [^fn-goodharts-law-c10]: **Goodhart's Law**: When a measure becomes a target, it ceases to be a good measure [@Strathern1997Improving]. If an agent is evaluated solely on IPC, it will optimize strictly for that metric, even if it requires emitting physically impossible structures.
 
@@ -247,9 +247,9 @@ Because agents are stochastic, a single run is an anecdote, not a measurement. B
 Agentic optimization often results in heavy-tailed or bimodal distributions because the LLM either completely fails (unroutable netlist) or discovers a massive optimization. Using mean or standard deviation alone is scientifically invalid for comparing two stochastic AI agents in hardware design; evaluators must instead report the median and interquartile range (IQR) to robustly represent typical agent performance.
 
 A rigorous benchmark must mandate:
-*   **Pass@k,t:** Adapt traditional software Pass@k to hardware's compilation bottlenecks. Define probability of success within $k$ attempts and a bounded EDA tool time $t$ to penalize outliers that cause simulation timeouts.
+*   **Pass,t:** Adapt traditional software Pass to hardware's compilation bottlenecks. Define probability of success within $k$ attempts and a bounded EDA tool time $t$ to penalize outliers that cause simulation timeouts.
 
-    While `Pass@k,t` is necessary to measure an agent's algorithmic search capability during benchmarking, traditional Pass@k merely rewards at least one success in $k$ tries.^[**Pass@k**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass@1 reliability.] Deployment, however, usually needs the opposite property: high Pass@1 reliability so the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
+    While `Pass,t` is necessary to measure an agent's algorithmic search capability during benchmarking, traditional Pass merely rewards at least one success in $k$ tries.^[**Pass**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass reliability.] Deployment, however, usually needs the opposite property: high Pass reliability so the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
 
 *   **Wilcoxon Signed-Rank Test:** Use non-parametric tests to verify if one agent's trajectory statistically significantly dominates another across paired task suites.
 *   **Bootstrapping Confidence Intervals:** When comparing Agent A to Agent B, authors must use bootstrap sampling (e.g., 10,000 resamples) to establish 95% confidence intervals around the expected Simulator Tax or PPA gain, as hardware sample sizes are often $N < 30$.
@@ -299,7 +299,7 @@ Real engineering is lifelong. Evaluation must shift from zero-shot sandboxes to 
 Evaluating solely on nominal PPA and DRCs strips away margins, creating a brittle "glass architecture."
 *   **MCMM and Yield Collapse:** An agent optimizing for nominal PPA will aggressively strip away all physical margins. These designs might close timing in a typical corner simulator but fail catastrophically across Multi-Corner Multi-Mode (MCMM) analysis due to Process, Voltage, and Temperature (PVT) variations. Benchmarks must evaluate the *Yield Collapse Frontier*.
 *   **Multi-Physics Co-Optimization (MPCO):** In 3D-ICs, constraints span entirely different physics domains. An agent might achieve massive IPC gains by placing two high-activity blocks adjacent to each other, creating a catastrophic thermal hotspot that melts the chip. Benchmarks must evaluate Cross-Domain Navigation (e.g., Ansys RedHawk IR-drop logs vs. OpenROAD STA logs).
-*   **Verification-Friendly RTL:** Generative AI often produces "alien" RTL with entangled state machines that cause catastrophic state-space explosions in Formal Verification [@Smith2023FormalAI]. If an agent's design takes a formal solver 100x longer to prove than human-written RTL, it has just shifted the Simulator Tax into an unpayable *Verification Tax*. Evaluators must measure *Proof Convergence Latency* for formal tools, and separately ensure the emitted RTL avoids structural loops that break manufacturing testability constraints (DFT compliance).
+*   **Verification-Friendly RTL:** Generative AI often produces "alien" RTL with entangled state machines that cause catastrophic state-space explosions in Formal Verification . If an agent's design takes a formal solver 100x longer to prove than human-written RTL, it has just shifted the Simulator Tax into an unpayable *Verification Tax*. Evaluators must measure *Proof Convergence Latency* for formal tools, and separately ensure the emitted RTL avoids structural loops that break manufacturing testability constraints (DFT compliance).
 
 ## Call to Action: The ArchPerf Consortium
 

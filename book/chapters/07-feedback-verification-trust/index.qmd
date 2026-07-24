@@ -37,7 +37,7 @@ After reading this chapter, you can:
 
 At the core of AI-assisted architecture is a strict epistemic boundary between *probabilistic generation* and *deterministic validation*. Large Language Models and Reinforcement Learning agents operate in continuous, probabilistic latent spaces;[^fn-latent-space-c07] they optimize likelihoods and expected returns rather than absolute physical truths. An AI does not compute that a pipeline stage is correct in the Boolean sense; it predicts that the token sequence is highly probable.
 
-Bridging this gap is fundamentally difficult due to the **non-differentiable landscape** of hardware design. The design space is a jagged, discontinuous landscape where a single-bit flip can break compilation, creating a step function in the reward landscape. Because standard machine learning relies on smooth gradients, and EDA tools (like SAT solvers and logic synthesis) block backpropagation, AI cannot flow gradients directly from physical constraints [@Rapp2022MLforEDASurvey]. It is forced to rely on inefficient black-box optimization (like RL or evolutionary strategies).
+Bridging this gap is fundamentally difficult due to the **non-differentiable landscape** of hardware design. The design space is a jagged, discontinuous landscape where a single-bit flip can break compilation, creating a step function in the reward landscape. Because standard machine learning relies on smooth gradients, and EDA tools (like SAT solvers and logic synthesis) block backpropagation, AI cannot flow gradients directly from physical constraints . It is forced to rely on inefficient black-box optimization (like RL or evolutionary strategies).
 
 [^fn-latent-space-c07]: **Latent space**: The continuous internal vector space in which a neural network represents its inputs and predictions. Distances there encode statistical similarity, not logical truth, so proximity to a correct design is not correctness.
 
@@ -45,7 +45,7 @@ Bridging this gap is fundamentally difficult due to the **non-differentiable lan
 
 Consequently, architects must structurally separate the AI's *intent* (the rationale or ungrounded objective function) from its *implementation* (the emitted RTL). Epistemic trust requires passing the generated artifact across the boundary into deterministic, physics-bound solvers. We enforce this through mathematical property checking and equivalence checking.
 
-**Mathematical Property Checking:** To check an AI's implementation, we translate high-level constraints into cycle-accurate assertions, then use mathematical solvers to prove them. *Bounded* Model Checking (BMC) mathematically explores edge cases and bugs up to *k* cycles. However, BMC only provides bounded confidence. To mathematically guarantee the absence of deadlocks or safety violations, *Unbounded* Model Checking (UMC, such as IC3 or k-induction) is required. A major caveat applies to AI-generated assertions: translating abstract intent into cycle-accurate SystemVerilog Assertions (SVA) is highly error-prone [@Liu2024RTLLM]. If an AI generates both the RTL and the SVA, the assertions might perfectly describe a broken implementation, generating vacuous passes.
+**Mathematical Property Checking:** To check an AI's implementation, we translate high-level constraints into cycle-accurate assertions, then use mathematical solvers to prove them. *Bounded* Model Checking (BMC) mathematically explores edge cases and bugs up to *k* cycles. However, BMC only provides bounded confidence. To mathematically guarantee the absence of deadlocks or safety violations, *Unbounded* Model Checking (UMC, such as IC3 or k-induction) is required. A major caveat applies to AI-generated assertions: translating abstract intent into cycle-accurate SystemVerilog Assertions (SVA) is highly error-prone . If an AI generates both the RTL and the SVA, the assertions might perfectly describe a broken implementation, generating vacuous passes.
 
 **Equivalence Checking:** To mathematically prove that two graphs of boolean logic are structurally identical across transformations (completely bypassing dynamic stimuli), EDA tools reduce them to canonical mathematical forms (like And-Inverter Graphs, AIGs, or Binary Decision Diagrams, BDDs). Standard Logic Equivalence Checking (LEC) easily matches state elements (flops) from RTL to a synthesized netlist. However, if an AI proposes a structural microarchitectural change—such as retiming logic or altering pipeline stages—standard LEC breaks immediately. Proving equivalence across such AI-driven mutants requires Sequential Equivalence Checking (SEC), which remains a massive scalability bottleneck in modern EDA.
 
@@ -53,7 +53,7 @@ Consequently, architects must structurally separate the AI's *intent* (the ratio
 
 While formal methods prove specific assertions, full-system validation requires dynamic simulation. Because the state space of sequential logic ($2^N$ for $N$ flip-flops) is astronomically vast, exhaustive dynamic simulation is a mathematical impossibility. This forces the necessity of statistical sampling through constrained-random stimuli.
 
-To measure the completeness of this statistical sampling, architects rely on *coverage models* (statement, branch, toggle, condition, FSM, and functional coverage). A coverage model quantifies what parts of the vast state space the testbench actually reached. Furthermore, AI-generated RTL is highly susceptible to X-propagation bugs (where uninitialized states simulate favorably as deterministic values but synthesize to unpredictable hardware) [@Liu2024RTLLM], making explicit X-optimism and X-pessimism EDA checks mandatory.
+To measure the completeness of this statistical sampling, architects rely on *coverage models* (statement, branch, toggle, condition, FSM, and functional coverage). A coverage model quantifies what parts of the vast state space the testbench actually reached. Furthermore, AI-generated RTL is highly susceptible to X-propagation bugs (where uninitialized states simulate favorably as deterministic values but synthesize to unpredictable hardware) , making explicit X-optimism and X-pessimism EDA checks mandatory.
 
 ::: {.callout-war-story title="The Limits of Statistical Sampling: The Pentium FDIV Bug"}
 **The claim.** In 1994, Intel's new Pentium processor passed extensive statistical testing, leading the design team to believe its floating-point unit was functionally correct for all practical workloads.
@@ -248,7 +248,7 @@ apply_style()
 # academic-only proposals and the pathological >800% microbenchmark are excluded.
 # Accessed 2026-07-19. Receipt: data/source-receipts/chapter7-mitigation-overhead.csv
 _root = Path(_ap.__file__).resolve().parents[2]
-rows = []
+rows =
 with open(_root / "data" / "source-receipts" / "chapter7-mitigation-overhead.csv", encoding="utf-8") as fh:
     for d in csv.DictReader(fh):
         rows.append({"m": d["mitigation"], "t": d["threat"], "lo": float(d["low_pct"]), "hi": float(d["high_pct"])})
@@ -314,7 +314,7 @@ Not every check needs to be an expensive independent oracle. Because an AI gener
 
 Generative AI introduces structural security risks that perfectly highlight why traditional coverage models and correlated proxies are insufficient. The hallucinated vulnerability or the maliciously injected hardware trojan acts as the ultimate stress test for an epistemic boundary.
 
-In traditional architecture, a backdoor required a rogue engineer. Today, a generator trained on unvetted, scraped open-source RTL can inadvertently reproduce buried trojans, or an adversary could poison the foundation model's training data [@Khattak2023SecurityLLM]. Because these malicious structures (such as a finite state machine that bypasses a privilege check after a specific sequence of branch mispredicts) are structurally valid and functionally silent, they easily evade dynamic simulation coverage models.
+In traditional architecture, a backdoor required a rogue engineer. Today, a generator trained on unvetted, scraped open-source RTL can inadvertently reproduce buried trojans, or an adversary could poison the foundation model's training data . Because these malicious structures (such as a finite state machine that bypasses a privilege check after a specific sequence of branch mispredicts) are structurally valid and functionally silent, they easily evade dynamic simulation coverage models.
 
 To defend against poisoned models, architects must employ formal path-sensitization and Information Flow Tracking (IFT) to prove the absence of undocumented data-exfiltration paths. However, applying IFT to detect trojans suffers from massive state-space explosion. While it works on specific IP blocks (like a crypto core's isolation boundary), "proving the absence" of trojans across an entire SoC remains largely an unsolved EDA capacity problem.
 

@@ -217,7 +217,7 @@ demonstrate and easy to overtrust.
 
 The method that fills a role depends fundamentally on the structural mismatch between the ML representation and the physical artifact. Consider the 3 W 64-bit RISC-V XR compute subsystem. Generating RTL requires navigating a 1D sequence of tokens with strict syntactic rules; optimizing a macro floorplan requires reasoning over a continuous 2D plane; and routing requires traversing a complex topological graph.
 
-Because of these structural differences, the choice of generative model must match the artifact geometry. For sequential text like RTL or compiler scripts, Large Language Models (LLMs) are used. To ensure syntactic legality and schema compliance, ML-Sys practitioners employ *Constrained Decoding* (using Finite State Machines or context-free grammars during token generation) to restrict the model's output to valid syntax by construction, solving the syntax hallucination problem [@Poesia2022Synchromesh; @Willard2023Outlines]. For spatial artifacts like macro placement, *Diffusion Models* are used.[^fn-ml-diffusion-c06] However, while constrained decoding can guarantee a generated RISC-V decoder is syntactically valid, it cannot guarantee it is physically realizable. Unlike analytical solvers that guarantee routability, a diffusion model's spatial layout is merely a statistical prediction and will blindly produce overlapping macros if not subsequently validated by a physical routing tool.
+Because of these structural differences, the choice of generative model must match the artifact geometry. For sequential text like RTL or compiler scripts, Large Language Models (LLMs) are used. To ensure syntactic legality and schema compliance, ML-Sys practitioners employ *Constrained Decoding* (using Finite State Machines or context-free grammars during token generation) to restrict the model's output to valid syntax by construction, solving the syntax hallucination problem [; ]. For spatial artifacts like macro placement, *Diffusion Models* are used.[^fn-ml-diffusion-c06] However, while constrained decoding can guarantee a generated RISC-V decoder is syntactically valid, it cannot guarantee it is physically realizable. Unlike analytical solvers that guarantee routability, a diffusion model's spatial layout is merely a statistical prediction and will blindly produce overlapping macros if not subsequently validated by a physical routing tool.
 
 [^fn-ml-diffusion-c06]: **Diffusion model**: A generative model trained to reverse a gradual noising process, so it produces a sample by starting from noise and denoising step by step. Because it natively generates 2D spatial data such as images, it fits floorplan and placement artifacts better than a token-at-a-time language model.
 
@@ -354,7 +354,7 @@ this lineage.
 
 ### Surrogates and Graph Models
 
-Unlike generative brainstorming, prediction requires models that can be calibrated against real data. Large Language Models are poor fits here. Instead, to predict routing congestion or critical path delays from a netlist, architects have turned to *Graph Neural Networks (GNNs)* [@Wang2022CircuitNet]. Because chips are physical graphs, GNNs pass messages over the circuit's wiring graph and align with its structure. For power and thermal estimation, *Physics-Informed Neural Networks* (PINNs) penalize violations of physical laws during training to keep estimates within thermodynamic limits [@RaissiEtAl2019PINNs].
+Unlike generative brainstorming, prediction requires models that can be calibrated against real data. Large Language Models are poor fits here. Instead, to predict routing congestion or critical path delays from a netlist, architects have turned to *Graph Neural Networks (GNNs)* . Because chips are physical graphs, GNNs pass messages over the circuit's wiring graph and align with its structure. For power and thermal estimation, *Physics-Informed Neural Networks* (PINNs) penalize violations of physical laws during training to keep estimates within thermodynamic limits [@RaissiEtAl2019PINNs].
 
 However, applying these models requires bridging a massive abstraction gap through *cross-stack prediction*. Design Space Exploration (DSE) operates on high-level microarchitectural parameters (e.g., L2 cache sizing, core counts), while physical tools operate on low-level netlists and spatial coordinates. A fundamental role of the AI surrogate is to take these high-level architectural configurations as inputs while using the low-level EDA constraints (e.g., physical placement density, IR drop) as its calibration targets. This cross-stack learning allows the AI to predict physical consequences early in the design cycle before the RTL is even written.
 
@@ -555,7 +555,7 @@ fig.subplots_adjust(left=0.38, right=0.85, top=0.82, bottom=0.27)
 y_positions = [0.35, 1.35, 2.35, 3.35, 5.80, 6.80, 7.80, 8.80]
 ax.set_ylim(-1.05, y_positions[-1] + 0.65)
 ax.invert_yaxis
-ax.set_yticks([])
+ax.set_yticks()
 top_log_axis(
     ax,
     xlim=(0.8, 1e19),
@@ -696,7 +696,7 @@ ax2.annotate("Explore\n(high uncertainty)", xy=(x_next, acq.max),
 ax2.set_ylabel("Acquisition", fontsize=6.8)
 ax2.set_xlabel("Design space (one parameter)", fontsize=6.8)
 ax2.tick_params(labelsize=6.0)
-ax2.set_yticks([])
+ax2.set_yticks()
 
 fig.subplots_adjust(left=0.10, right=0.98, top=0.98, bottom=0.11, hspace=0.12)
 ```
@@ -713,7 +713,7 @@ The right method depends on whether the problem is expensive and black-box, disc
 
 To spend our simulation budget efficiently, we use algorithms built to handle uncertainty. We apply *Bayesian Optimization* when tuning continuous parameters or hyperparameters, such as sizing caches, out-of-order window dimensions, or the Network-on-Chip (NoC) to balance high-bandwidth camera sensor ingest against the RISC-V core's memory requests, all under the 3\ W XR thermal constraints. When Bayesian optimization hits a nonlinear physical constraint, such as an unroutable configuration where the simulator crashes, the model stalls unless the constraint boundary is mapped.
 
-For discrete search spaces that require looking ahead, *Monte Carlo Tree Search (MCTS)* and *Tree-of-Thoughts* [@Yao2023TreeOfThoughts] allow an agent to plan multiple steps into the future, simulating rollouts of potential architecture configurations before committing to an expensive evaluation. Treating the design space as a game tree allows these methods to explore promising branches while pruning unviable configurations, ensuring the search doesn't waste runs on dead-ends.
+For discrete search spaces that require looking ahead, *Monte Carlo Tree Search (MCTS)* and *Tree-of-Thoughts*  allow an agent to plan multiple steps into the future, simulating rollouts of potential architecture configurations before committing to an expensive evaluation. Treating the design space as a game tree allows these methods to explore promising branches while pruning unviable configurations, ensuring the search doesn't waste runs on dead-ends.
 
 We apply *Reinforcement Learning (RL)* for combinatorial, sequential tasks like macro floorplanning. In these sequential tasks, the architect must tightly control the reward function, tying it directly to physical metrics such as routing congestion and thermal hotspots, often employing strict *penalty functions* for DRC (Design Rule Check) violations to ensure the agent learns to avoid physically impossible layouts. These methods are resource managers orchestrated by the architect. They do not invent the design; they choose *where* to spend the next simulation run.
 
@@ -721,7 +721,7 @@ The useful outcome may be a Pareto region,[^fn-math-pareto-region-c06] a constra
 
 [^fn-math-pareto-region-c06]: **Pareto region**: The Pareto frontier introduced earlier, treated as one defensible target for architecture optimization under limited feedback, alongside a constraint boundary or a ruled-out class of candidates, rather than a collapse of the search to a single best point.
 
-When the objective is a power, performance, and area vector rather than a single scalar, the fitting methods become multi-objective. Multi-objective Bayesian optimization[^fn-ml-parego-c06] and multi-objective evolutionary search such as NSGA-II [@Deb2002NSGAII] and related dominance-sorting algorithms return a Pareto set rather than one best point. The architect then prunes that set against the Lighthouse power and performance frontier, since the 3\ W thermal budget rules out configurations a single scalar objective would have hidden.
+When the objective is a power, performance, and area vector rather than a single scalar, the fitting methods become multi-objective. Multi-objective Bayesian optimization[^fn-ml-parego-c06] and multi-objective evolutionary search such as NSGA-II  and related dominance-sorting algorithms return a Pareto set rather than one best point. The architect then prunes that set against the Lighthouse power and performance frontier, since the 3\ W thermal budget rules out configurations a single scalar objective would have hidden.
 
 [^fn-ml-parego-c06]: **Multi-objective Bayesian optimization**: Extends Bayesian optimization to a vector objective either by scalarizing the objectives into one weighted score per iteration, as in ParEGO [@Knowles2006ParEGO], or by maximizing expected hypervolume, the volume of objective space the current Pareto set dominates.
 
