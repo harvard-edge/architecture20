@@ -32,7 +32,9 @@ After reading this chapter, you can:
 
 ## Executing the Control Case
 
-The experiment below is a proof of concept for the automated Architecture 2.0 loop. It is deliberately modest, but it instantiates the framework on a concrete architectural problem, anchoring back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform. The study narrows to the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. Instead of brute-forcing all geometries, the AI proposes candidates that must satisfy physical constraints like die area and wiring congestion before simulation.
+The experiment below is a proof of concept for the automated Architecture 2.0 loop. It is deliberately modest, but it instantiates the framework on a concrete architectural problem, anchoring back to our Lighthouse prompt from @sec-moonshot to design a 3\ W, 64-bit RISC-V-based compute subsystem for an XR platform.
+
+To make the problem computationally tractable for a bounded loop, we decompose that top-level system intent. We narrow the scope from the full SoC down to the XR platform's spatial tracking (SLAM) subsystem, which relies heavily on dense matrix multiplication. This partitioning is how large architectural constraints are mapped into localized AI search loops. Instead of brute-forcing all geometries, the AI proposes candidates that must satisfy physical constraints like die area and wiring congestion before simulation.
 
 One recorded model call proposes three legal systolic-array datapath shapes for a compact three-layer SLAM matrix-multiplication workload. A fixed aspect-ratio heuristic proposes three shapes under the same four-call simulator budget. SCALE-Sim 3.0.0 evaluates both arms[^fn-study-arm-c08] under one frozen configuration [@RajEtAl2025ScaleSimV3], and a declared workload contrast then tests the model's mechanism prediction. While its scope excludes model benchmarking, full-chip XR evaluation, and tapeout, it illustrates how a bounded architectural question is rigorously executed. It evaluates whether a no-change architecture result, an equal-call tie, and an unsupported mechanism explanation can be reported cleanly without being recast as an AI success.
 
@@ -77,13 +79,13 @@ separate. This deliberate decoupling enforces one rule. The AI proposes candidat
 
 ![**The bounded study workflow.** The preregistration, bounded generation, deterministic evaluation, and judgment phases of a bounded Architecture 2.0 study.](images/ch8_design_loop_workflow){#fig-bounded-study-workflow width="100%" fig-alt="Bounded Study Workflow diagram"}
 
-**Architecture-outcome claim.** At least one evaluated nonbaseline shape
+- **Architecture-outcome claim.** At least one evaluated nonbaseline shape
 selected by either arm improves the local decision score over the 32 by 32
 baseline by at least 1 percent for the frozen workload and simulator
 configuration. The outcome is no change if none of those evaluated shapes
 clears that decision margin.
 
-**AI-contribution claim.** With four SCALE-Sim evaluations per arm, including
+- **AI-contribution claim.** With four SCALE-Sim evaluations per arm, including
 the same mandatory baseline, the recorded model arm finds a score at least 1
 percent lower than the fixed aspect-ratio heuristic arm. A difference within 1
 percent is a tie. A worse model result is adverse. Equal simulator calls do not
@@ -103,11 +105,7 @@ S = \frac{\text{total cycles}}
          {\text{average layer utilization}/100},
 $$
 
-with lower values preferred. This is a predeclared selection rule for this
-study, not a universal measure of accelerator quality or a physical
-measurement. This specific scoring formula is used to prevent an agent from aggressively minimizing cycles by deploying massively oversized arrays that remain mostly idle, enforcing a penalty for wasted silicon area. Reporting cycles and utilization separately keeps the composite
-score from hiding the two ingredients it combines, though it cannot reveal an
-axis the score leaves out, such as memory traffic.
+with lower values preferred. While this naive composite score mathematically double-counts the penalty for underutilization compared to a true Area-Delay Product (ADP), it serves as a predeclared selection rule for this study, not a universal measure of accelerator quality or a physical measurement. This specific scoring formula is used to prevent the search from collapsing to degenerate solutions like massively oversized arrays that remain mostly idle, enforcing a strict penalty for wasted silicon area. Reporting cycles and utilization separately keeps the composite score from hiding the two ingredients it combines, though it cannot reveal an axis the score leaves out, such as memory traffic.
 
 A fair comparison requires the evaluation budget, workload, simulator settings,
 rejection criteria, and decision boundary to be frozen before either arm
@@ -115,24 +113,23 @@ produces results. @tbl-executed-study-protocol records those rules.
 
 | **Element** | **Frozen rule** |
 | --- | --- |
-| Workloads | One three-layer GEMM slice, plus a versioned copy with M and N exchanged for the mechanism test. |
-| Legal shapes | Rows and columns each in {8, 16, 32, 64, 128}; product no greater than 1,024 processing elements. These rules admit fifteen shapes. |
-| Environment | SCALE-Sim 3.0.0, GEMM interface, weight-stationary dataflow [@ChenEtAl2016Eyeriss], 128 KiB per SRAM, and 64 interface words per cycle. |
-| Baseline and rejection criteria | Insert 32 by 32 into both arms; reject shapes above 1,024 processing elements or runs above 90,000 cycles. |
-| Proposal arms | Three model proposals and three candidates from a fixed aggregate-aspect-ratio heuristic. |
-| Evaluation budget | Four SCALE-Sim evaluations per arm after inserting the baseline; no post-result replacement. |
-| Model repair | At most one complete repair response after reported schema or legality errors; invalid proposals consume the initial call. |
-| Decision margin | At least 1 percent on the lower-is-better local score; differences inside the margin are ties. |
-| Mechanism probe | Four shared runs comparing 16 by 64 and 64 by 16 on the original and M/N-transposed workloads. |
-| Decision boundary | The recorded result may motivate a clearly scoped follow-up experiment or stopping. It cannot authorize RTL, tapeout, or a system intent decision. |
+| **Workloads** | One three-layer GEMM slice, plus a versioned copy with M and N exchanged for the mechanism test. |
+| **Legal shapes** | Rows and columns each in {8, 16, 32, 64, 128}; product no greater than 1,024 processing elements. These rules admit fifteen shapes. |
+| **Environment** | SCALE-Sim 3.0.0, GEMM interface, weight-stationary dataflow [@ChenEtAl2016Eyeriss], 128 KiB per SRAM, and 64 interface words per cycle. |
+| **Baseline and rejection criteria** | Insert 32 by 32 into both arms; reject shapes above 1,024 processing elements or runs above 90,000 cycles. |
+| **Proposal arms** | Three model proposals and three candidates from a fixed aggregate-aspect-ratio heuristic. |
+| **Evaluation budget** | Four SCALE-Sim evaluations per arm after inserting the baseline; no post-result replacement. |
+| **Prompt development** | Log exploratory prompt iterations and total hours spent *before* preregistration to track the true human-in-the-loop cost. |
+| **Model repair** | At most one complete repair response after reported schema or legality errors; invalid proposals consume the initial call. |
+| **Decision margin** | At least 1 percent on the lower-is-better local score; differences inside the margin are ties. |
+| **Mechanism probe** | Four shared runs comparing 16 by 64 and 64 by 16 on the original and M/N-transposed workloads. |
+| **Decision boundary** | The recorded result may motivate a clearly scoped follow-up experiment or stopping. It cannot authorize RTL, tapeout, or a system intent decision. |
 
 : **The comparison was fixed before evaluation.** Both proposal arms use the same workload, SCALE-Sim configuration, rejection criteria, baseline, and four-evaluation budget. {#tbl-executed-study-protocol tbl-colwidths="[22,68]"}
 
 The workload, legal shapes, environment, and rejection criteria fix the
 architecture comparison. The proposal and evaluation budgets prevent either
-arm from receiving extra candidates after results appear. The repair and
-decision rules fix how invalid model output and small score differences will be
-treated. The mechanism contrast challenges the generated explanation, while
+arm from receiving extra candidates after results appear. In scaled physical design, bounding by a raw count of simulator calls is dangerous because runtimes are highly non-linear; the budget must evolve to a compute effort (CPU-hours) limit with multi-stage short-circuiting to fast-fail candidates at earlier stages (e.g., floorplanning estimates) before committing to detailed routing. The repair and decision rules fix how invalid model output and small score differences will be treated. The mechanism contrast challenges the generated explanation, while
 the final row leaves approval outside both the model and simulator.
 
 Predeclaring these choices forces any change to the candidate, metric, or stopping rule out into the open, where it can be checked against the record instead of silently validating a flawed candidate.
@@ -161,12 +158,7 @@ the two array dimensions and width does not cleanly correspond to the N-side
 effect. The explanation assumes that array width corresponds to the relevant
 N-side effect.
 
-That premise was not grounded in the retained study context.
-The transposition still distinguishes the model's exact directional prediction,
-but it is not a causally isolated test of orientation. This mismatch is an open
-follow-up, not permission to invent a replacement explanation after the result.
-A stronger follow-up would pin the mapping semantics and choose contrasts that
-isolate them.
+That premise was not grounded in the retained study context. The transposition still distinguishes the model's exact directional prediction, but it is not a causally isolated test of orientation. Because the spatial mapping (e.g., which loop indices map to spatial X/Y dimensions in the weight-stationary setup) was not explicitly defined in the AI prompt before inference, the test probes the prompt's completeness rather than the AI's architectural reasoning. A stronger follow-up must pin the mapping semantics explicitly in the prompt and choose contrasts that causally isolate them.
 
 ### Fixing Environment and Roles
 
@@ -175,13 +167,13 @@ index into the retained record rather than a substitute for it.
 
 | **Card field** | **Completed study record** |
 | --- | --- |
-| Decision | Determine whether any selected nonbaseline shape warrants follow-up over 32 by 32 under the local rule, and stop with the status quo if none clears the decision margin. |
-| State and scope | The preregistration fixes the workload, baseline, fifteen legal shapes, mutable fields, non-goals, and decision boundary. The completed comparison evaluates five unique shapes selected under those rules. |
-| Representation | The model prompt, output schema, original workload, and transposed workload encode the available design state and consequence hypothesis. Mapping semantics between GEMM axes and array dimensions remain unspecified. |
-| Roles and actions | The model proposes and explains. The fixed aspect-ratio heuristic proposes. Validation scripts check structure and legality. SCALE-Sim evaluates. The architect judges the four claims and retains approval authority. |
-| Budget and checks | Each proposal arm receives four simulator calls including the baseline. Four additional calls run the declared contrast. Schema, legality, 90,000-cycle, and decision-margin checks are fixed, with no post-result replacement. |
-| Evidence | The complete model response, all evaluations, and study result preserve proposals, measurements, claim dispositions, and the stopping status. |
-| Decision status | The bounded search stops with 32 by 32 as the status quo for the five evaluated shapes. The architecture action remains `awaiting_author_confirmation`, and no optimality claim follows. |
+| **Decision** | Determine whether any selected nonbaseline shape warrants follow-up over 32 by 32 under the local rule, and stop with the status quo if none clears the decision margin. |
+| **State and scope** | The preregistration fixes the workload, baseline, fifteen legal shapes, mutable fields, non-goals, and decision boundary. The completed comparison evaluates five unique shapes selected under those rules. |
+| **Representation** | The model prompt, output schema, original workload, and transposed workload encode the available design state and consequence hypothesis. Mapping semantics between GEMM axes and array dimensions remain unspecified. |
+| **Roles and actions** | The model proposes and explains. The fixed aspect-ratio heuristic proposes. Validation scripts check structure and legality. SCALE-Sim evaluates. The architect judges the four claims and retains approval authority. |
+| **Budget and checks** | Each proposal arm receives four simulator calls including the baseline. Four additional calls run the declared contrast. Schema, legality, 90,000-cycle, and decision-margin checks are fixed, with no post-result replacement. |
+| **Evidence** | The complete model response, all evaluations, and study result preserve proposals, measurements, claim dispositions, and the stopping status. |
+| **Decision status** | The bounded search stops with 32 by 32 as the status quo for the five evaluated shapes. The architecture action remains `awaiting_author_confirmation`, and no optimality claim follows. |
 
 : **Completed design-loop card for the bounded study.** The card points to the files that define the state, roles, checks, evidence, and decision status. {#tbl-practitioner-path tbl-colwidths="[21,69]"}
 
@@ -197,7 +189,7 @@ The first attempt to invoke the runtime never reached inference. The response-fo
 
 [^fn-json-schema-c08]: **JSON Schema rejection (detail)**: Two constant-string properties in the schema lacked explicit types, so no model output or usage was produced. The schema-only correction and both hashes were added as a preregistration amendment before inference.
 
-While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or an environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. In a physical design loop, a useful model must parse actual physical verification failures (negative slack reports, DRC violations) rather than just retrying crashed scripts. While a schema error is fixed via a simple API retry, real physical design loops require automated harness scripts (such as timeout-bounded subprocesses and regex-based log parsers) to catch FlexLM license denials or DRC deadlocks programmatically. This ensures the AI's proposal loop fails gracefully on architectural merit rather than hanging indefinitely on IT infrastructure limits.
+While this schema error was simple API friction, real hardware environments involve undocumented EDA tool segfaults, FlexLM license server timeouts, or simulation deadlocks. Fixing a broken schema or a transient environment timeout is a necessary infrastructure repair, not a concession to the model or a change in the evaluation protocol. However, treating all EDA timeouts or deadlocks purely as infrastructure issues is an oversimplification. Automated harness scripts must classify EDA errors into two categories: *Transient/Infrastructure* (e.g., FlexLM denial, random tool segfaults) which trigger transparent retries, and *Design-Induced/Systematic* (e.g., DRC violation, place-and-route timeout due to congestion) which must feed back into the AI model as valid architectural constraint violations. The AI needs this negative feedback to learn physical boundaries, rather than the harness simply discarding the run.
 
 ::: {.callout-war-story title="The illusion of zero-shot success"}
 **The claim.** An AI model generates a highly optimized architecture design on the first try, and the write-up presents the result as zero-shot capability, a first-try success with no examples or iteration.
@@ -213,18 +205,19 @@ The subsequent call returned a schema-valid response. Since semantic validation 
 
 | **Provenance field** | **Recorded value** |
 | --- | --- |
-| Provider and interface | OpenAI through Codex CLI 0.144.4, noninteractive ephemeral execution, read-only empty workspace. |
-| Requested and accepted model alias | gpt-5.4; provider revision or digest was not exposed. |
-| Time | 2026-07-14 18:21:51--18:22:24 UTC; 32.90 seconds wall time. |
-| Settings | Medium reasoning effort; temperature, top-p, and seed were not exposed or available through the runtime. |
-| Usage | 13,223 input tokens, including 1,920 cached; 1,446 output tokens, including 516 reasoning tokens. |
-| Cost | Currency cost was not reported, so none is inferred. |
-| Interaction | One valid proposal call, no repair call, and no observed tool calls. Prompt, schema, output, and provenance hashes are recorded. |
-| Privacy | No credential, session identifier, or private configuration is stored. |
+| **Provider and interface** | OpenAI through Codex CLI 0.144.4, noninteractive ephemeral execution, read-only empty workspace. |
+| **Execution environment** | In production EDA, requires recording PDK version, standard cell library PVT corners, binary patches, and Tcl setup scripts (e.g., via Nix or containers) to prevent environmental drift. |
+| **Requested and accepted model alias** | gpt-5.4; provider revision or digest was not exposed. |
+| **Time** | 2026-07-14 18:21:51--18:22:24 UTC; 32.90 seconds wall time. |
+| **Settings** | Medium reasoning effort; temperature, top-p, and seed were not exposed or available through the runtime. |
+| **Usage** | 13,223 input tokens, including 1,920 cached; 1,446 output tokens, including 516 reasoning tokens. |
+| **Cost** | Currency cost was not reported, so none is inferred. |
+| **Interaction** | One valid proposal call, no repair call, and no observed tool calls. Prompt, schema, output, and provenance hashes are recorded. |
+| **Privacy** | No credential, session identifier, or private configuration is stored. |
 
 : **Recorded and unavailable model settings.** The record reports values supplied by the runtime and marks the remaining settings as unavailable. {#tbl-model-provenance tbl-colwidths="[27,63]"}
 
-Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Evaluating generative models requires sampling multiple trajectories to measure expected utility. Future scaled iterations should adopt standard ML evaluation precedents, such as Pass@k (Chen et al., 2021), using non-zero temperature to measure the model's true search capability across the design space rather than relying on a single deterministic generation. Second, the requested alias is not a pinned model identity. The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
+Two limits matter when interpreting this record. First, the valid proposal used one call and no repair, meaning later candidate replacement cannot explain the outcome. Evaluating generative models requires sampling multiple trajectories to measure expected utility. Future scaled iterations must adopt standard ML evaluation precedents, such as Pass@k [@Chen2021Codex], using non-zero temperature to measure the model's true search capability across a broader design space. Restricting the legal search space to just 15 array shapes guarantees overlap with a simple heuristic; truly evaluating AI requires exposing high-dimensional, non-linear choices like dataflow selection or SRAM partitioning where simple heuristics fail. Second, the requested alias is not a pinned model identity. The response hash pins the retained output rather than the hosted generator. The record therefore verifies what happened in this call but cannot recreate the generation exactly, although the SCALE-Sim runs remain replayable from their retained inputs.
 
 ### Interpreting Proposal Overlap
 
@@ -271,11 +264,11 @@ evaluations.
 
 : **The model and fixed heuristic arms tie under equal simulator-call budgets.** Neither finds a nonbaseline candidate that clears the predeclared 1 percent decision margin over 32 by 32. Values are computed by SCALE-Sim, not measured on silicon. {#tbl-ai-study-results tbl-colwidths="[12,23,11,18,14,22]"}
 
-The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers.[^fn-dram-traffic] Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. This is a case of proxy mismatch as described in @sec-feedback-verification-trust. While strict preregistration prevents moving the goalposts to declare a false 'win,' an architect discovering a severe proxy mismatch in production would explicitly abort the preregistered study, amend the objective function to incorporate memory access costs (e.g., $E_{total} = E_{compute} + E_{SRAM} + E_{DRAM}$), and restart the bounded loop.
+The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers.[^fn-dram-traffic] Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. For a 3W mobile XR chip, data movement energy typically dominates compute. This means the 16 by 64 candidate is realistically worse, being Pareto-dominated on the unmeasured memory axis.
+
+This is a case of proxy mismatch as described in @sec-feedback-verification-trust. While strict preregistration prevents moving the goalposts to declare a false 'win,' an architect discovering this severe proxy mismatch in production would explicitly abort the preregistered study, amend the objective function to incorporate multi-objective physical constraints directly into the rejection criteria (e.g., an Energy-Delay Product $E_{total} = E_{compute} + E_{SRAM} + E_{DRAM}$), and restart the bounded loop to co-optimize Power, Performance, and Area (PPA) simultaneously.
 
 [^fn-dram-traffic]: At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses.
-
-The composite score does not account for memory traffic. In a physical chip, doubling DRAM traffic raises the energy budget and requires wider physical interfaces, which is why independent oracles such as power analysis tools are needed beyond a cycle simulator. Retaining 32 by 32 is therefore the conservative call on the energy-relevant memory axis, not a dominating one, since the baseline reads SRAM more often than 16 by 64 does.
 
 The 32 by 16 shape has higher average layer utilization than the baseline but takes far more cycles, so the composite rule ranks it worse. The 8 by 128 shape loses on both ingredients, though a reader who dislikes the composite score can still see the raw quantities and challenge the rule without rerunning the study.
 @fig-ai-study-result places the two conclusions side by side. In the left panel,
@@ -393,10 +386,10 @@ With the candidate evaluations and the mechanism contrast complete, the architec
 
 | **Claim** | **Observed evidence** | **Conclusion** | **Outside this conclusion** |
 | --- | --- | --- | --- |
-| Architecture outcome | Best evaluated nonbaseline ties the baseline; improvement is 0.0%. | No change under the 1 percent decision margin for the five evaluated shapes. | No claim about the ten unevaluated legal shapes, another workload, or another objective. |
-| AI contribution | Best scores tie at four simulator calls per arm; two nonbaseline selections overlap. | Tie on the recorded simulator score. | No advantage in total effort and no broader claim about a model family. |
-| Mechanism explanation | 16 by 64 wins on both workloads. | The directional prediction fails its declared contrast. | No causally isolated replacement explanation, especially without pinned mapping semantics. |
-| Stopping decision | No selected candidate clears the decision margin, and post-result replacement is prohibited. | Stop the bounded search and keep 32 by 32 as the status quo for the evaluated set. | No claim that 32 by 32 is optimal among all fifteen legal shapes. |
+| **Architecture outcome** | Best evaluated nonbaseline ties the baseline; improvement is 0.0%. | No change under the 1 percent decision margin for the five evaluated shapes. | No claim about the ten unevaluated legal shapes, another workload, or another objective. |
+| **AI contribution** | Best scores tie at four simulator calls per arm; two nonbaseline selections overlap. | Tie on the recorded simulator score. | No advantage in total effort and no broader claim about a model family. |
+| **Mechanism explanation** | 16 by 64 wins on both workloads. | The directional prediction fails its declared contrast. | No causally isolated replacement explanation, especially without pinned mapping semantics. |
+| **Stopping decision** | No selected candidate clears the decision margin, and post-result replacement is prohibited. | Stop the bounded search and keep 32 by 32 as the status quo for the evaluated set. | No claim that 32 by 32 is optimal among all fifteen legal shapes. |
 
 : **The four judgments have different conclusions.** The architecture outcome, AI contribution, mechanism explanation, and stopping decision remain separate. {#tbl-study-claim-dispositions tbl-colwidths="[19,31,18,32]"}
 
@@ -405,6 +398,8 @@ score. The second asks whether the model found an advantage over the heuristic
 under the same simulator-call budget. The third tests only the model's
 explanation. The fourth records what the architect does next. Each conclusion
 follows from different evidence.
+
+To distinguish them, an architecture outcome could be a "Success" if an AI candidate beats the baseline by 2%, but the stopping decision could still be "Stop" if the compute budget is exhausted or the 2% margin isn't worth the engineering risk to verify.
 
 The frozen protocol permits no post-result replacement, and no candidate clears the decision margin, so this bounded search stops here. The evidence warrants retaining 32 by 32 as the status quo for the five evaluated shapes because a nonbaseline tie does not justify change when the preregistration names no compensating benefit. Further evaluation is warranted only if a broader architecture decision needs more evidence, perhaps from a broader workload, another dataflow, pinned mapping semantics, a calibrated memory model, or implementation-adjacent constraints. The present evidence does not authorize RTL, tapeout, or a system intent decision.
 
@@ -421,12 +416,12 @@ answer.
 
 | **Artifact** | **What it lets a reviewer check** |
 | --- | --- |
-| Preregistration | Whether claims, candidates per arm, rejection criteria, score, decision margin, repair limit, contrast, and decision boundary predate inference and simulation. |
-| Model prompt, schema, and full response | What context the model saw, which authority it lacked, and whether the printed proposals and prediction match the retained response. |
-| Provenance record | Requested model alias, interface, timestamps, exposed settings, usage, response hash, pre-inference error, and unavailable identity fields. |
-| Fixed aspect-ratio heuristic | Whether its ordering was deterministic and fixed before model or simulator output. |
-| Reference evaluations and execution provenance | Exact topology, layout, SCALE-Sim configuration, raw run locations, parsed metrics, rejection results, and conclusions for all twelve evaluations. |
-| Reference manifest and replay | Whether retained files match their hashes and a network-free rerun regenerates every stable input, report, metric, and result. |
+| **Preregistration** | Whether claims, candidates per arm, rejection criteria, score, decision margin, repair limit, contrast, and decision boundary predate inference and simulation. |
+| **Model prompt, schema, and full response** | What context the model saw, which authority it lacked, and whether the printed proposals and prediction match the retained response. |
+| **Provenance record** | Requested model alias, interface, timestamps, exposed settings, usage, response hash, pre-inference error, and unavailable identity fields. |
+| **Fixed aspect-ratio heuristic** | Whether its ordering was deterministic and fixed before model or simulator output. |
+| **Reference evaluations and execution provenance** | Exact topology, layout, SCALE-Sim configuration, raw run locations, parsed metrics, rejection results, and conclusions for all twelve evaluations. |
+| **Reference manifest and replay** | Whether retained files match their hashes and a network-free rerun regenerates every stable input, report, metric, and result. |
 
 : **Files and commands available for review.** These artifacts do not establish that the simulator is accurate or the workload representative. They preserve the declared run so that reviewers can examine those assumptions. {#tbl-study-archive tbl-colwidths="[26,64]"}
 
@@ -436,9 +431,9 @@ These artifacts support verification across three distinct levels of scrutiny, a
 
 | **Verification Level** | **Action** | **What It Establishes** |
 | --- | --- | --- |
-| Replay | Rerunning the exact same simulator logs with the same deterministic inputs. | Establishes that the execution is honest and the math adds up. |
-| Reproduction | Rerunning the AI agent with the same prompt and seed. | Highlights model drift, API changes, and non-determinism. |
-| Independent validation | A different team building a different model or testbench to evaluate the same architectural claim in RTL. | Establishes that the architectural mechanism holds in physical reality, using independent oracles. |
+| **Replay** | Rerunning the exact same simulator logs with the same deterministic inputs. | Establishes that the execution is honest and the math adds up. |
+| **Reproduction** | Rerunning the AI agent with the same prompt and seed. | Highlights model drift, API changes, and non-determinism. |
+| **Independent validation** | A different team building a different model or testbench to evaluate the same architectural claim in RTL. | Establishes that the architectural mechanism holds in physical reality, using independent oracles. |
 
 : **Three levels of verification.** True architectural trust requires independent validation, while replay guarantees only that the study faithfully executed its own declared loop. {#tbl-verification-levels tbl-colwidths="[22,38,40]"}
 
@@ -494,6 +489,8 @@ Three loose ends survive the bounded study's clean null result. Each marks a pla
 - The repair path, illegal-shape rejection, and 90,000-cycle cutoff never fired, so they were demonstrated only in the passing direction. What adversarial workload or shape set would exercise those checks in the rejecting direction and confirm they behave as declared?
 
 ## Conclusion
+
+The open questions of proxy mismatches, unpinned physical mappings, and single-shot evaluation limits highlight where this localized SLAM study stops short of full system verification. These are not just academic curiosities; they are the exact physical and statistical barriers that prevent AI from scaling across the stack. In the next chapter (@sec-loop-patterns-across-stack), we will elevate these localized boundaries and examine how these design loops compound when scaled across the entire architecture, from software mapping down to standard-cell physical design.
 
 ::: {.callout-design-principle title="The Traceability Mandate"}
 A generated candidate is only as valuable as the reproducible tool path and evidence record that accompanies it. The architecture environment must capture the exact intent, baseline, constraints, and tool telemetry for every run, ensuring that negative evidence and failed candidates are preserved to map the boundaries of the design space.
