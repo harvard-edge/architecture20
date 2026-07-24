@@ -266,7 +266,77 @@ evaluations.
 
 The 16 by 64 candidate exactly matches the baseline's cycles, average layer utilization, and local score. Calling it the new winner would improperly convert a tie into an improvement by changing the rule after seeing the output. The tie also hides a difference the score never registers.[^fn-dram-traffic] Because the local score combines only cycles and utilization, it reads the two shapes as equal while their off-chip write traffic differs by a factor of two. For a 3W mobile XR chip, data movement energy typically dominates compute. This means the 16 by 64 candidate is realistically worse, being Pareto-dominated on the unmeasured memory axis.
 
-This is a case of proxy mismatch as described in @sec-feedback-verification-trust. While strict preregistration prevents moving the goalposts to declare a false 'win,' an architect discovering this severe proxy mismatch in production would explicitly abort the preregistered study, amend the objective function to incorporate multi-objective physical constraints directly into the rejection criteria (e.g., an Energy-Delay Product $E_{total} = E_{compute} + E_{SRAM} + E_{DRAM}$), and restart the bounded loop to co-optimize Power, Performance, and Area (PPA) simultaneously.
+This is a case of proxy mismatch, as illustrated in @fig-proxy-mismatch and described in @sec-feedback-verification-trust. While strict preregistration prevents moving the goalposts to declare a false 'win,' an architect discovering this severe proxy mismatch in production would explicitly abort the preregistered study, amend the objective function to incorporate multi-objective physical constraints directly into the rejection criteria (e.g., an Energy-Delay Product $E_{total} = E_{compute} + E_{SRAM} + E_{DRAM}$), and restart the bounded loop to co-optimize Power, Performance, and Area (PPA) simultaneously.
+
+```{python}
+#| label: fig-proxy-mismatch
+#| fig-cap: |
+#|   **The proxy mismatch hides a Pareto-dominated failure.** A 1D surrogate score (such as cycles and utilization) ranks the 16 by 64 candidate exactly equal to the 32 by 32 baseline. However, plotting the candidates across two physical axes (Compute Cycles vs. Off-Chip DRAM Writes) reveals the 16 by 64 candidate is severely Pareto-dominated by the baseline when unmeasured memory traffic is accounted for.
+#| out-width: "80%"
+#| fig-alt: "Scatter plot of evaluated systolic array shapes. The 32x32 baseline and 16x64 candidate are vertically aligned at about 13917 cycles on the X-axis. However, on the Y-axis (DRAM writes), the 16x64 shape is twice as high (over 400,000 writes) compared to the baseline (around 204,000 writes), showing it is dominated in actual physical cost."
+
+import json
+from pathlib import Path
+import matplotlib.pyplot as plt
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+result_path = Path("../labs/examples/ai_systolic_array_study/recorded/reference/study_results.json")
+result = json.loads(result_path.read_text(encoding="utf-8"))
+
+# We will just plot all evaluated runs
+arm_runs = [r for r in result["evaluations"] if r["arm"] in {"model", "conventional"}]
+
+fig, ax = plt.subplots(figsize=(5.6, 3.5))
+fig.subplots_adjust(left=0.18, right=0.95, top=0.88, bottom=0.15)
+
+ax.set_title("Proxy Mismatch: 1D Score vs 2D Physical Reality", fontsize=7.5, pad=8)
+ax.set_xlabel("Compute Cycles (lower is better)", fontsize=6.5)
+ax.set_ylabel("Off-Chip DRAM Writes (lower is better)", fontsize=6.5)
+
+# Deduplicate points by candidate_id
+seen = set()
+for r in arm_runs:
+    cid = r["candidate_id"]
+    if cid in seen: continue
+    seen.add(cid)
+
+    cycles = r["gates"]["deadline"]["observed"]
+    dram_writes = r["metrics"]["dram_writes"]
+
+    label = cid.replace("model_baseline_", "").replace("ai_wide_", "").replace("ai_extreme_", "").replace("ai_compact_", "").replace("conventional_baseline_", "").replace("heuristic_", "")
+
+    if "32x32" in label:
+        color = COLORS["blue"]
+        marker = "o"
+        label_text = f"Baseline\n{label}"
+        ax.plot(cycles, dram_writes, marker=marker, markersize=5, color=color)
+        ax.text(cycles - 500, dram_writes - 10000, label_text, color=COLORS["ink"], fontsize=5.5, ha="right", va="top")
+    elif "16x64" in label:
+        color = COLORS["red"]
+        marker = "X"
+        label_text = f"AI Proposal\n{label}"
+        ax.plot(cycles, dram_writes, marker=marker, markersize=5, color=color)
+        ax.text(cycles + 300, dram_writes + 15000, label_text, color=COLORS["ink"], fontsize=5.5, ha="left", va="bottom")
+    else:
+        color = COLORS["orange"]
+        marker = "s"
+        ax.plot(cycles, dram_writes, marker=marker, markersize=4, color=color, alpha=0.6)
+        ax.text(cycles + 300, dram_writes, label, color=COLORS["ink"], fontsize=5, ha="left", va="center", alpha=0.7)
+
+# Draw a dashed line showing the Pareto frontier
+ax.axvline(x=13917, color=COLORS["grid"], linestyle="--", linewidth=0.8, zorder=0)
+
+ax.tick_params(axis="both", labelsize=5.9, length=2.5, width=0.6, pad=2)
+ax.grid(True, color=COLORS["grid"], linewidth=0.55, zorder=0)
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+
+plt.show()
+```
 
 [^fn-dram-traffic]: At identical cycles and utilization, the 16 by 64 shape issues 409,726 DRAM writes against the baseline's 204,863, twice as many, and about 1.6 times the DRAM accesses.
 

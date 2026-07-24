@@ -136,7 +136,61 @@ To rigorously benchmark an agent, we must evaluate its *Epistemic Robustness*, o
 
 Unlike software unit tests which are largely orthogonal, hardware design involves navigating tight Pareto frontiers. Improving one metric almost invariably degrades another. The canonical failure mode for naive agents is the **Setup vs. Hold Oscillation**. Fixing a setup time violation (e.g., by upsizing a cell or swapping to a low-Vt cell) speeds up the logic cone, which can immediately trigger a hold time violation if that cell is shared with an intersecting short path that is now too fast for the capturing flip-flop.
 
-Furthermore, resolving physical Design Rule Checks (DRCs) is highly localized but structurally rigid. Moving a wire to fix a spacing violation often pushes it into an adjacent net, triggering a DRC cascade. Evaluators must log the state trajectory of the agent, not just the final outcome. A rigorous benchmark plots the DRC burn-down rate over time. A capable agent demonstrates directed, *monotonic convergence* toward a clean state; a failing agent diverges into an infinite loop, thrashing wildly between constraints.
+Furthermore, resolving physical Design Rule Checks (DRCs) is highly localized but structurally rigid. Moving a wire to fix a spacing violation often pushes it into an adjacent net, triggering a DRC cascade. Evaluators must log the state trajectory of the agent, not just the final outcome. A rigorous benchmark plots the DRC burn-down rate over time (@fig-whac-a-mole). A capable agent demonstrates directed, *monotonic convergence* toward a clean state; a failing agent diverges into an infinite loop, thrashing wildly between constraints.
+
+```{python}
+#| label: fig-whac-a-mole
+#| fig-cap: |
+#|   **Evaluating trajectory efficiency: Monotonic convergence vs. Constraint Whac-A-Mole.** A capable agent resolves complex, coupled constraints smoothly over time, reaching zero violations (green). A naive agent gets trapped in a cycle of Constraint Whac-A-Mole, blindly fixing setup violations only to create hold violations, oscillating endlessly without converging on a valid physical implementation (red).
+#| out-width: "85%"
+#| fig-alt: "Line chart showing number of timing/DRC violations over agent tool iterations. The X-axis spans 0 to 20 iterations. The Y-axis shows the count of violations. A green line ('Capable Agent') drops smoothly from 50 to 0 by iteration 15. A red dashed line ('Naive Agent') drops initially but then bounces up and down endlessly between 10 and 20 violations in a jagged sawtooth pattern."
+
+import matplotlib.pyplot as plt
+import numpy as np
+from _python.arch2_plots import COLORS, apply_style
+
+apply_style()
+
+# Synthetic trajectory data
+iterations = np.arange(21)
+capable = 50 * np.exp(-0.25 * iterations)
+capable = [max(0, int(val)) for val in capable]
+
+naive = []
+for i in iterations:
+    if i < 5:
+        naive.append(int(50 * np.exp(-0.2 * i)))
+    else:
+        # Oscillate between setup and hold fixes
+        naive.append(15 + 5 * (-1)**i)
+
+fig, ax = plt.subplots(figsize=(5.6, 3))
+fig.subplots_adjust(left=0.12, right=0.95, top=0.88, bottom=0.18)
+
+ax.plot(iterations, capable, linewidth=2.5, color=COLORS["green"], label="Capable Agent (Monotonic burn-down)")
+ax.plot(iterations, naive, linewidth=2.0, linestyle="--", color=COLORS["red"], label="Naive Agent (Constraint oscillation)")
+
+# Annotate the Whac-a-Mole behavior
+ax.annotate("Fixes Setup", xy=(8, 10), xytext=(7, 2), arrowprops=dict(arrowstyle="->", color=COLORS["ink"], lw=0.8), fontsize=6, color=COLORS["ink"])
+ax.annotate("Breaks Hold", xy=(9, 20), xytext=(8, 28), arrowprops=dict(arrowstyle="->", color=COLORS["ink"], lw=0.8), fontsize=6, color=COLORS["ink"])
+
+ax.set_title("Agent Trajectory: Constraint Whac-A-Mole", fontsize=7.5, pad=10)
+ax.set_xlabel("Tool Iterations", fontsize=6.5)
+ax.set_ylabel("Total Timing / DRC Violations", fontsize=6.5)
+ax.set_xlim(0, 20)
+ax.set_ylim(-2, 55)
+
+ax.legend(frameon=False, fontsize=6.5, loc="upper right")
+ax.tick_params(axis="both", labelsize=5.9, length=2.5, width=0.6, pad=2)
+ax.grid(True, color=COLORS["grid"], linewidth=0.55, zorder=0)
+
+for spine in ["top", "right"]:
+    ax.spines[spine].set_visible(False)
+ax.spines["left"].set_color(COLORS["ink"])
+ax.spines["bottom"].set_color(COLORS["ink"])
+
+plt.show()
+```
 
 Often, the correct response to an error is not to rewrite the RTL, but to exercise *Constraint Intelligence*. We evaluate the agent's ability to emit proper SDC files (e.g., defining `set_false_path` for CDC boundaries, or `set_multicycle_path` for architectural multi-cycle logic) rather than uselessly trying to physically optimize an impossible timing path.
 
@@ -179,13 +233,11 @@ Agentic optimization often results in heavy-tailed or bimodal distributions beca
 A rigorous benchmark must mandate:
 *   **Pass@k,t:** Adapt traditional software Pass@k to hardware's compilation bottlenecks. Define probability of success within $k$ attempts and a bounded EDA tool time $t$ to penalize outliers that cause simulation timeouts.
 
-    While `Pass@k,t` is necessary to measure an agent's algorithmic search capability during benchmarking, traditional Pass@k merely rewards at least one success in $k$ tries.[^fn-pass-at-k-c10] Deployment, however, usually needs the opposite property: high Pass@1 reliability so the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
+    While `Pass@k,t` is necessary to measure an agent's algorithmic search capability during benchmarking, traditional Pass@k merely rewards at least one success in $k$ tries.^[**Pass@k**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass@1 reliability.] Deployment, however, usually needs the opposite property: high Pass@1 reliability so the agent does not fail on a single run and ruin a tape-out schedule. Furthermore, an abstract Pass@k fails as a metric without rigorous physical place-and-route validation [@Kahng2018Machine]; an agent might achieve a high Pass@k on logic-only tests or Verilog linting, but if those passing designs contain unroutable congestion or violate physical layout rules, the metric is misleading.
 
 *   **Wilcoxon Signed-Rank Test:** Use non-parametric tests to verify if one agent's trajectory statistically significantly dominates another across paired task suites.
 *   **Bootstrapping Confidence Intervals:** When comparing Agent A to Agent B, authors must use bootstrap sampling (e.g., 10,000 resamples) to establish 95% confidence intervals around the expected Simulator Tax or PPA gain, as hardware sample sizes are often $N < 30$.
 *   **Regression Test Caching:** For CI/CD regression tracking, evaluators must recognize that $T=0$ (greedy decoding) does not guarantee deterministic outputs due to floating-point non-determinism in GPU batching and MoE routing; regression systems must instead rely on strict seed tracking and semantic hashing of outputs. ML-Sys platforms must cache EDA outputs mapped to specific generated Verilog SHAs to prevent wasting license hours on unchanged proposals.
-
-[^fn-pass-at-k-c10]: **Pass@k**: A software metric measuring whether at least one out of $k$ generated solutions passes the tests. In hardware, generating 99 unroutable netlists and 1 working netlist is an unacceptable waste of physical synthesis compute. Hardware deployments demand high Pass@1 reliability.
 
 ### The Evaluator's Cheat Sheet: What to Report and Why
 
