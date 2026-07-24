@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
-from arch2_plots import apply_style, COLORS
+from plots import apply_style, COLORS
 from pathlib import Path
 
 apply_style()
