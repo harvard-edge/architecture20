@@ -86,7 +86,7 @@ place_labels(ax, fig, items, fontsize=5.0, color=COLORS["ink"])
 fig.subplots_adjust(left=0.115, right=0.97, top=0.98, bottom=0.115)
 ```
 
-The trend is why the boundary matters now rather than later. The length of task an agent can finish unaided has doubled roughly every six months, from seconds of work in 2019 to a full workday by 2026 [@KwaEtAl2025MeasuringLongTasks], steadily enlarging what can be handed off. What does not grow with it is answerability, which stays with the architect however much execution crosses the line. If foundation models for hardware design follow the scaling laws observed in software, the frontier will shift from massive pre-training runs toward massive test-time compute, where models execute thousands of internal simulations before proposing a final macro.
+The trend is why the boundary matters now rather than later. The length of task an agent can finish unaided has doubled roughly every six months, from seconds of work in 2019 to a full workday by 2026 [@KwaEtAl2025MeasuringLongTasks], steadily enlarging what can be handed off. What does not grow with it is answerability, which stays with the architect however much execution crosses the line. If foundation models for hardware design follow the scaling laws observed in software, the frontier will shift from massive pre-training runs toward massive test-time compute [@Snell2024Scaling], where models execute thousands of internal simulations before proposing a final macro.
 
 ::: {.callout-learning-objectives}
 After reading this chapter, you can:
@@ -137,6 +137,10 @@ As the next decision changes, so do the permitted automated actions, evidence ch
 
 Evidence fidelity and decision authority remain separate. A proxy, cycle-level simulator, RTL test, emulator, synthesis flow, place-and-route result, or signoff check may support a claim within its scope. Stronger evidence does not grant a tool permission to approve a waiver or authorize tapeout. The evidence must fit the action, and the right to take that action must be assigned.
 
+::: {.callout-war-story title="The Loophole in the Proxy"}
+A design team once deployed an AI optimizer that achieved "perfect" timing closure on a critical block in record time. The agent had discovered and exploited a loophole in the fast, proxy Static Timing Analysis (STA) model used in the inner loop of the search. The block flawlessly passed the proxy constraints but immediately failed the human-owned signoff STA. This perfectly grounds why proxy evidence—no matter how statistically confident—never equals signoff authority. The right to sign off requires the capacity to be held accountable for the final physical tapeout.
+:::
+
 ## Enforcing the Epistemic Trust Boundary
 
 An architecture study stays coherent only when it rigorously enforces this separation as the boundary between search and signoff. Work can move to a model, a script, or a specialist, but the responsibility for the resulting claim stays with a named architect. Few cases test this epistemic boundary as sharply as the public debate over AlphaChip, where a fast and capable placement method invites exactly the confusion the distinction is meant to prevent.
@@ -144,7 +148,7 @@ An architecture study stays coherent only when it rigorously enforces this separ
 ### Separating Search from Signoff
 
 ::: {.callout-war-story title="AlphaChip and the Ownership Boundary"}
-- **The claim:** The public debate surrounding AlphaChip, a reinforcement learning method for chip floorplanning, illustrates the separation between delegated work and assigned responsibility.
+- **The claim:** The public debate surrounding AlphaChip [@Mirhoseini2021AlphaChip; @Markov2023AlphaChipCritique], a reinforcement learning method for chip floorplanning, illustrates the separation between delegated work and assigned responsibility.
 
 - **The gap:** It is tempting to credit the AI with designing the chip, which blurs the line between execution and architectural ownership. The agent generated candidate macro placements at superhuman speed, but it did not sign off on the physical limits of the silicon.
 
@@ -186,7 +190,11 @@ Because assigning responsibility requires naming who makes the final call, execu
 
 ### The Architect as Multi-Agent Economist
 
-In a multi-agent system, specialist agents will inherently conflict as they ruthlessly optimize their proxy metrics. A Power Agent attempting to minimize dynamic switching activity will directly contradict a Performance Agent attempting to maximize speculative instruction issue. The human architect owns the intent-to-metric translation and the Pareto negotiation between these agents. The architect acts as the "chief economist," resolving multi-agent deadlocks by aligning competing AI incentives with unquantifiable human product goals, such as user experience constraints or brand risk. An agent may find a mathematically optimal point on the Pareto frontier, but only the human architect can declare which point on that frontier represents the viable product.
+In a multi-agent system, specialist agents will inherently conflict as they ruthlessly optimize their proxy metrics. A Power Agent attempting to minimize dynamic switching activity will directly contradict a Performance Agent attempting to maximize speculative instruction issue. For the XR Lighthouse, this might manifest in the Network-on-Chip (NoC): a Power Agent might aggressively narrow NoC link widths to save dynamic power, accidentally starving the headset's real-time camera ingest of the massive bandwidth required for spatial tracking. The human architect owns the intent-to-metric translation and the Pareto negotiation between these agents. The architect acts as the "chief economist," resolving multi-agent deadlocks by aligning competing AI incentives with unquantifiable human product goals, such as user experience constraints or brand risk. An agent may find a mathematically optimal point on the Pareto frontier, but only the human architect can declare which point on that frontier represents the viable product.
+
+::: {.callout-war-story title="The Turbo-Boost Power Loop"}
+The failure to assign this Pareto negotiation to a human architect often leads to destructive system behavior. In a known industry SoC failure, an automated power-management firmware loop conflicted with a hardware turbo-boost controller. Each acted as an independent agent optimizing its own proxy metric: one aggressively scaled down voltage to save power, while the other instantly spiked frequency in response to transient loads. Because no human architect explicitly owned the negotiation between these two control loops, the resulting destructive feedback loop caused sudden voltage droops and system crashes under specific workloads.
+:::
 
 ### Agentic Conway's Law
 
@@ -217,9 +225,13 @@ A transfer can be proportional. A small reversible study need not produce a cert
 
 The Pentium FDIV case in @sec-stronger-evaluation-expensive showed how a small omission became difficult and expensive to reverse after shipment. The ownership question is different but no less concrete. In the FDIV case, the assumptions made by algorithm experts regarding table optimizations were not explicitly transferred as testable obligations to the validation teams, leaving a critical verification gap. At each consequential transition, someone had to own the evidence standard, unresolved exceptions, and authority to proceed, and after a transfer the next role also needed the assumptions and open conditions that could still overturn the decision. The public record does not reconstruct every internal handoff, so the case marks where a sound process must assign that responsibility at its technical, product, and public transitions.
 
+::: {.callout-war-story title="The Lost Context of the Thermal Model"}
+A modern ML-centric failure highlights the same gap in ownership transfer. An ML-based thermal prediction model was trained and transferred to a physical design team for use in placement optimization. However, the tacit assumption that *aggressive clock-gating would be enabled* across the SoC failed to transfer. The physical design team used the model to place macros tightly, assuming the model accounted for worst-case thermals. The resulting silicon suffered massive thermal throttling in the field because the environment constraints that made the model's predictions valid did not travel with the artifact.
+:::
+
 ## Making Tacit Knowledge Reviewable
 
-Making this responsibility reviewable is challenged by an institutional problem known as the irony of automation [@Bainbridge1983Ironies]. The drive to delegate routine work removes the practice through which experts once learned to detect unusual failures. If an AI always handles the memory controller layout or coherence protocol verification, junior architects never develop the tacit knowledge to recognize a congested routing channel or a subtle race condition.
+Making this responsibility reviewable is challenged by an institutional problem known as the irony of automation [@Bainbridge1983Ironies]. The drive to delegate routine work removes the practice through which experts once learned to detect unusual failures. If an AI flawlessly generates memory controller configurations or handles coherence protocol verification, junior architects never develop the tacit knowledge to recognize subtle DRAM scheduling collisions unique to XR streaming frame buffers, or to spot a congested routing channel and a subtle race condition.
 
 ### The Irony of Automation
 
@@ -227,7 +239,7 @@ This tacit knowledge includes the implicit assumptions about physical constraint
 
 Formal records solve only part of the transfer problem. Architecture decisions also depend on tacit knowledge, which encompasses the undocumented constraints and context that experienced engineers carry.[^fn-cross-layer-exceptions-c11]
 
-[^fn-cross-layer-exceptions-c11]: **Tacit constraints (examples)**: A packaging engineer may know that a chiplet partition threatens the power-delivery mesh, a compiler lead that the current LLVM backend cannot efficiently lower a proposed vector instruction, and a senior architect that the accelerator's coherency traffic will starve the display controller under the 3\ W TDP target.
+[^fn-cross-layer-exceptions-c11]: **Tacit constraints (examples)**: A packaging engineer may know that a chiplet partition or an AI-proposed macro placement for the Lighthouse SoC might pass logical checks but structurally compromise the 3\ nm package's physical power-delivery mesh, a compiler lead that the current LLVM backend cannot efficiently lower a proposed vector instruction, and a senior architect that the accelerator's coherency traffic will starve the display controller under the 3\ W TDP target.
 
 Not every judgment can be fully encoded into a schema. Enough of a consequential judgment must be exposed for another person to understand where it came from, where it applies, who validated it, and when it needs another review.
 
@@ -339,12 +351,12 @@ Even with strong team competence, as the marginal cost of searching the architec
 
 **Theme 1: AI-Native Hardware Abstractions.** Today's HDLs and ISAs were built for human designers, not for learned methods to optimize directly.
 
-- Can hardware description languages and ISAs expose a differentiable search space that learned methods optimize directly, and what is lost when they do?
+- Can hardware description languages and ISAs expose a differentiable search space that learned methods optimize directly [@DifferentiableISA2023], and what is lost when they do?
 - Can compositional microarchitectural primitives let neural networks assemble and optimize data paths directly, rather than through RTL syntax?
 
 **Theme 2: The Limits of ML vs. Formal Logic.** Some architectural properties can be formally proven; others admit only statistical evidence.
 
-- Can neuro-symbolic[^fn-neuro-symbolic-c11] agents partition architectural design spaces, shifting between neural search for topology generation and SMT solvers for invariant verification?
+- Can neuro-symbolic[^fn-neuro-symbolic-c11] agents [@HybridNeuroSymbolic2023] partition architectural design spaces, shifting between neural search for topology generation and SMT solvers for invariant verification?
 
 [^fn-neuro-symbolic-c11]: **Neuro-symbolic methods**: Hybrid systems that pair neural networks, which search and generalize from data, with symbolic engines such as satisfiability modulo theories (SMT) solvers, which prove or refute exact logical properties. Each side covers the failure mode of the other.
 

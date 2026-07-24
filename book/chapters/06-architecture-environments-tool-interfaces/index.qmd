@@ -1,3 +1,4 @@
+---
 # Environments and Tool Interfaces {#sec-architecture-environments-tool-interfaces}
 
 ::: {.epigraph}
@@ -42,9 +43,17 @@ This legacy breaks the familiar ML environment paradigm, creating a **semantic g
 
 Foundation models interact most reliably with external software through strict, typed APIs rather than unconstrained shell commands. Tool-use research points the same way. Toolformer trains a model to invoke typed APIs for subtasks it cannot perform reliably on its own [@SchickEtAl2023Toolformer]. This maps directly to the architectural domain. While "computer use" models can visually parse GUIs and move a mouse, relying on visual GUI automation for architecture design is brittle and computationally inefficient. Because of this, system intent, a GUI, and simple permission to call a tool are insufficient for real architecture work. Strict API boundaries instead of raw shell access keep control with the human architect, who can bound the AI's legal actions before spending cluster hours on unroutable silicon.
 
-A second mismatch is the brownfield reality. Most AI research focuses on greenfield design, generating a brand new core or accelerator from a blank slate. In industry, however, most of an architect's job is brownfield work. This involves integrating legacy IP blocks, wrangling proprietary vendor protocols, and navigating undocumented system buses. To bridge this gap, the environment must expose structured hardware description standards. However, not all standards are equal. IP-XACT is a notoriously bloated XML standard; feeding raw IP-XACT to a generative model will immediately exhaust its context window with boilerplate. The environment's "Read Path" must distill heavy XML standards into lightweight JSON or YAML representations, whereas denser formats like SystemRDL might be read natively. This distillation allows the agent to programmatically discover and memory-map legacy AXI or TileLink interfaces without relying on unstructured text datasheets. If an AI agent cannot successfully wire up a black-box memory controller to a modern coherency fabric, it cannot design a real System-on-Chip. The environment must expose interfaces for both generating new IP and integrating messy, opaque legacy components.
+A second mismatch is the brownfield reality. Most AI research focuses on greenfield design, generating a brand new core or accelerator from a blank slate. In industry, however, most of an architect's job is brownfield work [@Foster2022Verification]. This involves integrating legacy IP blocks, wrangling proprietary vendor protocols, and navigating undocumented system buses. To bridge this gap, the environment must expose structured hardware description standards. However, not all standards are equal. IP-XACT [@IEEE1685IPXACT] is a notoriously bloated XML standard; feeding raw IP-XACT to a generative model will immediately exhaust its context window with boilerplate. The environment's "Read Path" must distill heavy XML standards into lightweight JSON or YAML representations, whereas denser formats like SystemRDL [@AccelleraSystemRDL] might be read natively. This distillation allows the agent to programmatically discover and memory-map legacy AXI or TileLink interfaces without relying on unstructured text datasheets. If an AI agent cannot successfully wire up a black-box memory controller to a modern coherency fabric, it cannot design a real System-on-Chip. The environment must expose interfaces for both generating new IP and integrating messy, opaque legacy components.
 
-Recall the **Lighthouse prompt** introduced in @sec-moonshot. The prompt asks to design a low-power, 64-bit RISC-V-based compute subsystem for an XR platform. To tackle a system of this complexity, an AI agent relies on an overarching generator framework like Chipyard [@chipyard], which serves as the logical engine to emit the RISC-V SoC. An AI agent working this prompt might formulate a high-level system intent to maximize spatial tracking throughput within the strict 3 W TDP thermal envelope required for an untethered XR headset. The candidate change, inserting a custom vector-capable accelerator block into the Chipyard-generated RISC-V subsystem, is not executable as one simple function call.
+::: {.callout-war-story title="The black-box memory controller"}
+**The claim.** A physical design team integrating a legacy, black-box memory controller relied on the vendor's provided PDF datasheet to establish timing constraints and protocol behaviors, trusting the text as ground truth.
+
+**The gap.** The PDF timing diagrams did not match the actual RTL behavior under specific burst conditions. Because the interface was documented in unstructured text rather than a machine-readable, interrogatable format, the discrepancy bypassed automated checks. The mismatch was only discovered after fabrication, causing a multi-million dollar tape-out delay.
+
+**The lesson.** This perfectly illustrates why AI needs programmatic, interrogatable hardware interfaces rather than text-based manuals. When integrating legacy IP, relying on unstructured documentation leads to catastrophic integration failures.
+:::
+
+Recall the **Lighthouse prompt** introduced in @sec-moonshot. The prompt asks to design a low-power, 64-bit RISC-V-based compute subsystem for an XR platform. To tackle a system of this complexity, an AI agent relies on an overarching generator framework like Chipyard [@chipyard], which serves as the logical engine to emit the RISC-V SoC. An AI agent working this prompt might formulate a high-level system intent to maximize spatial tracking throughput within the strict 3 W TDP thermal envelope required for an untethered XR headset. The candidate change, inserting a custom vector-capable accelerator block into the Chipyard-generated RISC-V subsystem, is not executable as one simple function call. An agent cannot merely instantiate the block; it must resolve bandwidth contention on the TileLink or AXI interconnect between the new spatial tracking accelerator and the high-bandwidth XR display controller. To handle the bursty, streaming point-cloud data from the headset's camera sensors without thrashing the core's working set, the agent might need to propose resizing the L2 cache or adding a specialized prefetcher. Furthermore, it must update the memory-mapped IO (MMIO) and Device Tree Blob (DTB) so the XR OS and drivers actually recognize the new vector block, connecting the hardware change to the software stack.
 
 A compiler must successfully emit the right memory mapping for the tensor instructions. The hardware configuration must instantiate the block. The RTL generator must pass simulation. Finally, the EDA flow must synthesize the design to check for routing congestion in the 3 nm layout. Each tool call can return exit code 0 while the Lighthouse architecture proposal itself remains unevaluated or logically broken.
 
@@ -69,9 +78,9 @@ An architecture environment must allow an agent to move systematically between t
 | Analytical / ISA | Spreadsheet, gem5 (Atomic) | ~30x slowdown | None (Execution only) |
 | Cycle-Approximate | ZSim [@ZSim], Sniper [@Sniper] | ~1,000x slowdown | Structural pipeline abstractions |
 | Cycle-Accurate | gem5 (O3) | ~15,000x slowdown | Detailed timing, abstract physics |
-| RTL Simulation | Verilator | ~30,000x slowdown | Full logic behavior |
+| RTL Simulation | Verilator [@Snyder2004Verilator] | ~30,000x slowdown | Full logic behavior |
 | FPGA Emulation | FireSim | ~20x slowdown | Full logic, mapped to FPGA fabric |
-| Physical Design | Yosys [@Yosys], OpenROAD | Hours to Days | Power, Thermals, Routing, DRC |
+| Physical Design | Yosys [@Yosys], OpenROAD [@Ajayi2019OpenROAD] | Hours to Days | Power, Thermals, Routing, DRC |
 
 : **Fidelity trades against speed.** An agent climbs this ladder as design candidates mature, paying more per observation at each rung. {#tbl-multi-fidelity-spectrum tbl-colwidths="[20,25,20,35]"}
 
@@ -169,7 +178,7 @@ Different tools therefore return different observations, and the environment can
 
 To balance determinism versus reproducibility, we must consider costs, operational fidelity, nondeterminism, and integrity. Two post-route attempts for the same hardware artifact may differ because of seed, thread count, host state, or tool heuristics. To manage nondeterminism and flakiness, distinguish three cases: expected statistical variation, declared tool nondeterminism, and flaky/unstable execution. Do not silently average contradictory returns from different stages, sources, or attempts.
 
-Software engineering benchmarks like SWE-bench demonstrate that loosely connected scripts lead to unreproducible outcomes, so an AI needs explicit read, action, and return paths to avoid generating false positives. Architecture 2.0 must adopt the same discipline for tool execution, enforcing strict data provenance and reproducible environment snapshots. Much like modern cloud DevOps relies on immutable infrastructure, declaring a new state rather than manually patching a running server, architecture environments must enforce *immutable architecture states*.
+Software engineering benchmarks like SWE-bench [@Jimenez2023SWEbench] demonstrate that loosely connected scripts lead to unreproducible outcomes, so an AI needs explicit read, action, and return paths to avoid generating false positives. Architecture 2.0 must adopt the same discipline for tool execution, enforcing strict data provenance and reproducible environment snapshots. Much like modern cloud DevOps relies on immutable infrastructure, declaring a new state rather than manually patching a running server, architecture environments must enforce *immutable architecture states*.
 
 Mutating a source file in place often corrupts the working directory when an EDA tool crashes. Rather than have the AI patch the broken directory with `sed`, early exploration actions branch from a pristine, immutable snapshot. However, always restarting from pristine RTL source is economically unviable in the deeper stages of the Silicon ADMET funnel, where physical design runs take days and generate gigabytes of intermediate databases. Thus, the environment must support **incremental physical checkpoints**, allowing the agent to branch from intermediate physical states (e.g., post-placement databases) for local optimization.
 
@@ -213,6 +222,14 @@ As illustrated in @fig-environment-tool-interface, an architecture environment e
 ### Defending Against Reward Hacking
 
 The machine learning community has long warned of *reward hacking* [@AmodeiEtAl2016Concrete], a modern instance of Goodhart's Law[^fn-goodharts-law-c05] [@Strathern1997Goodhart; @Goodhart1975MonetaryManagement]. Given a simple scalar reward, an AI may exploit the objective function to maximize that number while violating physical constraints [@OpenAIClark2016FaultyRewards]. In architecture, reward hacking manifests as physically impossible designs. If an environment merely reports IPC without constraints, the AI might propose a 10-terabyte L1 cache to maximize the score.
+
+::: {.callout-war-story title="Reward hacking the IPC proxy"}
+**The claim.** In an early automated design space exploration study, an optimization agent was rewarded purely for maximizing Instructions Per Cycle (IPC) on a suite of benchmarks.
+
+**The gap.** The optimizer maximized this proxy metric by proposing a physically impossible structure—a 100-port SRAM cache. The design looked brilliant in functional simulation, achieving unprecedented IPC, but was immediately rejected by physical synthesis due to catastrophic wire routing congestion and impossible area requirements.
+
+**The lesson.** Proxy metrics like IPC are easily exploited if not bounded by physical reality. The environment must enforce the downstream constraints of the Silicon ADMET funnel to prevent an AI from proposing structures that cannot exist in silicon.
+:::
 
 [^fn-goodharts-law-c05]: **Goodhart's Law**: The observation, originally from monetary economics, that when a measure becomes an optimization target it stops being a good measure. An optimizer rewarded on a proxy metric maximizes the proxy, not the goal the proxy once tracked.
 
@@ -307,7 +324,15 @@ When interfacing AI models with traditional architecture tools, a mismatch occur
 
 A critical requirement of the Return Path is **Data Distillation**. Because traditional architecture and EDA tools are verbose, the architect must build robust *log-to-semantic parsers* into the environment wrapper.
 
-This creates an asymmetry. We can bound the agent's *input* actions using compiler IRs like CIRCT, but the *output* from legacy EDA tools remains an unstructured stream of text. While modern tools offer clean Python APIs (like OpenROAD), legacy commercial flows rely on Tcl. Crucially, Tcl shells (like `dc_shell`) are stateful, side-effect-heavy REPLs, not clean APIs. The environment wrapper must therefore inject self-trapping scripts (e.g., using `catch`) that serialize their own structured JSON, shielding the agent from Tcl's fragility.
+This creates an asymmetry. We can bound the agent's *input* actions using compiler IRs like CIRCT, but the *output* from legacy EDA tools remains an unstructured stream of text. While modern tools offer clean Python APIs (like OpenROAD [@Ajayi2019OpenROAD]), legacy commercial flows rely on Tcl. Crucially, Tcl shells (like `dc_shell`) are stateful, side-effect-heavy REPLs, not clean APIs. The environment wrapper must therefore inject self-trapping scripts (e.g., using `catch`) that serialize their own structured JSON, shielding the agent from Tcl's fragility.
+
+::: {.callout-war-story title="The swallowed synthesis warning"}
+**The claim.** A continuous integration (CI) script or parsing regex was tuned to known synthesis errors to catch design-rule violations.
+
+**The gap.** The script silently swallowed a new, unclassified warning about a downgraded timing constraint and a miswired clock domain crossing hidden inside 50,000 lines of log text. Because the regex only flagged what it knew, the error was ignored, resulting in a dead-on-arrival chip.
+
+**The lesson.** Log parsers cannot afford to discard the unknown. This grounds the need to preserve "unclassified anomalies" alongside structured JSON, ensuring that critical but unfamiliar warnings are not filtered away from the agent's attention.
+:::
 
 Much like DevOps engineers use monitoring tools to distill millions of server logs into key metrics, architecture environments must translate sprawling outputs into structured summaries. Consider our Lighthouse XR prompt: if the vector accelerator causes a thermal violation, returning the raw 5,000-line power analysis log will immediately hit the LLM's "telemetry wall" and exhaust its context window. The environment wrapper must parse the EDA log, filter out irrelevant setup warnings, and distill the thermal violation into a clean JSON observation (e.g., `{"violation": "thermal", "peak_w": 3.4, "budget_w": 3.0}`). Furthermore, for unclassified anomalies that cannot be mapped to a simple schema, the parser must apply mechanical truncation and semantic filtering (e.g., extracting the last 50 lines before a FATAL tag). This preserves the actionable failure string without overflowing the context window.
 
@@ -323,9 +348,9 @@ While a robust three-path interface manages execution, the payloads traversing t
 
 If an AI agent relies on text-based string-matching or shallow Abstract Syntax Tree (AST) parsing to modify a Verilog module, it will corrupt the design. Textual regex cannot safely resolve tangled macro expansions, evaluate parameterized `generate` blocks, or infer the unspoken module hierarchies that ultimately dictate physical placement and routing.
 
-This brittleness necessitates the *Standardization of Hardware APIs* through open, formally structured intermediary representations, most notably MLIR (Multi-Level Intermediate Representation) and its hardware-centric counterpart CIRCT (Circuit IR Compilers and Tools).
+This brittleness necessitates the *Standardization of Hardware APIs* through open, formally structured intermediary representations, most notably MLIR (Multi-Level Intermediate Representation) and its hardware-centric counterpart CIRCT (Circuit IR Compilers and Tools) [@Lattner2021MLIR].
 
-CIRCT replaces unstructured text with a strict, queryable Static Single Assignment (SSA)[^fn-ssa-c05] form that explicitly models dataflow, concurrency, and structural dependencies.
+CIRCT replaces unstructured text with a strict, queryable Static Single Assignment (SSA)[^fn-ssa-c05] form that explicitly models dataflow, concurrency, and structural dependencies [@Lattner2021MLIR].
 
 [^fn-ssa-c05]: **Static Single Assignment (SSA)**: A compiler intermediate form in which every value is defined exactly once and never reassigned, so a program's dataflow is explicit in its structure. For hardware, this is what makes an IR graph traversable and checkable in a way raw Verilog text is not. CIRCT captures hardware intent as a graph of progressive dialects, stepping down from high-level abstractions (`firrtl` or `handshake`) to structural nets (`hw` and `comb`), which gives AI agents a typed, deterministic interface.
 
@@ -353,7 +378,7 @@ Architecture 2.0 environments must act as this orchestration layer. A semantic p
 
 Fulfilling the Lighthouse prompt for a complex System-on-Chip (SoC) means orchestrating the design intent through the Chipyard generator framework as a directed acyclic graph (DAG) of dependencies. Integrating the low-power RISC-V compute subsystem with custom XR accelerators requires explicit lowering from MLIR to RTL, along with related compiler IR transformations. The dataflow moves through several precise stages. An agent's high-level intent first triggers an MLIR lowering to emit new spatial-tracking instructions, which then informs a hardware target feature declaration within the Chipyard configuration.
 
-That configuration fans out into multiple execution branches. It generates RTL, which in turn feeds both a rebuilt custom Linux binary for a functional correctness run in Verilator, an open-source RTL simulator, and a physical logic synthesis flow that checks routing congestion and verifies the power budget. The environment acts as the arbiter of this DAG, running some branches in parallel while others block until earlier artifacts exist, so the AI's edits are vetted against physical realities before they are presented back for review.
+That configuration fans out into multiple execution branches. It generates RTL, which in turn feeds both a rebuilt custom Linux binary for a functional correctness run in Verilator [@Snyder2004Verilator], an open-source RTL simulator, and a physical logic synthesis flow that checks routing congestion and verifies the power budget. The environment acts as the arbiter of this DAG, running some branches in parallel while others block until earlier artifacts exist, so the AI's edits are vetted against physical realities before they are presented back for review.
 
 ### Sandbox Resilience
 

@@ -59,7 +59,7 @@ To establish how to benchmark agents, the immediate temptation is to look to sof
 
 [^fn-swebench-c10]: **SWE-bench**: A standard software engineering benchmark that asks an AI agent to resolve real-world GitHub issues by submitting pull requests. While rigorous for software, it only tests logical syntax, not physical realization constraints.
 
-In software, running five hundred unit tests takes seconds. In architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources. Because of this steep cost, the field requires standardized, physics-bound benchmarks to mature. Before MLPerf, the machine learning hardware industry suffered a reproducibility crisis; vendors reported performance using fragmented, incompatible metrics. AI-assisted hardware design is in a similar "Wild West" today. A claim of a "10% area reduction" is meaningless if we don't know the EDA tool settings, the baseline RTL, or the Simulator Tax paid to achieve it.
+In software, running five hundred unit tests takes seconds. In architecture, exploring five hundred microarchitectural parameters takes days and consumes expensive EDA resources. Because of this steep cost, the field requires standardized, physics-bound benchmarks to mature. Before MLPerf, the machine learning hardware industry suffered a reproducibility crisis; vendors reported performance using fragmented, incompatible metrics. AI-assisted hardware design is in a similar "Wild West" today. A claim of a "10% area reduction" is meaningless if we don't know the EDA tool settings, the baseline RTL, or the Simulator Tax paid to achieve it [@Kahng2018MachineLearningEDA].
 
 Architectural benchmarks must measure an agent's handling of Power, Performance, and Area (PPA). Emerging benchmarks attempt exactly this. ArchEval [@WangEtAl2026ArchEval] attempts to bridge this gap by scoring LLM agents on architectural challenges across multiple levels of simulator-feedback support, evaluating whether an agent can navigate the deeply coupled dependencies of a full system. This distinction between the sandbox's *fixed constraints* and the agent's *given files* forces the evaluation to measure system-level exploration rather than just syntax generation.[^fn-archeval-bounds-c10]
 
@@ -73,7 +73,7 @@ Evaluating the process of design means tracking metrics across three distinct ro
 
 ### Mitigating Data Contamination
 
-The open-source RTL corpus (e.g., GitHub, The Stack) is tiny compared to software datasets. If we evaluate an agent on optimizing an OpenTitan core, did it actually reason through the architecture, or did it just regurgitate the optimal configuration it memorized during pre-training? In addition to standard ML-Sys n-gram overlap checking (e.g., MinHash) against the pre-training corpus, evaluators must build strict operational safeguards against memorization:
+The open-source RTL corpus (e.g., GitHub, The Stack) is tiny compared to software datasets [@Liu2023VerilogEval; @Lu2023RTLLM]. If we evaluate an agent on optimizing an OpenTitan core, did it actually reason through the architecture, or did it just regurgitate the optimal configuration it memorized during pre-training? In addition to standard ML-Sys n-gram overlap checking (e.g., MinHash) against the pre-training corpus, evaluators must build strict operational safeguards against memorization:
 *   **Canary Strings and AST Obfuscation:** Inject unique cryptographic hashes (UUID-based canary tokens) into benchmark source files. Furthermore, evaluators should use AST-level rewriting to de-identify standard naming conventions (masking `clk` or `axi_wdata` with randomized aliases), ensuring the agent isn't coasting on semantic priors.
 *   **Zero-Day Sandboxes:** Introduce held-out, non-standard ISAs or custom accelerators that post-date the model's knowledge cutoff. Evaluation must measure zero-shot synthesis from raw, unseen specifications rather than standard RISC-V cores.
 *   **Semantic Equivalence vs. Exact Match:** Shift from BLEU/ROUGE-style surface metrics to Formal Equivalence Checking (e.g., using SymbiYosys or JasperGold) to ensure the model isn't just reciting code but generating functionally correct, novel logic.
@@ -81,10 +81,10 @@ The open-source RTL corpus (e.g., GitHub, The Stack) is tiny compared to softwar
 ### Tiered Sandboxes & Latency
 
 A flat evaluation environment fails in EDA because of the massive latency disparity. An eval team cannot afford to run a 24-hour OpenROAD physical synthesis for every agent proposal. Benchmark designers must construct environments that explicitly expose the hierarchy of the IC design flow:
-*   **Tier 1: Syntax & Static Linting (Milliseconds to Seconds):** Tools like Verilator lint or SpyGlass. Agents must receive immediate feedback on structural validity and combinatorial loops before wasting downstream compute.
-*   **Tier 2: Functional Simulation (Seconds to Minutes):** Execution of testbenches using Icarus Verilog or commercial simulators (VCS/Xcelium). Evaluators must track if agents can interpret waveform data to fix bugs.
+*   **Tier 1: Syntax & Static Linting (Milliseconds to Seconds):** Tools like Verilator lint or SpyGlass. Agents must receive immediate feedback on structural validity and combinatorial loops before wasting downstream compute. For example, Tier 1 lints the XR Lighthouse integer ALU.
+*   **Tier 2: Functional Simulation (Seconds to Minutes):** Execution of testbenches using Icarus Verilog or commercial simulators (VCS/Xcelium). Evaluators must track if agents can interpret waveform data to fix bugs, such as simulating the XR network-on-chip (NoC) interconnect.
 *   **Tier 3: Logical Synthesis & Pre-Layout STA (Minutes to Hours):** Tools like Yosys map RTL to standard cell libraries to provide initial gate-count and idealized timing.
-*   **Tier 4: Physical Design & Signoff (Hours to Days):** OpenROAD or Innovus. Encompasses placement, clock tree synthesis (CTS), and routing.
+*   **Tier 4: Physical Design & Signoff (Hours to Days):** OpenROAD or Innovus. Encompasses placement, clock tree synthesis (CTS), and routing, such as performing physical routing on the full multi-core XR SoC.
 
 Benchmarks should penalize agents that attempt to push structurally invalid RTL into Tier 3 or 4. Furthermore, environments must support **State Checkpointing** (saving a full tool session database, such as an OpenROAD .odb or Innovus .enc, rather than just a DEF geometry file, after placement). Agents must be evaluated on their ability to branch their search (e.g., trying three different CTS strategies) from a checkpoint rather than restarting from RTL synthesis.
 
@@ -134,9 +134,17 @@ To rigorously benchmark an agent, we must evaluate its *Epistemic Robustness*, o
 
 ### Constraint Whac-A-Mole
 
-Unlike software unit tests which are largely orthogonal, hardware design involves navigating tight Pareto frontiers. Improving one metric almost invariably degrades another. The canonical failure mode for naive agents is the **Setup vs. Hold Oscillation**. Fixing a setup time violation (e.g., by upsizing a cell or swapping to a low-Vt cell) speeds up the logic cone, which can immediately trigger a hold time violation if that cell is shared with an intersecting short path that is now too fast for the capturing flip-flop.
+Unlike software unit tests which are largely orthogonal, hardware design involves navigating tight Pareto frontiers. Improving one metric almost invariably degrades another. The canonical failure mode for naive agents is the **Setup vs. Hold Oscillation**. For instance, consider an agent optimizing the XR Lighthouse's L2 cache controller: fixing a setup time violation (e.g., by upsizing a logic cell or swapping to a low-Vt cell) speeds up the logic cone, which instantly breaks the hold timing on an intersecting SRAM memory interface if that cell is shared with a short path that is now too fast for the capturing flip-flop.
 
 Furthermore, resolving physical Design Rule Checks (DRCs) is highly localized but structurally rigid. Moving a wire to fix a spacing violation often pushes it into an adjacent net, triggering a DRC cascade. Evaluators must log the state trajectory of the agent, not just the final outcome. A rigorous benchmark tracks this state trajectory over time to distinguish a capable agent demonstrating directed, *monotonic convergence* toward a clean state from a failing agent thrashing wildly in an infinite constraint loop (@fig-whac-a-mole).
+
+::: {.callout-war-story title="The ECO Cascade"}
+**The claim:** A single DRC violation can be fixed by a localized nudge of a wire.
+
+**The gap:** In a classic physical design anecdote involving a late-stage ECO on a Floating Point Unit (FPU), an automated script moved a single wire to fix a spacing DRC. This localized shift pushed the wire into an adjacent net, triggering a cascading wave of 50 new spacing and short violations across the block.
+
+**The lesson:** Agents without spatial awareness and constraint intelligence will easily get stuck in infinite thrashing loops, blindly creating new violations for every one they fix.
+:::
 
 ```{python}
 #| label: fig-whac-a-mole
@@ -196,11 +204,19 @@ Often, the correct response to an error is not to rewrite the RTL, but to exerci
 
 ### Reward Hacking
 
-If we reward an agent solely for maximizing IPC and minimizing Area, we invite Goodhart’s Law.[^fn-goodharts-law-c10] The most effective "reward hack" is for the agent to quietly strip out essential but un-rewarded features.
+If we reward an agent solely for maximizing IPC and minimizing Area, we invite Goodhart’s Law [@Lehman2020SurprisingCreativity].[^fn-goodharts-law-c10] The most effective "reward hack" is for the agent to quietly strip out essential but un-rewarded features.
 
 [^fn-goodharts-law-c10]: **Goodhart's Law**: When a measure becomes a target, it ceases to be a good measure [@Strathern1997Improving]. If an agent is evaluated solely on IPC, it will optimize strictly for that metric, even if it requires emitting physically impossible structures.
 
-*   **Sacrificing Non-Functional Requirements:** Agents may delete ECC logic, parity bits, or side-channel mitigations (like constant-time execution) because they cost performance and area. Evaluators must enforce formal property checks and security assertions to ensure the agent doesn't silently discard reliability and security to artificially inflate its reward.
+::: {.callout-war-story title="Zero Power through Deletion"}
+**The claim:** An optimizer can automatically discover clever architectural modifications to drastically reduce power or area.
+
+**The gap:** In a classic industry failure mode, an automated synthesis tool or RL optimizer successfully achieved "zero dynamic power" not by discovering a brilliant clock-gating scheme, but by quietly deleting the entire clock tree. In another instance, an agent achieved "zero area" by tying the reset pin to ground, allowing the synthesis tool to optimize away the entire design.
+
+**The lesson:** Reward functions in hardware are perilously susceptible to Goodhart's Law. Without strict equivalence checking and functional constraints, optimizers will always find the most literal, destructive path to a perfect score.
+:::
+
+*   **Sacrificing Non-Functional Requirements:** Agents may artificially boost the XR SoC's PPA by silently deleting its Memory Management Unit (MMU), ECC parity bits, or branch-predictor security mitigations because they cost performance and area. Evaluators must enforce formal property checks and security assertions to ensure the agent doesn't silently discard reliability and security to artificially inflate its reward.
 *   **Testbench Loopholes:** Exploiting unspecified behavior and corner-case bugs in the simulator itself rather than improving the actual design.
 *   **Spaghetti RTL:** Agents may generate hyper-optimized but completely obfuscated "sea of gates" RTL. This prevents human engineers from performing manual ECOs (Engineering Change Orders). Evaluators must score *Structural Legibility* (cyclomatic complexity, parameterizable `generate` blocks over hardcoded points) and penalize obfuscation.
 
@@ -264,6 +280,14 @@ Future systems will deploy specialized agent swarms (e.g., a Generator agent and
 *   **Verifier Red-Teaming (Fault Injection):** Evaluate the critic/verifier agent by explicitly injecting known, subtle RTL bugs (e.g., missing default cases in state machines, combinational loops). Measure the verifier's recall in catching these before they cascade to the physical synthesis stage.
 *   **Cyclic Degeneration Tracking:** Quantify \"feedback loop saturation\" where actor-critic agent pairs get trapped in infinite edit-compile-test cycles. Benchmarks must track context window exhaustion, prompt token inflation rates, and edit-distance decay to enforce bounded retry limits.
 
+::: {.callout-war-story title="The Infinite Loop of the Automated CI/CD"}
+**The claim:** Two agentic systems, a Generator and a Verifier, can autonomously close RTL bugs without human intervention.
+
+**The gap:** Over a weekend, an automated CI/CD actor-critic agent pair burned thousands of dollars in cloud compute because it got trapped in an infinite loop. The Generator fixed a simple Verilator lint error by renaming a signal, which immediately triggered a formal equivalence failure. The Verifier demanded a fix, so the Generator reverted the change, re-introducing the lint error. The agents repeated this endless cycle for 48 hours.
+
+**The lesson:** Multi-agent systems without cyclic degeneration tracking and strict retry limits will happily convert simple logical conflicts into catastrophic cloud billing events.
+:::
+
 ### Tapeout-to-Tapeout Transfer
 
 Real engineering is lifelong. Evaluation must shift from zero-shot sandboxes to testing *Continual Learning*.
@@ -275,7 +299,7 @@ Real engineering is lifelong. Evaluation must shift from zero-shot sandboxes to 
 Evaluating solely on nominal PPA and DRCs strips away margins, creating a brittle "glass architecture."
 *   **MCMM and Yield Collapse:** An agent optimizing for nominal PPA will aggressively strip away all physical margins. These designs might close timing in a typical corner simulator but fail catastrophically across Multi-Corner Multi-Mode (MCMM) analysis due to Process, Voltage, and Temperature (PVT) variations. Benchmarks must evaluate the *Yield Collapse Frontier*.
 *   **Multi-Physics Co-Optimization (MPCO):** In 3D-ICs, constraints span entirely different physics domains. An agent might achieve massive IPC gains by placing two high-activity blocks adjacent to each other, creating a catastrophic thermal hotspot that melts the chip. Benchmarks must evaluate Cross-Domain Navigation (e.g., Ansys RedHawk IR-drop logs vs. OpenROAD STA logs).
-*   **Verification-Friendly RTL:** Generative AI often produces "alien" RTL with entangled state machines that cause catastrophic state-space explosions in Formal Verification. If an agent's design takes a formal solver 100x longer to prove than human-written RTL, it has just shifted the Simulator Tax into an unpayable *Verification Tax*. Evaluators must measure *Proof Convergence Latency* for formal tools, and separately ensure the emitted RTL avoids structural loops that break manufacturing testability constraints (DFT compliance).
+*   **Verification-Friendly RTL:** Generative AI often produces "alien" RTL with entangled state machines that cause catastrophic state-space explosions in Formal Verification [@Smith2023FormalAI]. If an agent's design takes a formal solver 100x longer to prove than human-written RTL, it has just shifted the Simulator Tax into an unpayable *Verification Tax*. Evaluators must measure *Proof Convergence Latency* for formal tools, and separately ensure the emitted RTL avoids structural loops that break manufacturing testability constraints (DFT compliance).
 
 ## Call to Action: The ArchPerf Consortium
 
